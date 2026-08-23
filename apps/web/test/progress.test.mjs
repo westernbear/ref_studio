@@ -43,7 +43,7 @@ describe("compiler progress projection", () => {
     expect(
       liveJobStatusError({ error: { code: "CSRF_ORIGIN_INVALID" } }, 403),
     ).toBe("Live job status is unavailable: CSRF_ORIGIN_INVALID.");
-    expect(liveJobStatusError({}, 502)).toBe(
+    expect(liveJobStatusError(null, 502)).toBe(
       "Live job status is unavailable: HTTP_502.",
     );
   });

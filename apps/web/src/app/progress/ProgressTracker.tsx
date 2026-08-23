@@ -53,7 +53,7 @@ export function ProgressTracker({ initialJob }: Props) {
           `/api/v1/jobs/${encodeURIComponent(initialJob.id)}`,
           { credentials: "include" },
         );
-        const body: unknown = await response.json();
+        const body: unknown = await response.json().catch(() => null);
         if (!response.ok) {
           setError(liveJobStatusError(body, response.status));
           return;
