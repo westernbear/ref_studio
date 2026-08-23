@@ -86,6 +86,8 @@ const PrepareResult = z
       .strict(),
   })
   .strict();
+const DELIVERY_FPS = 30;
+const DELIVERY_FRAME_COUNT = 120;
 const RenderReport = z
   .object({
     status: z.literal("PASS"),
@@ -131,16 +133,19 @@ const RenderReport = z
         durationMs: z.literal(4_000),
         width: z.literal(1080),
         height: z.literal(1920),
-        frameCount: z.number().int().min(96).max(240),
-        fps: z.union([
-          z.literal(24),
-          z.literal(25),
-          z.literal(30),
-          z.literal(50),
-          z.literal(60),
-        ]),
+        frameCount: z.literal(DELIVERY_FRAME_COUNT),
+        fps: z.literal(DELIVERY_FPS),
         videoCodec: z.literal("h264"),
+        videoProfile: z.literal("High"),
+        videoLevel: z.literal("4.1"),
+        pixelFormat: z.literal("yuv420p"),
+        colorSpace: z.literal("bt709"),
+        gopSize: z.literal(60),
+        closedGop: z.literal(true),
+        fastStart: z.literal(true),
         audioCodec: z.literal("aac"),
+        audioProfile: z.literal("LC"),
+        audioTargetBitRate: z.literal(192_000),
         audioChannels: z.literal(2),
         audioSampleRateHz: z.literal(48_000),
       })
@@ -322,9 +327,7 @@ const finishWorkflowJob = (
     parsed.data.report.attemptId !== attemptId ||
     parsed.data.report.outputSha256 !== artifact.sha256 ||
     parsed.data.report.outputBytes !== artifact.sizeBytes ||
-    parsed.data.report.qc.fps !== job.sourceFps ||
-    parsed.data.report.qc.frameCount !== job.sourceFps * 4 ||
-    parsed.data.report.runtime.frameSha256.length !== job.sourceFps * 4 ||
+    parsed.data.report.runtime.frameSha256.length !== DELIVERY_FRAME_COUNT ||
     parsed.data.report.runtime.renderer !== job.runtimePreflight?.renderer ||
     new Set(parsed.data.report.runtime.passIds).size !==
       parsed.data.report.runtime.passIds.length
@@ -337,8 +340,8 @@ const finishWorkflowJob = (
     phase: "render",
     stage: "delivery-qc",
     fraction: 1,
-    framesProcessed: job.sourceFps * 4,
-    framesTotal: job.sourceFps * 4,
+    framesProcessed: DELIVERY_FRAME_COUNT,
+    framesTotal: DELIVERY_FRAME_COUNT,
   };
   return true;
 };

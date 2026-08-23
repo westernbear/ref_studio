@@ -74,7 +74,16 @@ const renderReport = (job: Job, attemptId: string, bytes: Uint8Array) => ({
     frameCount: 120,
     fps: 30,
     videoCodec: "h264",
+    videoProfile: "High",
+    videoLevel: "4.1",
+    pixelFormat: "yuv420p",
+    colorSpace: "bt709",
+    gopSize: 60,
+    closedGop: true,
+    fastStart: true,
     audioCodec: "aac",
+    audioProfile: "LC",
+    audioTargetBitRate: 192_000,
     audioChannels: 2,
     audioSampleRateHz: 48_000,
   },
@@ -471,6 +480,8 @@ describe("worker registration API", () => {
   it("Given a rendered MP4, when the worker uploads and completes it, then stages it for T5 without publishing", async () => {
     const workflow = createCreatorWorkflowStore();
     const job = addJob(workflow, "QUEUED");
+    job.sourceFps = 25;
+    job.frameCount = 100;
     job.evidence = { state: "MAPPED" };
     const fixture = appFixture(workflow);
     await fixture.app.inject({

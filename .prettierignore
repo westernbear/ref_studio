@@ -13,6 +13,8 @@ node_modules/**
 apps/*/.next/
 apps/*/dist/
 apps/*/test-results/
+apps/worker/compiler/.venv/
+examples/heygen-reference-project/output/
 packages/*/dist/
 compiler/.venv/
 runtime/hydrated/

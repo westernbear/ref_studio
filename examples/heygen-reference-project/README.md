@@ -7,3 +7,5 @@ The SaaS pilot accepts one ordinary MP4 source and compiles one exact four-secon
 The selected interval is `[0, 120)` at 30 fps. The worker normalized all 120 source frames, ran the pinned vision compiler, generated evidence and SceneIR, executed the design's 11 ordered DOM/WebGL2 passes for every frame in Chrome for Testing 151.0.7922.138 with SwiftShader and external networking blocked, then assembled and probed a four-second H.264/AAC delivery.
 
 `project.json` fixes the input contract. `result.json` records the compact verification receipt. The full local evidence bundle, logs, preview, and delivery are written to `output/` and intentionally excluded from Git because they contain generated media and per-frame evidence.
+
+The user-provided source archive also remains outside Git. Reproduction requires a local `heygen_handoff.zip` whose selected member matches the SHA-256 in `project.json`; the worker rejects any other bytes before processing.
