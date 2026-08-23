@@ -1,5 +1,6 @@
 services:
   runtime:
+    profiles: ["verify"]
     build:
       context: .
       dockerfile: Dockerfile
@@ -8,10 +9,12 @@ services:
     image: reference-video-studio-runtime:todo1
     network_mode: none
   runtime-preflight:
+    profiles: ["verify"]
     image: reference-video-studio-runtime:todo1
     network_mode: none
     command: ["node", "/opt/rvs/preflight.mjs"]
   compiler:
+    profiles: ["verify"]
     build:
       context: .
       dockerfile: Dockerfile
@@ -21,19 +24,37 @@ services:
     network_mode: none
     command: ["python3.12", "-m", "compiler.preflight"]
   web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+      provenance: false
     image: reference-video-studio-runtime:todo1
     networks: [appnet, default]
+    environment:
+      CI: "true"
+      PNPM_CONFIG_CONFIRM_MODULES_PURGE: "false"
     working_dir: /workspace/apps/web
     volumes:
       - .:/workspace
+      - web_pnpm_store:/workspace/.pnpm-store
+      - web_root_node_modules:/workspace/node_modules
+      - web_node_modules:/workspace/apps/web/node_modules
     ports:
       - "127.0.0.1:3100:3100"
-    command: ["sh", "-lc", "pnpm install --frozen-lockfile && pnpm --filter @rvs/web build && pnpm --filter @rvs/web exec next start --hostname 0.0.0.0 --port 3100"]
+    command:
+      [
+        "sh",
+        "-lc",
+        "pnpm --filter @rvs/web install --frozen-lockfile && pnpm --filter @rvs/web build && pnpm --filter @rvs/web exec next start --hostname 0.0.0.0 --port 3100",
+      ]
   api:
+    profiles: ["verify"]
     image: reference-video-studio-runtime:todo1
     networks: [appnet]
     command: ["node", "--version"]
   qa:
+    profiles: ["qa"]
     image: reference-video-studio-runtime:todo1
     network_mode: none
     environment:
@@ -48,6 +69,7 @@ services:
     command: ["pnpm", "test:security"]
 
   qa-audit-egress:
+    profiles: ["verify"]
     image: reference-video-studio-runtime:todo1
     working_dir: /workspace
     volumes:
@@ -58,3 +80,8 @@ services:
 networks:
   appnet:
     internal: true
+
+volumes:
+  web_node_modules:
+  web_pnpm_store:
+  web_root_node_modules:
