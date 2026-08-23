@@ -1,4 +1,11 @@
 import { defineConfig } from "@playwright/test";
+import { existsSync } from "node:fs";
+
+const chromePath =
+  process.env.PLAYWRIGHT_CHROME_PATH ??
+  (existsSync("/opt/chrome/chrome")
+    ? "/opt/chrome/chrome"
+    : "/usr/bin/google-chrome");
 
 export default defineConfig({
   testDir: "./test",
@@ -6,10 +13,10 @@ export default defineConfig({
   webServer: {
     command: "pnpm e2e:server",
     url: "http://127.0.0.1:3100/",
-    reuseExistingServer: false,
+    reuseExistingServer: process.env.PLAYWRIGHT_REUSE_SERVER === "1",
   },
   use: {
     baseURL: "http://127.0.0.1:3100",
-    launchOptions: { executablePath: "/usr/bin/google-chrome" },
+    launchOptions: { executablePath: chromePath },
   },
 });

@@ -8,6 +8,7 @@ const screens = [
   ["ref_studio_landing", "/"],
   ["admin_sign_in", "/admin/sign-in"],
   ["upload_validation", "/projects/new"],
+  ["progress", "/progress"],
   ["scene_review", "/scene-review"],
   ["admin_jobs", "/admin/jobs"],
   ["admin_tenants", "/admin/tenants"],

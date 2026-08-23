@@ -201,9 +201,7 @@ const jobColumns: readonly Column[] = [
   {
     label: "Job",
     value: (row) => (
-      <a
-        href={`/scene-review?jobId=${encodeURIComponent(text(field(row, "id")))}`}
-      >
+      <a href={`/progress?jobId=${encodeURIComponent(text(field(row, "id")))}`}>
         {text(field(row, "id"))}
       </a>
     ),

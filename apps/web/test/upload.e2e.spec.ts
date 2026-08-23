@@ -17,9 +17,7 @@ test.describe("upload validation @upload", () => {
     ).toBeVisible();
   });
 
-  test("routes to scene review after compiler job creation", async ({
-    page,
-  }) => {
+  test("routes to progress after compiler job creation", async ({ page }) => {
     await page.route("**/api/v1/**", async (route) => {
       const url = new URL(route.request().url());
       if (url.pathname === "/api/v1/uploads") {
@@ -70,6 +68,6 @@ test.describe("upload validation @upload", () => {
     });
     await expect(page.getByText("Accepted normalized media.")).toBeVisible();
     await page.getByRole("button", { name: /Proceed to Compiler/ }).click();
-    await expect(page).toHaveURL(/\/scene-review\?jobId=job_redirect$/u);
+    await expect(page).toHaveURL(/\/progress\?jobId=job_redirect$/u);
   });
 });

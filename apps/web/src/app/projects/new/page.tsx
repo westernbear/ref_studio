@@ -164,9 +164,9 @@ export default function NewProjectPage() {
       );
       setJobId(createdJobId);
       setState("created");
-      setReason("Compiler job created. Your source is ready for review.");
+      setReason("Compiler job created. Opening progress.");
       window.location.assign(
-        `/scene-review?jobId=${encodeURIComponent(createdJobId)}`,
+        `/progress?jobId=${encodeURIComponent(createdJobId)}`,
       );
     } catch (error) {
       setState("error");
