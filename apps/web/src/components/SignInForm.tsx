@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import type { ComponentProps } from "react";
+import { BrandLogo } from "./Shells";
 
 type SignInMode = "creator" | "admin";
 type FormSubmitEvent = Parameters<
@@ -81,9 +82,7 @@ export function SignInForm({ mode }: { readonly mode: SignInMode }) {
     <main className="auth-page" aria-labelledby="sign-in-title">
       <section className="auth-content">
         <header className="auth-heading">
-          <span className="auth-mark" aria-hidden="true">
-            ⌁
-          </span>
+          <BrandLogo />
           <h1 id="sign-in-title">CREATOR STUDIO</h1>
           <p>
             {isAdmin
@@ -155,32 +154,10 @@ export function SignInForm({ mode }: { readonly mode: SignInMode }) {
               {busy ? "Signing in..." : "Sign in"}
             </button>
           </form>
-          <div className="auth-support">
-            <a data-control-id="admin_sign_in:5" href="/support">
-              Forgot Secret?
-            </a>
-            <a data-control-id="admin_sign_in:6" href="/support">
-              Support
-            </a>
-          </div>
         </section>
       </section>
       <footer className="auth-footer">
         <span>© 2026 REFERENCE VIDEO STUDIO</span>
-        <nav aria-label="Legal and service links">
-          <a data-control-id="admin_sign_in:7" href="/privacy">
-            Privacy
-          </a>
-          <a data-control-id="admin_sign_in:8" href="/legal">
-            Legal
-          </a>
-          <a data-control-id="admin_sign_in:9" href="/api">
-            API Status
-          </a>
-          <a data-control-id="admin_sign_in:10" href="/support">
-            Security
-          </a>
-        </nav>
       </footer>
     </main>
   );

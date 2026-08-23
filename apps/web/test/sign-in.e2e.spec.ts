@@ -19,12 +19,8 @@ test.describe("shared sign-in", () => {
       page.getByRole("heading", { name: "CREATOR STUDIO" }),
     ).toBeVisible();
     await expect(
-      page.getByRole("link", { name: "Forgot Secret?" }),
-    ).toHaveAttribute("href", "/support");
-    await expect(page.getByRole("link", { name: "Privacy" })).toHaveAttribute(
-      "href",
-      "/privacy",
-    );
+      page.locator('a[href="/support"], a[href="/privacy"]'),
+    ).toHaveCount(0);
 
     await page.getByRole("button", { name: "Sign in" }).click();
     await expect(identifier).toBeFocused();
@@ -47,9 +43,6 @@ test.describe("shared sign-in", () => {
   }) => {
     await page.goto("/admin/sign-in?returnTo=/admin/tenants");
     await expect(page.getByText("Admin Authorization Required")).toBeVisible();
-    await expect(page.getByRole("link", { name: "Security" })).toHaveAttribute(
-      "href",
-      "/support",
-    );
+    await expect(page.locator('a[href="/support"]')).toHaveCount(0);
   });
 });

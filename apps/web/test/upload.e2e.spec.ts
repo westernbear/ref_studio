@@ -9,9 +9,19 @@ test.describe("upload validation @upload", () => {
     await expect(
       page.getByRole("button", { name: /Proceed to Compiler/ }),
     ).toBeDisabled();
-    await expect(
-      page.locator('[data-control-id^="upload_validation:"]'),
-    ).toHaveCount(11);
+    const controlIds = await page
+      .locator('[data-control-id^="upload_validation:"]')
+      .evaluateAll((controls) =>
+        controls.map((control) => control.getAttribute("data-control-id")),
+      );
+    expect(controlIds).toEqual([
+      "upload_validation:1",
+      "upload_validation:2",
+      "upload_validation:5",
+      "upload_validation:8",
+      "upload_validation:9",
+      "upload_validation:13",
+    ]);
     await expect(
       page.getByText("Select an MP4 source to begin."),
     ).toBeVisible();

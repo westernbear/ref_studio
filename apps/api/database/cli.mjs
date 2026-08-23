@@ -23,41 +23,37 @@ if (command === "verify") {
   seed(db, seedEnv);
   const integrity = db.pragma("integrity_check", { simple: true });
   if (integrity !== "ok") throw new Error(`INTEGRITY_CHECK_${integrity}`);
+  const foreignKeyErrors = db.pragma("foreign_key_check");
+  if (foreignKeyErrors.length > 0) throw new Error("FOREIGN_KEY_CHECK_FAILED");
   const exists = (sql, ...params) => db.prepare(sql).get(...params);
   for (const [table, id] of [
     ["tenants", "ten_platform"],
-    ["tenants", "ten_stitch_demo"],
     ["users", "usr_platform"],
-    ["users", "usr_owner"],
-    ["users", "usr_reviewer"],
     ["credentials", "cred_platform_password"],
-    ["credentials", "cred_owner_password"],
-    ["credentials", "cred_reviewer_password"],
-    ["reviewer_assignments", "asn_release_t6"],
   ])
     if (!exists(`SELECT 1 FROM ${table} WHERE id=?`, id))
       throw new Error(`SEED_MISSING_${table}_${id}`);
   if (
-    !exists("SELECT 1 FROM tenant_quotas WHERE tenant_id=?", "ten_stitch_demo")
-  )
-    throw new Error("SEED_MISSING_tenant_quotas_ten_stitch_demo");
-  for (const [tenantId, userId, role] of [
-    ["ten_platform", "usr_platform", "SUPER_ADMIN"],
-    ["ten_stitch_demo", "usr_owner", "OWNER"],
-    ["ten_stitch_demo", "usr_reviewer", "DESIGNATED_REVIEWER"],
-  ])
-    if (
-      !exists(
-        "SELECT 1 FROM tenant_memberships WHERE tenant_id=? AND user_id=? AND role=?",
-        tenantId,
-        userId,
-        role,
-      )
+    !exists(
+      "SELECT 1 FROM tenant_memberships WHERE tenant_id=? AND user_id=? AND role=?",
+      "ten_platform",
+      "usr_platform",
+      "SUPER_ADMIN",
     )
-      throw new Error(`SEED_MISSING_tenant_memberships_${tenantId}_${userId}`);
+  )
+    throw new Error(
+      "SEED_MISSING_tenant_memberships_ten_platform_usr_platform",
+    );
+  if (
+    exists(
+      "SELECT 1 FROM tenants WHERE id='ten_stitch_demo' UNION ALL SELECT 1 FROM users WHERE id IN ('usr_owner','usr_reviewer')",
+    )
+  )
+    throw new Error("DEMO_SEED_PRESENT");
   console.log(
     JSON.stringify({
       integrity,
+      foreignKeysValid: true,
       seeded: {
         tenants: db.prepare("SELECT count(*) AS count FROM tenants").get()
           .count,

@@ -79,9 +79,6 @@ importers:
 
   apps/worker:
     dependencies:
-      better-sqlite3:
-        specifier: 12.2.0
-        version: 12.2.0
       zod:
         specifier: 4.1.5
         version: 4.1.5

@@ -2,12 +2,18 @@ import { describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { buildAuthApp } from "./app.js";
 import { hashBearer, type Assignment, type AuthStore } from "./auth.js";
-import { createCreatorWorkflowStore } from "./creator-workflow.js";
+import {
+  createCreatorWorkflowStore,
+  RELEASE_BASELINE_DIGEST,
+  RUNTIME_DIGEST,
+  type Job,
+} from "./creator-workflow.js";
 import { createReviewStore } from "./reviews.js";
 
 const setup = (): {
   readonly app: FastifyInstance;
   readonly reviews: ReturnType<typeof createReviewStore>;
+  readonly workflow: ReturnType<typeof createCreatorWorkflowStore>;
 } => {
   const assignments: Assignment[] = ["T1", "T2", "T3", "T4", "T5"].map(
     (gate) => ({
@@ -70,12 +76,12 @@ const setup = (): {
     audit: () => undefined,
   };
   const workflow = createCreatorWorkflowStore();
-  const job = {
+  const job: Job = {
     id: "job_gate",
     tenantId: "ten_a",
     creatorId: "server",
     uploadId: "upl_a",
-    state: "QUEUED" as const,
+    state: "READY" as const,
     attempt: 1,
     etag: '"etag"',
     createdAt: "2026-01-01T00:00:00.000Z",
@@ -83,20 +89,77 @@ const setup = (): {
     irDigest: "ir-1",
     evidenceDigest: "ev-1",
     approved: false,
+    startFrame: 0,
+    sourceFps: 30,
     frameCount: 120,
+    evidence: { state: "MAPPED" },
+    runtimePreflight: {
+      status: "PASS",
+      chromiumVersion: "151.0.7922.138",
+      renderer: "ANGLE SwiftShader",
+      fontReady: true,
+      webgl2: true,
+      networkPolicy: "external-blocked",
+      repeatedFrameByteIdentity: true,
+      ffmpeg: true,
+      ffprobe: true,
+      compilerModels: true,
+      runtimeDigest: RUNTIME_DIGEST,
+    },
+    progress: null,
     artifact: null,
   };
   workflow.jobs.set(job.id, job);
+  workflow.previews.set(job.id, {
+    id: "preview-gate",
+    jobId: job.id,
+    tenantId: job.tenantId,
+    kind: "preview",
+    filename: `${job.id}-preview.mp4`,
+    contentType: "video/mp4",
+    bytes: Uint8Array.from([4, 5, 6]),
+    sha256: "b".repeat(64),
+    sizeBytes: 3,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    expiresAt: "2026-01-02T00:00:00.000Z",
+    report: null,
+  });
   const reviews = createReviewStore();
+  const uploads = {
+    uploads: new Map(),
+    cas: new Map(),
+    casByTenantDigest: new Map(),
+    now: () => 1_000,
+  };
   const app = buildAuthApp({
     store: auth,
     expectedOrigin: "https://studio.invalid",
     introspectSecret: "secret",
     creatorWorkflow: workflow,
+    uploads,
     reviews,
     now: () => 1_000,
   });
-  return { app, reviews };
+  return { app, reviews, workflow };
+};
+const stageT5 = (state: ReturnType<typeof setup>): void => {
+  const job = state.workflow.jobs.get("job_gate");
+  if (!job) throw new Error("test job missing");
+  job.state = "AWAITING_T5";
+  state.workflow.stagedArtifacts.set(job.id, {
+    id: "artifact-T5",
+    jobId: job.id,
+    tenantId: job.tenantId,
+    kind: "delivery",
+    filename: `${job.id}-delivery.mp4`,
+    contentType: "video/mp4",
+    bytes: Uint8Array.from([1, 2, 3]),
+    sha256: "a".repeat(64),
+    sizeBytes: 3,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    expiresAt: "2026-01-02T00:00:00.000Z",
+    report: { status: "PASS" },
+  });
 };
 const body = (
   gate: string,
@@ -111,10 +174,10 @@ const body = (
   predecessorReceiptId,
   evidenceDigest,
   irDigest: "ir-1",
-  runtimeDigest: "runtime-1",
-  releaseBaselineDigest: "release-1",
+  runtimeDigest: RUNTIME_DIGEST,
+  releaseBaselineDigest: RELEASE_BASELINE_DIGEST,
   reason: `review ${gate}`,
-  artifactRefs: [`artifact-${gate}`],
+  artifactRefs: [`artifact-${gate}`, "preview-gate"],
 });
 
 describe("designated gate receipts", () => {
@@ -123,6 +186,7 @@ describe("designated gate receipts", () => {
     let predecessor: string | null = null;
     const inject = state.app.inject.bind(state.app);
     for (const gate of ["T1", "T2", "T3", "T4", "T5"]) {
+      if (gate === "T5") stageT5(state);
       const response: { readonly statusCode: number; readonly body: string } =
         await inject({
           method: "POST",
@@ -143,6 +207,23 @@ describe("designated gate receipts", () => {
     expect(state.reviews.receipts.map((receipt) => receipt.sequence)).toEqual([
       1, 2, 3, 4, 5,
     ]);
+    const published = state.workflow.jobs.get("job_gate")?.artifact;
+    expect(published).toMatchObject({ id: "artifact-T5" });
+    expect(state.workflow.artifacts.get("artifact-T5")).toBeDefined();
+    const delivery = await state.app.inject({
+      method: "GET",
+      url: "/v1/jobs/job_gate/delivery-download",
+      headers: { authorization: "Bearer reviewer", "x-tenant-id": "ten_a" },
+    });
+    const report = await state.app.inject({
+      method: "GET",
+      url: "/v1/jobs/job_gate/report-download",
+      headers: { authorization: "Bearer reviewer", "x-tenant-id": "ten_a" },
+    });
+    expect(state.workflow.jobs.get("job_gate")?.state).toBe("COMPLETED");
+    expect(delivery.statusCode).toBe(200);
+    expect(delivery.rawPayload).toEqual(Buffer.from([1, 2, 3]));
+    expect(report.json()).toEqual({ status: "PASS" });
     await state.app.close();
   });
   it("rejects skipped predecessors, duplicate decisions, and changed evidence as stale", async () => {
@@ -221,11 +302,49 @@ describe("designated gate receipts", () => {
     expect(mutation.statusCode).toBe(404);
     await state.app.close();
   });
+  it("starts a new receipt chain for every retry attempt", async () => {
+    const state = setup();
+    const headers = {
+      authorization: "Bearer reviewer",
+      "x-tenant-id": "ten_a",
+    };
+    const first = await state.app.inject({
+      method: "POST",
+      url: "/v1/reviews",
+      headers,
+      payload: body("T1"),
+    });
+    const job = state.workflow.jobs.get("job_gate");
+    if (!job) throw new Error("test job missing");
+    job.attempt = 2;
+
+    const oldPredecessor = await state.app.inject({
+      method: "POST",
+      url: "/v1/reviews",
+      headers,
+      payload: {
+        ...body("T2", first.json().receipt.id),
+        attempt: 2,
+      },
+    });
+    const newT1 = await state.app.inject({
+      method: "POST",
+      url: "/v1/reviews",
+      headers,
+      payload: { ...body("T1"), attempt: 2 },
+    });
+
+    expect(oldPredecessor.json().error.code).toBe("INVALID_REQUEST");
+    expect(newT1.statusCode).toBe(201);
+    expect(newT1.json().receipt.attempt).toBe(2);
+    await state.app.close();
+  });
   it("allows release T6 only through release scope", async () => {
     const state = setup();
     let predecessor: string | null = null;
     const inject = state.app.inject.bind(state.app);
     for (const gate of ["T1", "T2", "T3", "T4", "T5"]) {
+      if (gate === "T5") stageT5(state);
       const response: {
         readonly statusCode: number;
         readonly body: string;

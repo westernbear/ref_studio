@@ -1,9 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { BrandLogo } from "../../components/Shells";
 import {
+  approvalGates,
   formatJobStamp,
   isTerminalJobState,
+  jobActivityPercent,
   jobProgressPercent,
   jobStatusCopy,
   liveJobStatusError,
@@ -34,12 +37,25 @@ const stageClass = (jobState: string, stageState: string): string => {
 export function ProgressTracker({ initialJob }: Props) {
   const [job, setJob] = useState(initialJob);
   const [error, setError] = useState("");
-  const percent = jobProgressPercent(job.state);
+  const percent = jobProgressPercent(job);
+  const activityPercent = jobActivityPercent(job);
   const shouldPoll = !isTerminalJobState(job.state);
+  const approvedGateCount = approvalGates.filter((gate) =>
+    job.approvedGates.includes(gate),
+  ).length;
   const logs = [
     ["JOB_STATE", job.state],
     ["ATTEMPT", String(job.attempt)],
-    ["CREATED_AT", formatJobStamp(job.createdAt)],
+    ["APPROVED_GATES", `${approvedGateCount}/${approvalGates.length}`],
+    ["WORKER_PHASE", job.progressPhase || "Pending"],
+    ["WORKER_STAGE", job.progressStage || "Pending"],
+    ["WORKER_FRACTION", displayPercent(activityPercent)],
+    [
+      "FRAMES",
+      job.framesProcessed === null || job.framesTotal === null
+        ? "Pending"
+        : `${job.framesProcessed}/${job.framesTotal}`,
+    ],
     ["UPDATED_AT", formatJobStamp(job.updatedAt)],
     ["ARTIFACT", job.artifactId || "Pending"],
   ];
@@ -80,8 +96,12 @@ export function ProgressTracker({ initialJob }: Props) {
     <div className="progress-shell">
       <header className="progress-topbar">
         <div className="progress-brand-row">
-          <a className="progress-wordmark" href="/workflow">
-            REF_STUDIO
+          <a
+            className="progress-wordmark brand-link"
+            href="/workflow"
+            aria-label="Reference Video Studio home"
+          >
+            <BrandLogo />
           </a>
           <span className="progress-divider" aria-hidden="true" />
           <span className="progress-kicker">
@@ -102,19 +122,35 @@ export function ProgressTracker({ initialJob }: Props) {
       </header>
       <main className="progress-main">
         <section className="progress-hero" aria-labelledby="progress-title">
-          <p className="eyebrow">Compiler Progress</p>
+          <p className="eyebrow">Approval Progress</p>
           <h1 id="progress-title">{displayPercent(percent)}</h1>
           <div
             className="progress-meter"
             role="progressbar"
-            aria-label="Compiler job progress"
+            aria-label="Approval gate progress"
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={Math.round(percent)}
           >
             <span style={{ inlineSize: `${percent}%` }} />
           </div>
-          <p>{jobStatusCopy(job.state)}</p>
+          <p>{jobStatusCopy(job)}</p>
+          <div className="progress-activity">
+            <div>
+              <span>Worker activity</span>
+              <strong>{displayPercent(activityPercent)}</strong>
+            </div>
+            <div
+              className="progress-meter progress-meter-secondary"
+              role="progressbar"
+              aria-label="Current worker activity"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(activityPercent)}
+            >
+              <span style={{ inlineSize: `${activityPercent}%` }} />
+            </div>
+          </div>
           {error ? <p className="progress-error">{error}</p> : null}
         </section>
         <section className="progress-grid" aria-label="Live compiler status">
@@ -130,7 +166,25 @@ export function ProgressTracker({ initialJob }: Props) {
             </dl>
           </div>
           <div className="progress-side-panel">
-            <h2>Pipeline</h2>
+            <h2>Approval gates</h2>
+            <ol>
+              {approvalGates.map((gate) => (
+                <li
+                  key={gate}
+                  className={
+                    job.approvedGates.includes(gate)
+                      ? "progress-step is-complete"
+                      : "progress-step"
+                  }
+                >
+                  <strong>{gate}</strong>
+                  <span>
+                    {job.approvedGates.includes(gate) ? "Approved" : "Pending"}
+                  </span>
+                </li>
+              ))}
+            </ol>
+            <h2 className="progress-subheading">Technical stages</h2>
             <ol>
               {progressStages.map((stage) => (
                 <li

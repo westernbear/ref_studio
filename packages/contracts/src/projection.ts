@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { JobStateSchema, PublicJobStates } from "./lifecycle.js";
+import { JobStateSchema, JobStates } from "./lifecycle.js";
 
 export const JobSchema = z.object({
   id: z.string(),
@@ -21,7 +21,7 @@ export const JobSchema = z.object({
 });
 export type Job = z.infer<typeof JobSchema>;
 export const CreatorJobProjectionSchema = JobSchema.extend({
-  state: z.enum(PublicJobStates),
+  state: z.enum(JobStates),
 }).omit({ creatorId: true });
 export const AdminJobProjectionSchema = JobSchema.extend({
   internal: z.object({
@@ -37,8 +37,7 @@ export function projectJob(
 ): CreatorJobProjection | AdminJobProjection {
   if (view === "ADMIN")
     return { ...job, internal: { deletionEpoch: 0, retryClass: null } };
-  if (!PublicJobStates.includes(job.state as (typeof PublicJobStates)[number]))
-    throw new Error("INTERNAL_ERROR");
+  if (!JobStates.includes(job.state)) throw new Error("INTERNAL_ERROR");
   return CreatorJobProjectionSchema.parse({
     id: job.id,
     tenantId: job.tenantId,

@@ -1,0 +1,34 @@
+DROP TRIGGER receipts_append_only_delete;
+DROP TRIGGER audit_append_only_delete;
+DROP TRIGGER authoring_ir_append_only_delete;
+DROP TRIGGER scene_ir_append_only_delete;
+DROP TRIGGER browser_spec_append_only_delete;
+
+DELETE FROM artifacts WHERE tenant_id = 'ten_stitch_demo';
+DELETE FROM receipts WHERE tenant_id = 'ten_stitch_demo';
+DELETE FROM reviews WHERE tenant_id = 'ten_stitch_demo';
+DELETE FROM job_leases WHERE tenant_id = 'ten_stitch_demo';
+DELETE FROM job_attempts WHERE tenant_id = 'ten_stitch_demo';
+DELETE FROM jobs WHERE tenant_id = 'ten_stitch_demo';
+DELETE FROM exports WHERE tenant_id = 'ten_stitch_demo';
+DELETE FROM uploads WHERE tenant_id = 'ten_stitch_demo';
+DELETE FROM cas_objects WHERE tenant_id = 'ten_stitch_demo';
+DELETE FROM sessions WHERE tenant_id = 'ten_stitch_demo' OR user_id IN ('usr_owner', 'usr_reviewer');
+DELETE FROM api_tokens WHERE tenant_id = 'ten_stitch_demo' OR user_id IN ('usr_owner', 'usr_reviewer');
+DELETE FROM audit_events WHERE tenant_id = 'ten_stitch_demo' OR actor_id IN ('usr_owner', 'usr_reviewer');
+DELETE FROM idempotency_keys WHERE tenant_id = 'ten_stitch_demo';
+DELETE FROM authoring_ir_versions WHERE tenant_id = 'ten_stitch_demo';
+DELETE FROM scene_ir_versions WHERE tenant_id = 'ten_stitch_demo';
+DELETE FROM browser_pass_spec_versions WHERE tenant_id = 'ten_stitch_demo';
+DELETE FROM reviewer_assignments WHERE tenant_id = 'ten_stitch_demo' OR reviewer_id IN ('usr_owner', 'usr_reviewer');
+DELETE FROM tenant_quotas WHERE tenant_id = 'ten_stitch_demo';
+DELETE FROM tenant_memberships WHERE tenant_id = 'ten_stitch_demo' OR user_id IN ('usr_owner', 'usr_reviewer');
+DELETE FROM credentials WHERE user_id IN ('usr_owner', 'usr_reviewer');
+DELETE FROM users WHERE id IN ('usr_owner', 'usr_reviewer');
+DELETE FROM tenants WHERE id = 'ten_stitch_demo';
+
+CREATE TRIGGER receipts_append_only_delete BEFORE DELETE ON receipts BEGIN SELECT RAISE(ABORT,'RECEIPT_APPEND_ONLY'); END;
+CREATE TRIGGER audit_append_only_delete BEFORE DELETE ON audit_events BEGIN SELECT RAISE(ABORT,'AUDIT_APPEND_ONLY'); END;
+CREATE TRIGGER authoring_ir_append_only_delete BEFORE DELETE ON authoring_ir_versions BEGIN SELECT RAISE(ABORT,'IR_APPEND_ONLY'); END;
+CREATE TRIGGER scene_ir_append_only_delete BEFORE DELETE ON scene_ir_versions BEGIN SELECT RAISE(ABORT,'IR_APPEND_ONLY'); END;
+CREATE TRIGGER browser_spec_append_only_delete BEFORE DELETE ON browser_pass_spec_versions BEGIN SELECT RAISE(ABORT,'IR_APPEND_ONLY'); END;

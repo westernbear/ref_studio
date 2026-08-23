@@ -1,5 +1,5 @@
-import { Landing } from "../components/Landing";
+import { redirect } from "next/navigation";
 
 export default function HomePage() {
-  return <Landing />;
+  redirect("/workflow");
 }

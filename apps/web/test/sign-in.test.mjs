@@ -1,11 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import {
-  forwardedSetCookie,
-  internalApiUrl,
-  signInProxyUrl,
-} from "../src/app/api/auth-proxy";
+import { forwardedSetCookie, internalApiUrl } from "../src/app/api/auth-proxy";
 
 const root = resolve(import.meta.dirname, "../../..");
 const source = readFileSync(
@@ -53,14 +49,14 @@ describe("shared sign-in contract", () => {
     delete process.env.NEXT_PUBLIC_API_URL;
     process.env.RVS_INTERNAL_API_URL = "http://api:3200";
 
-    expect(signInProxyUrl("/admin/sign-in")).toBe(
+    expect(internalApiUrl("/admin/sign-in")).toBe(
       "http://api:3200/admin/sign-in",
     );
-    expect(signInProxyUrl("/sign-in")).toBe("http://api:3200/sign-in");
+    expect(internalApiUrl("/sign-in")).toBe("http://api:3200/sign-in");
 
     process.env.RVS_INTERNAL_API_URL = "";
     process.env.NEXT_PUBLIC_API_URL = "";
-    expect(signInProxyUrl("/sign-in")).toBe("http://127.0.0.1:3200/sign-in");
+    expect(internalApiUrl("/sign-in")).toBe("http://127.0.0.1:3200/sign-in");
     expect(internalApiUrl("/v1/uploads", "?limit=1")).toBe(
       "http://127.0.0.1:3200/v1/uploads?limit=1",
     );

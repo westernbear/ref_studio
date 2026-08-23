@@ -1,13 +1,11 @@
 "use client";
 
+import Image from "next/image";
 import { useState, type ReactNode } from "react";
-import { Panel } from "./Primitives";
 
 const creatorLinks = [
   { name: "Workflow", href: "/workflow" },
   { name: "New Project", href: "/projects/new" },
-  { name: "Docs", href: "/docs" },
-  { name: "Support", href: "/support" },
 ] as const;
 const adminLinks = [
   { name: "Dashboard", href: "/admin" },
@@ -18,6 +16,24 @@ const adminLinks = [
   { name: "Billing", href: "/admin/billing" },
   { name: "Audit", href: "/admin/audit" },
 ] as const;
+
+export function BrandLogo({ ops = false }: { readonly ops?: boolean }) {
+  return (
+    <span className="brand-logo" data-testid="brand-logo">
+      <span className="brand-logo-frame">
+        <Image
+          className="brand-logo-image"
+          src="/logo.png"
+          alt=""
+          width={1024}
+          height={1024}
+          sizes="128px"
+        />
+      </span>
+      {ops ? <span className="brand-logo-scope">/ OPS</span> : null}
+    </span>
+  );
+}
 
 function Navigation({
   links,
@@ -39,8 +55,12 @@ export function CreatorShell({ children }: { readonly children: ReactNode }) {
   return (
     <div className="shell shell-creator">
       <header>
-        <a href="/workflow" aria-label="Reference Video Studio home">
-          RVS
+        <a
+          className="brand-link"
+          href="/workflow"
+          aria-label="Reference Video Studio home"
+        >
+          <BrandLogo />
         </a>
         <Navigation links={creatorLinks} />
       </header>
@@ -51,6 +71,10 @@ export function CreatorShell({ children }: { readonly children: ReactNode }) {
 
 export function AdminShell({ children }: { readonly children: ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const logout = async () => {
+    await fetch("/api/logout", { method: "POST", credentials: "include" });
+    window.location.assign("/admin/sign-in");
+  };
   return (
     <div className="shell shell-admin">
       <button
@@ -66,36 +90,23 @@ export function AdminShell({ children }: { readonly children: ReactNode }) {
         id="admin-navigation"
         className={menuOpen ? "admin-navigation-open" : ""}
       >
-        <a href="/admin" aria-label="Reference Video Studio admin home">
-          RVS / OPS
+        <a
+          className="brand-link"
+          href="/admin"
+          aria-label="Reference Video Studio admin home"
+        >
+          <BrandLogo ops />
         </a>
         <p className="admin-scope">Platform scope · Operations</p>
         <Navigation links={adminLinks} />
         <div className="admin-utility">
           <a href="/projects/new">New Project</a>
-          <a href="/docs">Docs / Support</a>
-          <button type="button" onClick={() => setMenuOpen(false)}>
+          <button type="button" onClick={() => void logout()}>
             Log out
           </button>
         </div>
       </aside>
       <main>{children}</main>
     </div>
-  );
-}
-
-export function EmptySurface({
-  title,
-  description,
-}: {
-  readonly title: string;
-  readonly description: string;
-  readonly children?: ReactNode;
-}) {
-  return (
-    <Panel aria-labelledby="surface-title">
-      <h1 id="surface-title">{title}</h1>
-      <p>{description}</p>
-    </Panel>
   );
 }

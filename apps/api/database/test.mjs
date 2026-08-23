@@ -56,7 +56,7 @@ try {
 const legacyDb = new Database(":memory:");
 legacyDb.pragma("foreign_keys = ON");
 legacyDb.exec(
-  "CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL); INSERT INTO schema_migrations VALUES (1, datetime('now')); CREATE TABLE tenants (id TEXT PRIMARY KEY); INSERT INTO tenants VALUES ('ten_legacy'); CREATE TABLE cas_objects (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, sha256 TEXT NOT NULL, content_type TEXT NOT NULL, size_bytes INTEGER NOT NULL CHECK (size_bytes >= 0), purpose TEXT NOT NULL, retention_until TEXT NOT NULL, UNIQUE (tenant_id,sha256), UNIQUE (tenant_id,id), FOREIGN KEY (tenant_id) REFERENCES tenants(id))",
+  "CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL); INSERT INTO schema_migrations VALUES (1, datetime('now')), (3, datetime('now')); CREATE TABLE tenants (id TEXT PRIMARY KEY); INSERT INTO tenants VALUES ('ten_legacy'); CREATE TABLE cas_objects (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, sha256 TEXT NOT NULL, content_type TEXT NOT NULL, size_bytes INTEGER NOT NULL CHECK (size_bytes >= 0), purpose TEXT NOT NULL, retention_until TEXT NOT NULL, UNIQUE (tenant_id,sha256), UNIQUE (tenant_id,id), FOREIGN KEY (tenant_id) REFERENCES tenants(id))",
 );
 migrate(legacyDb);
 legacyDb.exec(
@@ -68,31 +68,42 @@ const db = new Database(":memory:");
 db.pragma("foreign_keys = ON");
 migrate(db);
 seed(db);
-db.exec(
-  "INSERT INTO uploads VALUES ('upl_a','ten_stitch_demo','a.mp4','video/mp4',1,'ACCEPTED',NULL,'2026-08-22T00:00:00Z','2026-08-23T00:00:00Z')",
+assert.deepEqual(
+  db.prepare("SELECT id FROM tenants ORDER BY id").pluck().all(),
+  ["ten_platform"],
+);
+assert.equal(
+  db.prepare("SELECT count(*) FROM reviewer_assignments").pluck().get(),
+  0,
 );
 db.exec(
-  "INSERT INTO cas_objects VALUES ('cas_dup_a','ten_stitch_demo','same-digest','video/mp4',1,'source','2026-08-23T00:00:00Z'); INSERT INTO cas_objects VALUES ('cas_dup_b','ten_stitch_demo','same-digest','video/mp4',1,'source','2026-08-23T00:00:00Z')",
+  "INSERT INTO tenants VALUES ('ten_test','Test Studio','ORGANIZATION','ACTIVE',0,'2026-08-22T00:00:00Z'); INSERT INTO users VALUES ('usr_owner','owner@example.test','Test Owner','2026-08-22T00:00:00Z'), ('usr_reviewer','reviewer@example.test','Test Reviewer','2026-08-22T00:00:00Z'); INSERT INTO tenant_memberships VALUES ('ten_test','usr_owner','OWNER','2026-08-22T00:00:00Z'), ('ten_test','usr_reviewer','DESIGNATED_REVIEWER','2026-08-22T00:00:00Z'); INSERT INTO reviewer_assignments VALUES ('asn_test_t1','ten_test','usr_reviewer','T1','TENANT','2026-08-22T00:00:00Z'), ('asn_test_t2','ten_test','usr_reviewer','T2','TENANT','2026-08-22T00:00:00Z'), ('asn_test_t3','ten_test','usr_reviewer','T3','TENANT','2026-08-22T00:00:00Z'), ('asn_test_t4','ten_test','usr_reviewer','T4','TENANT','2026-08-22T00:00:00Z'), ('asn_test_t5','ten_test','usr_reviewer','T5','TENANT','2026-08-22T00:00:00Z')",
 );
 db.exec(
-  "INSERT INTO jobs VALUES ('job_a','ten_stitch_demo','usr_owner','upl_a','scene_a','QUEUED',0,0,'2026-08-22T00:00:00Z')",
+  "INSERT INTO uploads VALUES ('upl_a','ten_test','a.mp4','video/mp4',1,'ACCEPTED',NULL,'2026-08-22T00:00:00Z','2026-08-23T00:00:00Z')",
 );
 db.exec(
-  "INSERT INTO job_attempts VALUES ('att_a','ten_stitch_demo','job_a',1,'QUEUED','2026-08-22T00:00:00Z')",
+  "INSERT INTO cas_objects VALUES ('cas_dup_a','ten_test','same-digest','video/mp4',1,'source','2026-08-23T00:00:00Z'); INSERT INTO cas_objects VALUES ('cas_dup_b','ten_test','same-digest','video/mp4',1,'source','2026-08-23T00:00:00Z')",
+);
+db.exec(
+  "INSERT INTO jobs VALUES ('job_a','ten_test','usr_owner','upl_a','scene_a','QUEUED',0,0,'2026-08-22T00:00:00Z')",
+);
+db.exec(
+  "INSERT INTO job_attempts VALUES ('att_a','ten_test','job_a',1,'QUEUED','2026-08-22T00:00:00Z')",
 );
 const rejection = (sql) => assert.throws(() => db.exec(sql));
 rejection(
-  "INSERT INTO cas_objects VALUES ('cas_x','ten_platform','x','video/mp4',1,'source','2026-08-23T00:00:00Z'); INSERT INTO uploads VALUES ('upl_x','ten_stitch_demo','x','video/mp4',1,'ACCEPTED','cas_x','2026-08-22T00:00:00Z','2026-08-23T00:00:00Z')",
+  "INSERT INTO cas_objects VALUES ('cas_x','ten_platform','x','video/mp4',1,'source','2026-08-23T00:00:00Z'); INSERT INTO uploads VALUES ('upl_x','ten_test','x','video/mp4',1,'ACCEPTED','cas_x','2026-08-22T00:00:00Z','2026-08-23T00:00:00Z')",
 );
 db.prepare(
-  "INSERT INTO receipts VALUES ('rcpt_a','ten_stitch_demo','job_a','att_a',1,'T1','PASS','usr_reviewer',NULL,'[]','2026-08-22T00:00:00Z')",
+  "INSERT INTO receipts VALUES ('rcpt_a','ten_test','job_a','att_a',1,'T1','PASS','usr_reviewer',NULL,'[]','2026-08-22T00:00:00Z')",
 ).run();
 rejection("UPDATE receipts SET decision='FAIL' WHERE id='rcpt_a'");
 rejection(
-  "UPDATE tenants SET deletion_epoch=1 WHERE id='ten_stitch_demo'; UPDATE tenants SET deletion_epoch=0 WHERE id='ten_stitch_demo'",
+  "UPDATE tenants SET deletion_epoch=1 WHERE id='ten_test'; UPDATE tenants SET deletion_epoch=0 WHERE id='ten_test'",
 );
 rejection(
-  "INSERT INTO receipts VALUES ('rcpt_b','ten_stitch_demo','job_a','att_a',1,'T2','PASS','usr_reviewer','rcpt_a','[]','2026-08-22T00:00:01Z')",
+  "INSERT INTO receipts VALUES ('rcpt_b','ten_test','job_a','att_a',1,'T2','PASS','usr_reviewer','rcpt_a','[]','2026-08-22T00:00:01Z')",
 );
 db.exec("BEGIN IMMEDIATE");
 const claim = db

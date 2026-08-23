@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
 const screens = [
-  ["landing", "/"],
+  ["workflow", "/workflow"],
   ["upload", "/projects/new"],
   ["sign-in", "/sign-in"],
   ["admin-sign-in", "/admin/sign-in"],

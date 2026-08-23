@@ -16,6 +16,7 @@ import {
   signIn,
   type AuthStore,
   type AuthFailure,
+  type Principal,
 } from "./auth.js";
 import {
   correlationId,
@@ -165,6 +166,11 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
           failure(reply, { code: "TENANT_BOUNDARY_BYPASS" });
           return;
         }
+        (
+          request as FastifyRequest & {
+            authenticatedPrincipal?: Principal;
+          }
+        ).authenticatedPrincipal = principal;
         request.headers["x-tenant-id"] = principal.tenantId;
         return;
       }
@@ -185,6 +191,9 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
         failure(reply, principal);
         return;
       }
+      (
+        request as FastifyRequest & { authenticatedPrincipal?: Principal }
+      ).authenticatedPrincipal = principal;
     }
   });
   const signInRoute = async (
@@ -489,7 +498,12 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
     );
   }
   if (options.creatorWorkflow && options.uploads)
-    registerCreatorWorkflow(app, options.creatorWorkflow, options.uploads);
+    registerCreatorWorkflow(
+      app,
+      options.creatorWorkflow,
+      options.uploads,
+      options.reviews,
+    );
   if (options.adminReads)
     registerAdminRead(
       app,
@@ -531,7 +545,13 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
       reply.send({ ok: true });
     });
   if (options.workers)
-    registerWorkers(app, options.workers, now, options.creatorWorkflow);
+    registerWorkers(
+      app,
+      options.workers,
+      now,
+      options.creatorWorkflow,
+      options.uploads,
+    );
   return app;
 }
 

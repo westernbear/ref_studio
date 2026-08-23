@@ -16,15 +16,6 @@ export const JobStates = [
 ] as const;
 export const JobStateSchema = z.enum(JobStates);
 export type JobState = z.infer<typeof JobStateSchema>;
-export const PublicJobStates = [
-  "QUEUED",
-  "PREPARING",
-  "RENDERING",
-  "COMPLETED",
-  "CANCELLED",
-  "FAILED",
-] as const;
-export type PublicJobState = (typeof PublicJobStates)[number];
 export const RetryClasses = [
   "TRANSIENT_WORKER",
   "TRANSIENT_UPLOAD",

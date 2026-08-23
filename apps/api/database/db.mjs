@@ -2,6 +2,7 @@ import fs from "node:fs";
 import { randomBytes, scryptSync } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseEnv } from "node:util";
 import Database from "better-sqlite3";
 
 const ADMIN_EMAIL = "RVS_INITIAL_ADMIN_EMAIL";
@@ -20,22 +21,10 @@ const hashPassword = (password, salt = randomBytes(16).toString("hex")) =>
 
 export const defaultDatabasePath = () => fileURLToPath(DEFAULT_DATABASE);
 
-const unquote = (value) =>
-  (value.startsWith('"') && value.endsWith('"')) ||
-  (value.startsWith("'") && value.endsWith("'"))
-    ? value.slice(1, -1)
-    : value;
-
 export function loadSeedEnv(file = ROOT_ENV, base = process.env) {
-  const env = {};
-  if (fs.existsSync(file)) {
-    for (const line of fs.readFileSync(file, "utf8").split(/\r?\n/u)) {
-      const match = line.match(
-        /^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/u,
-      );
-      if (match) env[match[1]] = unquote(match[2].trim());
-    }
-  }
+  const env = fs.existsSync(file)
+    ? parseEnv(fs.readFileSync(file, "utf8"))
+    : {};
   return { ...env, ...base };
 }
 
@@ -60,12 +49,13 @@ export function migrate(db) {
   const migrations = [
     [1, "./migrations/001_initial.sql", false],
     [2, "./migrations/002_allow_duplicate_cas.sql", true],
+    [3, "./migrations/003_remove_demo_seed.sql", true],
   ];
   for (const [version, file, disableForeignKeys] of migrations) {
     if (
-      db.prepare("SELECT 1 FROM schema_migrations WHERE version = ?").get(
-        version,
-      )
+      db
+        .prepare("SELECT 1 FROM schema_migrations WHERE version = ?")
+        .get(version)
     )
       continue;
     const migration = fs.readFileSync(new URL(file, import.meta.url), "utf8");

@@ -1,10 +1,13 @@
 import { createHash, randomBytes } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { z } from "zod";
 import {
   assertLegalTransition,
   type JobState,
 } from "../../../packages/contracts/src/lifecycle.js";
 import { IdempotencyStore, requestHash, safeEnvelope } from "./boundary.js";
+import type { Principal } from "./auth.js";
+import type { ReviewStore } from "./reviews.js";
 import type { UploadStore } from "./uploads.js";
 
 export type Job = {
@@ -20,12 +23,50 @@ export type Job = {
   irDigest: string;
   evidenceDigest: string;
   approved: boolean;
+  startFrame: number;
+  sourceFps: number;
   frameCount: number;
+  evidence: Record<string, unknown> | null;
+  runtimePreflight: RuntimePreflightEvidence | null;
+  progress: {
+    phase: "prepare" | "render";
+    stage: string;
+    fraction: number;
+    framesProcessed: number | null;
+    framesTotal: number | null;
+  } | null;
   artifact: {
     id: string;
     kind: "delivery" | "report";
     expiresAt: string;
   } | null;
+};
+export type RuntimePreflightEvidence = Readonly<{
+  status: "PASS";
+  chromiumVersion: "151.0.7922.138";
+  renderer: string;
+  fontReady: true;
+  webgl2: true;
+  networkPolicy: "external-blocked";
+  repeatedFrameByteIdentity: true;
+  ffmpeg: true;
+  ffprobe: true;
+  compilerModels: true;
+  runtimeDigest: string;
+}>;
+export type StoredArtifact = {
+  readonly id: string;
+  readonly jobId: string;
+  readonly tenantId: string;
+  readonly kind: "preview" | "delivery";
+  readonly filename: string;
+  readonly contentType: "video/mp4";
+  readonly bytes: Uint8Array;
+  readonly sha256: string;
+  readonly sizeBytes: number;
+  readonly createdAt: string;
+  readonly expiresAt: string;
+  report: Record<string, unknown> | null;
 };
 type Attempt = {
   id: string;
@@ -36,6 +77,9 @@ type Attempt = {
 export type CreatorWorkflowStore = {
   readonly jobs: Map<string, Job>;
   readonly attempts: Map<string, Attempt[]>;
+  readonly stagedArtifacts: Map<string, StoredArtifact>;
+  readonly previews: Map<string, StoredArtifact>;
+  readonly artifacts: Map<string, StoredArtifact>;
   readonly idempotency: IdempotencyStore;
   readonly now: () => number;
 };
@@ -44,6 +88,9 @@ export const createCreatorWorkflowStore = (
 ): CreatorWorkflowStore => ({
   jobs: new Map(),
   attempts: new Map(),
+  stagedArtifacts: new Map(),
+  previews: new Map(),
+  artifacts: new Map(),
   idempotency: new IdempotencyStore(),
   now: () => now,
 });
@@ -52,27 +99,85 @@ const id = (prefix: string): string =>
   `${prefix}_${randomBytes(12).toString("base64url")}`;
 const digest = (value: unknown): string =>
   createHash("sha256").update(JSON.stringify(value)).digest("hex");
+export const RUNTIME_DIGEST = digest({
+  browser: "151.0.7922.138",
+  renderer: "WebGL2",
+  angle: "SwiftShader",
+  network: "external-blocked",
+});
+export const RELEASE_BASELINE_DIGEST = digest({
+  profile: "vertical-1080p30",
+  width: 1080,
+  height: 1920,
+  durationSeconds: 4,
+});
+const EvidenceSceneInput = z.object({
+  owners: z.array(
+    z.object({
+      ownerId: z.string(),
+      kind: z.string(),
+      editable: z.boolean(),
+      confidence: z.number().min(0).max(1),
+    }),
+  ),
+  tracks: z.array(
+    z.object({
+      trackId: z.string(),
+      owner: z.string(),
+      geometryRef: z.string(),
+      lifecycle: z.record(z.string(), z.unknown()),
+      effects: z.array(z.string()),
+    }),
+  ),
+  needsChoice: z.array(z.unknown()).optional(),
+});
+const jobSceneInput = (job: Job): z.infer<typeof EvidenceSceneInput> => {
+  const parsed = z
+    .object({ sceneInput: EvidenceSceneInput })
+    .safeParse(job.evidence);
+  if (!parsed.success) throw new Error("ARTIFACT_UNAVAILABLE");
+  return parsed.data.sceneInput;
+};
 const header = (request: FastifyRequest, name: string): string | undefined => {
   const value = request.headers[name];
   return typeof value === "string" ? value : undefined;
 };
-const projection = (job: Job): Record<string, unknown> => ({
+const projection = (
+  store: CreatorWorkflowStore,
+  job: Job,
+  reviews?: ReviewStore,
+): Record<string, unknown> => ({
   id: job.id,
   tenantId: job.tenantId,
-  state: [
-    "QUEUED",
-    "PREPARING",
-    "RENDERING",
-    "COMPLETED",
-    "CANCELLED",
-    "FAILED",
-  ].includes(job.state)
-    ? job.state
-    : "QUEUED",
+  state: job.state,
   attempt: job.attempt,
+  etag: job.etag,
   createdAt: job.createdAt,
   updatedAt: job.updatedAt,
+  startFrame: job.startFrame,
+  sourceFps: job.sourceFps,
+  frameCount: job.frameCount,
   artifact: job.artifact,
+  progress: job.progress,
+  runtimePreflight: job.runtimePreflight,
+  evidenceDigest: job.evidenceDigest,
+  irDigest: job.irDigest,
+  reviewArtifactId: store.stagedArtifacts.get(job.id)?.id ?? null,
+  previewArtifactId: store.previews.get(job.id)?.id ?? null,
+  runtimeDigest: job.runtimePreflight?.runtimeDigest ?? RUNTIME_DIGEST,
+  releaseBaselineDigest: RELEASE_BASELINE_DIGEST,
+  approvedGates: [
+    ...new Set(
+      (reviews?.receipts ?? [])
+        .filter(
+          (receipt) =>
+            receipt.jobId === job.id &&
+            receipt.attempt === job.attempt &&
+            receipt.decision === "APPROVED",
+        )
+        .map((receipt) => receipt.gate),
+    ),
+  ],
 });
 const fail = (reply: FastifyReply, code: string, status = 400): void => {
   reply
@@ -116,9 +221,6 @@ const edit = (job: Job, request: FastifyRequest): void => {
   const match = header(request, "if-match");
   if (!match || match !== job.etag) throw new Error("VERSION_CONFLICT");
 };
-const requireCommand = (request: FastifyRequest): void => {
-  if (!header(request, "idempotency-key")) throw new Error("INVALID_REQUEST");
-};
 const mutate = (job: Job, next: JobState): void => {
   assertLegalTransition(job.state, next);
   job.state = next;
@@ -126,10 +228,45 @@ const mutate = (job: Job, next: JobState): void => {
   job.etag = `\"${digest(job.updatedAt)}\"`;
 };
 
+export const publishStagedArtifact = (
+  store: CreatorWorkflowStore,
+  job: Job,
+): boolean => {
+  const artifact = store.stagedArtifacts.get(job.id);
+  if (!artifact || artifact.kind !== "delivery" || job.state !== "AWAITING_T5")
+    return false;
+  assertLegalTransition(job.state, "COMPLETED");
+  store.stagedArtifacts.delete(job.id);
+  store.artifacts.set(artifact.id, artifact);
+  job.artifact = {
+    id: artifact.id,
+    kind: artifact.kind,
+    expiresAt: artifact.expiresAt,
+  };
+  job.state = "COMPLETED";
+  job.updatedAt = new Date(store.now()).toISOString();
+  job.etag = `"${digest(job.updatedAt)}"`;
+  return true;
+};
+
+const currentT4Approval = (reviews: ReviewStore | undefined, job: Job) =>
+  reviews?.receipts.findLast(
+    (receipt) =>
+      receipt.jobId === job.id &&
+      receipt.attempt === job.attempt &&
+      receipt.gate === "T4" &&
+      receipt.decision === "APPROVED" &&
+      receipt.evidenceDigest === job.evidenceDigest &&
+      receipt.irDigest === job.irDigest &&
+      receipt.runtimeDigest === job.runtimePreflight?.runtimeDigest &&
+      receipt.releaseBaselineDigest === RELEASE_BASELINE_DIGEST,
+  ) ?? null;
+
 export function registerCreatorWorkflow(
   app: FastifyInstance,
   store: CreatorWorkflowStore,
   uploads: UploadStore,
+  reviews?: ReviewStore,
 ): void {
   const tenant = (request: FastifyRequest): string =>
     header(request, "x-tenant-id") ?? "";
@@ -148,7 +285,6 @@ export function registerCreatorWorkflow(
       reply,
     ) => {
       try {
-        requireCommand(request);
         const response = command(
           store,
           request,
@@ -173,7 +309,6 @@ export function registerCreatorWorkflow(
               start + fps * 4 > frames
             )
               throw new Error("INTERVAL_INVALID");
-            const acceptedFrames = frames;
             const job: Job = {
               id: id("job"),
               tenantId: tenant(request),
@@ -187,7 +322,12 @@ export function registerCreatorWorkflow(
               irDigest: digest({ upload: upload.id }),
               evidenceDigest: digest({ upload: upload.id, evidence: true }),
               approved: false,
-              frameCount: acceptedFrames,
+              startFrame: start,
+              sourceFps: fps,
+              frameCount: frames,
+              evidence: null,
+              runtimePreflight: null,
+              progress: null,
               artifact: null,
             };
             const attempt: Attempt = {
@@ -198,7 +338,7 @@ export function registerCreatorWorkflow(
             };
             store.jobs.set(job.id, job);
             store.attempts.set(job.id, [attempt]);
-            return [201, projection(job)];
+            return [201, projection(store, job, reviews)];
           },
         );
         reply.code(response[0]).send(response[1]);
@@ -229,7 +369,7 @@ export function registerCreatorWorkflow(
       const items = [...store.jobs.values()]
         .filter((job) => job.tenantId === tenant(request))
         .slice(0, limit)
-        .map(projection);
+        .map((job) => projection(store, job, reviews));
       reply.send({
         items,
         pageInfo: {
@@ -244,7 +384,11 @@ export function registerCreatorWorkflow(
     async (request: FastifyRequest<{ Params: { jobId: string } }>, reply) => {
       try {
         reply.send(
-          projection(owned(store, request.params.jobId, tenant(request))),
+          projection(
+            store,
+            owned(store, request.params.jobId, tenant(request)),
+            reviews,
+          ),
         );
       } catch (error) {
         fail(
@@ -277,7 +421,6 @@ export function registerCreatorWorkflow(
     "/v1/jobs/:jobId/cancel",
     async (request: FastifyRequest<{ Params: { jobId: string } }>, reply) => {
       try {
-        requireCommand(request);
         const result = command(
           store,
           request,
@@ -304,7 +447,6 @@ export function registerCreatorWorkflow(
     "/v1/jobs/:jobId/retry",
     async (request: FastifyRequest<{ Params: { jobId: string } }>, reply) => {
       try {
-        requireCommand(request);
         const result = command(
           store,
           request,
@@ -316,7 +458,22 @@ export function registerCreatorWorkflow(
             if (!["FAILED", "CANCELLED"].includes(job.state))
               throw new Error("JOB_NOT_RETRYABLE");
             job.attempt += 1;
-            job.state = "QUEUED";
+            job.state = "PREPARING";
+            job.approved = false;
+            job.evidence = null;
+            job.runtimePreflight = null;
+            job.progress = null;
+            job.artifact = null;
+            job.evidenceDigest = digest({
+              upload: job.uploadId,
+              attempt: job.attempt,
+            });
+            job.irDigest = digest({
+              upload: job.uploadId,
+              attempt: job.attempt,
+              ir: true,
+            });
+            job.updatedAt = new Date(store.now()).toISOString();
             job.etag = `\"${digest(job.id + job.attempt)}\"`;
             const attempt: Attempt = {
               id: id("attempt"),
@@ -325,7 +482,7 @@ export function registerCreatorWorkflow(
               immutable: true,
             };
             store.attempts.get(job.id)?.push(attempt);
-            return [201, projection(job)];
+            return [201, projection(store, job, reviews)];
           },
         );
         reply.code(result[0]).send(result[1]);
@@ -339,16 +496,57 @@ export function registerCreatorWorkflow(
     },
   );
   app.get(
+    "/v1/jobs/:jobId/source-download",
+    async (request: FastifyRequest<{ Params: { jobId: string } }>, reply) => {
+      try {
+        const job = owned(store, request.params.jobId, tenant(request));
+        const upload = uploads.uploads.get(job.uploadId);
+        if (
+          !upload ||
+          upload.tenantId !== job.tenantId ||
+          upload.state !== "ACCEPTED"
+        )
+          throw new Error("ARTIFACT_UNAVAILABLE");
+        reply
+          .header("content-type", upload.contentType)
+          .header("content-length", upload.actualBytes)
+          .header("content-disposition", 'inline; filename="reference.mp4"')
+          .send(
+            Buffer.concat(upload.chunks.map((chunk) => Buffer.from(chunk))),
+          );
+      } catch {
+        fail(reply, "ARTIFACT_UNAVAILABLE", 404);
+      }
+    },
+  );
+  app.get(
+    "/v1/jobs/:jobId/preview-download",
+    async (request: FastifyRequest<{ Params: { jobId: string } }>, reply) => {
+      try {
+        const job = owned(store, request.params.jobId, tenant(request));
+        const preview = store.previews.get(job.id);
+        if (!preview || preview.kind !== "preview")
+          throw new Error("ARTIFACT_UNAVAILABLE");
+        reply
+          .header("content-type", preview.contentType)
+          .header("content-length", preview.sizeBytes)
+          .header(
+            "content-disposition",
+            `inline; filename="${preview.filename}"`,
+          )
+          .send(Buffer.from(preview.bytes));
+      } catch {
+        fail(reply, "ARTIFACT_UNAVAILABLE", 404);
+      }
+    },
+  );
+  app.get(
     "/v1/jobs/:jobId/evidence",
     async (request: FastifyRequest<{ Params: { jobId: string } }>, reply) => {
       try {
         const job = owned(store, request.params.jobId, tenant(request));
-        reply.send({
-          version: 1,
-          state: "OBSERVED",
-          digest: job.evidenceDigest,
-          layers: {},
-        });
+        if (!job.evidence) throw new Error("ARTIFACT_UNAVAILABLE");
+        reply.send({ ...job.evidence, digest: job.evidenceDigest });
       } catch (error) {
         fail(
           reply,
@@ -379,7 +577,6 @@ export function registerCreatorWorkflow(
     "/v1/jobs/:jobId/authoring-ir",
     async (request: FastifyRequest<{ Params: { jobId: string } }>, reply) => {
       try {
-        requireCommand(request);
         const result = command(
           store,
           request,
@@ -423,11 +620,15 @@ export function registerCreatorWorkflow(
       try {
         const job = owned(store, request.params.jobId, tenant(request));
         const frame = Number(request.query.frame ?? 0);
-        if (!Number.isInteger(frame) || frame < 0 || frame > 119)
+        if (!Number.isInteger(frame) || frame < 0 || frame >= job.frameCount)
           throw new Error("FRAME_OUT_OF_RANGE");
+        const preview = store.previews.get(job.id);
+        if (!preview) throw new Error("ARTIFACT_UNAVAILABLE");
         reply.send({
           frame,
-          previewRef: `preview:${job.id}:${frame}`,
+          artifactId: preview.id,
+          url: `/v1/jobs/${encodeURIComponent(job.id)}/preview-download`,
+          sha256: preview.sha256,
           irDigest: job.irDigest,
         });
       } catch (error) {
@@ -444,10 +645,15 @@ export function registerCreatorWorkflow(
     async (request: FastifyRequest<{ Params: { jobId: string } }>, reply) => {
       try {
         const job = owned(store, request.params.jobId, tenant(request));
+        const sceneInput = jobSceneInput(job);
         reply.send({
           version: 1,
-          digest: digest({ job: job.id, topology: 1 }),
-          nodes: [],
+          digest: digest({
+            owners: sceneInput.owners,
+            tracks: sceneInput.tracks,
+          }),
+          owners: sceneInput.owners,
+          tracks: sceneInput.tracks,
         });
       } catch (error) {
         fail(
@@ -463,10 +669,11 @@ export function registerCreatorWorkflow(
     async (request: FastifyRequest<{ Params: { jobId: string } }>, reply) => {
       try {
         const job = owned(store, request.params.jobId, tenant(request));
+        const choices = jobSceneInput(job).needsChoice ?? [];
         reply.send({
           version: 1,
-          digest: digest({ job: job.id, choices: 1 }),
-          choices: [],
+          digest: digest(choices),
+          choices,
         });
       } catch (error) {
         fail(
@@ -483,8 +690,14 @@ export function registerCreatorWorkflow(
       try {
         const job = owned(store, request.params.jobId, tenant(request));
         reply.send({
-          eligible: job.approved && job.state === "READY",
-          reason: job.approved ? null : "STALE_APPROVAL_UNSAFE",
+          eligible:
+            job.state === "READY" && currentT4Approval(reviews, job) !== null,
+          reason:
+            job.state !== "READY"
+              ? "JOB_NOT_READY"
+              : currentT4Approval(reviews, job)
+                ? null
+                : "T4_APPROVAL_REQUIRED",
         });
       } catch (error) {
         fail(
@@ -497,9 +710,14 @@ export function registerCreatorWorkflow(
   );
   app.post(
     "/v1/jobs/:jobId/render",
-    async (request: FastifyRequest<{ Params: { jobId: string } }>, reply) => {
+    async (
+      request: FastifyRequest<{
+        Params: { jobId: string };
+        Body: Record<string, never>;
+      }>,
+      reply,
+    ) => {
       try {
-        requireCommand(request);
         const result = command(
           store,
           request,
@@ -508,7 +726,21 @@ export function registerCreatorWorkflow(
           () => {
             const job = owned(store, request.params.jobId, tenant(request));
             edit(job, request);
-            if (!job.approved) throw new Error("STALE_APPROVAL_UNSAFE");
+            if (job.state !== "READY") throw new Error("JOB_NOT_READY");
+            const principal = (
+              request as FastifyRequest & {
+                authenticatedPrincipal?: Principal;
+              }
+            ).authenticatedPrincipal;
+            if (
+              !principal?.roles.some((role) =>
+                ["OWNER", "ADMIN"].includes(role.toUpperCase()),
+              )
+            )
+              throw new Error("ROLE_NOT_PERMITTED");
+            if (!currentT4Approval(reviews, job))
+              throw new Error("APPROVAL_REQUIRED");
+            job.approved = true;
             mutate(job, "QUEUED");
             return [
               202,
@@ -521,26 +753,53 @@ export function registerCreatorWorkflow(
         );
         reply.code(result[0]).send(result[1]);
       } catch (error) {
-        fail(
-          reply,
-          error instanceof Error ? error.message : "INTERNAL_ERROR",
-          409,
-        );
+        const code = error instanceof Error ? error.message : "INTERNAL_ERROR";
+        fail(reply, code, code === "ROLE_NOT_PERMITTED" ? 403 : 409);
       }
     },
   );
-  app.get("/v1/receipts", async (request, reply) => {
-    if (Number((request.query as { limit?: number }).limit ?? 50) > 100) {
-      fail(reply, "INVALID_REQUEST");
-      return;
-    }
-    reply.send({
-      items: [],
-      pageInfo: { hasNextPage: false, hasPreviousPage: false },
-    });
-  });
-  for (const suffix of ["report-download", "delivery-download"] as const)
-    app.get(`/v1/jobs/:jobId/${suffix}`, async (_request, reply) =>
-      fail(reply, "ARTIFACT_UNAVAILABLE", 404),
-    );
+  app.get(
+    "/v1/jobs/:jobId/delivery-download",
+    async (request: FastifyRequest<{ Params: { jobId: string } }>, reply) => {
+      try {
+        const job = owned(store, request.params.jobId, tenant(request));
+        const artifact = job.artifact
+          ? store.artifacts.get(job.artifact.id)
+          : undefined;
+        if (job.state !== "COMPLETED" || !artifact)
+          throw new Error("ARTIFACT_UNAVAILABLE");
+        reply
+          .header("content-type", artifact.contentType)
+          .header(
+            "content-disposition",
+            `attachment; filename="${artifact.filename}"`,
+          )
+          .send(Buffer.from(artifact.bytes));
+      } catch {
+        fail(reply, "ARTIFACT_UNAVAILABLE", 404);
+      }
+    },
+  );
+  app.get(
+    "/v1/jobs/:jobId/report-download",
+    async (request: FastifyRequest<{ Params: { jobId: string } }>, reply) => {
+      try {
+        const job = owned(store, request.params.jobId, tenant(request));
+        const artifact = job.artifact
+          ? store.artifacts.get(job.artifact.id)
+          : undefined;
+        if (job.state !== "COMPLETED" || !artifact?.report)
+          throw new Error("ARTIFACT_UNAVAILABLE");
+        reply
+          .header("content-type", "application/json; charset=utf-8")
+          .header(
+            "content-disposition",
+            `attachment; filename="${job.id}-render-report.json"`,
+          )
+          .send(artifact.report);
+      } catch {
+        fail(reply, "ARTIFACT_UNAVAILABLE", 404);
+      }
+    },
+  );
 }

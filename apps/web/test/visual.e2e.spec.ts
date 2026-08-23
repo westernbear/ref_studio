@@ -5,7 +5,7 @@ import { resolve } from "node:path";
 const root = resolve(process.cwd(), "../..");
 const evidenceDir = resolve(root, ".omo/evidence/wave7/task-42-visual");
 const screens = [
-  ["ref_studio_landing", "/"],
+  ["workflow", "/workflow"],
   ["admin_sign_in", "/admin/sign-in"],
   ["upload_validation", "/projects/new"],
   ["progress", "/progress"],

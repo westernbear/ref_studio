@@ -1,9 +1,6 @@
 import type { ReactNode } from "react";
-import {
-  AdminShell,
-  CreatorShell,
-  EmptySurface,
-} from "../../components/Shells";
+import { notFound } from "next/navigation";
+import { AdminShell, CreatorShell } from "../../components/Shells";
 import { Panel } from "../../components/Primitives";
 import {
   field,
@@ -20,18 +17,6 @@ type Column = {
   readonly value: (row: unknown) => ReactNode;
 };
 
-const publicPages: Record<string, readonly [string, string]> = {
-  docs: ["Docs", "No live documentation page is connected yet."],
-  support: ["Support", "No live support content is connected yet."],
-  api: ["API", "No public API page is connected yet."],
-  legal: ["Legal", "No legal content is connected yet."],
-  privacy: ["Privacy", "No privacy content is connected yet."],
-  settings: ["Settings", "No workspace settings page is connected yet."],
-  "sign-in": [
-    "Sign In",
-    "Sign in to continue to your requested workspace destination.",
-  ],
-};
 const adminPages: Record<string, string> = {
   admin: "Admin dashboard",
   "admin/audit": "Audit log",
@@ -449,19 +434,5 @@ export default async function StaticDestination({
   const adminTitle = adminPages[key];
   if (adminTitle) return renderAdmin(key, adminTitle);
   if (key === "workflow") return renderWorkflow();
-  const [title, description] = publicPages[key] ?? [
-    "Reference Video Studio",
-    "This bounded destination is not available.",
-  ];
-  if (key.startsWith("admin"))
-    return (
-      <AdminShell>
-        <EmptySurface title={title} description={description} />
-      </AdminShell>
-    );
-  return (
-    <CreatorShell>
-      <EmptySurface title={title} description={description} />
-    </CreatorShell>
-  );
+  notFound();
 }

@@ -9,7 +9,12 @@ import {
   type Principal,
 } from "./auth.js";
 import { safeEnvelope } from "./boundary.js";
-import type { CreatorWorkflowStore, Job } from "./creator-workflow.js";
+import {
+  publishStagedArtifact,
+  RELEASE_BASELINE_DIGEST,
+  type CreatorWorkflowStore,
+  type Job,
+} from "./creator-workflow.js";
 
 export const GATE_DAG = {
   T1: null,
@@ -25,6 +30,7 @@ export type ReviewReceipt = Readonly<{
   id: string;
   jobId: string | null;
   tenantId: string | null;
+  attempt: number;
   gate: Gate;
   decision: ReviewDecision;
   actorId: string;
@@ -82,7 +88,9 @@ const error = (reply: FastifyReply, code: string): void => {
           ? 401
           : code === "RESOURCE_NOT_FOUND"
             ? 404
-            : 409,
+            : code === "INVALID_REQUEST"
+              ? 400
+              : 409,
     )
     .send(
       safeEnvelope(
@@ -97,6 +105,10 @@ const auth = (
   release: boolean,
   now: number,
 ): Principal | null => {
+  const authenticated = (
+    request as FastifyRequest & { authenticatedPrincipal?: Principal }
+  ).authenticatedPrincipal;
+  if (!release && authenticated) return authenticated;
   const value = request.headers.authorization;
   const raw =
     typeof value === "string" && value.startsWith("Bearer ")
@@ -159,20 +171,6 @@ const required = (
     body.reason,
   ].every((value) => typeof value === "string" && value.length > 0) &&
   Array.isArray(body.artifactRefs);
-const receiptFor = (
-  store: ReviewStore,
-  jobId: string | null,
-  gate: Gate,
-  decision: ReviewDecision,
-): ReviewReceipt | undefined =>
-  [...store.receipts]
-    .reverse()
-    .find(
-      (item) =>
-        item.jobId === jobId &&
-        item.gate === gate &&
-        item.decision === decision,
-    );
 function decide(
   store: ReviewStore,
   authStore: AuthStore,
@@ -190,6 +188,8 @@ function decide(
   const tenantId = release ? null : (job?.tenantId ?? null);
   if (!release && (!job || job.tenantId !== principal.tenantId))
     throw new Error("RESOURCE_NOT_FOUND");
+  if (!release && body.attempt !== job?.attempt)
+    throw new Error("STALE_APPROVAL_UNSAFE");
   if (release && authorizeReleaseReview(authStore, principal, undefined))
     throw new Error("ROLE_NOT_PERMITTED");
   if (
@@ -205,16 +205,39 @@ function decide(
   if (release && gate !== "T6") throw new Error("ROLE_NOT_PERMITTED");
   const predecessor = GATE_DAG[gate];
   const previous = predecessor
-    ? release
-      ? (receiptFor(store, null, predecessor, "APPROVED") ??
-        [...store.receipts]
-          .reverse()
-          .find(
-            (item) => item.gate === predecessor && item.decision === "APPROVED",
-          ))
-      : receiptFor(store, body.jobId ?? null, predecessor, "APPROVED")
+    ? store.receipts.find(
+        (item) =>
+          item.id === body.predecessorReceiptId &&
+          item.gate === predecessor &&
+          item.decision === "APPROVED" &&
+          item.attempt === body.attempt &&
+          (release || item.jobId === body.jobId),
+      )
     : undefined;
-  if (predecessor && (!previous || body.predecessorReceiptId !== previous.id))
+  if (
+    (predecessor && !previous) ||
+    (!predecessor && body.predecessorReceiptId != null)
+  )
+    throw new Error("INVALID_REQUEST");
+  if (
+    body.releaseBaselineDigest !== RELEASE_BASELINE_DIGEST ||
+    (job &&
+      (!job.runtimePreflight ||
+        body.runtimeDigest !== job.runtimePreflight.runtimeDigest ||
+        body.evidenceDigest !== job.evidenceDigest ||
+        body.irDigest !== job.irDigest)) ||
+    (previous &&
+      (body.evidenceDigest !== previous.evidenceDigest ||
+        body.irDigest !== previous.irDigest ||
+        body.runtimeDigest !== previous.runtimeDigest ||
+        body.releaseBaselineDigest !== previous.releaseBaselineDigest))
+  ) {
+    if (job && job.state !== "STALE_APPROVAL") job.state = "STALE_APPROVAL";
+    throw new Error("STALE_APPROVAL_UNSAFE");
+  }
+  if (job && gate !== "T5" && job.state !== "READY")
+    throw new Error("INVALID_REQUEST");
+  if (job && gate === "T5" && job.state !== "AWAITING_T5")
     throw new Error("INVALID_REQUEST");
   const key = `${body.jobId ?? "release"}:${gate}:${body.attempt}`;
   const current = store.current.get(key);
@@ -228,13 +251,40 @@ function decide(
     if (job && job.state !== "STALE_APPROVAL") job.state = "STALE_APPROVAL";
     throw new Error("STALE_APPROVAL_UNSAFE");
   }
-  store.current.set(key, snapshot);
-  if (receiptFor(store, body.jobId ?? null, gate, body.decision))
+  if (
+    store.receipts.some(
+      (item) =>
+        item.jobId === (body.jobId ?? null) &&
+        item.attempt === body.attempt &&
+        item.gate === gate &&
+        item.decision === body.decision,
+    )
+  )
     throw new Error("INVALID_REQUEST");
+  const staged = job ? workflow?.stagedArtifacts.get(job.id) : undefined;
+  const preview = job ? workflow?.previews.get(job.id) : undefined;
+  if (
+    job &&
+    (gate === "T3" || gate === "T4") &&
+    body.decision === "APPROVED" &&
+    (!preview || !body.artifactRefs.includes(preview.id))
+  )
+    throw new Error("INVALID_REQUEST");
+  if (
+    job &&
+    gate === "T5" &&
+    body.decision === "APPROVED" &&
+    (job.state !== "AWAITING_T5" ||
+      !staged ||
+      !body.artifactRefs.includes(staged.id))
+  )
+    throw new Error("INVALID_REQUEST");
+  store.current.set(key, snapshot);
   const receipt: ReviewReceipt = {
     id: id("rcpt"),
     jobId: body.jobId ?? null,
     tenantId,
+    attempt: body.attempt,
     gate,
     decision: body.decision,
     actorId: principal.userId,
@@ -247,7 +297,11 @@ function decide(
     createdAt: new Date(now).toISOString(),
   };
   store.receipts.push(receipt);
-  if (job && gate === "T5" && body.decision === "APPROVED") job.approved = true;
+  if (job && gate === "T5" && body.decision === "APPROVED") {
+    if (!workflow || !publishStagedArtifact(workflow, job))
+      throw new Error("INVALID_REQUEST");
+    job.approved = true;
+  }
   return receipt;
 }
 export function registerReviews(
@@ -257,6 +311,52 @@ export function registerReviews(
   workflow: CreatorWorkflowStore | undefined,
   now: () => number,
 ): void {
+  app.get(
+    "/v1/receipts",
+    async (
+      request: FastifyRequest<{
+        Querystring: {
+          jobId?: string;
+          gate?: string;
+          after?: string;
+          limit?: string;
+        };
+      }>,
+      reply,
+    ) => {
+      const limit = Number(request.query.limit ?? 50);
+      const after = Number(request.query.after ?? 0);
+      if (
+        !Number.isInteger(limit) ||
+        limit < 1 ||
+        limit > 100 ||
+        !Number.isInteger(after) ||
+        after < 0 ||
+        (request.query.gate !== undefined && !(request.query.gate in GATE_DAG))
+      ) {
+        error(reply, "INVALID_REQUEST");
+        return;
+      }
+      const tenantId =
+        typeof request.headers["x-tenant-id"] === "string"
+          ? request.headers["x-tenant-id"]
+          : "";
+      const matching = reviewStore.receipts.filter(
+        (receipt) =>
+          receipt.tenantId === tenantId &&
+          (!request.query.jobId || receipt.jobId === request.query.jobId) &&
+          (!request.query.gate || receipt.gate === request.query.gate),
+      );
+      const selected = matching.slice(after, after + limit);
+      reply.send({
+        items: selected,
+        pageInfo: {
+          hasNextPage: after + selected.length < matching.length,
+          hasPreviousPage: after > 0,
+        },
+      });
+    },
+  );
   const route = async (
     request: FastifyRequest<{ Body: Body }>,
     reply: FastifyReply,

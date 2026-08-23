@@ -14,7 +14,12 @@ export const RETENTION_MS = {
 
 export type RetentionKind = keyof typeof RETENTION_MS;
 export type RetentionState =
-  "PENDING" | "READY" | "FAILED" | "PARTIAL" | "QUARANTINED" | "DELETED";
+  | "PENDING"
+  | "READY"
+  | "FAILED"
+  | "PARTIAL"
+  | "QUARANTINED"
+  | "DELETED";
 export type RetentionItem = {
   readonly id: string;
   readonly tenantId: string;

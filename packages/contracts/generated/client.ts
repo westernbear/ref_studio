@@ -1,5 +1,9 @@
 export type ApiOperation =
-  "createUpload" | "createJob" | "getJob" | "createReview" | "listReceipts";
+  | "createUpload"
+  | "createJob"
+  | "getJob"
+  | "createReview"
+  | "listReceipts";
 export const paths = {
   uploads: "/v1/uploads",
   jobs: "/v1/jobs",

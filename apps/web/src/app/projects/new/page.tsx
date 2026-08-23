@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { BrandLogo } from "../../../components/Shells";
 import {
   createCompilerJob,
   uploadMp4,
@@ -182,7 +183,7 @@ export default function NewProjectPage() {
           href="/workflow"
           aria-label="Reference Video Studio home"
         >
-          RVS
+          <BrandLogo />
         </a>
         <nav aria-label="Primary navigation">
           <a data-control-id="upload_validation:1" href="/workflow">
@@ -190,12 +191,6 @@ export default function NewProjectPage() {
           </a>
           <a data-control-id="upload_validation:2" href="/admin">
             Admin
-          </a>
-          <a data-control-id="upload_validation:3" href="/docs">
-            Docs
-          </a>
-          <a data-control-id="upload_validation:4" href="/support">
-            Support
           </a>
         </nav>
         <div className="header-actions">
@@ -355,15 +350,6 @@ export default function NewProjectPage() {
         </section>
       </main>
       <footer>
-        <a data-control-id="upload_validation:10" href="/api">
-          API
-        </a>
-        <a data-control-id="upload_validation:11" href="/legal">
-          Legal
-        </a>
-        <a data-control-id="upload_validation:12" href="/privacy">
-          Privacy
-        </a>
         <a
           data-control-id="upload_validation:13"
           href="https://github.com/singlerr/ref_studio"

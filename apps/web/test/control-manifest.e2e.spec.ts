@@ -33,7 +33,7 @@ test("keeps visible control IDs unique after removing static admin screens @cont
     true,
   );
   expect([...seen].some((id) => id.startsWith("ref_studio_landing:"))).toBe(
-    true,
+    false,
   );
   expect([...seen].some((id) => id.startsWith("admin_"))).toBe(false);
   expect([...seen].some((id) => id.startsWith("job_"))).toBe(false);

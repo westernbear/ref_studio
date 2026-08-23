@@ -1,0 +1,25 @@
+{
+  "protocol": "rvs.example-project.v1",
+  "archive": "heygen_handoff.zip",
+  "source": {
+    "member": "reference_style_youmotion.mp4",
+    "sha256": "af1c8bbe5b33b37c9a128698ea55206c1eb2cd1640fae9fa6950904b5332d3a9",
+    "width": 1588,
+    "height": 870,
+    "durationSeconds": 18.09,
+    "fps": 30
+  },
+  "interval": {
+    "startFrame": 0,
+    "endFrameExclusive": 120,
+    "frameCount": 120,
+    "durationSeconds": 4
+  },
+  "output": {
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "frameCount": 120,
+    "durationSeconds": 4
+  }
+}

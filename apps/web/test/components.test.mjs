@@ -11,6 +11,10 @@ const routes = readFileSync(
   resolve(root, "apps/web/src/app/[...slug]/page.tsx"),
   "utf8",
 );
+const styles = readFileSync(
+  resolve(root, "apps/web/src/styles/primitives.css"),
+  "utf8",
+);
 describe("shared control contract projection", () => {
   it("routes admin pages to live API-backed surfaces", () => {
     expect(routes).toContain('"admin/jobs": "Queue & Delivery"');
@@ -22,9 +26,19 @@ describe("shared control contract projection", () => {
     );
   });
   it("uses semantic disabled behavior and visible focus", () => {
-    expect(primitives).toContain("disabled={isDisabled}");
-    expect(
-      readFileSync(resolve(root, "apps/web/src/styles/primitives.css"), "utf8"),
-    ).toContain(":focus-visible");
+    expect(styles).toContain("button:disabled");
+    expect(styles).toContain(":focus-visible");
+  });
+  it("keeps long detail values inside their responsive grid", () => {
+    expect(styles).toContain("repeat(auto-fit, minmax(min(180px, 100%), 1fr))");
+    expect(styles).toMatch(
+      /\.detail-grid dd \{[^}]*overflow-wrap: anywhere;/su,
+    );
+  });
+  it("keeps data tables readable by scrolling them on narrow screens", () => {
+    expect(styles).toMatch(/\.live-table \{[^}]*min-width: 720px;/su);
+    expect(styles).not.toMatch(
+      /@media \(max-width: 720px\)[\s\S]*\.live-table \{[^}]*table-layout: fixed;/u,
+    );
   });
 });

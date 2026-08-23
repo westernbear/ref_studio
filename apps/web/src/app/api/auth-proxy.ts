@@ -11,10 +11,6 @@ export function internalApiUrl(path: string, search = ""): string {
   ).toString();
 }
 
-export function signInProxyUrl(path: SignInPath): string {
-  return internalApiUrl(path);
-}
-
 export function forwardedSetCookie(cookie: string | null): string | null {
   if (!cookie) return null;
   if (process.env.RVS_INSECURE_COOKIES !== "true") return cookie;
@@ -25,7 +21,7 @@ export async function proxySignIn(
   request: Request,
   path: SignInPath,
 ): Promise<Response> {
-  const response = await fetch(signInProxyUrl(path), {
+  const response = await fetch(internalApiUrl(path), {
     method: "POST",
     headers: {
       "content-type": request.headers.get("content-type") ?? "application/json",
@@ -41,6 +37,27 @@ export async function proxySignIn(
   return new Response(await response.text(), {
     status: response.status,
     headers,
+  });
+}
+
+export async function proxyLogout(request: Request): Promise<Response> {
+  const headers = new Headers({
+    origin: process.env.RVS_EXPECTED_ORIGIN || "http://localhost:3100",
+    "x-csrf-token": "web-proxy",
+  });
+  const cookie = request.headers.get("cookie");
+  if (cookie) headers.set("cookie", cookie);
+  const response = await fetch(internalApiUrl("/logout"), {
+    method: "POST",
+    headers,
+    redirect: "manual",
+  });
+  const responseHeaders = new Headers();
+  const setCookie = forwardedSetCookie(response.headers.get("set-cookie"));
+  if (setCookie) responseHeaders.set("set-cookie", setCookie);
+  return new Response(await response.text(), {
+    status: response.status,
+    headers: responseHeaders,
   });
 }
 
