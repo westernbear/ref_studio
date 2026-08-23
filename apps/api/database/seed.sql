@@ -1,0 +1,13 @@
+INSERT OR IGNORE INTO tenants VALUES ('ten_platform','Reference Video Studio Platform','PLATFORM','ACTIVE',0,'2026-08-22T00:00:00Z');
+INSERT OR IGNORE INTO tenants VALUES ('ten_stitch_demo','Stitch Demo Studio','ORGANIZATION','ACTIVE',0,'2026-08-22T00:00:00Z');
+INSERT OR IGNORE INTO users VALUES ('usr_platform','platform@example.invalid','Platform Operator','2026-08-22T00:00:00Z');
+INSERT OR IGNORE INTO users VALUES ('usr_owner','owner@example.invalid','Stitch Owner','2026-08-22T00:00:00Z');
+INSERT OR IGNORE INTO users VALUES ('usr_reviewer','reviewer@example.invalid','Designated Reviewer','2026-08-22T00:00:00Z');
+INSERT OR IGNORE INTO credentials VALUES ('cred_platform_password','usr_platform','PASSWORD','scrypt$usr_platform-t7-salt$098ca43ec6a69677a6bad791dc7ced14b4c888337299352e47cb31c7a152636f','2026-08-22T00:00:00Z',NULL);
+INSERT OR IGNORE INTO credentials VALUES ('cred_owner_password','usr_owner','PASSWORD','scrypt$usr_owner-t7-salt$5f24c5c93a05413b5e925edd6eb3e632204f6bdd00e8aba9dec8683ca7e845ce','2026-08-22T00:00:00Z',NULL);
+INSERT OR IGNORE INTO credentials VALUES ('cred_reviewer_password','usr_reviewer','PASSWORD','scrypt$usr_reviewer-t7-salt$fa98797c4b5dd9c50ac99e907a724e47288d10d1aedd0f2f7592e7bada791eed','2026-08-22T00:00:00Z',NULL);
+INSERT OR IGNORE INTO tenant_memberships VALUES ('ten_platform','usr_platform','SUPER_ADMIN','2026-08-22T00:00:00Z');
+INSERT OR IGNORE INTO tenant_memberships VALUES ('ten_stitch_demo','usr_owner','OWNER','2026-08-22T00:00:00Z');
+INSERT OR IGNORE INTO tenant_memberships VALUES ('ten_stitch_demo','usr_reviewer','DESIGNATED_REVIEWER','2026-08-22T00:00:00Z');
+INSERT OR IGNORE INTO reviewer_assignments VALUES ('asn_release_t6',NULL,'usr_reviewer','T6','RELEASE','2026-08-22T00:00:00Z');
+INSERT OR IGNORE INTO tenant_quotas VALUES ('ten_stitch_demo','STITCH_STARTER',3600,0,'ENFORCED',NULL);

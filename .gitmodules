@@ -1,0 +1,3 @@
+[submodule "apps/worker"]
+	path = apps/worker
+	url = https://github.com/westernbear/ref_studio_worker.git

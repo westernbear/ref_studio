@@ -1,0 +1,24 @@
+{
+  "name": "@rvs/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "test": "vitest",
+    "start": "node dist/index.js",
+    "db:reset": "node database/cli.mjs reset",
+    "db:migrate": "node database/cli.mjs migrate",
+    "db:verify": "node database/cli.mjs verify",
+    "db:test": "node database/test.mjs"
+  },
+  "dependencies": {
+    "@rvs/contracts": "workspace:*",
+    "better-sqlite3": "12.2.0",
+    "fastify": "5.8.5",
+    "zod": "4.1.5"
+  },
+  "devDependencies": {
+    "typescript": "5.9.2"
+  }
+}
