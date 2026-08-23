@@ -2,8 +2,13 @@ import { describe, expect, it } from "vitest";
 import { buildAuthApp } from "./app.js";
 import { hashWorkerToken, createWorkerStore } from "./workers.js";
 import type { AuthStore } from "./auth.js";
+import {
+  createCreatorWorkflowStore,
+  type CreatorWorkflowStore,
+  type Job,
+} from "./creator-workflow.js";
 
-const appFixture = () => {
+const appFixture = (workflow?: CreatorWorkflowStore) => {
   const token = "worker-test-token";
   const workers = createWorkerStore(hashWorkerToken(token));
   const auth: AuthStore = {
@@ -20,6 +25,7 @@ const appFixture = () => {
     expectedOrigin: "https://studio.invalid",
     introspectSecret: "not-a-worker-token",
     workers,
+    creatorWorkflow: workflow,
     now: () => 1_000,
   });
   return {
@@ -30,6 +36,29 @@ const appFixture = () => {
       "content-type": "application/json",
     },
   };
+};
+const addJob = (workflow: CreatorWorkflowStore, state: Job["state"]): Job => {
+  const job: Job = {
+    id: `job-${state.toLowerCase()}`,
+    tenantId: "ten_a",
+    creatorId: "server",
+    uploadId: "upl_a",
+    state,
+    attempt: 1,
+    etag: '"etag"',
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+    irDigest: "ir",
+    evidenceDigest: "evidence",
+    approved: state === "QUEUED",
+    frameCount: 120,
+    artifact: null,
+  };
+  workflow.jobs.set(job.id, job);
+  workflow.attempts.set(job.id, [
+    { id: "attempt-a", number: 1, state: "QUEUED", immutable: true },
+  ]);
+  return job;
 };
 
 describe("worker registration API", () => {
@@ -94,6 +123,69 @@ describe("worker registration API", () => {
     expect(claim.json()).toEqual({ job: null });
     expect(complete.statusCode).toBe(404);
     expect(complete.json().error.code).toBe("RESOURCE_NOT_FOUND");
+    await fixture.app.close();
+  });
+
+  it("Given a preparing workflow job, when claimed and completed, then marks it ready", async () => {
+    const workflow = createCreatorWorkflowStore();
+    const job = addJob(workflow, "PREPARING");
+    const fixture = appFixture(workflow);
+    await fixture.app.inject({
+      method: "POST",
+      url: "/v1/workers/register",
+      headers: fixture.headers,
+      payload: { workerId: "worker-a", capabilities: ["compiler"] },
+    });
+    const claim = await fixture.app.inject({
+      method: "POST",
+      url: "/v1/workers/worker-a/claim",
+      headers: fixture.headers,
+      payload: {},
+    });
+    const complete = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${job.id}/complete`,
+      headers: fixture.headers,
+      payload: { result: { ok: true } },
+    });
+    expect(claim.json().job).toMatchObject({
+      jobId: job.id,
+      attemptId: "attempt-a",
+      payload: { phase: "prepare" },
+    });
+    expect(complete.statusCode).toBe(200);
+    expect(workflow.jobs.get(job.id)?.state).toBe("READY");
+    await fixture.app.close();
+  });
+
+  it("Given a queued render job, when claimed and completed, then publishes a delivery artifact", async () => {
+    const workflow = createCreatorWorkflowStore();
+    const job = addJob(workflow, "QUEUED");
+    const fixture = appFixture(workflow);
+    await fixture.app.inject({
+      method: "POST",
+      url: "/v1/workers/register",
+      headers: fixture.headers,
+      payload: { workerId: "worker-a", capabilities: ["renderer"] },
+    });
+    const claim = await fixture.app.inject({
+      method: "POST",
+      url: "/v1/workers/worker-a/claim",
+      headers: fixture.headers,
+      payload: {},
+    });
+    const complete = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${job.id}/complete`,
+      headers: fixture.headers,
+      payload: { result: { ok: true } },
+    });
+    expect(claim.json().job.payload.phase).toBe("render");
+    expect(workflow.jobs.get(job.id)?.state).toBe("COMPLETED");
+    expect(workflow.jobs.get(job.id)?.artifact).toMatchObject({
+      kind: "delivery",
+    });
+    expect(complete.statusCode).toBe(200);
     await fixture.app.close();
   });
 });

@@ -36,6 +36,7 @@ describe("api server config", () => {
 
     expect(app.hasRoute({ method: "POST", url: "/v1/uploads" })).toBe(true);
     expect(app.hasRoute({ method: "POST", url: "/v1/jobs" })).toBe(true);
+    expect(app.hasRoute({ method: "POST", url: "/v1/reviews" })).toBe(true);
     await app.close();
   });
 });

@@ -524,7 +524,8 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
       }
       reply.send({ ok: true });
     });
-  if (options.workers) registerWorkers(app, options.workers, now);
+  if (options.workers)
+    registerWorkers(app, options.workers, now, options.creatorWorkflow);
   return app;
 }
 

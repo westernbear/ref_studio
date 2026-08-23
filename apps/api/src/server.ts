@@ -5,6 +5,7 @@ import { z } from "zod";
 import { buildAuthApp } from "./app.js";
 import type { AuthStore } from "./auth.js";
 import { createCreatorWorkflowStore } from "./creator-workflow.js";
+import { createReviewStore } from "./reviews.js";
 import type { UploadStore } from "./uploads.js";
 import { createWorkerStore, hashWorkerToken } from "./workers.js";
 
@@ -182,6 +183,7 @@ export function createApiServer(config: ApiServerConfig) {
     introspectSecret: config.introspectSecret,
     uploads,
     creatorWorkflow: createCreatorWorkflowStore(),
+    reviews: createReviewStore(),
     workers: createWorkerStore(hashWorkerToken(config.workerToken)),
   });
   app.get("/health", async () => ({ ok: true }));
