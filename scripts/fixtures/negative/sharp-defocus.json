@@ -1,0 +1,1 @@
+{"fixtureId":"ablation","expectedError":"DEFOCUS_PROFILE_MISMATCH","profile":{"claimedSigma":6,"observedSigma":0,"observedRawFrameSha256":"dd0614088390a4d02ac7cf07970ae4a783b8916e233396cf9c9d07a4eee6e195"}}

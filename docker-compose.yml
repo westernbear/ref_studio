@@ -1,0 +1,75 @@
+services:
+  runtime:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+      provenance: false
+    image: reference-video-studio-runtime:todo1
+    network_mode: none
+  runtime-preflight:
+    image: reference-video-studio-runtime:todo1
+    network_mode: none
+    command: ["node", "/opt/rvs/preflight.mjs"]
+  compiler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: compiler
+      provenance: false
+    image: reference-video-studio-compiler:task17
+    network_mode: none
+    command: ["python3.12", "-m", "compiler.preflight"]
+  worker:
+    image: reference-video-studio-runtime:todo1
+    network_mode: none
+    environment:
+      CI: "true"
+      COREPACK_ENABLE_PROJECT_SPEC: "0"
+      PNPM_MANAGE_PACKAGE_MANAGER_VERSIONS: "false"
+      PNPM_CONFIG_OFFLINE: "true"
+      PNPM_CONFIG_FROZEN_LOCKFILE: "true"
+      PNPM_CONFIG_IGNORE_WORKSPACE: "true"
+    working_dir: /workspace/apps/worker
+    volumes:
+      - .:/workspace
+    entrypoint: ["sh", "/workspace/apps/worker/offline-pnpm.sh"]
+    command: ["pnpm", "compiler:smoke"]
+  web:
+    image: reference-video-studio-runtime:todo1
+    networks: [appnet]
+    working_dir: /workspace/apps/web
+    volumes:
+      - .:/workspace
+    ports:
+      - "127.0.0.1:3100:3100"
+    command: ["sh", "-lc", "node ../../node_modules/.pnpm/next@*/node_modules/next/dist/bin/next start --hostname 0.0.0.0 --port 3100"]
+  api:
+    image: reference-video-studio-runtime:todo1
+    networks: [appnet]
+    command: ["node", "--version"]
+  qa:
+    image: reference-video-studio-runtime:todo1
+    network_mode: none
+    environment:
+      CI: "true"
+      COREPACK_ENABLE_PROJECT_SPEC: "0"
+      PNPM_MANAGE_PACKAGE_MANAGER_VERSIONS: "false"
+      PNPM_CONFIG_OFFLINE: "true"
+      PNPM_CONFIG_FROZEN_LOCKFILE: "true"
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+    command: ["pnpm", "test:security"]
+
+  qa-audit-egress:
+    image: reference-video-studio-runtime:todo1
+    working_dir: /workspace
+    volumes:
+      - ./package.json:/workspace/package.json:ro
+      - ./pnpm-lock.yaml:/workspace/pnpm-lock.yaml:ro
+    command: ["node", "--version"]
+
+networks:
+  appnet:
+    internal: true

@@ -1,0 +1,14 @@
+node_modules/
+.codegraph
+.codegraph/
+.pnpm-store/
+.rvs-cache/
+compiler/.venv/
+apps/*/.next/
+apps/*/dist/
+packages/*/dist/
+verification/contract/fixtures/
+verification/contract/fonts/
+runtime/debian-packages.tar
+runtime/hydrated/
+.gstack/

@@ -1,0 +1,2761 @@
+{
+  "schemaVersion": "rvs-debian-snapshot-v1",
+  "nodeImage": "node@sha256:65932751ed4073ed02f5c04e494e4b2572a891b7dbea0568a863dc80341bf848",
+  "directPackages": [
+    "build-essential",
+    "ca-certificates",
+    "libasound2",
+    "libatk-bridge2.0-0",
+    "libatk1.0-0",
+    "libcups2",
+    "libdbus-1-3",
+    "libdrm2",
+    "libfreetype6-dev",
+    "libgbm1",
+    "libglib2.0-0",
+    "libgtk-3-0",
+    "libharfbuzz-dev",
+    "libnspr4",
+    "libnss3",
+    "libpango-1.0-0",
+    "libx11-6",
+    "libxcb1",
+    "libxcomposite1",
+    "libxdamage1",
+    "libxext6",
+    "libxfixes3",
+    "libxkbcommon0",
+    "libxrandr2",
+    "nasm",
+    "pkg-config",
+    "xz-utils"
+  ],
+  "snapshotDigest": "ef57c51e874179abfcff830a255a8ab6124d8dfe4f328561fcae63b9d34dc60c",
+  "packages": [
+    {
+      "name": "adwaita-icon-theme",
+      "version": "43-1",
+      "architecture": "all",
+      "url": "http://deb.debian.org/debian/pool/main/a/adwaita-icon-theme/adwaita-icon-theme_43-1_all.deb",
+      "sha256": "4b67610565d16b604d3efd9908e8e4b5d71873c5d0f9347433df509020f22af7",
+      "aptDigest": "MD5Sum:b095e05788c9ed776cdb7ae42700f7dd",
+      "license": "embedded:/usr/share/doc/adwaita-icon-theme/copyright",
+      "localPath": ".rvs-cache/debian/adwaita-icon-theme_43-1_all.deb"
+    },
+    {
+      "name": "alsa-topology-conf",
+      "version": "1.2.5.1-2",
+      "architecture": "all",
+      "url": "http://deb.debian.org/debian/pool/main/a/alsa-topology-conf/alsa-topology-conf_1.2.5.1-2_all.deb",
+      "sha256": "1e4503ae66ad9cbe2a024ec403cb453af07ff1d07a62e795aab24539a307ad8a",
+      "aptDigest": "MD5Sum:19a387e4052e248819a712ce41122fe5",
+      "license": "embedded:/usr/share/doc/alsa-topology-conf/copyright",
+      "localPath": ".rvs-cache/debian/alsa-topology-conf_1.2.5.1-2_all.deb"
+    },
+    {
+      "name": "alsa-ucm-conf",
+      "version": "1.2.8-1",
+      "architecture": "all",
+      "url": "http://deb.debian.org/debian/pool/main/a/alsa-ucm-conf/alsa-ucm-conf_1.2.8-1_all.deb",
+      "sha256": "abc7ac211bde60fb90fae9f8dc3f207818d6faadb4b3f76037785235f9284e67",
+      "aptDigest": "MD5Sum:df9ebd0d0d25a53c58b0b4589db6f6a3",
+      "license": "embedded:/usr/share/doc/alsa-ucm-conf/copyright",
+      "localPath": ".rvs-cache/debian/alsa-ucm-conf_1.2.8-1_all.deb"
+    },
+    {
+      "name": "at-spi2-common",
+      "version": "2.46.0-5",
+      "architecture": "all",
+      "url": "http://deb.debian.org/debian/pool/main/a/at-spi2-core/at-spi2-common_2.46.0-5_all.deb",
+      "sha256": "441bc1c6cefdc01f519310abf55823deb868898480dee09a05aa44e8c83cabc2",
+      "aptDigest": "MD5Sum:9895e429c6031a234b01c13b129094b0",
+      "license": "embedded:/usr/share/doc/at-spi2-common/copyright",
+      "localPath": ".rvs-cache/debian/at-spi2-common_2.46.0-5_all.deb"
+    },
+    {
+      "name": "at-spi2-core",
+      "version": "2.46.0-5",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/a/at-spi2-core/at-spi2-core_2.46.0-5_amd64.deb",
+      "sha256": "42c3567bef2bd3e868a072acbdef1c3b0416b2a127a2e0fa2cbc600cedcd2a9a",
+      "aptDigest": "MD5Sum:c6bb281900c332a4a5ea81a537abdcfc",
+      "license": "embedded:/usr/share/doc/at-spi2-core/copyright",
+      "localPath": ".rvs-cache/debian/at-spi2-core_2.46.0-5_amd64.deb"
+    },
+    {
+      "name": "binutils-common",
+      "version": "2.40-2",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/b/binutils/binutils-common_2.40-2_amd64.deb",
+      "sha256": "ab314134f43a0891a48f69a9bc33d825da748fa5e0ba2bebb7a5c491b026f1a0",
+      "aptDigest": "MD5Sum:44fb94480bf76060e6deffe24b196c65",
+      "license": "embedded:/usr/share/doc/binutils-common/copyright",
+      "localPath": ".rvs-cache/debian/binutils-common_2.40-2_amd64.deb"
+    },
+    {
+      "name": "binutils-x86-64-linux-gnu",
+      "version": "2.40-2",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/b/binutils/binutils-x86-64-linux-gnu_2.40-2_amd64.deb",
+      "sha256": "2d7ea8a570d768224d7f2424abbe6f373d2154865a1fa7f56c80d43ecf492521",
+      "aptDigest": "MD5Sum:703978c710270b7edd8d7b4e4b899f12",
+      "license": "embedded:/usr/share/doc/binutils-x86-64-linux-gnu/copyright",
+      "localPath": ".rvs-cache/debian/binutils-x86-64-linux-gnu_2.40-2_amd64.deb"
+    },
+    {
+      "name": "binutils",
+      "version": "2.40-2",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/b/binutils/binutils_2.40-2_amd64.deb",
+      "sha256": "83c3e20b53e1fbd84d764c3ba27d26a0376e361ae5d7fb37120196934dd87424",
+      "aptDigest": "MD5Sum:ae836857a4bb80679b2e04de04db8f6d",
+      "license": "embedded:/usr/share/doc/binutils/copyright",
+      "localPath": ".rvs-cache/debian/binutils_2.40-2_amd64.deb"
+    },
+    {
+      "name": "build-essential",
+      "version": "12.9",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/b/build-essential/build-essential_12.9_amd64.deb",
+      "sha256": "bbfd38de41898a06326f2a6ce4cc43e8e399f5566381231065b01d70499d5ba5",
+      "aptDigest": "MD5Sum:4f52ee9542b58fce300ae068b634d281",
+      "license": "embedded:/usr/share/doc/build-essential/copyright",
+      "localPath": ".rvs-cache/debian/build-essential_12.9_amd64.deb"
+    },
+    {
+      "name": "bzip2",
+      "version": "1.0.8-5+b1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/b/bzip2/bzip2_1.0.8-5%2bb1_amd64.deb",
+      "sha256": "438871b3f5c5c7a357a9840951dab9dab8db7eb1ff760a563226fafa111b99e5",
+      "aptDigest": "MD5Sum:0a6d457ccb2d12b5b56ef3330c7bdb63",
+      "license": "embedded:/usr/share/doc/bzip2/copyright",
+      "localPath": ".rvs-cache/debian/bzip2_1.0.8-5+b1_amd64.deb"
+    },
+    {
+      "name": "ca-certificates",
+      "version": "20250419~deb12u1",
+      "architecture": "all",
+      "url": "http://deb.debian.org/debian-security/pool/updates/main/c/ca-certificates/ca-certificates_20250419%7edeb12u1_all.deb",
+      "sha256": "62b08a77d985d4253894b1f69aebda5925034ca4e294add364167fad8cb64a44",
+      "aptDigest": "not-provided",
+      "license": "embedded:/usr/share/doc/ca-certificates/copyright",
+      "localPath": ".rvs-cache/debian/ca-certificates_20250419~deb12u1_all.deb"
+    },
+    {
+      "name": "cpp-12",
+      "version": "12.2.0-14+deb12u1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/g/gcc-12/cpp-12_12.2.0-14%2bdeb12u1_amd64.deb",
+      "sha256": "fedbb98e877adde83c983c6071537ea25ac52b277ac6e4637d85025949ca1454",
+      "aptDigest": "MD5Sum:9d3833886a0860e9256e75c4d04f5ae6",
+      "license": "embedded:/usr/share/doc/cpp-12/copyright",
+      "localPath": ".rvs-cache/debian/cpp-12_12.2.0-14+deb12u1_amd64.deb"
+    },
+    {
+      "name": "cpp",
+      "version": "4:12.2.0-3",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/g/gcc-defaults/cpp_12.2.0-3_amd64.deb",
+      "sha256": "a63db920f7aa1857a57beab185423deffb6111fa09437a99bbb4ef724fb7ba78",
+      "aptDigest": "MD5Sum:f7f274e4919114c6630316ce2821745a",
+      "license": "embedded:/usr/share/doc/cpp/copyright",
+      "localPath": ".rvs-cache/debian/cpp_4%3a12.2.0-3_amd64.deb"
+    },
+    {
+      "name": "dbus-bin",
+      "version": "1.14.10-1~deb12u1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/d/dbus/dbus-bin_1.14.10-1%7edeb12u1_amd64.deb",
+      "sha256": "7273d6f5ddcafa6bc81e319997f60e9b511a92c4414c1d4ecb05cba9e755da57",
+      "aptDigest": "MD5Sum:8516431c65bf382537508ba3b9b2f3fd",
+      "license": "embedded:/usr/share/doc/dbus-bin/copyright",
+      "localPath": ".rvs-cache/debian/dbus-bin_1.14.10-1~deb12u1_amd64.deb"
+    },
+    {
+      "name": "dbus-daemon",
+      "version": "1.14.10-1~deb12u1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/d/dbus/dbus-daemon_1.14.10-1%7edeb12u1_amd64.deb",
+      "sha256": "d35e43de83f7df870196d292a60a56d320c47ce503bc586b30e47a192090302e",
+      "aptDigest": "MD5Sum:ff229bd498384ebd13f3a3cdf2ece1e6",
+      "license": "embedded:/usr/share/doc/dbus-daemon/copyright",
+      "localPath": ".rvs-cache/debian/dbus-daemon_1.14.10-1~deb12u1_amd64.deb"
+    },
+    {
+      "name": "dbus-session-bus-common",
+      "version": "1.14.10-1~deb12u1",
+      "architecture": "all",
+      "url": "http://deb.debian.org/debian/pool/main/d/dbus/dbus-session-bus-common_1.14.10-1%7edeb12u1_all.deb",
+      "sha256": "b19cb8e3581d6b09ff3f46fee23de2813811353228c666c9d1ad885598062e43",
+      "aptDigest": "MD5Sum:91720a9b205ca881abfe3b0946967d76",
+      "license": "embedded:/usr/share/doc/dbus-session-bus-common/copyright",
+      "localPath": ".rvs-cache/debian/dbus-session-bus-common_1.14.10-1~deb12u1_all.deb"
+    },
+    {
+      "name": "dbus-system-bus-common",
+      "version": "1.14.10-1~deb12u1",
+      "architecture": "all",
+      "url": "http://deb.debian.org/debian/pool/main/d/dbus/dbus-system-bus-common_1.14.10-1%7edeb12u1_all.deb",
+      "sha256": "2111d3d0c98ac68ee973274058447e6fab1c359fec1d4bb195f5fcc5833a19e2",
+      "aptDigest": "MD5Sum:6acb47fc560a15d3c13b44aa722b4652",
+      "license": "embedded:/usr/share/doc/dbus-system-bus-common/copyright",
+      "localPath": ".rvs-cache/debian/dbus-system-bus-common_1.14.10-1~deb12u1_all.deb"
+    },
+    {
+      "name": "dbus-user-session",
+      "version": "1.14.10-1~deb12u1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/d/dbus/dbus-user-session_1.14.10-1%7edeb12u1_amd64.deb",
+      "sha256": "4c3aaad251f876214fadb5580dd5f4925f73838832135e6d1dab981eb963be6b",
+      "aptDigest": "MD5Sum:6c57958adf775a2d9bfca3a521b2e7d4",
+      "license": "embedded:/usr/share/doc/dbus-user-session/copyright",
+      "localPath": ".rvs-cache/debian/dbus-user-session_1.14.10-1~deb12u1_amd64.deb"
+    },
+    {
+      "name": "dbus",
+      "version": "1.14.10-1~deb12u1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/d/dbus/dbus_1.14.10-1%7edeb12u1_amd64.deb",
+      "sha256": "35932ffdc1ae80348e93c1263c504e62cae8a2a1476f1541ef63a9cc0a271ef9",
+      "aptDigest": "MD5Sum:0c774f7eb6e9bf0b19bd1403ec095b27",
+      "license": "embedded:/usr/share/doc/dbus/copyright",
+      "localPath": ".rvs-cache/debian/dbus_1.14.10-1~deb12u1_amd64.deb"
+    },
+    {
+      "name": "dconf-gsettings-backend",
+      "version": "0.40.0-4",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/d/dconf/dconf-gsettings-backend_0.40.0-4_amd64.deb",
+      "sha256": "790a8ad2a229b378bbda7a0f32d9d8a522c986b08c556210c0514978ad88e356",
+      "aptDigest": "MD5Sum:9512a2fd44fcb1bc31c443ba6f7bd2e2",
+      "license": "embedded:/usr/share/doc/dconf-gsettings-backend/copyright",
+      "localPath": ".rvs-cache/debian/dconf-gsettings-backend_0.40.0-4_amd64.deb"
+    },
+    {
+      "name": "dconf-service",
+      "version": "0.40.0-4",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/d/dconf/dconf-service_0.40.0-4_amd64.deb",
+      "sha256": "2650490642fb7e66da94943d381cea277cb811e3a4aadb6386fcd402a8390759",
+      "aptDigest": "MD5Sum:57aadc2ea5002fab95903cbad1419185",
+      "license": "embedded:/usr/share/doc/dconf-service/copyright",
+      "localPath": ".rvs-cache/debian/dconf-service_0.40.0-4_amd64.deb"
+    },
+    {
+      "name": "dirmngr",
+      "version": "2.2.40-1.1+deb12u2",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/g/gnupg2/dirmngr_2.2.40-1.1%2bdeb12u2_amd64.deb",
+      "sha256": "eabfd0d1c36729953794ad1f44536dda982b17d1177de6bd88f3e2d5b8b5de6d",
+      "aptDigest": "MD5Sum:9a59ba46e0703f5b842f4744e08d301a",
+      "license": "embedded:/usr/share/doc/dirmngr/copyright",
+      "localPath": ".rvs-cache/debian/dirmngr_2.2.40-1.1+deb12u2_amd64.deb"
+    },
+    {
+      "name": "dmsetup",
+      "version": "2:1.02.185-2",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/l/lvm2/dmsetup_1.02.185-2_amd64.deb",
+      "sha256": "c73fc490b93c83550ed272de69ec96c5da30d4456b889f9e93c7fd8e53860b85",
+      "aptDigest": "MD5Sum:0cf37f6e610cbe0bfeff16477cab5abb",
+      "license": "embedded:/usr/share/doc/dmsetup/copyright",
+      "localPath": ".rvs-cache/debian/dmsetup_2%3a1.02.185-2_amd64.deb"
+    },
+    {
+      "name": "dpkg-dev",
+      "version": "1.21.23",
+      "architecture": "all",
+      "url": "http://deb.debian.org/debian/pool/main/d/dpkg/dpkg-dev_1.21.23_all.deb",
+      "sha256": "43547075395dbe9290e6a5f34e9ba93aa5dcf7dfc5698c3d30cc3c85e5f7e3de",
+      "aptDigest": "MD5Sum:125432cf00a47cf6d86bcb4fc1186361",
+      "license": "embedded:/usr/share/doc/dpkg-dev/copyright",
+      "localPath": ".rvs-cache/debian/dpkg-dev_1.21.23_all.deb"
+    },
+    {
+      "name": "fakeroot",
+      "version": "1.31-1.2",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/f/fakeroot/fakeroot_1.31-1.2_amd64.deb",
+      "sha256": "194fd3750e6d647f300045a266c20cc3a3d47f84fd2fc8ff8830c55098b63c0d",
+      "aptDigest": "MD5Sum:8dc0b0aaf236ef916df7d7058ec28935",
+      "license": "embedded:/usr/share/doc/fakeroot/copyright",
+      "localPath": ".rvs-cache/debian/fakeroot_1.31-1.2_amd64.deb"
+    },
+    {
+      "name": "fontconfig-config",
+      "version": "2.14.1-4",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/f/fontconfig/fontconfig-config_2.14.1-4_amd64.deb",
+      "sha256": "281c66e46b95f045a0282a6c7a03b33de0e9a08d016897a759aaf4a04adfddbe",
+      "aptDigest": "MD5Sum:88cb4a667a75c108ddf316da4683f12e",
+      "license": "embedded:/usr/share/doc/fontconfig-config/copyright",
+      "localPath": ".rvs-cache/debian/fontconfig-config_2.14.1-4_amd64.deb"
+    },
+    {
+      "name": "fontconfig",
+      "version": "2.14.1-4",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/f/fontconfig/fontconfig_2.14.1-4_amd64.deb",
+      "sha256": "010e57c24a983eecc39aab8a84219a716c10901e03bacd1927331388656f890f",
+      "aptDigest": "MD5Sum:a88a18a6dc4b8000683132012c9db832",
+      "license": "embedded:/usr/share/doc/fontconfig/copyright",
+      "localPath": ".rvs-cache/debian/fontconfig_2.14.1-4_amd64.deb"
+    },
+    {
+      "name": "fonts-dejavu-core",
+      "version": "2.37-6",
+      "architecture": "all",
+      "url": "http://deb.debian.org/debian/pool/main/f/fonts-dejavu/fonts-dejavu-core_2.37-6_all.deb",
+      "sha256": "8892669e51aab4dc56682c8e39d8ddb7d70fad83c369344e1e240bf3ca22bb76",
+      "aptDigest": "MD5Sum:755d6c59d57accb3000de0cdba40918d",
+      "license": "embedded:/usr/share/doc/fonts-dejavu-core/copyright",
+      "localPath": ".rvs-cache/debian/fonts-dejavu-core_2.37-6_all.deb"
+    },
+    {
+      "name": "g++-12",
+      "version": "12.2.0-14+deb12u1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/g/gcc-12/g%2b%2b-12_12.2.0-14%2bdeb12u1_amd64.deb",
+      "sha256": "68b182badae4ace7d472f1393c559d3532a95a2d70817498b10bb481d2627251",
+      "aptDigest": "MD5Sum:ede728f14f007baad34334025a28ffb4",
+      "license": "embedded:/usr/share/doc/g++-12/copyright",
+      "localPath": ".rvs-cache/debian/g++-12_12.2.0-14+deb12u1_amd64.deb"
+    },
+    {
+      "name": "g++",
+      "version": "4:12.2.0-3",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/g/gcc-defaults/g%2b%2b_12.2.0-3_amd64.deb",
+      "sha256": "26c451a660728cf7c15548a281e17eef2f36fab28499371e83fc2d3accb499d7",
+      "aptDigest": "MD5Sum:ee1214564633e8a0ec102e218b4c66ca",
+      "license": "embedded:/usr/share/doc/g++/copyright",
+      "localPath": ".rvs-cache/debian/g++_4%3a12.2.0-3_amd64.deb"
+    },
+    {
+      "name": "gcc-12",
+      "version": "12.2.0-14+deb12u1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/g/gcc-12/gcc-12_12.2.0-14%2bdeb12u1_amd64.deb",
+      "sha256": "b46f33cc2ec245e435e043807038cecf4b201ef004800e9dfc1455240360e49d",
+      "aptDigest": "MD5Sum:eb52b5c2f20f71ec79f8858c97f43cf7",
+      "license": "embedded:/usr/share/doc/gcc-12/copyright",
+      "localPath": ".rvs-cache/debian/gcc-12_12.2.0-14+deb12u1_amd64.deb"
+    },
+    {
+      "name": "gcc",
+      "version": "4:12.2.0-3",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/g/gcc-defaults/gcc_12.2.0-3_amd64.deb",
+      "sha256": "bb63b0fb2797e2a3a294dab8a02614930c557ec1f4ea96637c244b8b5f87e630",
+      "aptDigest": "MD5Sum:f3dcf34728690484124bce954cc2c734",
+      "license": "embedded:/usr/share/doc/gcc/copyright",
+      "localPath": ".rvs-cache/debian/gcc_4%3a12.2.0-3_amd64.deb"
+    },
+    {
+      "name": "gir1.2-freedesktop",
+      "version": "1.74.0-3",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/g/gobject-introspection/gir1.2-freedesktop_1.74.0-3_amd64.deb",
+      "sha256": "7fe6941d2a060a8df832b852f3bfcc554e0e6cc788b54a60343790df0fdfac84",
+      "aptDigest": "MD5Sum:aeea5bc7ae2941527ffedb34f2e294ab",
+      "license": "embedded:/usr/share/doc/gir1.2-freedesktop/copyright",
+      "localPath": ".rvs-cache/debian/gir1.2-freedesktop_1.74.0-3_amd64.deb"
+    },
+    {
+      "name": "gir1.2-glib-2.0",
+      "version": "1.74.0-3",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/g/gobject-introspection/gir1.2-glib-2.0_1.74.0-3_amd64.deb",
+      "sha256": "f203b2e2a07334d26e7e8d391bdddf20c1dd3c9a43bd40f92e50d70a69c1c551",
+      "aptDigest": "MD5Sum:5da79d26f14831707173ad5bda3cf97a",
+      "license": "embedded:/usr/share/doc/gir1.2-glib-2.0/copyright",
+      "localPath": ".rvs-cache/debian/gir1.2-glib-2.0_1.74.0-3_amd64.deb"
+    },
+    {
+      "name": "gir1.2-harfbuzz-0.0",
+      "version": "6.0.0+dfsg-3",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/h/harfbuzz/gir1.2-harfbuzz-0.0_6.0.0%2bdfsg-3_amd64.deb",
+      "sha256": "4f6509265db076963c0b9e017ca061154213a5efe3b0443dcd690913f6812e14",
+      "aptDigest": "MD5Sum:c9ec1cf95947c0b504b469d6b5853fec",
+      "license": "embedded:/usr/share/doc/gir1.2-harfbuzz-0.0/copyright",
+      "localPath": ".rvs-cache/debian/gir1.2-harfbuzz-0.0_6.0.0+dfsg-3_amd64.deb"
+    },
+    {
+      "name": "gnupg-l10n",
+      "version": "2.2.40-1.1+deb12u2",
+      "architecture": "all",
+      "url": "http://deb.debian.org/debian/pool/main/g/gnupg2/gnupg-l10n_2.2.40-1.1%2bdeb12u2_all.deb",
+      "sha256": "c985452d06cc7b3b1044cd1eb3f2acac773836d34cafb35b5a4bebae02c1caa0",
+      "aptDigest": "MD5Sum:682face76382dc02912f9fa911c47fa5",
+      "license": "embedded:/usr/share/doc/gnupg-l10n/copyright",
+      "localPath": ".rvs-cache/debian/gnupg-l10n_2.2.40-1.1+deb12u2_all.deb"
+    },
+    {
+      "name": "gnupg-utils",
+      "version": "2.2.40-1.1+deb12u2",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/g/gnupg2/gnupg-utils_2.2.40-1.1%2bdeb12u2_amd64.deb",
+      "sha256": "2debe27465da15044af798a57c7c2c4e4832c1ed3f7dfefe1f233ffbce3a7a0f",
+      "aptDigest": "MD5Sum:abbf7c8951f5f82f7ba3fa1e4f517e3f",
+      "license": "embedded:/usr/share/doc/gnupg-utils/copyright",
+      "localPath": ".rvs-cache/debian/gnupg-utils_2.2.40-1.1+deb12u2_amd64.deb"
+    },
+    {
+      "name": "gnupg",
+      "version": "2.2.40-1.1+deb12u2",
+      "architecture": "all",
+      "url": "http://deb.debian.org/debian/pool/main/g/gnupg2/gnupg_2.2.40-1.1%2bdeb12u2_all.deb",
+      "sha256": "d3f860cf16da5d61875a324859045fd1f4a888ed0ddef55d7e9f977dd729a76e",
+      "aptDigest": "MD5Sum:97c080079eda65688b41ed940a06f4fc",
+      "license": "embedded:/usr/share/doc/gnupg/copyright",
+      "localPath": ".rvs-cache/debian/gnupg_2.2.40-1.1+deb12u2_all.deb"
+    },
+    {
+      "name": "gpg-agent",
+      "version": "2.2.40-1.1+deb12u2",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/g/gnupg2/gpg-agent_2.2.40-1.1%2bdeb12u2_amd64.deb",
+      "sha256": "3f6b29302a0c0478358efb7e6d7b98e5a246db4287659494975423e482328caa",
+      "aptDigest": "MD5Sum:63e9134c00bab36b6d85ae8b206c0265",
+      "license": "embedded:/usr/share/doc/gpg-agent/copyright",
+      "localPath": ".rvs-cache/debian/gpg-agent_2.2.40-1.1+deb12u2_amd64.deb"
+    },
+    {
+      "name": "gpg-wks-client",
+      "version": "2.2.40-1.1+deb12u2",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/g/gnupg2/gpg-wks-client_2.2.40-1.1%2bdeb12u2_amd64.deb",
+      "sha256": "29f98a5680a5c59d8f7ef6d188c95c6d8f5d07be8cfd64d85a9d9ce7ee032f35",
+      "aptDigest": "MD5Sum:89e914a13a2e6bae2ed48f8502b968cd",
+      "license": "embedded:/usr/share/doc/gpg-wks-client/copyright",
+      "localPath": ".rvs-cache/debian/gpg-wks-client_2.2.40-1.1+deb12u2_amd64.deb"
+    },
+    {
+      "name": "gpg-wks-server",
+      "version": "2.2.40-1.1+deb12u2",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/g/gnupg2/gpg-wks-server_2.2.40-1.1%2bdeb12u2_amd64.deb",
+      "sha256": "1876b0086c2cdb2847121d25c487886f262a22c0e8c04df3875d73b4fe765590",
+      "aptDigest": "MD5Sum:bd0c7629bb588e5e9f99ef207547820c",
+      "license": "embedded:/usr/share/doc/gpg-wks-server/copyright",
+      "localPath": ".rvs-cache/debian/gpg-wks-server_2.2.40-1.1+deb12u2_amd64.deb"
+    },
+    {
+      "name": "gpg",
+      "version": "2.2.40-1.1+deb12u2",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/g/gnupg2/gpg_2.2.40-1.1%2bdeb12u2_amd64.deb",
+      "sha256": "5bb24757dc7206f42f419cc1309a4496d1e8ef2b1b539e095ad1c173ef6aa65d",
+      "aptDigest": "MD5Sum:dca580e864d1d5a514447e5a3a18e5ab",
+      "license": "embedded:/usr/share/doc/gpg/copyright",
+      "localPath": ".rvs-cache/debian/gpg_2.2.40-1.1+deb12u2_amd64.deb"
+    },
+    {
+      "name": "gpgconf",
+      "version": "2.2.40-1.1+deb12u2",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/g/gnupg2/gpgconf_2.2.40-1.1%2bdeb12u2_amd64.deb",
+      "sha256": "ce17a8b76468d3f4d6448efdeb5dab8a2613a9e0eb2c37f0987418a0d3ebd5a0",
+      "aptDigest": "MD5Sum:3dee750aaba2ef982bf4ebf185671d22",
+      "license": "embedded:/usr/share/doc/gpgconf/copyright",
+      "localPath": ".rvs-cache/debian/gpgconf_2.2.40-1.1+deb12u2_amd64.deb"
+    },
+    {
+      "name": "gpgsm",
+      "version": "2.2.40-1.1+deb12u2",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/g/gnupg2/gpgsm_2.2.40-1.1%2bdeb12u2_amd64.deb",
+      "sha256": "de6c4f4b26a0534a417f7bc0f9b70ae4dc865d9e1fd83aeb698a24bffea37f8c",
+      "aptDigest": "MD5Sum:8935109fc6c91ee6afb29c2f8ce8d592",
+      "license": "embedded:/usr/share/doc/gpgsm/copyright",
+      "localPath": ".rvs-cache/debian/gpgsm_2.2.40-1.1+deb12u2_amd64.deb"
+    },
+    {
+      "name": "gsettings-desktop-schemas",
+      "version": "43.0-1",
+      "architecture": "all",
+      "url": "http://deb.debian.org/debian/pool/main/g/gsettings-desktop-schemas/gsettings-desktop-schemas_43.0-1_all.deb",
+      "sha256": "15cc7142c3ddea0551b834c53c4d3b5cd8f5485e695100966877f2be50def7af",
+      "aptDigest": "MD5Sum:9d5ecf5ceb9f1e9b3edc69b70de820b4",
+      "license": "embedded:/usr/share/doc/gsettings-desktop-schemas/copyright",
+      "localPath": ".rvs-cache/debian/gsettings-desktop-schemas_43.0-1_all.deb"
+    },
+    {
+      "name": "gtk-update-icon-cache",
+      "version": "3.24.38-2~deb12u3",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/g/gtk%2b3.0/gtk-update-icon-cache_3.24.38-2%7edeb12u3_amd64.deb",
+      "sha256": "6df214515e719d9099f6df89f4581abe34b63ea9237b76e93843e83226b2e9cb",
+      "aptDigest": "MD5Sum:232f4b2db6359ef66a2b35bbaa1093d4",
+      "license": "embedded:/usr/share/doc/gtk-update-icon-cache/copyright",
+      "localPath": ".rvs-cache/debian/gtk-update-icon-cache_3.24.38-2~deb12u3_amd64.deb"
+    },
+    {
+      "name": "hicolor-icon-theme",
+      "version": "0.17-2",
+      "architecture": "all",
+      "url": "http://deb.debian.org/debian/pool/main/h/hicolor-icon-theme/hicolor-icon-theme_0.17-2_all.deb",
+      "sha256": "20304d34b85a734ec1e4830badf3a3a70a5dc5f9c1afc0b2230ecd760c81b5e0",
+      "aptDigest": "MD5Sum:48f8e62bfaa6710fe44249b3c927af45",
+      "license": "embedded:/usr/share/doc/hicolor-icon-theme/copyright",
+      "localPath": ".rvs-cache/debian/hicolor-icon-theme_0.17-2_all.deb"
+    },
+    {
+      "name": "icu-devtools",
+      "version": "72.1-3+deb12u1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/i/icu/icu-devtools_72.1-3%2bdeb12u1_amd64.deb",
+      "sha256": "40dd7a2ed22fb227f2b600724fc7d5c940aa1d4c658f0e8a134bcc914725a4d8",
+      "aptDigest": "MD5Sum:67fd7fdfafff8cf3f0725240865619f8",
+      "license": "embedded:/usr/share/doc/icu-devtools/copyright",
+      "localPath": ".rvs-cache/debian/icu-devtools_72.1-3+deb12u1_amd64.deb"
+    },
+    {
+      "name": "krb5-locales",
+      "version": "1.20.1-2+deb12u5",
+      "architecture": "all",
+      "url": "http://deb.debian.org/debian/pool/main/k/krb5/krb5-locales_1.20.1-2%2bdeb12u5_all.deb",
+      "sha256": "7a904247cda4006e25a6a1bdcf10bc3f0fa10f5c7df69dd199c1e2fdf99327fa",
+      "aptDigest": "MD5Sum:e690266fccc5d75bee13b7f8c34a0033",
+      "license": "embedded:/usr/share/doc/krb5-locales/copyright",
+      "localPath": ".rvs-cache/debian/krb5-locales_1.20.1-2+deb12u5_all.deb"
+    },
+    {
+      "name": "libabsl20220623",
+      "version": "20220623.1-1+deb12u2",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/a/abseil/libabsl20220623_20220623.1-1%2bdeb12u2_amd64.deb",
+      "sha256": "3fb1a98ff3a1b7b27cd3b2544e033af3bc3419d82f33bbe3f3d5faa07b400eb5",
+      "aptDigest": "MD5Sum:97aad1a44aebe65b420347022449ad90",
+      "license": "embedded:/usr/share/doc/libabsl20220623/copyright",
+      "localPath": ".rvs-cache/debian/libabsl20220623_20220623.1-1+deb12u2_amd64.deb"
+    },
+    {
+      "name": "libalgorithm-diff-perl",
+      "version": "1.201-1",
+      "architecture": "all",
+      "url": "http://deb.debian.org/debian/pool/main/liba/libalgorithm-diff-perl/libalgorithm-diff-perl_1.201-1_all.deb",
+      "sha256": "3a8b61891f0ce9bd310088ce2d269d63b5afd88b9196fa4f046fd890faea4a17",
+      "aptDigest": "MD5Sum:642c8b02b67631807a3b8dd597e2b178",
+      "license": "embedded:/usr/share/doc/libalgorithm-diff-perl/copyright",
+      "localPath": ".rvs-cache/debian/libalgorithm-diff-perl_1.201-1_all.deb"
+    },
+    {
+      "name": "libalgorithm-diff-xs-perl",
+      "version": "0.04-8+b1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/liba/libalgorithm-diff-xs-perl/libalgorithm-diff-xs-perl_0.04-8%2bb1_amd64.deb",
+      "sha256": "7038b4d856aff8b4054f879c488c1298db5a83ecfa6280f85706f20e2e1935f1",
+      "aptDigest": "MD5Sum:4beab63cdc4502cd0f43222ac5a17da2",
+      "license": "embedded:/usr/share/doc/libalgorithm-diff-xs-perl/copyright",
+      "localPath": ".rvs-cache/debian/libalgorithm-diff-xs-perl_0.04-8+b1_amd64.deb"
+    },
+    {
+      "name": "libalgorithm-merge-perl",
+      "version": "0.08-5",
+      "architecture": "all",
+      "url": "http://deb.debian.org/debian/pool/main/liba/libalgorithm-merge-perl/libalgorithm-merge-perl_0.08-5_all.deb",
+      "sha256": "46dbe02369411b46f676ddb55fa8ee3a98f7a15607ddab785979c25bacb5d7db",
+      "aptDigest": "MD5Sum:8d546e4af326bb3b0d0c31c446d72eb1",
+      "license": "embedded:/usr/share/doc/libalgorithm-merge-perl/copyright",
+      "localPath": ".rvs-cache/debian/libalgorithm-merge-perl_0.08-5_all.deb"
+    },
+    {
+      "name": "libaom3",
+      "version": "3.6.0-1+deb12u2",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/a/aom/libaom3_3.6.0-1%2bdeb12u2_amd64.deb",
+      "sha256": "33fd9b3af7c1bf65fd7e603d60f5034ac3bc0b4eefdabd8c33de8daff0e87205",
+      "aptDigest": "MD5Sum:faae50e521d9a6f39d96953961a2b1f9",
+      "license": "embedded:/usr/share/doc/libaom3/copyright",
+      "localPath": ".rvs-cache/debian/libaom3_3.6.0-1+deb12u2_amd64.deb"
+    },
+    {
+      "name": "libapparmor1",
+      "version": "3.0.8-3",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/a/apparmor/libapparmor1_3.0.8-3_amd64.deb",
+      "sha256": "4b79f49eafc2017374da9ec206b5495433eadd2b1ea078c3895c99e72825e9d3",
+      "aptDigest": "MD5Sum:c33328a4d9e616e5383fe418cd8b09c2",
+      "license": "embedded:/usr/share/doc/libapparmor1/copyright",
+      "localPath": ".rvs-cache/debian/libapparmor1_3.0.8-3_amd64.deb"
+    },
+    {
+      "name": "libargon2-1",
+      "version": "0~20171227-0.3+deb12u1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/a/argon2/libargon2-1_0%7e20171227-0.3%2bdeb12u1_amd64.deb",
+      "sha256": "4a8155b06270b88eed34d132acfc8ccc0b85499e1c4bfd7f31f8b199af42b1de",
+      "aptDigest": "MD5Sum:6fea2246340c2bd4c23570496092fcf2",
+      "license": "embedded:/usr/share/doc/libargon2-1/copyright",
+      "localPath": ".rvs-cache/debian/libargon2-1_0~20171227-0.3+deb12u1_amd64.deb"
+    },
+    {
+      "name": "libasan8",
+      "version": "12.2.0-14+deb12u1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/g/gcc-12/libasan8_12.2.0-14%2bdeb12u1_amd64.deb",
+      "sha256": "e7ac5d797d7d438a130674a8e463530f06aa02ecf919ca054d75eaa2f7849ec7",
+      "aptDigest": "MD5Sum:ecdea43d65face95b0076d79eceb88f0",
+      "license": "embedded:/usr/share/doc/libasan8/copyright",
+      "localPath": ".rvs-cache/debian/libasan8_12.2.0-14+deb12u1_amd64.deb"
+    },
+    {
+      "name": "libasound2-data",
+      "version": "1.2.8-1",
+      "architecture": "all",
+      "url": "http://deb.debian.org/debian/pool/main/a/alsa-lib/libasound2-data_1.2.8-1_all.deb",
+      "sha256": "fe0780d2d3674b2977e0acb0d48b448ad72ba1642564b7dc537f55e839984c2d",
+      "aptDigest": "MD5Sum:8cdd32445982638bf5d024453da19673",
+      "license": "embedded:/usr/share/doc/libasound2-data/copyright",
+      "localPath": ".rvs-cache/debian/libasound2-data_1.2.8-1_all.deb"
+    },
+    {
+      "name": "libasound2",
+      "version": "1.2.8-1+b1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/a/alsa-lib/libasound2_1.2.8-1%2bb1_amd64.deb",
+      "sha256": "44c77b076a7b11ae99712439022d822245b1994c435da564ebd320bb676faf4c",
+      "aptDigest": "MD5Sum:23043904d4f228b6f4d72ef1cdea49a3",
+      "license": "embedded:/usr/share/doc/libasound2/copyright",
+      "localPath": ".rvs-cache/debian/libasound2_1.2.8-1+b1_amd64.deb"
+    },
+    {
+      "name": "libassuan0",
+      "version": "2.5.5-5",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/liba/libassuan/libassuan0_2.5.5-5_amd64.deb",
+      "sha256": "5912430927da16ccc831459679207fdbb9dfc5a206f2bab8d6f36d5a1ab53e25",
+      "aptDigest": "MD5Sum:0c12cc16de81082bf8ca0e24f36db592",
+      "license": "embedded:/usr/share/doc/libassuan0/copyright",
+      "localPath": ".rvs-cache/debian/libassuan0_2.5.5-5_amd64.deb"
+    },
+    {
+      "name": "libatk-bridge2.0-0",
+      "version": "2.46.0-5",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/a/at-spi2-core/libatk-bridge2.0-0_2.46.0-5_amd64.deb",
+      "sha256": "fbb07714fdd3fdee7b63fd8595053f4fa8021d8e350a5de6281c6ce7cd4f158f",
+      "aptDigest": "MD5Sum:88c6a6ee6484871063475c5dad41ee1b",
+      "license": "embedded:/usr/share/doc/libatk-bridge2.0-0/copyright",
+      "localPath": ".rvs-cache/debian/libatk-bridge2.0-0_2.46.0-5_amd64.deb"
+    },
+    {
+      "name": "libatk1.0-0",
+      "version": "2.46.0-5",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/a/at-spi2-core/libatk1.0-0_2.46.0-5_amd64.deb",
+      "sha256": "909dd661e03760a9ba1529bfc772f259cec8431999ee38b7c5521186237cdd98",
+      "aptDigest": "MD5Sum:33f18d126df1dcd3ce923a87289ca3e2",
+      "license": "embedded:/usr/share/doc/libatk1.0-0/copyright",
+      "localPath": ".rvs-cache/debian/libatk1.0-0_2.46.0-5_amd64.deb"
+    },
+    {
+      "name": "libatomic1",
+      "version": "12.2.0-14+deb12u1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/g/gcc-12/libatomic1_12.2.0-14%2bdeb12u1_amd64.deb",
+      "sha256": "fbd4e154a6b444229ea002cc209df099209c0adc09102e5fd21239a3d2b55e2d",
+      "aptDigest": "MD5Sum:af38461bd277f119e17e666b25173695",
+      "license": "embedded:/usr/share/doc/libatomic1/copyright",
+      "localPath": ".rvs-cache/debian/libatomic1_12.2.0-14+deb12u1_amd64.deb"
+    },
+    {
+      "name": "libatspi2.0-0",
+      "version": "2.46.0-5",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/a/at-spi2-core/libatspi2.0-0_2.46.0-5_amd64.deb",
+      "sha256": "1c0332f3b712a8e5ee56800bbcab83a8f92098874094f2b0bdfd6b7fd45e8b83",
+      "aptDigest": "MD5Sum:296e4a2fb079ff04333ba45541fde1a4",
+      "license": "embedded:/usr/share/doc/libatspi2.0-0/copyright",
+      "localPath": ".rvs-cache/debian/libatspi2.0-0_2.46.0-5_amd64.deb"
+    },
+    {
+      "name": "libavahi-client3",
+      "version": "0.8-10+deb12u1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/a/avahi/libavahi-client3_0.8-10%2bdeb12u1_amd64.deb",
+      "sha256": "a99d635f07a49cfbd24de151155c4f815a5adf867855e7ba13ecc3b25ffa52b9",
+      "aptDigest": "MD5Sum:f4fa9e977bc2b4f72736966bb34f4478",
+      "license": "embedded:/usr/share/doc/libavahi-client3/copyright",
+      "localPath": ".rvs-cache/debian/libavahi-client3_0.8-10+deb12u1_amd64.deb"
+    },
+    {
+      "name": "libavahi-common-data",
+      "version": "0.8-10+deb12u1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/a/avahi/libavahi-common-data_0.8-10%2bdeb12u1_amd64.deb",
+      "sha256": "b21e33c3797c834e9a9ce0f1085e6d3f721db496d550505ab2f364d52097fe6f",
+      "aptDigest": "MD5Sum:b06e992ca8cb10f4793c2cdc2e795f8b",
+      "license": "embedded:/usr/share/doc/libavahi-common-data/copyright",
+      "localPath": ".rvs-cache/debian/libavahi-common-data_0.8-10+deb12u1_amd64.deb"
+    },
+    {
+      "name": "libavahi-common3",
+      "version": "0.8-10+deb12u1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/a/avahi/libavahi-common3_0.8-10%2bdeb12u1_amd64.deb",
+      "sha256": "0c12791afe1be09d8362161244d7a51e82a67a55f3909f4c29ee3dd424c3a5f1",
+      "aptDigest": "MD5Sum:377b5178f167089245e94f6ba5fd9c2f",
+      "license": "embedded:/usr/share/doc/libavahi-common3/copyright",
+      "localPath": ".rvs-cache/debian/libavahi-common3_0.8-10+deb12u1_amd64.deb"
+    },
+    {
+      "name": "libavif15",
+      "version": "0.11.1-1+deb12u1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/liba/libavif/libavif15_0.11.1-1%2bdeb12u1_amd64.deb",
+      "sha256": "c79d57f0f62d67d2353765592fb4f519119392befa53d27a34c9d0348cd580a3",
+      "aptDigest": "MD5Sum:1602a6b36075a904a0c712446c69ed30",
+      "license": "embedded:/usr/share/doc/libavif15/copyright",
+      "localPath": ".rvs-cache/debian/libavif15_0.11.1-1+deb12u1_amd64.deb"
+    },
+    {
+      "name": "libbinutils",
+      "version": "2.40-2",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/b/binutils/libbinutils_2.40-2_amd64.deb",
+      "sha256": "fcf55b99e5f8a78f3c8ce9b6957f1024f394cf20c196b100d308a57e43547710",
+      "aptDigest": "MD5Sum:2f1821e05bfa6a85d5132706b622b088",
+      "license": "embedded:/usr/share/doc/libbinutils/copyright",
+      "localPath": ".rvs-cache/debian/libbinutils_2.40-2_amd64.deb"
+    },
+    {
+      "name": "libblkid-dev",
+      "version": "2.38.1-5+deb12u3",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/u/util-linux/libblkid-dev_2.38.1-5%2bdeb12u3_amd64.deb",
+      "sha256": "c0ca156af47937b94da0b3dc7c6df45d3a054068c2fb56b63bf0531b67429615",
+      "aptDigest": "MD5Sum:004202c2a138839aac7f100d359f66d7",
+      "license": "embedded:/usr/share/doc/libblkid-dev/copyright",
+      "localPath": ".rvs-cache/debian/libblkid-dev_2.38.1-5+deb12u3_amd64.deb"
+    },
+    {
+      "name": "libbrotli-dev",
+      "version": "1.0.9-2+b6",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/b/brotli/libbrotli-dev_1.0.9-2%2bb6_amd64.deb",
+      "sha256": "932de11d4d9caee3300319b2fdf6ca505ca739706be48737df5e40ee90ccb6ca",
+      "aptDigest": "MD5Sum:8dfafc036295203a05aa4fabdaf7ec35",
+      "license": "embedded:/usr/share/doc/libbrotli-dev/copyright",
+      "localPath": ".rvs-cache/debian/libbrotli-dev_1.0.9-2+b6_amd64.deb"
+    },
+    {
+      "name": "libbrotli1",
+      "version": "1.0.9-2+b6",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/b/brotli/libbrotli1_1.0.9-2%2bb6_amd64.deb",
+      "sha256": "563b4caec1aa5e876bd3355b36e7a38e1484baf5a293b48d1e8bd22db786e4d7",
+      "aptDigest": "MD5Sum:58aff9bd35bab67549bdc84eb7edffcf",
+      "license": "embedded:/usr/share/doc/libbrotli1/copyright",
+      "localPath": ".rvs-cache/debian/libbrotli1_1.0.9-2+b6_amd64.deb"
+    },
+    {
+      "name": "libbsd0",
+      "version": "0.11.7-2",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/libb/libbsd/libbsd0_0.11.7-2_amd64.deb",
+      "sha256": "bb31cc8b40f962a85b2cec970f7f79cc704a1ae4bad24257a822055404b2c60b",
+      "aptDigest": "MD5Sum:5d382c22b266715b019f46576a3f3146",
+      "license": "embedded:/usr/share/doc/libbsd0/copyright",
+      "localPath": ".rvs-cache/debian/libbsd0_0.11.7-2_amd64.deb"
+    },
+    {
+      "name": "libc-dev-bin",
+      "version": "2.36-9+deb12u14",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/g/glibc/libc-dev-bin_2.36-9%2bdeb12u14_amd64.deb",
+      "sha256": "f61d923b703401023bec2ac3d9d1c9ad7341930fbe11736f7f5ef64b489d03c4",
+      "aptDigest": "MD5Sum:bf7479b3c9274ec601c49bf7a91027b1",
+      "license": "embedded:/usr/share/doc/libc-dev-bin/copyright",
+      "localPath": ".rvs-cache/debian/libc-dev-bin_2.36-9+deb12u14_amd64.deb"
+    },
+    {
+      "name": "libc-devtools",
+      "version": "2.36-9+deb12u14",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/g/glibc/libc-devtools_2.36-9%2bdeb12u14_amd64.deb",
+      "sha256": "3c073eb3a30e9ef8f3673f6a554e66c9f556cacabbcca7ac785659ac4d210549",
+      "aptDigest": "MD5Sum:64f824867f8cd36ff2c892af1626e485",
+      "license": "embedded:/usr/share/doc/libc-devtools/copyright",
+      "localPath": ".rvs-cache/debian/libc-devtools_2.36-9+deb12u14_amd64.deb"
+    },
+    {
+      "name": "libc6-dev",
+      "version": "2.36-9+deb12u14",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/g/glibc/libc6-dev_2.36-9%2bdeb12u14_amd64.deb",
+      "sha256": "0218fc2befcd784c1b0c6292c0a137ce89fad054efaa579ad083bee0f2c01aae",
+      "aptDigest": "MD5Sum:7b7c52938e39827b7bfd99ab986b2a32",
+      "license": "embedded:/usr/share/doc/libc6-dev/copyright",
+      "localPath": ".rvs-cache/debian/libc6-dev_2.36-9+deb12u14_amd64.deb"
+    },
+    {
+      "name": "libcairo-gobject2",
+      "version": "1.16.0-7",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/c/cairo/libcairo-gobject2_1.16.0-7_amd64.deb",
+      "sha256": "5898b4c1093ff40bade7acb92affc4a5b5b76a1737cd41cfa2a09cdc2d864d4c",
+      "aptDigest": "MD5Sum:db08d1561cb9d76615a2847e86374c90",
+      "license": "embedded:/usr/share/doc/libcairo-gobject2/copyright",
+      "localPath": ".rvs-cache/debian/libcairo-gobject2_1.16.0-7_amd64.deb"
+    },
+    {
+      "name": "libcairo2",
+      "version": "1.16.0-7",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/c/cairo/libcairo2_1.16.0-7_amd64.deb",
+      "sha256": "927fa059f8b5791d0cd744d4e3a8c57fa872ef849ce14434dc2222ac8a076a69",
+      "aptDigest": "MD5Sum:bc4ee8d605f36a5dd1cc307bf28a9fa8",
+      "license": "embedded:/usr/share/doc/libcairo2/copyright",
+      "localPath": ".rvs-cache/debian/libcairo2_1.16.0-7_amd64.deb"
+    },
+    {
+      "name": "libcc1-0",
+      "version": "12.2.0-14+deb12u1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/g/gcc-12/libcc1-0_12.2.0-14%2bdeb12u1_amd64.deb",
+      "sha256": "4ee6009633003f47de98333ea7f7d8835ec563ae2ac4f30251dbfee04d75d46b",
+      "aptDigest": "MD5Sum:85d653c531fe452b1c05b18d6dfec71e",
+      "license": "embedded:/usr/share/doc/libcc1-0/copyright",
+      "localPath": ".rvs-cache/debian/libcc1-0_12.2.0-14+deb12u1_amd64.deb"
+    },
+    {
+      "name": "libcolord2",
+      "version": "1.4.6-2.2",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/c/colord/libcolord2_1.4.6-2.2_amd64.deb",
+      "sha256": "6e5a48b72ae316301103d642c8881cc06205cb4b5f54c25c467b2847048d268f",
+      "aptDigest": "MD5Sum:ff29e3b7ea90bd59f206b1083a3a2f90",
+      "license": "embedded:/usr/share/doc/libcolord2/copyright",
+      "localPath": ".rvs-cache/debian/libcolord2_1.4.6-2.2_amd64.deb"
+    },
+    {
+      "name": "libcrypt-dev",
+      "version": "1:4.4.33-2",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/libx/libxcrypt/libcrypt-dev_4.4.33-2_amd64.deb",
+      "sha256": "81ccd29130f75a9e3adabc80e61921abff42f76761e1f792fa2d1bb69af7f52f",
+      "aptDigest": "MD5Sum:6aff917e5eff8479be04b8cb1ae6b340",
+      "license": "embedded:/usr/share/doc/libcrypt-dev/copyright",
+      "localPath": ".rvs-cache/debian/libcrypt-dev_1%3a4.4.33-2_amd64.deb"
+    },
+    {
+      "name": "libcryptsetup12",
+      "version": "2:2.6.1-4~deb12u2",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/c/cryptsetup/libcryptsetup12_2.6.1-4%7edeb12u2_amd64.deb",
+      "sha256": "b9a607c219be5ef04bc0fcfaec3752d9a1ba07df8d3bb2aed9bf348f90d1b6cc",
+      "aptDigest": "MD5Sum:14d2f4bface218daada4000e1328e750",
+      "license": "embedded:/usr/share/doc/libcryptsetup12/copyright",
+      "localPath": ".rvs-cache/debian/libcryptsetup12_2%3a2.6.1-4~deb12u2_amd64.deb"
+    },
+    {
+      "name": "libctf-nobfd0",
+      "version": "2.40-2",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/b/binutils/libctf-nobfd0_2.40-2_amd64.deb",
+      "sha256": "ef1dfcf22de41ea90ebd3d505447ccccd999e96b85aa777a1d7d981dc3b347aa",
+      "aptDigest": "MD5Sum:f715612e2834bc8912d458db4d7f709d",
+      "license": "embedded:/usr/share/doc/libctf-nobfd0/copyright",
+      "localPath": ".rvs-cache/debian/libctf-nobfd0_2.40-2_amd64.deb"
+    },
+    {
+      "name": "libctf0",
+      "version": "2.40-2",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/b/binutils/libctf0_2.40-2_amd64.deb",
+      "sha256": "3fb7b6f326be3fae4a87a3d33b9269bd06c1e4346a24bd737f265067e3b7427f",
+      "aptDigest": "MD5Sum:ddef86f165e39ee994ba5e89967834c6",
+      "license": "embedded:/usr/share/doc/libctf0/copyright",
+      "localPath": ".rvs-cache/debian/libctf0_2.40-2_amd64.deb"
+    },
+    {
+      "name": "libcups2",
+      "version": "2.4.2-3+deb12u9",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/c/cups/libcups2_2.4.2-3%2bdeb12u9_amd64.deb",
+      "sha256": "8dbfd3b7cd81166a2d79bb7e3898b0203fec05c7e927f60e207122a1e36b95c8",
+      "aptDigest": "MD5Sum:724fd23127800efab677b8d138c0cdfc",
+      "license": "embedded:/usr/share/doc/libcups2/copyright",
+      "localPath": ".rvs-cache/debian/libcups2_2.4.2-3+deb12u9_amd64.deb"
+    },
+    {
+      "name": "libdatrie1",
+      "version": "0.2.13-2+b1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/libd/libdatrie/libdatrie1_0.2.13-2%2bb1_amd64.deb",
+      "sha256": "f021f193384929989b2dfd19f606a8cebe54b5f209fe387fc40683e810e01ebe",
+      "aptDigest": "MD5Sum:ad938e26b2280bfe54171f58341d95be",
+      "license": "embedded:/usr/share/doc/libdatrie1/copyright",
+      "localPath": ".rvs-cache/debian/libdatrie1_0.2.13-2+b1_amd64.deb"
+    },
+    {
+      "name": "libdav1d6",
+      "version": "1.0.0-2+deb12u1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/d/dav1d/libdav1d6_1.0.0-2%2bdeb12u1_amd64.deb",
+      "sha256": "197f08108242177aeae4c04aac11825c39b7d18598191ab769f910687ccb387f",
+      "aptDigest": "MD5Sum:e041891f3cff962c8ecd994865318ee3",
+      "license": "embedded:/usr/share/doc/libdav1d6/copyright",
+      "localPath": ".rvs-cache/debian/libdav1d6_1.0.0-2+deb12u1_amd64.deb"
+    },
+    {
+      "name": "libdbus-1-3",
+      "version": "1.14.10-1~deb12u1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/d/dbus/libdbus-1-3_1.14.10-1%7edeb12u1_amd64.deb",
+      "sha256": "18ee0ce5fab9f7b671e87da1e9fa18660e36e04a3402f24bdb8635e0ba1d35f6",
+      "aptDigest": "MD5Sum:0137f792d3ba2cf6f057951f6dd009b6",
+      "license": "embedded:/usr/share/doc/libdbus-1-3/copyright",
+      "localPath": ".rvs-cache/debian/libdbus-1-3_1.14.10-1~deb12u1_amd64.deb"
+    },
+    {
+      "name": "libdconf1",
+      "version": "0.40.0-4",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/d/dconf/libdconf1_0.40.0-4_amd64.deb",
+      "sha256": "d438bb2e3b5afaee2a90bb3fb541dcd2e47eefbc43994b5d0461c18648741e36",
+      "aptDigest": "MD5Sum:ece78f6638f8cf0bb5a99a7ff9910bd0",
+      "license": "embedded:/usr/share/doc/libdconf1/copyright",
+      "localPath": ".rvs-cache/debian/libdconf1_0.40.0-4_amd64.deb"
+    },
+    {
+      "name": "libde265-0",
+      "version": "1.0.11-1+deb12u2",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/libd/libde265/libde265-0_1.0.11-1%2bdeb12u2_amd64.deb",
+      "sha256": "cef2a550eb3aa0f7d01799a3ab5d5c10b48d0184c41d23ebdefd2e43f0800f42",
+      "aptDigest": "MD5Sum:27c287d4fd4e486eb99514cf973cef67",
+      "license": "embedded:/usr/share/doc/libde265-0/copyright",
+      "localPath": ".rvs-cache/debian/libde265-0_1.0.11-1+deb12u2_amd64.deb"
+    },
+    {
+      "name": "libdeflate0",
+      "version": "1.14-1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/libd/libdeflate/libdeflate0_1.14-1_amd64.deb",
+      "sha256": "3d4b39f94317b64a860db8a7a8b581b555124cd461fe07ec0d347edbdb9f6683",
+      "aptDigest": "MD5Sum:e505f1277c856889aa2b539320e3e154",
+      "license": "embedded:/usr/share/doc/libdeflate0/copyright",
+      "localPath": ".rvs-cache/debian/libdeflate0_1.14-1_amd64.deb"
+    },
+    {
+      "name": "libdevmapper1.02.1",
+      "version": "2:1.02.185-2",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/l/lvm2/libdevmapper1.02.1_1.02.185-2_amd64.deb",
+      "sha256": "aaa78ca236055fedccf637eacf7bda02bf1980b2db668dccd202b04d0d2cfe04",
+      "aptDigest": "MD5Sum:4c33a6b366c9b52e259d66f9c7365105",
+      "license": "embedded:/usr/share/doc/libdevmapper1.02.1/copyright",
+      "localPath": ".rvs-cache/debian/libdevmapper1.02.1_2%3a1.02.185-2_amd64.deb"
+    },
+    {
+      "name": "libdpkg-perl",
+      "version": "1.21.23",
+      "architecture": "all",
+      "url": "http://deb.debian.org/debian/pool/main/d/dpkg/libdpkg-perl_1.21.23_all.deb",
+      "sha256": "3f817fd9266ce2638c64b5df77da11f98f5df4f3301e1c04140be16790f72112",
+      "aptDigest": "MD5Sum:615e707a53145cfbd6f0bb8c77ed7f93",
+      "license": "embedded:/usr/share/doc/libdpkg-perl/copyright",
+      "localPath": ".rvs-cache/debian/libdpkg-perl_1.21.23_all.deb"
+    },
+    {
+      "name": "libdrm-common",
+      "version": "2.4.114-1",
+      "architecture": "all",
+      "url": "http://deb.debian.org/debian/pool/main/libd/libdrm/libdrm-common_2.4.114-1_all.deb",
+      "sha256": "32f9664138b38b224383c6986457d5ad2ec8efd559b1a0ce7749405f7a451aad",
+      "aptDigest": "MD5Sum:4f0ec02ca688b2a57f7fc0557011c9ad",
+      "license": "embedded:/usr/share/doc/libdrm-common/copyright",
+      "localPath": ".rvs-cache/debian/libdrm-common_2.4.114-1_all.deb"
+    },
+    {
+      "name": "libdrm2",
+      "version": "2.4.114-1+b1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/libd/libdrm/libdrm2_2.4.114-1%2bb1_amd64.deb",
+      "sha256": "be18fb670797ba32da9628cf3e8acd83160d8db8c8dd842501dd8e401c3b5371",
+      "aptDigest": "MD5Sum:857e294972740eceb6411ec1cc4d11c0",
+      "license": "embedded:/usr/share/doc/libdrm2/copyright",
+      "localPath": ".rvs-cache/debian/libdrm2_2.4.114-1+b1_amd64.deb"
+    },
+    {
+      "name": "libelf1",
+      "version": "0.188-2.1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/e/elfutils/libelf1_0.188-2.1_amd64.deb",
+      "sha256": "619add379c606b3ac6c1a175853b918e6939598a83d8ebadf3bdfd50d10b3c8c",
+      "aptDigest": "MD5Sum:5bb888192be34d577ee3d4dd319bb6ed",
+      "license": "embedded:/usr/share/doc/libelf1/copyright",
+      "localPath": ".rvs-cache/debian/libelf1_0.188-2.1_amd64.deb"
+    },
+    {
+      "name": "libepoxy0",
+      "version": "1.5.10-1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/libe/libepoxy/libepoxy0_1.5.10-1_amd64.deb",
+      "sha256": "050cbedc9c2a5cce976151c720a3817f2103a01e6ac255bdd6f2c6a7509b04c3",
+      "aptDigest": "MD5Sum:5c4ab4dfe25deb5c817208c9dd62fce9",
+      "license": "embedded:/usr/share/doc/libepoxy0/copyright",
+      "localPath": ".rvs-cache/debian/libepoxy0_1.5.10-1_amd64.deb"
+    },
+    {
+      "name": "libexpat1",
+      "version": "2.5.0-1+deb12u2",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/e/expat/libexpat1_2.5.0-1%2bdeb12u2_amd64.deb",
+      "sha256": "2255e62fc22a86d2c544b8a3f516da9aee19383ad5742722ab4ce7f66a30dbc8",
+      "aptDigest": "MD5Sum:f5150efb6f21c50361fc1971ab8de870",
+      "license": "embedded:/usr/share/doc/libexpat1/copyright",
+      "localPath": ".rvs-cache/debian/libexpat1_2.5.0-1+deb12u2_amd64.deb"
+    },
+    {
+      "name": "libfakeroot",
+      "version": "1.31-1.2",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/f/fakeroot/libfakeroot_1.31-1.2_amd64.deb",
+      "sha256": "539c1a013e6e90800b4c37877cf871e7583791b486a39e23f2466906bbe5061f",
+      "aptDigest": "MD5Sum:5e65b1e462dd93f8a975470dd8b93b8c",
+      "license": "embedded:/usr/share/doc/libfakeroot/copyright",
+      "localPath": ".rvs-cache/debian/libfakeroot_1.31-1.2_amd64.deb"
+    },
+    {
+      "name": "libfdisk1",
+      "version": "2.38.1-5+deb12u3",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/u/util-linux/libfdisk1_2.38.1-5%2bdeb12u3_amd64.deb",
+      "sha256": "8af145cff6ca72529f63e0bf6d9c68c8512387e67f64e66d00e36f72bed99160",
+      "aptDigest": "MD5Sum:1503c2f8cb5c493ccb6e8cac860f4c23",
+      "license": "embedded:/usr/share/doc/libfdisk1/copyright",
+      "localPath": ".rvs-cache/debian/libfdisk1_2.38.1-5+deb12u3_amd64.deb"
+    },
+    {
+      "name": "libffi-dev",
+      "version": "3.4.4-1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/libf/libffi/libffi-dev_3.4.4-1_amd64.deb",
+      "sha256": "89fb890aee5148f4d308a46cd8980a54fd44135f068f05b38a6ad06800bf6df3",
+      "aptDigest": "MD5Sum:512330bd76f8b7c0c199a030fa316adb",
+      "license": "embedded:/usr/share/doc/libffi-dev/copyright",
+      "localPath": ".rvs-cache/debian/libffi-dev_3.4.4-1_amd64.deb"
+    },
+    {
+      "name": "libfile-fcntllock-perl",
+      "version": "0.22-4+b1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/libf/libfile-fcntllock-perl/libfile-fcntllock-perl_0.22-4%2bb1_amd64.deb",
+      "sha256": "68aa3b3bdac8b34802df7e2e950bae64c40aa6c2b24fed356b832968f8305aa0",
+      "aptDigest": "MD5Sum:8764ead5af17f16b7c0f66fe92092320",
+      "license": "embedded:/usr/share/doc/libfile-fcntllock-perl/copyright",
+      "localPath": ".rvs-cache/debian/libfile-fcntllock-perl_0.22-4+b1_amd64.deb"
+    },
+    {
+      "name": "libfontconfig1",
+      "version": "2.14.1-4",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/f/fontconfig/libfontconfig1_2.14.1-4_amd64.deb",
+      "sha256": "16ee38d374e064f534116dc442b086ef26f9831f1c0af7e5fb4fe4512e700649",
+      "aptDigest": "MD5Sum:522c4fa1fecd36d0f11eb6970fcd1364",
+      "license": "embedded:/usr/share/doc/libfontconfig1/copyright",
+      "localPath": ".rvs-cache/debian/libfontconfig1_2.14.1-4_amd64.deb"
+    },
+    {
+      "name": "libfreetype-dev",
+      "version": "2.12.1+dfsg-5+deb12u4",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/f/freetype/libfreetype-dev_2.12.1%2bdfsg-5%2bdeb12u4_amd64.deb",
+      "sha256": "5fa327ae78e645cff5a2aadad92ca3640abc5cee7ad5368d7551bea8930202af",
+      "aptDigest": "MD5Sum:a88e7bf3e006d7887b54d37bf323f8a8",
+      "license": "embedded:/usr/share/doc/libfreetype-dev/copyright",
+      "localPath": ".rvs-cache/debian/libfreetype-dev_2.12.1+dfsg-5+deb12u4_amd64.deb"
+    },
+    {
+      "name": "libfreetype6-dev",
+      "version": "2.12.1+dfsg-5+deb12u4",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/f/freetype/libfreetype6-dev_2.12.1%2bdfsg-5%2bdeb12u4_amd64.deb",
+      "sha256": "f4339fa10a8d76d8c13110a294e84a86958ea95bcb86e7022cf05612a72bd1db",
+      "aptDigest": "MD5Sum:dc513559fceb35c6d92cee7558e598f9",
+      "license": "embedded:/usr/share/doc/libfreetype6-dev/copyright",
+      "localPath": ".rvs-cache/debian/libfreetype6-dev_2.12.1+dfsg-5+deb12u4_amd64.deb"
+    },
+    {
+      "name": "libfreetype6",
+      "version": "2.12.1+dfsg-5+deb12u4",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/f/freetype/libfreetype6_2.12.1%2bdfsg-5%2bdeb12u4_amd64.deb",
+      "sha256": "8043e479f73f29992d652e3f9dfe8b17f9780c7ea6330afe379ec5f9f188ac44",
+      "aptDigest": "MD5Sum:8ee3bd604ace008bee4083b14746dedb",
+      "license": "embedded:/usr/share/doc/libfreetype6/copyright",
+      "localPath": ".rvs-cache/debian/libfreetype6_2.12.1+dfsg-5+deb12u4_amd64.deb"
+    },
+    {
+      "name": "libfribidi0",
+      "version": "1.0.8-2.1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/f/fribidi/libfribidi0_1.0.8-2.1_amd64.deb",
+      "sha256": "87fce56627aab7b2968501d370aa3ed6d1c792119efa765e71a690bdfe570e62",
+      "aptDigest": "MD5Sum:4945592ecf009abf51a1ac015b681b86",
+      "license": "embedded:/usr/share/doc/libfribidi0/copyright",
+      "localPath": ".rvs-cache/debian/libfribidi0_1.0.8-2.1_amd64.deb"
+    },
+    {
+      "name": "libgav1-1",
+      "version": "0.18.0-1+b1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/libg/libgav1/libgav1-1_0.18.0-1%2bb1_amd64.deb",
+      "sha256": "4cf64c4e1168f3c7e858bb4a71f2c5bea9a36dd448cdcc2154a551ac146e293b",
+      "aptDigest": "MD5Sum:f981b1622f638abfe043046cad91e761",
+      "license": "embedded:/usr/share/doc/libgav1-1/copyright",
+      "localPath": ".rvs-cache/debian/libgav1-1_0.18.0-1+b1_amd64.deb"
+    },
+    {
+      "name": "libgbm1",
+      "version": "22.3.6-1+deb12u2",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/m/mesa/libgbm1_22.3.6-1%2bdeb12u2_amd64.deb",
+      "sha256": "4323840f2b7b3e108990848529125d99c0956ae5a854c1e0568ed08c8faeaa2e",
+      "aptDigest": "MD5Sum:b346f99cdc30de3f752cd65c5a63b08d",
+      "license": "embedded:/usr/share/doc/libgbm1/copyright",
+      "localPath": ".rvs-cache/debian/libgbm1_22.3.6-1+deb12u2_amd64.deb"
+    },
+    {
+      "name": "libgcc-12-dev",
+      "version": "12.2.0-14+deb12u1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/g/gcc-12/libgcc-12-dev_12.2.0-14%2bdeb12u1_amd64.deb",
+      "sha256": "d720259380a84f2ffc6fe516eff5cbe9c8a005138e8d6a5748747ba4b3404a82",
+      "aptDigest": "MD5Sum:6b47b5a6ba470599a9566d9bf369ae2a",
+      "license": "embedded:/usr/share/doc/libgcc-12-dev/copyright",
+      "localPath": ".rvs-cache/debian/libgcc-12-dev_12.2.0-14+deb12u1_amd64.deb"
+    },
+    {
+      "name": "libgd3",
+      "version": "2.3.3-9+deb12u1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian-security/pool/updates/main/libg/libgd2/libgd3_2.3.3-9%2bdeb12u1_amd64.deb",
+      "sha256": "5f0eb24030d8b0ac89cee47925d11264bfd3de593ae17950a7265148fa576b27",
+      "aptDigest": "not-provided",
+      "license": "embedded:/usr/share/doc/libgd3/copyright",
+      "localPath": ".rvs-cache/debian/libgd3_2.3.3-9+deb12u1_amd64.deb"
+    },
+    {
+      "name": "libgdbm-compat4",
+      "version": "1.23-3",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/g/gdbm/libgdbm-compat4_1.23-3_amd64.deb",
+      "sha256": "4af36a590b68d415a78d9238b932b6a4579f515ec8a8016597498acff5b515a4",
+      "aptDigest": "MD5Sum:fd6579ae8cb3a18a0ca56ccdc3ac2403",
+      "license": "embedded:/usr/share/doc/libgdbm-compat4/copyright",
+      "localPath": ".rvs-cache/debian/libgdbm-compat4_1.23-3_amd64.deb"
+    },
+    {
+      "name": "libgdbm6",
+      "version": "1.23-3",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/g/gdbm/libgdbm6_1.23-3_amd64.deb",
+      "sha256": "95fe4a1336532450e67bd067892f46eaa484139919ea8d067a9ffcbf5a4bf883",
+      "aptDigest": "MD5Sum:74449c52293efdb6d013d29856047e75",
+      "license": "embedded:/usr/share/doc/libgdbm6/copyright",
+      "localPath": ".rvs-cache/debian/libgdbm6_1.23-3_amd64.deb"
+    },
+    {
+      "name": "libgdk-pixbuf-2.0-0",
+      "version": "2.42.10+dfsg-1+deb12u4",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/g/gdk-pixbuf/libgdk-pixbuf-2.0-0_2.42.10%2bdfsg-1%2bdeb12u4_amd64.deb",
+      "sha256": "19673127f2530deb7cf637c688a4e16384e6887627296e16b8169038928cadc3",
+      "aptDigest": "MD5Sum:bab7489f8f94e714d56a5e7a12dfdf9b",
+      "license": "embedded:/usr/share/doc/libgdk-pixbuf-2.0-0/copyright",
+      "localPath": ".rvs-cache/debian/libgdk-pixbuf-2.0-0_2.42.10+dfsg-1+deb12u4_amd64.deb"
+    },
+    {
+      "name": "libgdk-pixbuf2.0-bin",
+      "version": "2.42.10+dfsg-1+deb12u4",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/g/gdk-pixbuf/libgdk-pixbuf2.0-bin_2.42.10%2bdfsg-1%2bdeb12u4_amd64.deb",
+      "sha256": "138488169b5e144d414b93a8050bd1d341911af5d6153dc8b0cbc177012afcdd",
+      "aptDigest": "MD5Sum:09f75328de913d37b09f4115b6212971",
+      "license": "embedded:/usr/share/doc/libgdk-pixbuf2.0-bin/copyright",
+      "localPath": ".rvs-cache/debian/libgdk-pixbuf2.0-bin_2.42.10+dfsg-1+deb12u4_amd64.deb"
+    },
+    {
+      "name": "libgdk-pixbuf2.0-common",
+      "version": "2.42.10+dfsg-1+deb12u4",
+      "architecture": "all",
+      "url": "http://deb.debian.org/debian/pool/main/g/gdk-pixbuf/libgdk-pixbuf2.0-common_2.42.10%2bdfsg-1%2bdeb12u4_all.deb",
+      "sha256": "0f3df073ca7eed5564ea3faceff819d94932d924c56474f1e42799a8017a2d30",
+      "aptDigest": "MD5Sum:09b624e9fc18c4f24956f8d7e4fad5f4",
+      "license": "embedded:/usr/share/doc/libgdk-pixbuf2.0-common/copyright",
+      "localPath": ".rvs-cache/debian/libgdk-pixbuf2.0-common_2.42.10+dfsg-1+deb12u4_all.deb"
+    },
+    {
+      "name": "libgirepository-1.0-1",
+      "version": "1.74.0-3",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/g/gobject-introspection/libgirepository-1.0-1_1.74.0-3_amd64.deb",
+      "sha256": "2734bb29083e9b80ecdc273f9af43937b6d34900c9674e128f4abeeffc715885",
+      "aptDigest": "MD5Sum:096aaa08bb9cda8d3cf17233af90a379",
+      "license": "embedded:/usr/share/doc/libgirepository-1.0-1/copyright",
+      "localPath": ".rvs-cache/debian/libgirepository-1.0-1_1.74.0-3_amd64.deb"
+    },
+    {
+      "name": "libglib2.0-0",
+      "version": "2.74.6-2+deb12u9",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/g/glib2.0/libglib2.0-0_2.74.6-2%2bdeb12u9_amd64.deb",
+      "sha256": "7ff85197685d89e150e342b29a59aab1beee400050ba7da73de81cd999ffee5a",
+      "aptDigest": "MD5Sum:0285a2e88f28faa17284d92e3ba6f166",
+      "license": "embedded:/usr/share/doc/libglib2.0-0/copyright",
+      "localPath": ".rvs-cache/debian/libglib2.0-0_2.74.6-2+deb12u9_amd64.deb"
+    },
+    {
+      "name": "libglib2.0-bin",
+      "version": "2.74.6-2+deb12u9",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/g/glib2.0/libglib2.0-bin_2.74.6-2%2bdeb12u9_amd64.deb",
+      "sha256": "453789271a177354bc05c5f9b7cbcf1872c52ac555d1c78b46eba28b0b215061",
+      "aptDigest": "MD5Sum:c24db92f9d095b53dad52af272001f55",
+      "license": "embedded:/usr/share/doc/libglib2.0-bin/copyright",
+      "localPath": ".rvs-cache/debian/libglib2.0-bin_2.74.6-2+deb12u9_amd64.deb"
+    },
+    {
+      "name": "libglib2.0-data",
+      "version": "2.74.6-2+deb12u9",
+      "architecture": "all",
+      "url": "http://deb.debian.org/debian/pool/main/g/glib2.0/libglib2.0-data_2.74.6-2%2bdeb12u9_all.deb",
+      "sha256": "d98434e097009dedd2f2382c48b7debab5b14261966c0e0506a991b2496bea5f",
+      "aptDigest": "MD5Sum:5b62e67ce7c9bb0841fe5d683c90728e",
+      "license": "embedded:/usr/share/doc/libglib2.0-data/copyright",
+      "localPath": ".rvs-cache/debian/libglib2.0-data_2.74.6-2+deb12u9_all.deb"
+    },
+    {
+      "name": "libglib2.0-dev-bin",
+      "version": "2.74.6-2+deb12u9",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/g/glib2.0/libglib2.0-dev-bin_2.74.6-2%2bdeb12u9_amd64.deb",
+      "sha256": "02dc46a3ab08d194e370a0d7ff0d7d92700478658948040a56290e97a030a5c5",
+      "aptDigest": "MD5Sum:81652228787264ba5802ff7fb69ec4d0",
+      "license": "embedded:/usr/share/doc/libglib2.0-dev-bin/copyright",
+      "localPath": ".rvs-cache/debian/libglib2.0-dev-bin_2.74.6-2+deb12u9_amd64.deb"
+    },
+    {
+      "name": "libglib2.0-dev",
+      "version": "2.74.6-2+deb12u9",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/g/glib2.0/libglib2.0-dev_2.74.6-2%2bdeb12u9_amd64.deb",
+      "sha256": "217766f170553e14884f7d67c0636b833da43c1e4a65dfe41268ba1292001ccd",
+      "aptDigest": "MD5Sum:2a79759ac1fdbdbb45cc0a8e861e7ac3",
+      "license": "embedded:/usr/share/doc/libglib2.0-dev/copyright",
+      "localPath": ".rvs-cache/debian/libglib2.0-dev_2.74.6-2+deb12u9_amd64.deb"
+    },
+    {
+      "name": "libgomp1",
+      "version": "12.2.0-14+deb12u1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/g/gcc-12/libgomp1_12.2.0-14%2bdeb12u1_amd64.deb",
+      "sha256": "48fec46bda7f5b1638b9e959889bfbc20491247d402d120bb152687eb48143d7",
+      "aptDigest": "MD5Sum:898439c6702dbfd9723d747fb99086d4",
+      "license": "embedded:/usr/share/doc/libgomp1/copyright",
+      "localPath": ".rvs-cache/debian/libgomp1_12.2.0-14+deb12u1_amd64.deb"
+    },
+    {
+      "name": "libgpm2",
+      "version": "1.20.7-10+b1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/g/gpm/libgpm2_1.20.7-10%2bb1_amd64.deb",
+      "sha256": "2ac1236547360284e9e154ad11a14564db65175bd4da393ec652ac1b2dc43571",
+      "aptDigest": "MD5Sum:85a296d91b5817bd575e01a4516e2646",
+      "license": "embedded:/usr/share/doc/libgpm2/copyright",
+      "localPath": ".rvs-cache/debian/libgpm2_1.20.7-10+b1_amd64.deb"
+    },
+    {
+      "name": "libgprofng0",
+      "version": "2.40-2",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/b/binutils/libgprofng0_2.40-2_amd64.deb",
+      "sha256": "a3c4092d84f19d13caf90f3c96eec53db8819f0e3a5247434944d71ed75fa53d",
+      "aptDigest": "MD5Sum:3cd09dc9e7728f1f772a354284e96f74",
+      "license": "embedded:/usr/share/doc/libgprofng0/copyright",
+      "localPath": ".rvs-cache/debian/libgprofng0_2.40-2_amd64.deb"
+    },
+    {
+      "name": "libgraphite2-3",
+      "version": "1.3.14-1+deb12u1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/g/graphite2/libgraphite2-3_1.3.14-1%2bdeb12u1_amd64.deb",
+      "sha256": "c19a7f6ba9298db7eef041ae27b08985f2c02009e418063f8bccdb5bc5e858dc",
+      "aptDigest": "MD5Sum:efee3be4ddae8bb456d3f0f6d09acbff",
+      "license": "embedded:/usr/share/doc/libgraphite2-3/copyright",
+      "localPath": ".rvs-cache/debian/libgraphite2-3_1.3.14-1+deb12u1_amd64.deb"
+    },
+    {
+      "name": "libgraphite2-dev",
+      "version": "1.3.14-1+deb12u1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/g/graphite2/libgraphite2-dev_1.3.14-1%2bdeb12u1_amd64.deb",
+      "sha256": "ab09e4e085095654b9604e0adf0101db0188a5e88493b89d1d67dd10d46453a2",
+      "aptDigest": "MD5Sum:a8db4cad1eda9d9a401de830cc2cf3fe",
+      "license": "embedded:/usr/share/doc/libgraphite2-dev/copyright",
+      "localPath": ".rvs-cache/debian/libgraphite2-dev_1.3.14-1+deb12u1_amd64.deb"
+    },
+    {
+      "name": "libgssapi-krb5-2",
+      "version": "1.20.1-2+deb12u5",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/k/krb5/libgssapi-krb5-2_1.20.1-2%2bdeb12u5_amd64.deb",
+      "sha256": "d8b87aea91b956b416c01a28c44ff6228315ae3b73de40acddac3dc5043607d2",
+      "aptDigest": "MD5Sum:bb2171923ec47d48177a6d8d088bad0a",
+      "license": "embedded:/usr/share/doc/libgssapi-krb5-2/copyright",
+      "localPath": ".rvs-cache/debian/libgssapi-krb5-2_1.20.1-2+deb12u5_amd64.deb"
+    },
+    {
+      "name": "libgtk-3-0",
+      "version": "3.24.38-2~deb12u3",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/g/gtk%2b3.0/libgtk-3-0_3.24.38-2%7edeb12u3_amd64.deb",
+      "sha256": "0ff7375c98b5a8d6aafc6096b21d9f7bae4ecb581d31fce5d37be18f55b489a2",
+      "aptDigest": "MD5Sum:a03ffb1b7ab9acb8bd9a3371e47313be",
+      "license": "embedded:/usr/share/doc/libgtk-3-0/copyright",
+      "localPath": ".rvs-cache/debian/libgtk-3-0_3.24.38-2~deb12u3_amd64.deb"
+    },
+    {
+      "name": "libgtk-3-bin",
+      "version": "3.24.38-2~deb12u3",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/g/gtk%2b3.0/libgtk-3-bin_3.24.38-2%7edeb12u3_amd64.deb",
+      "sha256": "ed8aa08d19ce3454a9092f7c168b463fd727600e7984d630e6cc6bd924c606b0",
+      "aptDigest": "MD5Sum:bb9e6d391c8069a132688474c68a7a8b",
+      "license": "embedded:/usr/share/doc/libgtk-3-bin/copyright",
+      "localPath": ".rvs-cache/debian/libgtk-3-bin_3.24.38-2~deb12u3_amd64.deb"
+    },
+    {
+      "name": "libgtk-3-common",
+      "version": "3.24.38-2~deb12u3",
+      "architecture": "all",
+      "url": "http://deb.debian.org/debian/pool/main/g/gtk%2b3.0/libgtk-3-common_3.24.38-2%7edeb12u3_all.deb",
+      "sha256": "f2642d127d85440acbfc2ed404d3932d8b2fbe8a576ead7f93f35ac1fa999c92",
+      "aptDigest": "MD5Sum:ea907e2a098712e49dd7459aa0a9ab38",
+      "license": "embedded:/usr/share/doc/libgtk-3-common/copyright",
+      "localPath": ".rvs-cache/debian/libgtk-3-common_3.24.38-2~deb12u3_all.deb"
+    },
+    {
+      "name": "libharfbuzz-dev",
+      "version": "6.0.0+dfsg-3",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/h/harfbuzz/libharfbuzz-dev_6.0.0%2bdfsg-3_amd64.deb",
+      "sha256": "d3ffc0966a1f67dc0a5e12d7b7e9d9b0c888c23e55ae6602f84d43150dac56ad",
+      "aptDigest": "MD5Sum:e6c32c39351fbd5d96d5e0afc29bcf26",
+      "license": "embedded:/usr/share/doc/libharfbuzz-dev/copyright",
+      "localPath": ".rvs-cache/debian/libharfbuzz-dev_6.0.0+dfsg-3_amd64.deb"
+    },
+    {
+      "name": "libharfbuzz-gobject0",
+      "version": "6.0.0+dfsg-3",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/h/harfbuzz/libharfbuzz-gobject0_6.0.0%2bdfsg-3_amd64.deb",
+      "sha256": "ca012c3fb4a779c3f841adda3abeaf9606db531cd55cab55584a44979a99b880",
+      "aptDigest": "MD5Sum:85cd1c37a107d6f1f25deb8f4801ab9e",
+      "license": "embedded:/usr/share/doc/libharfbuzz-gobject0/copyright",
+      "localPath": ".rvs-cache/debian/libharfbuzz-gobject0_6.0.0+dfsg-3_amd64.deb"
+    },
+    {
+      "name": "libharfbuzz-icu0",
+      "version": "6.0.0+dfsg-3",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/h/harfbuzz/libharfbuzz-icu0_6.0.0%2bdfsg-3_amd64.deb",
+      "sha256": "1cd081384bdb0f83a7069d321ccd4d809be6efd16fbf8d980cf72e999e292ac7",
+      "aptDigest": "MD5Sum:26b1635aca08aa2d288cd2b5f96c3735",
+      "license": "embedded:/usr/share/doc/libharfbuzz-icu0/copyright",
+      "localPath": ".rvs-cache/debian/libharfbuzz-icu0_6.0.0+dfsg-3_amd64.deb"
+    },
+    {
+      "name": "libharfbuzz-subset0",
+      "version": "6.0.0+dfsg-3",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/h/harfbuzz/libharfbuzz-subset0_6.0.0%2bdfsg-3_amd64.deb",
+      "sha256": "020de1eeba5fb56052a6ca71b259f8cbe3f6fce5038f4caca751c7e4867ca33f",
+      "aptDigest": "MD5Sum:0753d5a57b8130a19562a4113789a71f",
+      "license": "embedded:/usr/share/doc/libharfbuzz-subset0/copyright",
+      "localPath": ".rvs-cache/debian/libharfbuzz-subset0_6.0.0+dfsg-3_amd64.deb"
+    },
+    {
+      "name": "libharfbuzz0b",
+      "version": "6.0.0+dfsg-3",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/h/harfbuzz/libharfbuzz0b_6.0.0%2bdfsg-3_amd64.deb",
+      "sha256": "bfce132b7ee67b9c2d2166075b1936a25c8cc6866b6a049f99b8e94baa916e71",
+      "aptDigest": "MD5Sum:acc3df6078788d93f55a6aaa59b658dd",
+      "license": "embedded:/usr/share/doc/libharfbuzz0b/copyright",
+      "localPath": ".rvs-cache/debian/libharfbuzz0b_6.0.0+dfsg-3_amd64.deb"
+    },
+    {
+      "name": "libheif1",
+      "version": "1.15.1-1+deb12u1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/libh/libheif/libheif1_1.15.1-1%2bdeb12u1_amd64.deb",
+      "sha256": "13a0a3a6e22ddf5eb891b7c7873ace79f13f2c96473576e5f7da2ae3228a2113",
+      "aptDigest": "MD5Sum:548fef31d81accc00bc48be783a6820c",
+      "license": "embedded:/usr/share/doc/libheif1/copyright",
+      "localPath": ".rvs-cache/debian/libheif1_1.15.1-1+deb12u1_amd64.deb"
+    },
+    {
+      "name": "libicu-dev",
+      "version": "72.1-3+deb12u1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/i/icu/libicu-dev_72.1-3%2bdeb12u1_amd64.deb",
+      "sha256": "08bd4e3f4bd4fc725cf25e739edf0e7df5ac1826bdac9a7d990eea8f93b2d7a0",
+      "aptDigest": "MD5Sum:0e9b5a348374d34405eb0dc8ec0ad40f",
+      "license": "embedded:/usr/share/doc/libicu-dev/copyright",
+      "localPath": ".rvs-cache/debian/libicu-dev_72.1-3+deb12u1_amd64.deb"
+    },
+    {
+      "name": "libicu72",
+      "version": "72.1-3+deb12u1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/i/icu/libicu72_72.1-3%2bdeb12u1_amd64.deb",
+      "sha256": "f7f6f99c6d7b025914df2447fc93e11d22c44c0c8bdd8b6f36691c9e7ddcef88",
+      "aptDigest": "MD5Sum:81a7519057b13803f30783061c4409b5",
+      "license": "embedded:/usr/share/doc/libicu72/copyright",
+      "localPath": ".rvs-cache/debian/libicu72_72.1-3+deb12u1_amd64.deb"
+    },
+    {
+      "name": "libip4tc2",
+      "version": "1.8.9-2",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/i/iptables/libip4tc2_1.8.9-2_amd64.deb",
+      "sha256": "f2c48b367f9ec13f9aa577e7ccf81b371ce5d5fe22dddf9d7aa99f1e0bb7cfc4",
+      "aptDigest": "MD5Sum:e672965aaff063a7c07d92257c975d88",
+      "license": "embedded:/usr/share/doc/libip4tc2/copyright",
+      "localPath": ".rvs-cache/debian/libip4tc2_1.8.9-2_amd64.deb"
+    },
+    {
+      "name": "libisl23",
+      "version": "0.25-1.1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/i/isl/libisl23_0.25-1.1_amd64.deb",
+      "sha256": "ebff0b2f8b220c74224197523019366e97ee4770d464bebc48e4865114e4da0e",
+      "aptDigest": "MD5Sum:7a31f974904d5120dddcfc0830cd80d2",
+      "license": "embedded:/usr/share/doc/libisl23/copyright",
+      "localPath": ".rvs-cache/debian/libisl23_0.25-1.1_amd64.deb"
+    },
+    {
+      "name": "libitm1",
+      "version": "12.2.0-14+deb12u1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/g/gcc-12/libitm1_12.2.0-14%2bdeb12u1_amd64.deb",
+      "sha256": "0ed5b35dfd1346cccbf065408ec789db6c44c1d0a16ae84533411dea09632979",
+      "aptDigest": "MD5Sum:d1fdae260b7762f3f3ed0206064b44bf",
+      "license": "embedded:/usr/share/doc/libitm1/copyright",
+      "localPath": ".rvs-cache/debian/libitm1_12.2.0-14+deb12u1_amd64.deb"
+    },
+    {
+      "name": "libjansson4",
+      "version": "2.14-2",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/j/jansson/libjansson4_2.14-2_amd64.deb",
+      "sha256": "3fc9742f9f1a37bcb9931df6074b4d1483419ef832ad5349f47323e75fc27864",
+      "aptDigest": "MD5Sum:bba5be3ad532792749e18495e91732aa",
+      "license": "embedded:/usr/share/doc/libjansson4/copyright",
+      "localPath": ".rvs-cache/debian/libjansson4_2.14-2_amd64.deb"
+    },
+    {
+      "name": "libjbig0",
+      "version": "2.1-6.1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/j/jbigkit/libjbig0_2.1-6.1_amd64.deb",
+      "sha256": "6b07c77b700a615642888a82ba92a7e7c429d04b9c8669c62b2263f15c4c4059",
+      "aptDigest": "MD5Sum:5e126e3852ae239341c233a50690e2d6",
+      "license": "embedded:/usr/share/doc/libjbig0/copyright",
+      "localPath": ".rvs-cache/debian/libjbig0_2.1-6.1_amd64.deb"
+    },
+    {
+      "name": "libjpeg62-turbo",
+      "version": "1:2.1.5-2",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/libj/libjpeg-turbo/libjpeg62-turbo_2.1.5-2_amd64.deb",
+      "sha256": "95ec30140789a342add8f8371ed018924de51b539056522b66f207b25cba9cad",
+      "aptDigest": "MD5Sum:c43c12e2144cad5b82c10d63dcc57ecd",
+      "license": "embedded:/usr/share/doc/libjpeg62-turbo/copyright",
+      "localPath": ".rvs-cache/debian/libjpeg62-turbo_1%3a2.1.5-2_amd64.deb"
+    },
+    {
+      "name": "libjson-c5",
+      "version": "0.16-2",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/j/json-c/libjson-c5_0.16-2_amd64.deb",
+      "sha256": "d0e1ed8637d1c26b9720f6057d6355f18378bba5cc2553e459d1632783c00d70",
+      "aptDigest": "MD5Sum:f2f6ecf1d26a6e0716cc2cda7a542e52",
+      "license": "embedded:/usr/share/doc/libjson-c5/copyright",
+      "localPath": ".rvs-cache/debian/libjson-c5_0.16-2_amd64.deb"
+    },
+    {
+      "name": "libk5crypto3",
+      "version": "1.20.1-2+deb12u5",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/k/krb5/libk5crypto3_1.20.1-2%2bdeb12u5_amd64.deb",
+      "sha256": "7b6e47d15c5c9cdcd456137533d8308aeba608a54cec73b28bd59bfc4b54cf06",
+      "aptDigest": "MD5Sum:36559dec561e865510f50e96c89fec60",
+      "license": "embedded:/usr/share/doc/libk5crypto3/copyright",
+      "localPath": ".rvs-cache/debian/libk5crypto3_1.20.1-2+deb12u5_amd64.deb"
+    },
+    {
+      "name": "libkeyutils1",
+      "version": "1.6.3-2",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/k/keyutils/libkeyutils1_1.6.3-2_amd64.deb",
+      "sha256": "cfac89e6a7a54ff3c6a4f843310e25efeddaa771baeae470bd98bd588c373563",
+      "aptDigest": "MD5Sum:9b3c8e3ff42ecfc7d0a0fc9d45c2dd6e",
+      "license": "embedded:/usr/share/doc/libkeyutils1/copyright",
+      "localPath": ".rvs-cache/debian/libkeyutils1_1.6.3-2_amd64.deb"
+    },
+    {
+      "name": "libkmod2",
+      "version": "30+20221128-1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/k/kmod/libkmod2_30%2b20221128-1_amd64.deb",
+      "sha256": "af63bbbfc15fbd1f254b15c393b3b95b18b18cc81348fc1b4f1c9c34b4d672d7",
+      "aptDigest": "MD5Sum:b919ebdf3d659d2eff4ffe630a0f6983",
+      "license": "embedded:/usr/share/doc/libkmod2/copyright",
+      "localPath": ".rvs-cache/debian/libkmod2_30+20221128-1_amd64.deb"
+    },
+    {
+      "name": "libkrb5-3",
+      "version": "1.20.1-2+deb12u5",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/k/krb5/libkrb5-3_1.20.1-2%2bdeb12u5_amd64.deb",
+      "sha256": "c90801be09701af221b54dd502a59cb378b7284ff31e480738baca317d2f7653",
+      "aptDigest": "MD5Sum:4c36e65f6576495825ef27497cb3bfe3",
+      "license": "embedded:/usr/share/doc/libkrb5-3/copyright",
+      "localPath": ".rvs-cache/debian/libkrb5-3_1.20.1-2+deb12u5_amd64.deb"
+    },
+    {
+      "name": "libkrb5support0",
+      "version": "1.20.1-2+deb12u5",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/k/krb5/libkrb5support0_1.20.1-2%2bdeb12u5_amd64.deb",
+      "sha256": "8b9c05f2d8d461a10d657b118f572af5bf8fd6c8f93dcef81e852c5ab0f428ab",
+      "aptDigest": "MD5Sum:e349376ab7e3ee92ead2799ebd79796c",
+      "license": "embedded:/usr/share/doc/libkrb5support0/copyright",
+      "localPath": ".rvs-cache/debian/libkrb5support0_1.20.1-2+deb12u5_amd64.deb"
+    },
+    {
+      "name": "libksba8",
+      "version": "1.6.3-2",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/libk/libksba/libksba8_1.6.3-2_amd64.deb",
+      "sha256": "b52ffe8f80020a0df90d5fc188561010042ee8a67aae6de463d141a5fc09e1bc",
+      "aptDigest": "MD5Sum:5163eaf30b5a5138ca92215a7ee7750d",
+      "license": "embedded:/usr/share/doc/libksba8/copyright",
+      "localPath": ".rvs-cache/debian/libksba8_1.6.3-2_amd64.deb"
+    },
+    {
+      "name": "liblcms2-2",
+      "version": "2.14-2+deb12u1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/l/lcms2/liblcms2-2_2.14-2%2bdeb12u1_amd64.deb",
+      "sha256": "333efe13d165b8a98194d95e72fd10b502ebbee4dc2eb43fc2ab83e2b53e5f17",
+      "aptDigest": "MD5Sum:4a701d009079104e62992b219cee5f6e",
+      "license": "embedded:/usr/share/doc/liblcms2-2/copyright",
+      "localPath": ".rvs-cache/debian/liblcms2-2_2.14-2+deb12u1_amd64.deb"
+    },
+    {
+      "name": "libldap-2.5-0",
+      "version": "2.5.13+dfsg-5",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/o/openldap/libldap-2.5-0_2.5.13%2bdfsg-5_amd64.deb",
+      "sha256": "4b6c30f6554149c594628d945edc6003f0eea8d0cc1341638c0e71375db147ed",
+      "aptDigest": "MD5Sum:aa52ea68ca3ad4e9a9acc863fa70343a",
+      "license": "embedded:/usr/share/doc/libldap-2.5-0/copyright",
+      "localPath": ".rvs-cache/debian/libldap-2.5-0_2.5.13+dfsg-5_amd64.deb"
+    },
+    {
+      "name": "libldap-common",
+      "version": "2.5.13+dfsg-5",
+      "architecture": "all",
+      "url": "http://deb.debian.org/debian/pool/main/o/openldap/libldap-common_2.5.13%2bdfsg-5_all.deb",
+      "sha256": "72a6c113801a0f307f3a9ab9fe7a7f9559d9164af990494ed2c50617a0e20452",
+      "aptDigest": "MD5Sum:044a75b75d3678d0994d3bbb20ba78eb",
+      "license": "embedded:/usr/share/doc/libldap-common/copyright",
+      "localPath": ".rvs-cache/debian/libldap-common_2.5.13+dfsg-5_all.deb"
+    },
+    {
+      "name": "liblerc4",
+      "version": "4.0.0+ds-2",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/l/lerc/liblerc4_4.0.0%2bds-2_amd64.deb",
+      "sha256": "771f5c47ca69f24ca61e4be0c98c5912b182ce442f921697d17a472f3ded5c9c",
+      "aptDigest": "MD5Sum:100ad75d6812ac853407f24c40076b02",
+      "license": "embedded:/usr/share/doc/liblerc4/copyright",
+      "localPath": ".rvs-cache/debian/liblerc4_4.0.0+ds-2_amd64.deb"
+    },
+    {
+      "name": "liblocale-gettext-perl",
+      "version": "1.07-5",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/libl/liblocale-gettext-perl/liblocale-gettext-perl_1.07-5_amd64.deb",
+      "sha256": "fe524a9de7ed6b2a1465693f12d5f7be2d2d9f6d6e6bf028f17109263e173dc8",
+      "aptDigest": "MD5Sum:4e0b035f3cd0a510dc476d80f1a43313",
+      "license": "embedded:/usr/share/doc/liblocale-gettext-perl/copyright",
+      "localPath": ".rvs-cache/debian/liblocale-gettext-perl_1.07-5_amd64.deb"
+    },
+    {
+      "name": "liblsan0",
+      "version": "12.2.0-14+deb12u1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/g/gcc-12/liblsan0_12.2.0-14%2bdeb12u1_amd64.deb",
+      "sha256": "d234ab339c0ba31a4fb44e2334cf5a8d15b87f2c2f9e74fadfaa877f92dcf22a",
+      "aptDigest": "MD5Sum:a49f4aa9f1930c3997b7846b0e088622",
+      "license": "embedded:/usr/share/doc/liblsan0/copyright",
+      "localPath": ".rvs-cache/debian/liblsan0_12.2.0-14+deb12u1_amd64.deb"
+    },
+    {
+      "name": "libmount-dev",
+      "version": "2.38.1-5+deb12u3",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/u/util-linux/libmount-dev_2.38.1-5%2bdeb12u3_amd64.deb",
+      "sha256": "697afed24fbad876b86efe5104f0b5303a6394b9d0227682992654232a13fd4f",
+      "aptDigest": "MD5Sum:f97214881cd9be0c4f546f659eea498e",
+      "license": "embedded:/usr/share/doc/libmount-dev/copyright",
+      "localPath": ".rvs-cache/debian/libmount-dev_2.38.1-5+deb12u3_amd64.deb"
+    },
+    {
+      "name": "libmpc3",
+      "version": "1.3.1-1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/m/mpclib3/libmpc3_1.3.1-1_amd64.deb",
+      "sha256": "d7f79544790e44f9b0c8cb9034a18c58d37f8702a15f32539050718679e52f80",
+      "aptDigest": "MD5Sum:dab8d0ef0e69a79395a79a19197c8631",
+      "license": "embedded:/usr/share/doc/libmpc3/copyright",
+      "localPath": ".rvs-cache/debian/libmpc3_1.3.1-1_amd64.deb"
+    },
+    {
+      "name": "libmpfr6",
+      "version": "4.2.0-1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/m/mpfr4/libmpfr6_4.2.0-1_amd64.deb",
+      "sha256": "37b7a2b4e78890b6a074777f27b96c84f58e81558ba08410c2b6c0ca4a4ad77b",
+      "aptDigest": "MD5Sum:123b9bedbbff443884957045b7228f83",
+      "license": "embedded:/usr/share/doc/libmpfr6/copyright",
+      "localPath": ".rvs-cache/debian/libmpfr6_4.2.0-1_amd64.deb"
+    },
+    {
+      "name": "libncursesw6",
+      "version": "6.4-4",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/n/ncurses/libncursesw6_6.4-4_amd64.deb",
+      "sha256": "98fa7a53dc565a38b65fb70422ad08001bf5361d8fbc74255280c329996a6bec",
+      "aptDigest": "MD5Sum:ebd2db8f34a8772d9679697c65b0e02b",
+      "license": "embedded:/usr/share/doc/libncursesw6/copyright",
+      "localPath": ".rvs-cache/debian/libncursesw6_6.4-4_amd64.deb"
+    },
+    {
+      "name": "libnpth0",
+      "version": "1.6-3",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/n/npth/libnpth0_1.6-3_amd64.deb",
+      "sha256": "43c90d45f7cf5584108964b919d6c728680d81af5fa70c8fb367d661cef54e8c",
+      "aptDigest": "MD5Sum:f0e3996750d3e4c4f0cc4aed0ae4232f",
+      "license": "embedded:/usr/share/doc/libnpth0/copyright",
+      "localPath": ".rvs-cache/debian/libnpth0_1.6-3_amd64.deb"
+    },
+    {
+      "name": "libnsl-dev",
+      "version": "1.3.0-2",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/libn/libnsl/libnsl-dev_1.3.0-2_amd64.deb",
+      "sha256": "bb81a188c119cd7fdebae723cbc95887b6c549b2fe4fb7e268a9c8846444da99",
+      "aptDigest": "MD5Sum:b419a83742285ff5c1462f8b1d3571d9",
+      "license": "embedded:/usr/share/doc/libnsl-dev/copyright",
+      "localPath": ".rvs-cache/debian/libnsl-dev_1.3.0-2_amd64.deb"
+    },
+    {
+      "name": "libnsl2",
+      "version": "1.3.0-2",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/libn/libnsl/libnsl2_1.3.0-2_amd64.deb",
+      "sha256": "c0d83437fdb016cb289436f49f28a36be44b3e8f1f2498c7e3a095f709c0d6f8",
+      "aptDigest": "MD5Sum:35f670dd707691bfa65ec9ecec32d8a0",
+      "license": "embedded:/usr/share/doc/libnsl2/copyright",
+      "localPath": ".rvs-cache/debian/libnsl2_1.3.0-2_amd64.deb"
+    },
+    {
+      "name": "libnspr4",
+      "version": "2:4.35-1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/n/nspr/libnspr4_4.35-1_amd64.deb",
+      "sha256": "6cca09767e94e4b5d2888ef31ad797bd3e7cec27fbbe98b49b10d4884746ce77",
+      "aptDigest": "MD5Sum:1f8e0fda3f2527e0051768abd071c2fe",
+      "license": "embedded:/usr/share/doc/libnspr4/copyright",
+      "localPath": ".rvs-cache/debian/libnspr4_2%3a4.35-1_amd64.deb"
+    },
+    {
+      "name": "libnss-systemd",
+      "version": "252.39-1~deb12u2",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/s/systemd/libnss-systemd_252.39-1%7edeb12u2_amd64.deb",
+      "sha256": "67034c8833426da7db9bf07be67280950574d3cc8c5a9420b5b30fb897eaaa24",
+      "aptDigest": "MD5Sum:e27389b1c4136650ce21b8822de26af2",
+      "license": "embedded:/usr/share/doc/libnss-systemd/copyright",
+      "localPath": ".rvs-cache/debian/libnss-systemd_252.39-1~deb12u2_amd64.deb"
+    },
+    {
+      "name": "libnss3",
+      "version": "2:3.87.1-1+deb12u4",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian-security/pool/updates/main/n/nss/libnss3_3.87.1-1%2bdeb12u4_amd64.deb",
+      "sha256": "666bce4768414a6a79d2dacb1549f922cedb1facd373790a477e12739878284e",
+      "aptDigest": "not-provided",
+      "license": "embedded:/usr/share/doc/libnss3/copyright",
+      "localPath": ".rvs-cache/debian/libnss3_2%3a3.87.1-1+deb12u4_amd64.deb"
+    },
+    {
+      "name": "libnuma1",
+      "version": "2.0.16-1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/n/numactl/libnuma1_2.0.16-1_amd64.deb",
+      "sha256": "639e1ab6bd66ead40db8a22c332d7199679fa22db261cac34444eb8eb4c17dda",
+      "aptDigest": "MD5Sum:b670cdfd7cd8ef0ad8db582fb82d0087",
+      "license": "embedded:/usr/share/doc/libnuma1/copyright",
+      "localPath": ".rvs-cache/debian/libnuma1_2.0.16-1_amd64.deb"
+    },
+    {
+      "name": "libpam-systemd",
+      "version": "252.39-1~deb12u2",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/s/systemd/libpam-systemd_252.39-1%7edeb12u2_amd64.deb",
+      "sha256": "5629028998971da269a165cdbeb1c7606e9c37e58030217ae93f55233388be32",
+      "aptDigest": "MD5Sum:f3be2535b3249eddfa7f7694ccde2b1b",
+      "license": "embedded:/usr/share/doc/libpam-systemd/copyright",
+      "localPath": ".rvs-cache/debian/libpam-systemd_252.39-1~deb12u2_amd64.deb"
+    },
+    {
+      "name": "libpango-1.0-0",
+      "version": "1.50.12+ds-1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/p/pango1.0/libpango-1.0-0_1.50.12%2bds-1_amd64.deb",
+      "sha256": "851720de07441ae6bb6a7f51fc0f2edb4db7aa6f25b5bf1bf7b72dcab8947b7f",
+      "aptDigest": "MD5Sum:5c9051d5bf37660b1dac92e5410033da",
+      "license": "embedded:/usr/share/doc/libpango-1.0-0/copyright",
+      "localPath": ".rvs-cache/debian/libpango-1.0-0_1.50.12+ds-1_amd64.deb"
+    },
+    {
+      "name": "libpangocairo-1.0-0",
+      "version": "1.50.12+ds-1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/p/pango1.0/libpangocairo-1.0-0_1.50.12%2bds-1_amd64.deb",
+      "sha256": "96695f9cdd3bf346e3555cf0aa158e23a36114d6dec203b00ab4e93f1b77aab9",
+      "aptDigest": "MD5Sum:75df25dbf6dcadc7612abe6f48eb3da1",
+      "license": "embedded:/usr/share/doc/libpangocairo-1.0-0/copyright",
+      "localPath": ".rvs-cache/debian/libpangocairo-1.0-0_1.50.12+ds-1_amd64.deb"
+    },
+    {
+      "name": "libpangoft2-1.0-0",
+      "version": "1.50.12+ds-1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/p/pango1.0/libpangoft2-1.0-0_1.50.12%2bds-1_amd64.deb",
+      "sha256": "78da3f494109f6e7a39c4626aaae7571c600c5854cecda0bc0c902224986a63b",
+      "aptDigest": "MD5Sum:2e98735072a64d66e8bb663c6a8e9590",
+      "license": "embedded:/usr/share/doc/libpangoft2-1.0-0/copyright",
+      "localPath": ".rvs-cache/debian/libpangoft2-1.0-0_1.50.12+ds-1_amd64.deb"
+    },
+    {
+      "name": "libpcre2-16-0",
+      "version": "10.42-1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/p/pcre2/libpcre2-16-0_10.42-1_amd64.deb",
+      "sha256": "53892097cf102ecd8f133ccd3f1f6be6f288c6ffeeeacf6ce081dfee15292675",
+      "aptDigest": "MD5Sum:13c8cbcc5719fd162c85a7a9583a4c09",
+      "license": "embedded:/usr/share/doc/libpcre2-16-0/copyright",
+      "localPath": ".rvs-cache/debian/libpcre2-16-0_10.42-1_amd64.deb"
+    },
+    {
+      "name": "libpcre2-32-0",
+      "version": "10.42-1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/p/pcre2/libpcre2-32-0_10.42-1_amd64.deb",
+      "sha256": "cadd2941b89f3f80dd739df457f96cd7a77f364d878b5c2c354130208bd60c31",
+      "aptDigest": "MD5Sum:d352fcfd8e3b65389b6c6075086a5553",
+      "license": "embedded:/usr/share/doc/libpcre2-32-0/copyright",
+      "localPath": ".rvs-cache/debian/libpcre2-32-0_10.42-1_amd64.deb"
+    },
+    {
+      "name": "libpcre2-dev",
+      "version": "10.42-1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/p/pcre2/libpcre2-dev_10.42-1_amd64.deb",
+      "sha256": "f0ff485a26daae8f742a1566426f0d98f06cdaf19ee0cc24764e09eff1c99257",
+      "aptDigest": "MD5Sum:25dca01b4ad6ac7ccebe3ad8355c8883",
+      "license": "embedded:/usr/share/doc/libpcre2-dev/copyright",
+      "localPath": ".rvs-cache/debian/libpcre2-dev_10.42-1_amd64.deb"
+    },
+    {
+      "name": "libpcre2-posix3",
+      "version": "10.42-1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/p/pcre2/libpcre2-posix3_10.42-1_amd64.deb",
+      "sha256": "904e16de97e0b8f4b714774fa7dc566afa4b01ad6f4c5bac4cacd024d04823de",
+      "aptDigest": "MD5Sum:55447689e752b05287fc120bd97ea5db",
+      "license": "embedded:/usr/share/doc/libpcre2-posix3/copyright",
+      "localPath": ".rvs-cache/debian/libpcre2-posix3_10.42-1_amd64.deb"
+    },
+    {
+      "name": "libperl5.36",
+      "version": "5.36.0-7+deb12u3",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/p/perl/libperl5.36_5.36.0-7%2bdeb12u3_amd64.deb",
+      "sha256": "591903643119c7e1735011369287976eccab1d79b1d2f210760e2138d0a3aa46",
+      "aptDigest": "MD5Sum:370d5291f477716a3c29192d61027184",
+      "license": "embedded:/usr/share/doc/libperl5.36/copyright",
+      "localPath": ".rvs-cache/debian/libperl5.36_5.36.0-7+deb12u3_amd64.deb"
+    },
+    {
+      "name": "libpixman-1-0",
+      "version": "0.42.2-1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/p/pixman/libpixman-1-0_0.42.2-1_amd64.deb",
+      "sha256": "9ed75ef81b6b1eba9e1357f8b0ce01d31112b0e07b2b685bee2cf627a8932892",
+      "aptDigest": "MD5Sum:65313d4125a22ed2ca198dee3fdabdd1",
+      "license": "embedded:/usr/share/doc/libpixman-1-0/copyright",
+      "localPath": ".rvs-cache/debian/libpixman-1-0_0.42.2-1_amd64.deb"
+    },
+    {
+      "name": "libpkgconf3",
+      "version": "1.8.1-1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/p/pkgconf/libpkgconf3_1.8.1-1_amd64.deb",
+      "sha256": "da01fb901123ae498c36387a32240e09e1f2866810146c5a574273f7eaf31093",
+      "aptDigest": "MD5Sum:3a37750b3ddbacb8ea9ba41c02e19e6b",
+      "license": "embedded:/usr/share/doc/libpkgconf3/copyright",
+      "localPath": ".rvs-cache/debian/libpkgconf3_1.8.1-1_amd64.deb"
+    },
+    {
+      "name": "libpng-dev",
+      "version": "1.6.39-2+deb12u5",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/libp/libpng1.6/libpng-dev_1.6.39-2%2bdeb12u5_amd64.deb",
+      "sha256": "25649c413d02092ae7b1093a3c3ee54cbd2d4fdb0a0494787e434ccf0905903f",
+      "aptDigest": "MD5Sum:73cf6fb43af4075c296e0254b54f8fd8",
+      "license": "embedded:/usr/share/doc/libpng-dev/copyright",
+      "localPath": ".rvs-cache/debian/libpng-dev_1.6.39-2+deb12u5_amd64.deb"
+    },
+    {
+      "name": "libpng-tools",
+      "version": "1.6.39-2+deb12u5",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/libp/libpng1.6/libpng-tools_1.6.39-2%2bdeb12u5_amd64.deb",
+      "sha256": "539035c57650ff41d973ba2ab7f6a4edf1c6bd19b0fb39f6f6ce965409ef161b",
+      "aptDigest": "MD5Sum:16fdb068251a2de98c1bbfd2275c45e7",
+      "license": "embedded:/usr/share/doc/libpng-tools/copyright",
+      "localPath": ".rvs-cache/debian/libpng-tools_1.6.39-2+deb12u5_amd64.deb"
+    },
+    {
+      "name": "libpng16-16",
+      "version": "1.6.39-2+deb12u5",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/libp/libpng1.6/libpng16-16_1.6.39-2%2bdeb12u5_amd64.deb",
+      "sha256": "a56d64bfaa9da12aafb83347909e62e6fd5fd251e6b34c194065911a30359978",
+      "aptDigest": "MD5Sum:68473ba62d4ba1ad8d4d5f22970ceee8",
+      "license": "embedded:/usr/share/doc/libpng16-16/copyright",
+      "localPath": ".rvs-cache/debian/libpng16-16_1.6.39-2+deb12u5_amd64.deb"
+    },
+    {
+      "name": "libproc2-0",
+      "version": "2:4.0.2-3",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/p/procps/libproc2-0_4.0.2-3_amd64.deb",
+      "sha256": "e82ba5d01929eafb8b9954606a3c38b0332a987c2b3432388b4ee7365e54deae",
+      "aptDigest": "MD5Sum:b233f887c17fba7e938b166d8266d206",
+      "license": "embedded:/usr/share/doc/libproc2-0/copyright",
+      "localPath": ".rvs-cache/debian/libproc2-0_2%3a4.0.2-3_amd64.deb"
+    },
+    {
+      "name": "libpython3-stdlib",
+      "version": "3.11.2-1+b1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/p/python3-defaults/libpython3-stdlib_3.11.2-1%2bb1_amd64.deb",
+      "sha256": "4e58891d5c951a1e360ed9eaa814413cb5e84deadce3f08e801ac680434c786e",
+      "aptDigest": "MD5Sum:87d30044fe7f9bf187b0fc64da43f518",
+      "license": "embedded:/usr/share/doc/libpython3-stdlib/copyright",
+      "localPath": ".rvs-cache/debian/libpython3-stdlib_3.11.2-1+b1_amd64.deb"
+    },
+    {
+      "name": "libpython3.11-minimal",
+      "version": "3.11.2-6+deb12u8",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/p/python3.11/libpython3.11-minimal_3.11.2-6%2bdeb12u8_amd64.deb",
+      "sha256": "f3beaa03994ffedacf73c43a0843d53b062d347115d8af65bee2034552a4e6f9",
+      "aptDigest": "MD5Sum:4788351539b7825e939d3e17111afc68",
+      "license": "embedded:/usr/share/doc/libpython3.11-minimal/copyright",
+      "localPath": ".rvs-cache/debian/libpython3.11-minimal_3.11.2-6+deb12u8_amd64.deb"
+    },
+    {
+      "name": "libpython3.11-stdlib",
+      "version": "3.11.2-6+deb12u8",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/p/python3.11/libpython3.11-stdlib_3.11.2-6%2bdeb12u8_amd64.deb",
+      "sha256": "890b3540dad8a1ccc0deeca025db735bcc82629a76adacbe3b50fcc06ed528ca",
+      "aptDigest": "MD5Sum:7710c475d3de61a462c6ad516f70561e",
+      "license": "embedded:/usr/share/doc/libpython3.11-stdlib/copyright",
+      "localPath": ".rvs-cache/debian/libpython3.11-stdlib_3.11.2-6+deb12u8_amd64.deb"
+    },
+    {
+      "name": "libquadmath0",
+      "version": "12.2.0-14+deb12u1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/g/gcc-12/libquadmath0_12.2.0-14%2bdeb12u1_amd64.deb",
+      "sha256": "3f0c9a4c730da2fdab001cae596625438598fd2996d29d888feeb4c1cdc9011f",
+      "aptDigest": "MD5Sum:82b5224e36c58f519837f7f4a224d89d",
+      "license": "embedded:/usr/share/doc/libquadmath0/copyright",
+      "localPath": ".rvs-cache/debian/libquadmath0_12.2.0-14+deb12u1_amd64.deb"
+    },
+    {
+      "name": "librav1e0",
+      "version": "0.5.1-6",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/r/rust-rav1e/librav1e0_0.5.1-6_amd64.deb",
+      "sha256": "c266adb3545b0b8ff6450dbd09f85f19361bf5bc9290ddf2e869f040cb9725b7",
+      "aptDigest": "MD5Sum:b507bad3e56b4acd925b0e602efbf532",
+      "license": "embedded:/usr/share/doc/librav1e0/copyright",
+      "localPath": ".rvs-cache/debian/librav1e0_0.5.1-6_amd64.deb"
+    },
+    {
+      "name": "libreadline8",
+      "version": "8.2-1.3",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/r/readline/libreadline8_8.2-1.3_amd64.deb",
+      "sha256": "e02ebbd3701cf468dbf98d6d917fbe0325e881f07fe8b316150c8d2a64486e66",
+      "aptDigest": "MD5Sum:2a103a569879b1945a5a54f0cf791fb3",
+      "license": "embedded:/usr/share/doc/libreadline8/copyright",
+      "localPath": ".rvs-cache/debian/libreadline8_8.2-1.3_amd64.deb"
+    },
+    {
+      "name": "librsvg2-2",
+      "version": "2.54.7+dfsg-1~deb12u1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/libr/librsvg/librsvg2-2_2.54.7%2bdfsg-1%7edeb12u1_amd64.deb",
+      "sha256": "090f2ffbedb57727ee9b264e6ea6e66fe09773629739dd406931264b1bf14dc8",
+      "aptDigest": "MD5Sum:255ac444ec8e5ef37c643ad5cebae669",
+      "license": "embedded:/usr/share/doc/librsvg2-2/copyright",
+      "localPath": ".rvs-cache/debian/librsvg2-2_2.54.7+dfsg-1~deb12u1_amd64.deb"
+    },
+    {
+      "name": "librsvg2-common",
+      "version": "2.54.7+dfsg-1~deb12u1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/libr/librsvg/librsvg2-common_2.54.7%2bdfsg-1%7edeb12u1_amd64.deb",
+      "sha256": "2e84a584acc49ee426c40737fff89a0585619328dfec4a8c5e216bc1c9599915",
+      "aptDigest": "MD5Sum:d97626d0a9494f85cdb7cbd53a504795",
+      "license": "embedded:/usr/share/doc/librsvg2-common/copyright",
+      "localPath": ".rvs-cache/debian/librsvg2-common_2.54.7+dfsg-1~deb12u1_amd64.deb"
+    },
+    {
+      "name": "libsasl2-2",
+      "version": "2.1.28+dfsg-10",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/c/cyrus-sasl2/libsasl2-2_2.1.28%2bdfsg-10_amd64.deb",
+      "sha256": "11ee190ad39f8d7af441d2c8347388b9449434c73acc67b4b372445ac4152efa",
+      "aptDigest": "MD5Sum:d92a2ea204e0d33bda1eda4f58531ff3",
+      "license": "embedded:/usr/share/doc/libsasl2-2/copyright",
+      "localPath": ".rvs-cache/debian/libsasl2-2_2.1.28+dfsg-10_amd64.deb"
+    },
+    {
+      "name": "libsasl2-modules-db",
+      "version": "2.1.28+dfsg-10",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/c/cyrus-sasl2/libsasl2-modules-db_2.1.28%2bdfsg-10_amd64.deb",
+      "sha256": "3ac4fd6cbe3b3b06e68d24b931bf3eb9385b42f15604a37ed25310e948ca0ee6",
+      "aptDigest": "MD5Sum:a9a14ac3c9e9548db78f5ad163390aa0",
+      "license": "embedded:/usr/share/doc/libsasl2-modules-db/copyright",
+      "localPath": ".rvs-cache/debian/libsasl2-modules-db_2.1.28+dfsg-10_amd64.deb"
+    },
+    {
+      "name": "libsasl2-modules",
+      "version": "2.1.28+dfsg-10",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/c/cyrus-sasl2/libsasl2-modules_2.1.28%2bdfsg-10_amd64.deb",
+      "sha256": "b1966bea9832686a0fd5ddba9787dce5816ebe02218a4a8f7472a1628d73451b",
+      "aptDigest": "MD5Sum:b88bb86451861a0e1e42b884cfc0e507",
+      "license": "embedded:/usr/share/doc/libsasl2-modules/copyright",
+      "localPath": ".rvs-cache/debian/libsasl2-modules_2.1.28+dfsg-10_amd64.deb"
+    },
+    {
+      "name": "libselinux1-dev",
+      "version": "3.4-1+b6",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/libs/libselinux/libselinux1-dev_3.4-1%2bb6_amd64.deb",
+      "sha256": "efd67cd1c09a19bb1f33a53bfa30e703cecee0345f66ba727a7cc64c34656206",
+      "aptDigest": "MD5Sum:1a5a7e2de2e05cff61fcaff868dee53d",
+      "license": "embedded:/usr/share/doc/libselinux1-dev/copyright",
+      "localPath": ".rvs-cache/debian/libselinux1-dev_3.4-1+b6_amd64.deb"
+    },
+    {
+      "name": "libsepol-dev",
+      "version": "3.4-2.1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/libs/libsepol/libsepol-dev_3.4-2.1_amd64.deb",
+      "sha256": "c3822443d3c829727813f8c84746506944deff1f5f2dd4fb00f90bb5929ffa89",
+      "aptDigest": "MD5Sum:085681ea2b224ec4c2e15748222ae629",
+      "license": "embedded:/usr/share/doc/libsepol-dev/copyright",
+      "localPath": ".rvs-cache/debian/libsepol-dev_3.4-2.1_amd64.deb"
+    },
+    {
+      "name": "libsqlite3-0",
+      "version": "3.40.1-2+deb12u2",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/s/sqlite3/libsqlite3-0_3.40.1-2%2bdeb12u2_amd64.deb",
+      "sha256": "a8d78b40e9b4e422224aeebfe0e4dfc243f6acf3532490b0c05480d4283d41e2",
+      "aptDigest": "MD5Sum:a7fe687619b6b122ce6272823126169f",
+      "license": "embedded:/usr/share/doc/libsqlite3-0/copyright",
+      "localPath": ".rvs-cache/debian/libsqlite3-0_3.40.1-2+deb12u2_amd64.deb"
+    },
+    {
+      "name": "libssl3",
+      "version": "3.0.20-1~deb12u2",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/o/openssl/libssl3_3.0.20-1%7edeb12u2_amd64.deb",
+      "sha256": "89be24b41bff568ee6e7caf5680a3d808e80315ed92e407056ce0fa7a5bda025",
+      "aptDigest": "MD5Sum:4efab63a42e193c6107a3e1d1c46eaa4",
+      "license": "embedded:/usr/share/doc/libssl3/copyright",
+      "localPath": ".rvs-cache/debian/libssl3_3.0.20-1~deb12u2_amd64.deb"
+    },
+    {
+      "name": "libstdc++-12-dev",
+      "version": "12.2.0-14+deb12u1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/g/gcc-12/libstdc%2b%2b-12-dev_12.2.0-14%2bdeb12u1_amd64.deb",
+      "sha256": "d28def6c23630432b57cb38a4c2fd67a79d4e0484027386ca6e8d6005c3d7a73",
+      "aptDigest": "MD5Sum:ccfa30fe6dbebb57c4b486233250f574",
+      "license": "embedded:/usr/share/doc/libstdc++-12-dev/copyright",
+      "localPath": ".rvs-cache/debian/libstdc++-12-dev_12.2.0-14+deb12u1_amd64.deb"
+    },
+    {
+      "name": "libsvtav1enc1",
+      "version": "1.4.1+dfsg-1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/s/svt-av1/libsvtav1enc1_1.4.1%2bdfsg-1_amd64.deb",
+      "sha256": "e0f6e357f327e80f26438dcda9c9304c43e2f3343359c6a5075d0b10ddfdb05d",
+      "aptDigest": "MD5Sum:12842f2c9bd2085927a7ff89a3350ca7",
+      "license": "embedded:/usr/share/doc/libsvtav1enc1/copyright",
+      "localPath": ".rvs-cache/debian/libsvtav1enc1_1.4.1+dfsg-1_amd64.deb"
+    },
+    {
+      "name": "libsystemd-shared",
+      "version": "252.39-1~deb12u2",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/s/systemd/libsystemd-shared_252.39-1%7edeb12u2_amd64.deb",
+      "sha256": "01458465c816b9eb63b92241869ddb46f332b8f498cf7a5979b84ec293cfdfda",
+      "aptDigest": "MD5Sum:1028cbbc79f32b295f544dd7300da97d",
+      "license": "embedded:/usr/share/doc/libsystemd-shared/copyright",
+      "localPath": ".rvs-cache/debian/libsystemd-shared_252.39-1~deb12u2_amd64.deb"
+    },
+    {
+      "name": "libthai-data",
+      "version": "0.1.29-1",
+      "architecture": "all",
+      "url": "http://deb.debian.org/debian/pool/main/libt/libthai/libthai-data_0.1.29-1_all.deb",
+      "sha256": "eed65a75269411e47d7b393d82bc30471da5c499e9f311abbfd8c54ca1a42d9e",
+      "aptDigest": "MD5Sum:2d7fe29106323274a458bc114e3049ea",
+      "license": "embedded:/usr/share/doc/libthai-data/copyright",
+      "localPath": ".rvs-cache/debian/libthai-data_0.1.29-1_all.deb"
+    },
+    {
+      "name": "libthai0",
+      "version": "0.1.29-1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/libt/libthai/libthai0_0.1.29-1_amd64.deb",
+      "sha256": "37cd66bef851ea0e4af807797ba3ad14d43226f7c4954c1d0a19478e11815bae",
+      "aptDigest": "MD5Sum:3d73542cb037cb9cb5015e9ac43aed8d",
+      "license": "embedded:/usr/share/doc/libthai0/copyright",
+      "localPath": ".rvs-cache/debian/libthai0_0.1.29-1_amd64.deb"
+    },
+    {
+      "name": "libtiff6",
+      "version": "4.5.0-6+deb12u4",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/t/tiff/libtiff6_4.5.0-6%2bdeb12u4_amd64.deb",
+      "sha256": "255cd1d9f204355c366638ee21756234a8d43c03a3de18a5af6cdd94765b5053",
+      "aptDigest": "MD5Sum:f283ac0d100dc6a749470b06e3908a8a",
+      "license": "embedded:/usr/share/doc/libtiff6/copyright",
+      "localPath": ".rvs-cache/debian/libtiff6_4.5.0-6+deb12u4_amd64.deb"
+    },
+    {
+      "name": "libtirpc-common",
+      "version": "1.3.3+ds-1",
+      "architecture": "all",
+      "url": "http://deb.debian.org/debian/pool/main/libt/libtirpc/libtirpc-common_1.3.3%2bds-1_all.deb",
+      "sha256": "3e3ef129b4bf61513144236e15e1b4ec57fa5ae3dc8a72137abdbefb7a63af85",
+      "aptDigest": "MD5Sum:e49aca93814724ed80fa8932a1f7523b",
+      "license": "embedded:/usr/share/doc/libtirpc-common/copyright",
+      "localPath": ".rvs-cache/debian/libtirpc-common_1.3.3+ds-1_all.deb"
+    },
+    {
+      "name": "libtirpc-dev",
+      "version": "1.3.3+ds-1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/libt/libtirpc/libtirpc-dev_1.3.3%2bds-1_amd64.deb",
+      "sha256": "03326473eed54ffa27efae19aa5d6aeb402930968f869f318445513093691d55",
+      "aptDigest": "MD5Sum:2577c303fb9c6413e6855f03dff40ccf",
+      "license": "embedded:/usr/share/doc/libtirpc-dev/copyright",
+      "localPath": ".rvs-cache/debian/libtirpc-dev_1.3.3+ds-1_amd64.deb"
+    },
+    {
+      "name": "libtirpc3",
+      "version": "1.3.3+ds-1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/libt/libtirpc/libtirpc3_1.3.3%2bds-1_amd64.deb",
+      "sha256": "2a46d5a5e9486da11ffeff5740931740d6deae4f92cd6098df060dc5dff1e1c7",
+      "aptDigest": "MD5Sum:b759d3e9dc474c3404da044249e84d2b",
+      "license": "embedded:/usr/share/doc/libtirpc3/copyright",
+      "localPath": ".rvs-cache/debian/libtirpc3_1.3.3+ds-1_amd64.deb"
+    },
+    {
+      "name": "libtsan2",
+      "version": "12.2.0-14+deb12u1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/g/gcc-12/libtsan2_12.2.0-14%2bdeb12u1_amd64.deb",
+      "sha256": "06906663d644a75a1a836382ecd80b61461129c06f02935ce408b25809f6c958",
+      "aptDigest": "MD5Sum:a17189cce889de0a3056a582e682eb63",
+      "license": "embedded:/usr/share/doc/libtsan2/copyright",
+      "localPath": ".rvs-cache/debian/libtsan2_12.2.0-14+deb12u1_amd64.deb"
+    },
+    {
+      "name": "libubsan1",
+      "version": "12.2.0-14+deb12u1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/g/gcc-12/libubsan1_12.2.0-14%2bdeb12u1_amd64.deb",
+      "sha256": "744f52adf00ffd45d44806b1c7e802a36bd27e479c9bc8457128fde357faa530",
+      "aptDigest": "MD5Sum:8a6c6862c051f6bfce88cb4c20eae238",
+      "license": "embedded:/usr/share/doc/libubsan1/copyright",
+      "localPath": ".rvs-cache/debian/libubsan1_12.2.0-14+deb12u1_amd64.deb"
+    },
+    {
+      "name": "libwayland-client0",
+      "version": "1.21.0-1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/w/wayland/libwayland-client0_1.21.0-1_amd64.deb",
+      "sha256": "1f002d028b8b79eec9847c636d8886d10dfe8c884cc2bebe18086b1391c5a28d",
+      "aptDigest": "MD5Sum:8eca08a6899fb386383502099a225d3d",
+      "license": "embedded:/usr/share/doc/libwayland-client0/copyright",
+      "localPath": ".rvs-cache/debian/libwayland-client0_1.21.0-1_amd64.deb"
+    },
+    {
+      "name": "libwayland-cursor0",
+      "version": "1.21.0-1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/w/wayland/libwayland-cursor0_1.21.0-1_amd64.deb",
+      "sha256": "0b684467ec795024fcaae99ea4384959cc4052b2da5adec38c9b76dfed9bcf41",
+      "aptDigest": "MD5Sum:9db0949e5534bfc9acd8e93585a6323a",
+      "license": "embedded:/usr/share/doc/libwayland-cursor0/copyright",
+      "localPath": ".rvs-cache/debian/libwayland-cursor0_1.21.0-1_amd64.deb"
+    },
+    {
+      "name": "libwayland-egl1",
+      "version": "1.21.0-1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/w/wayland/libwayland-egl1_1.21.0-1_amd64.deb",
+      "sha256": "cb4225f0e15e00a3570d4cbc288c87ff477d73e741c3f1c5a6d47cf350d45378",
+      "aptDigest": "MD5Sum:149a9237fd98bb13ce2e94737e693621",
+      "license": "embedded:/usr/share/doc/libwayland-egl1/copyright",
+      "localPath": ".rvs-cache/debian/libwayland-egl1_1.21.0-1_amd64.deb"
+    },
+    {
+      "name": "libwayland-server0",
+      "version": "1.21.0-1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/w/wayland/libwayland-server0_1.21.0-1_amd64.deb",
+      "sha256": "df0396221d7b794496a687ec61fae82b6465648bc0ab6501ba0a5ed7f56eb8d6",
+      "aptDigest": "MD5Sum:42f94a440aedab24dc1ae5fb7d91651e",
+      "license": "embedded:/usr/share/doc/libwayland-server0/copyright",
+      "localPath": ".rvs-cache/debian/libwayland-server0_1.21.0-1_amd64.deb"
+    },
+    {
+      "name": "libwebp7",
+      "version": "1.2.4-0.2+deb12u1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/libw/libwebp/libwebp7_1.2.4-0.2%2bdeb12u1_amd64.deb",
+      "sha256": "7259b7ce46444694ce536360ad53acb68eb3b47a7ff81d7b1b8a3939b2ac9918",
+      "aptDigest": "MD5Sum:19f6c9801f036b0615b9bf650c3ee1fa",
+      "license": "embedded:/usr/share/doc/libwebp7/copyright",
+      "localPath": ".rvs-cache/debian/libwebp7_1.2.4-0.2+deb12u1_amd64.deb"
+    },
+    {
+      "name": "libx11-6",
+      "version": "2:1.8.4-2+deb12u2",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/libx/libx11/libx11-6_1.8.4-2%2bdeb12u2_amd64.deb",
+      "sha256": "d88c973e79fd9b65838d77624142952757e47a6eb1a58602acf0911cf35989f4",
+      "aptDigest": "MD5Sum:0c6481c14ab6815f2d2983310157421e",
+      "license": "embedded:/usr/share/doc/libx11-6/copyright",
+      "localPath": ".rvs-cache/debian/libx11-6_2%3a1.8.4-2+deb12u2_amd64.deb"
+    },
+    {
+      "name": "libx11-data",
+      "version": "2:1.8.4-2+deb12u2",
+      "architecture": "all",
+      "url": "http://deb.debian.org/debian/pool/main/libx/libx11/libx11-data_1.8.4-2%2bdeb12u2_all.deb",
+      "sha256": "987a848aeb1c358e4186368871b0526f10bb14c6b53214ab3bf8b69abb830191",
+      "aptDigest": "MD5Sum:85ab85cc2396aafb5a525bac782d8ec9",
+      "license": "embedded:/usr/share/doc/libx11-data/copyright",
+      "localPath": ".rvs-cache/debian/libx11-data_2%3a1.8.4-2+deb12u2_all.deb"
+    },
+    {
+      "name": "libx265-199",
+      "version": "3.5-2+b1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/x/x265/libx265-199_3.5-2%2bb1_amd64.deb",
+      "sha256": "9cd87d1b0c56f34f51bcbe8bdb55ebb45dd08ce6c0c6ff2dc77378bac3f64cc0",
+      "aptDigest": "MD5Sum:e34942e4ea1c8063121bb734849b2cc0",
+      "license": "embedded:/usr/share/doc/libx265-199/copyright",
+      "localPath": ".rvs-cache/debian/libx265-199_3.5-2+b1_amd64.deb"
+    },
+    {
+      "name": "libxau6",
+      "version": "1:1.0.9-1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/libx/libxau/libxau6_1.0.9-1_amd64.deb",
+      "sha256": "679db1c4579ec7c61079adeaae8528adeb2e4bf5465baa6c56233b995d714750",
+      "aptDigest": "MD5Sum:317e939fdeb6d7b0dbd9eecba8e5cd11",
+      "license": "embedded:/usr/share/doc/libxau6/copyright",
+      "localPath": ".rvs-cache/debian/libxau6_1%3a1.0.9-1_amd64.deb"
+    },
+    {
+      "name": "libxcb-render0",
+      "version": "1.15-1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/libx/libxcb/libxcb-render0_1.15-1_amd64.deb",
+      "sha256": "29c32cc76be9393f409378be79a0f534b9f07dea06ae52fa80a7f27e298de239",
+      "aptDigest": "MD5Sum:2d439ba4286c2ed03fbb8349084bf2ef",
+      "license": "embedded:/usr/share/doc/libxcb-render0/copyright",
+      "localPath": ".rvs-cache/debian/libxcb-render0_1.15-1_amd64.deb"
+    },
+    {
+      "name": "libxcb-shm0",
+      "version": "1.15-1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/libx/libxcb/libxcb-shm0_1.15-1_amd64.deb",
+      "sha256": "c1afcef29dc78b95c475159b181b28b1dedaf1d5aa06efd2fa6d90c73bfbe0e5",
+      "aptDigest": "MD5Sum:ba6aaee1156c74780ad00539cb23a936",
+      "license": "embedded:/usr/share/doc/libxcb-shm0/copyright",
+      "localPath": ".rvs-cache/debian/libxcb-shm0_1.15-1_amd64.deb"
+    },
+    {
+      "name": "libxcb1",
+      "version": "1.15-1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/libx/libxcb/libxcb1_1.15-1_amd64.deb",
+      "sha256": "fdc61332a3892168f3cc9cfa1fe9cf11a91dc3e0acacbc47cbc50ebaa234cc71",
+      "aptDigest": "MD5Sum:f35728a21c52c5e591aff7baa950d56a",
+      "license": "embedded:/usr/share/doc/libxcb1/copyright",
+      "localPath": ".rvs-cache/debian/libxcb1_1.15-1_amd64.deb"
+    },
+    {
+      "name": "libxcomposite1",
+      "version": "1:0.4.5-1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/libx/libxcomposite/libxcomposite1_0.4.5-1_amd64.deb",
+      "sha256": "4c26ebf519d2ebc22fc1416dee45e12c4c4ef68aa9b2ed890356830df42b652a",
+      "aptDigest": "MD5Sum:e76626e2efcd43b91c43ab027d4a151e",
+      "license": "embedded:/usr/share/doc/libxcomposite1/copyright",
+      "localPath": ".rvs-cache/debian/libxcomposite1_1%3a0.4.5-1_amd64.deb"
+    },
+    {
+      "name": "libxcursor1",
+      "version": "1:1.2.1-1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/libx/libxcursor/libxcursor1_1.2.1-1_amd64.deb",
+      "sha256": "49e167048661be4c614fff81429e9eaef38e54ef1d2150a5d2a8c53919217529",
+      "aptDigest": "MD5Sum:1a456c7bb14f1ef12bb89511d3361ef9",
+      "license": "embedded:/usr/share/doc/libxcursor1/copyright",
+      "localPath": ".rvs-cache/debian/libxcursor1_1%3a1.2.1-1_amd64.deb"
+    },
+    {
+      "name": "libxdamage1",
+      "version": "1:1.1.6-1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/libx/libxdamage/libxdamage1_1.1.6-1_amd64.deb",
+      "sha256": "fcdf7e4c29b307ba8711c864e1e646d76315a8f55121198143653e56592fa8a7",
+      "aptDigest": "MD5Sum:720ef2eab01bfc61bd80ea71d8ebbb50",
+      "license": "embedded:/usr/share/doc/libxdamage1/copyright",
+      "localPath": ".rvs-cache/debian/libxdamage1_1%3a1.1.6-1_amd64.deb"
+    },
+    {
+      "name": "libxdmcp6",
+      "version": "1:1.1.2-3",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/libx/libxdmcp/libxdmcp6_1.1.2-3_amd64.deb",
+      "sha256": "ecb8536f5fb34543b55bb9dc5f5b14c9dbb4150a7bddb3f2287b7cab6e9d25ef",
+      "aptDigest": "MD5Sum:4a27341c3dfb3067bc473fc241144ca9",
+      "license": "embedded:/usr/share/doc/libxdmcp6/copyright",
+      "localPath": ".rvs-cache/debian/libxdmcp6_1%3a1.1.2-3_amd64.deb"
+    },
+    {
+      "name": "libxext6",
+      "version": "2:1.3.4-1+b1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/libx/libxext/libxext6_1.3.4-1%2bb1_amd64.deb",
+      "sha256": "504b7be9d7df4f6f4519e8dd4d6f9d03a9fb911a78530fa23a692fba3058cba6",
+      "aptDigest": "MD5Sum:73b96dd0229e3dc10ff7409521fb0761",
+      "license": "embedded:/usr/share/doc/libxext6/copyright",
+      "localPath": ".rvs-cache/debian/libxext6_2%3a1.3.4-1+b1_amd64.deb"
+    },
+    {
+      "name": "libxfixes3",
+      "version": "1:6.0.0-2",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/libx/libxfixes/libxfixes3_6.0.0-2_amd64.deb",
+      "sha256": "1cd616396ff2ecae77e6e8b5b7695d414f0146de2d147837a2a02165f99e1a2c",
+      "aptDigest": "MD5Sum:4575e428e3038a8b2f460bb5a25c7d5c",
+      "license": "embedded:/usr/share/doc/libxfixes3/copyright",
+      "localPath": ".rvs-cache/debian/libxfixes3_1%3a6.0.0-2_amd64.deb"
+    },
+    {
+      "name": "libxi6",
+      "version": "2:1.8-1+b1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/libx/libxi/libxi6_1.8-1%2bb1_amd64.deb",
+      "sha256": "6c2fb5f241b311788990122c6e693915867cd8ed9d6da2e3524aec7ed3cdb4c0",
+      "aptDigest": "MD5Sum:b2383d6db6df412bd4a85a18cb65cfaa",
+      "license": "embedded:/usr/share/doc/libxi6/copyright",
+      "localPath": ".rvs-cache/debian/libxi6_2%3a1.8-1+b1_amd64.deb"
+    },
+    {
+      "name": "libxinerama1",
+      "version": "2:1.1.4-3",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/libx/libxinerama/libxinerama1_1.1.4-3_amd64.deb",
+      "sha256": "8dde8f74d2fc001f306fb1295a86850145e93191d35c983c7f52eb21b0a7f8cb",
+      "aptDigest": "MD5Sum:4bda2a30dd5228fa9d1218a398b3e4cc",
+      "license": "embedded:/usr/share/doc/libxinerama1/copyright",
+      "localPath": ".rvs-cache/debian/libxinerama1_2%3a1.1.4-3_amd64.deb"
+    },
+    {
+      "name": "libxkbcommon0",
+      "version": "1.5.0-1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/libx/libxkbcommon/libxkbcommon0_1.5.0-1_amd64.deb",
+      "sha256": "e3fe045b9a33a101de1c5a912a4a10928db055c3f68930f47eccbb44d7c7d54e",
+      "aptDigest": "MD5Sum:d0aca9975743edb14d39a3389956364b",
+      "license": "embedded:/usr/share/doc/libxkbcommon0/copyright",
+      "localPath": ".rvs-cache/debian/libxkbcommon0_1.5.0-1_amd64.deb"
+    },
+    {
+      "name": "libxml2",
+      "version": "2.9.14+dfsg-1.3~deb12u6",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/libx/libxml2/libxml2_2.9.14%2bdfsg-1.3%7edeb12u6_amd64.deb",
+      "sha256": "4460e39dda10a815881374217cde08474747cfa018358cd8612c14b390eff53b",
+      "aptDigest": "MD5Sum:e0fc4937b830f48f3959d116df942d99",
+      "license": "embedded:/usr/share/doc/libxml2/copyright",
+      "localPath": ".rvs-cache/debian/libxml2_2.9.14+dfsg-1.3~deb12u6_amd64.deb"
+    },
+    {
+      "name": "libxpm4",
+      "version": "1:3.5.12-1.1+deb12u1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/libx/libxpm/libxpm4_3.5.12-1.1%2bdeb12u1_amd64.deb",
+      "sha256": "505400598dcda712380f2e4a73b09b015a3fedf78bd874f6429622c448e249f9",
+      "aptDigest": "MD5Sum:47ff34e61b90bb4a518e8e8e4a9833e2",
+      "license": "embedded:/usr/share/doc/libxpm4/copyright",
+      "localPath": ".rvs-cache/debian/libxpm4_1%3a3.5.12-1.1+deb12u1_amd64.deb"
+    },
+    {
+      "name": "libxrandr2",
+      "version": "2:1.5.2-2+b1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/libx/libxrandr/libxrandr2_1.5.2-2%2bb1_amd64.deb",
+      "sha256": "e2e10b672085ddf1d294cd689ed21bde5899325fd13626c2614b7d7b2d49a808",
+      "aptDigest": "MD5Sum:655a583f61534b8b027d3fc3df76577e",
+      "license": "embedded:/usr/share/doc/libxrandr2/copyright",
+      "localPath": ".rvs-cache/debian/libxrandr2_2%3a1.5.2-2+b1_amd64.deb"
+    },
+    {
+      "name": "libxrender1",
+      "version": "1:0.9.10-1.1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/libx/libxrender/libxrender1_0.9.10-1.1_amd64.deb",
+      "sha256": "b2a6d160578f359220101947c8d67059b44704a251e688de1d0b744fefedfd1a",
+      "aptDigest": "MD5Sum:93b87c3eed7cc375e93b1fcb8f7d754b",
+      "license": "embedded:/usr/share/doc/libxrender1/copyright",
+      "localPath": ".rvs-cache/debian/libxrender1_1%3a0.9.10-1.1_amd64.deb"
+    },
+    {
+      "name": "libxtst6",
+      "version": "2:1.2.3-1.1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/libx/libxtst/libxtst6_1.2.3-1.1_amd64.deb",
+      "sha256": "be67f1efe7cd3dbe9dc0d717e0a8c0959cc663950aa15a42636ab90b134f9cb5",
+      "aptDigest": "MD5Sum:c9d9835eb4d9bd6b697a2f2f5d477477",
+      "license": "embedded:/usr/share/doc/libxtst6/copyright",
+      "localPath": ".rvs-cache/debian/libxtst6_2%3a1.2.3-1.1_amd64.deb"
+    },
+    {
+      "name": "libyuv0",
+      "version": "0.0~git20230123.b2528b0-1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/liby/libyuv/libyuv0_0.0%7egit20230123.b2528b0-1_amd64.deb",
+      "sha256": "48225793c486310600459d08a417dca0c28cbaf184047c09c82aff19107aa6f2",
+      "aptDigest": "MD5Sum:806855df0140c24322b3ca8973694d63",
+      "license": "embedded:/usr/share/doc/libyuv0/copyright",
+      "localPath": ".rvs-cache/debian/libyuv0_0.0~git20230123.b2528b0-1_amd64.deb"
+    },
+    {
+      "name": "linux-libc-dev",
+      "version": "6.1.180-1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian-security/pool/updates/main/l/linux/linux-libc-dev_6.1.180-1_amd64.deb",
+      "sha256": "61aa1f30bd97f21504b56ccf0e4d6eba7ba5ad8857f3c7fc8013a5d331bd5e52",
+      "aptDigest": "not-provided",
+      "license": "embedded:/usr/share/doc/linux-libc-dev/copyright",
+      "localPath": ".rvs-cache/debian/linux-libc-dev_6.1.180-1_amd64.deb"
+    },
+    {
+      "name": "make",
+      "version": "4.3-4.1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/m/make-dfsg/make_4.3-4.1_amd64.deb",
+      "sha256": "a1a83af8cbd854af887b72ad196b1f4af58387815e21ced1000253a116a46e2a",
+      "aptDigest": "MD5Sum:ad23a28085ea694f6677b80baca3ff34",
+      "license": "embedded:/usr/share/doc/make/copyright",
+      "localPath": ".rvs-cache/debian/make_4.3-4.1_amd64.deb"
+    },
+    {
+      "name": "manpages-dev",
+      "version": "6.03-2",
+      "architecture": "all",
+      "url": "http://deb.debian.org/debian/pool/main/m/manpages/manpages-dev_6.03-2_all.deb",
+      "sha256": "96f55cb5e26231d5567c89b692bced63825a14a2d5bd18fdf16ea2ed44eb9838",
+      "aptDigest": "MD5Sum:f6e257ae8668752fce41150475ead325",
+      "license": "embedded:/usr/share/doc/manpages-dev/copyright",
+      "localPath": ".rvs-cache/debian/manpages-dev_6.03-2_all.deb"
+    },
+    {
+      "name": "manpages",
+      "version": "6.03-2",
+      "architecture": "all",
+      "url": "http://deb.debian.org/debian/pool/main/m/manpages/manpages_6.03-2_all.deb",
+      "sha256": "efa1ba4cd19ad7baeae959c9209a7eb74be2ebb858bcabb412597bfc9f588c91",
+      "aptDigest": "MD5Sum:f79eccd26f3976b5aa85ba15425a5e2c",
+      "license": "embedded:/usr/share/doc/manpages/copyright",
+      "localPath": ".rvs-cache/debian/manpages_6.03-2_all.deb"
+    },
+    {
+      "name": "media-types",
+      "version": "10.0.0",
+      "architecture": "all",
+      "url": "http://deb.debian.org/debian/pool/main/m/media-types/media-types_10.0.0_all.deb",
+      "sha256": "aaa46dcb3b39948ae2e0fdb72cfcb2f48c0b59f19785a3da8045c05eb19955dd",
+      "aptDigest": "MD5Sum:90fd2adb74d07dcc8875d93b1fa12833",
+      "license": "embedded:/usr/share/doc/media-types/copyright",
+      "localPath": ".rvs-cache/debian/media-types_10.0.0_all.deb"
+    },
+    {
+      "name": "nasm",
+      "version": "2.16.01-1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/n/nasm/nasm_2.16.01-1_amd64.deb",
+      "sha256": "0180693ad5d2da8b36e7d73b9b596dc3e9f900238e3de699976c0576875b878f",
+      "aptDigest": "MD5Sum:b9cc00546ffae4917eff751ec407d67b",
+      "license": "embedded:/usr/share/doc/nasm/copyright",
+      "localPath": ".rvs-cache/debian/nasm_2.16.01-1_amd64.deb"
+    },
+    {
+      "name": "netbase",
+      "version": "6.4",
+      "architecture": "all",
+      "url": "http://deb.debian.org/debian/pool/main/n/netbase/netbase_6.4_all.deb",
+      "sha256": "29b23c48c0fe6f878e56c5ddc9f65d1c05d729360f3690a593a8c795031cd867",
+      "aptDigest": "MD5Sum:814246d2f01d3238bbd3ef8c15c57076",
+      "license": "embedded:/usr/share/doc/netbase/copyright",
+      "localPath": ".rvs-cache/debian/netbase_6.4_all.deb"
+    },
+    {
+      "name": "openssl",
+      "version": "3.0.20-1~deb12u2",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/o/openssl/openssl_3.0.20-1%7edeb12u2_amd64.deb",
+      "sha256": "4d218561dc838de081de97f54584c4a29e77e26c7ed9fe3440d776d8e6071bf9",
+      "aptDigest": "MD5Sum:5be72c521ad1ce86dfdfaffa78340b81",
+      "license": "embedded:/usr/share/doc/openssl/copyright",
+      "localPath": ".rvs-cache/debian/openssl_3.0.20-1~deb12u2_amd64.deb"
+    },
+    {
+      "name": "patch",
+      "version": "2.7.6-7",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/p/patch/patch_2.7.6-7_amd64.deb",
+      "sha256": "8c6d49b771530dbe26d7bd060582dc7d2b4eeb603a20789debc1ef4bbbc4ef67",
+      "aptDigest": "MD5Sum:f1682a98c3f4dee94ab083e423283c84",
+      "license": "embedded:/usr/share/doc/patch/copyright",
+      "localPath": ".rvs-cache/debian/patch_2.7.6-7_amd64.deb"
+    },
+    {
+      "name": "perl-modules-5.36",
+      "version": "5.36.0-7+deb12u3",
+      "architecture": "all",
+      "url": "http://deb.debian.org/debian/pool/main/p/perl/perl-modules-5.36_5.36.0-7%2bdeb12u3_all.deb",
+      "sha256": "3d237ccb1ea32727b6573d43c67d78337aa928a81148d36cef54b369a07c240a",
+      "aptDigest": "MD5Sum:c29fd5fafd4101158f100fe326002371",
+      "license": "embedded:/usr/share/doc/perl-modules-5.36/copyright",
+      "localPath": ".rvs-cache/debian/perl-modules-5.36_5.36.0-7+deb12u3_all.deb"
+    },
+    {
+      "name": "perl",
+      "version": "5.36.0-7+deb12u3",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/p/perl/perl_5.36.0-7%2bdeb12u3_amd64.deb",
+      "sha256": "afa50ec7d9b1a407cd0187dae033644ef13578d4f3792435e0c41b962ffec0c4",
+      "aptDigest": "MD5Sum:ecd2edf27d8e7a67795e81e1756de5f4",
+      "license": "embedded:/usr/share/doc/perl/copyright",
+      "localPath": ".rvs-cache/debian/perl_5.36.0-7+deb12u3_amd64.deb"
+    },
+    {
+      "name": "pinentry-curses",
+      "version": "1.2.1-1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/p/pinentry/pinentry-curses_1.2.1-1_amd64.deb",
+      "sha256": "27b3d102545f597df9e6dc5c7f6590a648de09b57debd6b05ad3d1189de428d5",
+      "aptDigest": "MD5Sum:c8a3e829bea60ba04748d99ffc5140ae",
+      "license": "embedded:/usr/share/doc/pinentry-curses/copyright",
+      "localPath": ".rvs-cache/debian/pinentry-curses_1.2.1-1_amd64.deb"
+    },
+    {
+      "name": "pkg-config",
+      "version": "1.8.1-1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/p/pkgconf/pkg-config_1.8.1-1_amd64.deb",
+      "sha256": "312b2bdeff4671f8e0d589c124554890e944dd083061e9ad6f129bc76a970765",
+      "aptDigest": "MD5Sum:42e6f9997f8fb4568def20f75d25cce2",
+      "license": "embedded:/usr/share/doc/pkg-config/copyright",
+      "localPath": ".rvs-cache/debian/pkg-config_1.8.1-1_amd64.deb"
+    },
+    {
+      "name": "pkgconf-bin",
+      "version": "1.8.1-1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/p/pkgconf/pkgconf-bin_1.8.1-1_amd64.deb",
+      "sha256": "8fb5a8f83e46ad04b4cf02651ceec56c0611a335cf0d30780d859a95d0400174",
+      "aptDigest": "MD5Sum:d4fa0f15d2852c7b02ed7f6b38f8144d",
+      "license": "embedded:/usr/share/doc/pkgconf-bin/copyright",
+      "localPath": ".rvs-cache/debian/pkgconf-bin_1.8.1-1_amd64.deb"
+    },
+    {
+      "name": "pkgconf",
+      "version": "1.8.1-1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/p/pkgconf/pkgconf_1.8.1-1_amd64.deb",
+      "sha256": "4e3ce982b5fedc6c6119268435504a64f5ffcc6d93aaecaea902d816eba1215f",
+      "aptDigest": "MD5Sum:82dab965948b1d1263d4e32a9bddd86d",
+      "license": "embedded:/usr/share/doc/pkgconf/copyright",
+      "localPath": ".rvs-cache/debian/pkgconf_1.8.1-1_amd64.deb"
+    },
+    {
+      "name": "procps",
+      "version": "2:4.0.2-3",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/p/procps/procps_4.0.2-3_amd64.deb",
+      "sha256": "d9d0e75779cb79af869181f17b93c5c263a2b89cac6a0193c436160a4483ddc1",
+      "aptDigest": "MD5Sum:3ec3649d38e1ade32c96ece131efa0e6",
+      "license": "embedded:/usr/share/doc/procps/copyright",
+      "localPath": ".rvs-cache/debian/procps_2%3a4.0.2-3_amd64.deb"
+    },
+    {
+      "name": "psmisc",
+      "version": "23.6-1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/p/psmisc/psmisc_23.6-1_amd64.deb",
+      "sha256": "9d02f654bdf280a6622a9b1371f7a1fa44546702d11991e438558bc259df7b69",
+      "aptDigest": "MD5Sum:2a758475a05809ab3080de96f9478401",
+      "license": "embedded:/usr/share/doc/psmisc/copyright",
+      "localPath": ".rvs-cache/debian/psmisc_23.6-1_amd64.deb"
+    },
+    {
+      "name": "python3-distutils",
+      "version": "3.11.2-3",
+      "architecture": "all",
+      "url": "http://deb.debian.org/debian/pool/main/p/python3-stdlib-extensions/python3-distutils_3.11.2-3_all.deb",
+      "sha256": "a620b555f301860a08e30534c7e6f7d79818e5e1977bfec39a612e7003074318",
+      "aptDigest": "MD5Sum:725a2c5ecc62b45561f7cb22f180e1f8",
+      "license": "embedded:/usr/share/doc/python3-distutils/copyright",
+      "localPath": ".rvs-cache/debian/python3-distutils_3.11.2-3_all.deb"
+    },
+    {
+      "name": "python3-lib2to3",
+      "version": "3.11.2-3",
+      "architecture": "all",
+      "url": "http://deb.debian.org/debian/pool/main/p/python3-stdlib-extensions/python3-lib2to3_3.11.2-3_all.deb",
+      "sha256": "4e7f5e01e49a0622d10db3d0995666a6ead6a369cd127a996e9a4f9e91696a51",
+      "aptDigest": "MD5Sum:6154019342d07ce7ac15a7f2f3fee5e9",
+      "license": "embedded:/usr/share/doc/python3-lib2to3/copyright",
+      "localPath": ".rvs-cache/debian/python3-lib2to3_3.11.2-3_all.deb"
+    },
+    {
+      "name": "python3-minimal",
+      "version": "3.11.2-1+b1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/p/python3-defaults/python3-minimal_3.11.2-1%2bb1_amd64.deb",
+      "sha256": "30f9618670e686d781afbfc713eb0830c29d2819e9cb2a0488800dad6bb99faa",
+      "aptDigest": "MD5Sum:7da16408b487a394fd646619b08970f9",
+      "license": "embedded:/usr/share/doc/python3-minimal/copyright",
+      "localPath": ".rvs-cache/debian/python3-minimal_3.11.2-1+b1_amd64.deb"
+    },
+    {
+      "name": "python3.11-minimal",
+      "version": "3.11.2-6+deb12u8",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/p/python3.11/python3.11-minimal_3.11.2-6%2bdeb12u8_amd64.deb",
+      "sha256": "4aba533f7cc5e7b93b7ff24482840e96813f5bcde9cce028395b65a0d799ccee",
+      "aptDigest": "MD5Sum:4fcd420436b7043382369b617521c11e",
+      "license": "embedded:/usr/share/doc/python3.11-minimal/copyright",
+      "localPath": ".rvs-cache/debian/python3.11-minimal_3.11.2-6+deb12u8_amd64.deb"
+    },
+    {
+      "name": "python3.11",
+      "version": "3.11.2-6+deb12u8",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/p/python3.11/python3.11_3.11.2-6%2bdeb12u8_amd64.deb",
+      "sha256": "cd7b10c24281416a6acb22cd23ed7391c7dddd4a3d4d4a63d37faa786639b5de",
+      "aptDigest": "MD5Sum:d2b6cecbc9b46432f80085aeef98eb1c",
+      "license": "embedded:/usr/share/doc/python3.11/copyright",
+      "localPath": ".rvs-cache/debian/python3.11_3.11.2-6+deb12u8_amd64.deb"
+    },
+    {
+      "name": "python3",
+      "version": "3.11.2-1+b1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/p/python3-defaults/python3_3.11.2-1%2bb1_amd64.deb",
+      "sha256": "33f6dafbd1a6902d9063172ec7dbd4b2225e12009e0d7ec5c933a72c2f5f3b74",
+      "aptDigest": "MD5Sum:48ebc2dc2cb4fa44aaa2780f8141bbe1",
+      "license": "embedded:/usr/share/doc/python3/copyright",
+      "localPath": ".rvs-cache/debian/python3_3.11.2-1+b1_amd64.deb"
+    },
+    {
+      "name": "readline-common",
+      "version": "8.2-1.3",
+      "architecture": "all",
+      "url": "http://deb.debian.org/debian/pool/main/r/readline/readline-common_8.2-1.3_all.deb",
+      "sha256": "69317523fe56429aa361545416ad339d138c1500e5a604856a80dd9074b4e35c",
+      "aptDigest": "MD5Sum:ad338a71bb8d67bdbcbe411ae6f65d20",
+      "license": "embedded:/usr/share/doc/readline-common/copyright",
+      "localPath": ".rvs-cache/debian/readline-common_8.2-1.3_all.deb"
+    },
+    {
+      "name": "rpcsvc-proto",
+      "version": "1.4.3-1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/r/rpcsvc-proto/rpcsvc-proto_1.4.3-1_amd64.deb",
+      "sha256": "32ac0692694f8a34cc90c895f4fc739680fb2ef0e2d4870a68833682bf1c81a3",
+      "aptDigest": "MD5Sum:863959fc5bf804d0e575681f5b1ba374",
+      "license": "embedded:/usr/share/doc/rpcsvc-proto/copyright",
+      "localPath": ".rvs-cache/debian/rpcsvc-proto_1.4.3-1_amd64.deb"
+    },
+    {
+      "name": "shared-mime-info",
+      "version": "2.2-1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/s/shared-mime-info/shared-mime-info_2.2-1_amd64.deb",
+      "sha256": "dd026add873483566faefebbd8779a1e5e14ab2e44682ebfe238c3828a2b936b",
+      "aptDigest": "MD5Sum:9b177958350d5dfd200d0d79bddf0209",
+      "license": "embedded:/usr/share/doc/shared-mime-info/copyright",
+      "localPath": ".rvs-cache/debian/shared-mime-info_2.2-1_amd64.deb"
+    },
+    {
+      "name": "systemd-sysv",
+      "version": "252.39-1~deb12u2",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/s/systemd/systemd-sysv_252.39-1%7edeb12u2_amd64.deb",
+      "sha256": "e3dc84316cfdf7e3feefe4eaf507758d2630ea131e1834e1f07525b3e537db2d",
+      "aptDigest": "MD5Sum:89a5afed8aeb61f3c41c8039168990ab",
+      "license": "embedded:/usr/share/doc/systemd-sysv/copyright",
+      "localPath": ".rvs-cache/debian/systemd-sysv_252.39-1~deb12u2_amd64.deb"
+    },
+    {
+      "name": "systemd-timesyncd",
+      "version": "252.39-1~deb12u2",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/s/systemd/systemd-timesyncd_252.39-1%7edeb12u2_amd64.deb",
+      "sha256": "b382c895064a59127da7f64bb2524041ffa2c6693f63d537d9c7f8d4ae37b345",
+      "aptDigest": "MD5Sum:9a6b439b7b407fcc5c14ed76c32f811c",
+      "license": "embedded:/usr/share/doc/systemd-timesyncd/copyright",
+      "localPath": ".rvs-cache/debian/systemd-timesyncd_252.39-1~deb12u2_amd64.deb"
+    },
+    {
+      "name": "systemd",
+      "version": "252.39-1~deb12u2",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/s/systemd/systemd_252.39-1%7edeb12u2_amd64.deb",
+      "sha256": "286f879c537bfba92e59d580c075ad20ab49020244c79634656850a306dd462b",
+      "aptDigest": "MD5Sum:5fe9b1090d2468a3f256a9a13aa0f035",
+      "license": "embedded:/usr/share/doc/systemd/copyright",
+      "localPath": ".rvs-cache/debian/systemd_252.39-1~deb12u2_amd64.deb"
+    },
+    {
+      "name": "uuid-dev",
+      "version": "2.38.1-5+deb12u3",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/u/util-linux/uuid-dev_2.38.1-5%2bdeb12u3_amd64.deb",
+      "sha256": "d66c5719adc05b6f5cbac926e093846c865f0b1a2095e6d781df8a7ce1f34cbf",
+      "aptDigest": "MD5Sum:63d2248a3ea23cafd2be6c6652a7bb0b",
+      "license": "embedded:/usr/share/doc/uuid-dev/copyright",
+      "localPath": ".rvs-cache/debian/uuid-dev_2.38.1-5+deb12u3_amd64.deb"
+    },
+    {
+      "name": "x11-common",
+      "version": "1:7.7+23",
+      "architecture": "all",
+      "url": "http://deb.debian.org/debian/pool/main/x/xorg/x11-common_7.7%2b23_all.deb",
+      "sha256": "fc97c2f4495eb33a77501c7960928c0d2001e5c4b2aa438f1713e2082c23bacd",
+      "aptDigest": "MD5Sum:59b8e70b264bfcc5f5eaff9fc839a513",
+      "license": "embedded:/usr/share/doc/x11-common/copyright",
+      "localPath": ".rvs-cache/debian/x11-common_1%3a7.7+23_all.deb"
+    },
+    {
+      "name": "xdg-user-dirs",
+      "version": "0.18-1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/x/xdg-user-dirs/xdg-user-dirs_0.18-1_amd64.deb",
+      "sha256": "581bad07fbc84d7ca180fa68cfd3480fde9cae595020bc6d41352addbdfd7300",
+      "aptDigest": "MD5Sum:4ee790ca0f3c6f03901d86911d9569f0",
+      "license": "embedded:/usr/share/doc/xdg-user-dirs/copyright",
+      "localPath": ".rvs-cache/debian/xdg-user-dirs_0.18-1_amd64.deb"
+    },
+    {
+      "name": "xkb-data",
+      "version": "2.35.1-1",
+      "architecture": "all",
+      "url": "http://deb.debian.org/debian/pool/main/x/xkeyboard-config/xkb-data_2.35.1-1_all.deb",
+      "sha256": "28a79c61b785f403da93af58c39aed13c022032935e3e54362c6707169cfe982",
+      "aptDigest": "MD5Sum:b5a8882c83ed9fd9aa4561ffdb6ff816",
+      "license": "embedded:/usr/share/doc/xkb-data/copyright",
+      "localPath": ".rvs-cache/debian/xkb-data_2.35.1-1_all.deb"
+    },
+    {
+      "name": "xz-utils",
+      "version": "5.4.1-1+deb12u1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/x/xz-utils/xz-utils_5.4.1-1%2bdeb12u1_amd64.deb",
+      "sha256": "cc6dc501e0c06be3f89e9a7f8dfd7a97f92aadfd9daa60fad19b90d6a5558b80",
+      "aptDigest": "MD5Sum:b30c9c676f9d9ddc78322c8dfa945c8b",
+      "license": "embedded:/usr/share/doc/xz-utils/copyright",
+      "localPath": ".rvs-cache/debian/xz-utils_5.4.1-1+deb12u1_amd64.deb"
+    },
+    {
+      "name": "zlib1g-dev",
+      "version": "1:1.2.13.dfsg-1",
+      "architecture": "amd64",
+      "url": "http://deb.debian.org/debian/pool/main/z/zlib/zlib1g-dev_1.2.13.dfsg-1_amd64.deb",
+      "sha256": "f9ce531f60cbd5df37996af9370e0171be96902a17ec2bdbd8d62038c354094f",
+      "aptDigest": "MD5Sum:1786e234d8245882ccac5a8defa5ff5f",
+      "license": "embedded:/usr/share/doc/zlib1g-dev/copyright",
+      "localPath": ".rvs-cache/debian/zlib1g-dev_1%3a1.2.13.dfsg-1_amd64.deb"
+    }
+  ],
+  "bundle": {
+    "path": "runtime/debian-packages.tar",
+    "sha256": "36addf1cf56653f8ee13a3e4a1c15e0a590d12ec8380669c70ac5efd0038f2c2",
+    "packages": 272
+  }
+}

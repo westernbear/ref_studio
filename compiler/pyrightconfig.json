@@ -1,0 +1,6 @@
+{
+  "extends": "./pyproject.toml",
+  "venvPath": "/home/singlerr/ref_studio/compiler",
+  "venv": ".venv",
+  "extraPaths": ["/home/singlerr/ref_studio/compiler/.venv/lib/python3.12/site-packages"]
+}

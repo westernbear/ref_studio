@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "rvs-container-children-v1",
+  "images": [
+    {
+      "name": "node-image",
+      "version": "24-bookworm-slim",
+      "url": "https://registry-1.docker.io/v2/library/node/manifests/24-bookworm-slim",
+      "digest": "sha256:65932751ed4073ed02f5c04e494e4b2572a891b7dbea0568a863dc80341bf848",
+      "license": "Node MIT + Debian component licenses",
+      "localPath": null,
+      "verified": "oci-digest"
+    },
+    {
+      "name": "python-image",
+      "version": "3.12.14-slim-bookworm",
+      "url": "https://registry-1.docker.io/v2/library/python/manifests/3.12.14-slim-bookworm",
+      "digest": "sha256:356b0d18f9385f4bdcc673af60e1e64c9d1504952e4ec36ee32044c722a6bc4e",
+      "license": "PSF-2.0 + Debian component licenses",
+      "localPath": null,
+      "verified": "oci-digest"
+    }
+  ],
+  "builtImages": [
+    {
+      "name": "reference-video-studio-runtime:todo1",
+      "contentDigest": "sha256:8404a853a499143346f188f5ebefea9e6131c6f59e41c7c2b13b8827ad30c5f0",
+      "rootfsLayers": [
+        "sha256:66462cc862fe2053b9863fefa3866e07bb5dfb06f6b3ce3177cc096e4021aabe",
+        "sha256:87f2d2ebf814fcaffdc3e52ac4564957d6bb2e2f0b76262e6c69c95e53c16950",
+        "sha256:a523c3cee891a9b9612c8c0cc93172f52f397265cd8d92786b64c3878653efea",
+        "sha256:51ec7829c857ba86186bb9f6a3db1e327fa94ba5b48de5380d475746ed19f144",
+        "sha256:46a5f1686c830adb60e4451b326c1619bc9b2a5789e86d56212e0c4094dd2cb2",
+        "sha256:72aff01093f1461f3b6e2545f329044d8e2a1ca402be3c7bf5f43c5cc6f022df",
+        "sha256:6c903ba6c807d196da26534aaeacd7f5817c7275399875b1ab6e395abaf1edfd",
+        "sha256:421ad7403e8b27bb7c8990a10156092e61bce72bc93c03ff95675f82c9362a7b",
+        "sha256:65acb98f51847c03302eb06153f788e708234a2ab64c9ecbb34289e9cf3475e7",
+        "sha256:39964e6bbfb6b1ee3c0a14c611547d598f9884f4889632fba1a7129cc3b81aec",
+        "sha256:b69dfdaa55ace1b243a9d5f71c95f2305be73a3f662c3b158feec1ff851d0c2b",
+        "sha256:211c65dfc5fac704fbb32ae49a24a100ea90dead07875d4c146c03ae4d8d8174",
+        "sha256:c74f938b1fbbadd5aeed54310b9824f6332bec00031e0a5cfc659403e9deab80",
+        "sha256:227d0cf0c4a2af3eb7dcb2a836047d11b8d00edc3fc09e6d59f6cbf468389de2",
+        "sha256:9931fdf076bbf9feca613bad304ca955b357f15375bc9c094f2c3f51ce916448",
+        "sha256:7048a2921e90e824465b456fc328d7bd5cc3e19da7c424192cfed387613e48d2"
+      ],
+      "parentDigests": [
+        "sha256:65932751ed4073ed02f5c04e494e4b2572a891b7dbea0568a863dc80341bf848",
+        "sha256:356b0d18f9385f4bdcc673af60e1e64c9d1504952e4ec36ee32044c722a6bc4e"
+      ]
+    }
+  ]
+}

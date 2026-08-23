@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "rvs-visual-assets-v1",
+  "assets": [
+    {
+      "name": "Manrope Variable",
+      "sourceUrl": "https://github.com/google/fonts/tree/main/ofl/manrope",
+      "release": "main",
+      "localPath": "apps/web/public/fonts/Manrope-Variable.ttf",
+      "sha256": "d0639be45d0af36e798172419d7bd173c4bd4f29e2b76cbb69db1d11bf8b0a40",
+      "license": "OFL-1.1",
+      "allowedConsumer": "web"
+    },
+    {
+      "name": "Inter Variable",
+      "sourceUrl": "https://github.com/rsms/inter",
+      "release": "v4.1",
+      "localPath": "apps/web/public/fonts/InterVariable.woff2",
+      "sha256": "693b77d4f32ee9b8bfc995589b5fad5e99adf2832738661f5402f9978429a8e3",
+      "license": "OFL-1.1",
+      "allowedConsumer": "web"
+    },
+    {
+      "name": "Geist Variable",
+      "sourceUrl": "https://github.com/vercel/geist-font",
+      "release": "v1.5.1",
+      "localPath": "apps/web/public/fonts/Geist-Variable.woff2",
+      "sha256": "0409c60e703a83c8cf348a00762b3e19433c6151b6d90182276c9a9fd977616c",
+      "license": "OFL-1.1",
+      "allowedConsumer": "web"
+    },
+    {
+      "name": "Geist Mono Variable",
+      "sourceUrl": "https://github.com/vercel/geist-font",
+      "release": "v1.5.1",
+      "localPath": "apps/web/public/fonts/GeistMono-Variable.woff2",
+      "sha256": "e9fb088eeacced307860d82ceedb0ae9ad2ebfa07a7c0a7279c8c961dd9d5fd3",
+      "license": "OFL-1.1",
+      "allowedConsumer": "web"
+    },
+    {
+      "name": "Wanted Sans Variable",
+      "sourceUrl": "https://github.com/wanteddev/wanted-sans",
+      "release": "v1.0.3",
+      "localPath": "apps/web/public/fonts/WantedSansVariable.ttf",
+      "sha256": "9953a7cfc4a3cba4ef1242abaf89779b3cd15fd9729c2d67d9e9d37a0da967f5",
+      "license": "OFL-1.1",
+      "allowedConsumer": "web-renderer"
+    }
+  ]
+}

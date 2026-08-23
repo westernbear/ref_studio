@@ -1,0 +1,19 @@
+packages:
+  - apps/*
+  - packages/*
+
+allowBuilds:
+  '@tailwindcss/oxide': true
+  better-sqlite3: true
+  esbuild: true
+  sharp: true
+
+overrides:
+  sharp: 0.35.2
+  postcss: 8.5.18
+
+onlyBuiltDependencies:
+  - "@tailwindcss/oxide"
+  - better-sqlite3
+  - esbuild
+  - sharp

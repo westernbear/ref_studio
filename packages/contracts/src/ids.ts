@@ -1,0 +1,41 @@
+import { z } from "zod"
+
+const id = <const T extends string>(prefix: T) => z.string().regex(new RegExp(`^${prefix}_[A-Za-z0-9-]+$`)).brand<T>()
+export const TenantId = id("ten")
+export const UserId = id("usr")
+export const SessionId = id("ses")
+export const ApiTokenId = id("tok")
+export const CredentialId = id("cred")
+export const JobId = id("job")
+export const AttemptId = id("att")
+export const UploadId = id("upl")
+export const CasObjectId = id("cas")
+export const ArtifactId = id("art")
+export const ReviewId = id("rev")
+export const ReceiptId = id("rcpt")
+export const AuthoringIRVersionId = id("air")
+export const SceneIRVersionId = id("sir")
+export const BrowserPassSpecVersionId = id("bps")
+export const EvidenceId = id("evd")
+export const SceneId = id("scn")
+export const LeaseId = id("lease")
+export const ExportId = id("exp")
+export type TenantId = z.infer<typeof TenantId>
+export type UserId = z.infer<typeof UserId>
+export type SessionId = z.infer<typeof SessionId>
+export type ApiTokenId = z.infer<typeof ApiTokenId>
+export type CredentialId = z.infer<typeof CredentialId>
+export type JobId = z.infer<typeof JobId>
+export type AttemptId = z.infer<typeof AttemptId>
+export type UploadId = z.infer<typeof UploadId>
+export type CasObjectId = z.infer<typeof CasObjectId>
+export type ArtifactId = z.infer<typeof ArtifactId>
+export type ReviewId = z.infer<typeof ReviewId>
+export type ReceiptId = z.infer<typeof ReceiptId>
+export type AuthoringIRVersionId = z.infer<typeof AuthoringIRVersionId>
+export type SceneIRVersionId = z.infer<typeof SceneIRVersionId>
+export type BrowserPassSpecVersionId = z.infer<typeof BrowserPassSpecVersionId>
+export type EvidenceId = z.infer<typeof EvidenceId>
+export type SceneId = z.infer<typeof SceneId>
+export type LeaseId = z.infer<typeof LeaseId>
+export type ExportId = z.infer<typeof ExportId>

@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "rvs-x264-build-v1",
+  "source": {
+    "name": "x264-source",
+    "version": "373697b467f7cd0af88f1e9e32d4f10540df4687",
+    "url": "https://github.com/mirror/x264/archive/373697b467f7cd0af88f1e9e32d4f10540df4687.tar.gz",
+    "sha256": "ecf458e716d1f2f14db3f83575165df4911462933fff9863c3b3da60fe802edf",
+    "license": "GPL-2.0-or-later"
+  },
+  "debianSnapshotDigest": "ef57c51e874179abfcff830a255a8ab6124d8dfe4f328561fcae63b9d34dc60c",
+  "configure": [
+    "--prefix=/opt/rvs",
+    "--enable-static",
+    "--disable-cli",
+    "--disable-opencl"
+  ],
+  "binaryPath": "/opt/rvs/lib/libx264.a",
+  "binarySha256": "031865445948c4517716fe35f2e4f3682d88625a184a4b110a7e2496c7c2d2dc",
+  "license": "GPL-2.0-or-later"
+}

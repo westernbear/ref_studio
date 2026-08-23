@@ -1,0 +1,1 @@
+{"case":"alias-audit","operations":[{"method":"GET","path":"/v1/jobs/{jobId}"},{"method":"GET","path":"/v1/jobs/{jobId}"}]}

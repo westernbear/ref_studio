@@ -1,0 +1,69 @@
+{
+  "schemaVersion": "rvs-runtime-artifacts-v1",
+  "image": {
+    "name": "reference-video-studio-runtime:todo1",
+    "contentDigest": "sha256:8404a853a499143346f188f5ebefea9e6131c6f59e41c7c2b13b8827ad30c5f0"
+  },
+  "artifacts": [
+    {
+      "name": "ffmpeg",
+      "version": "8.0.1",
+      "path": "/opt/rvs/bin/ffmpeg",
+      "sha256": "3194fc9e9febe3a85e491c38e176f524266b9cbb39f227a514229300f0181c4d"
+    },
+    {
+      "name": "ffprobe",
+      "version": "8.0.1",
+      "path": "/opt/rvs/bin/ffprobe",
+      "sha256": "d88f63fd3896acf8a2713cab45cae428635ac40cbaccc67a61eec02dd4a1c5bf"
+    },
+    {
+      "name": "x264",
+      "version": "373697b467f7cd0af88f1e9e32d4f10540df4687",
+      "path": "/opt/rvs/lib/libx264.a",
+      "sha256": "031865445948c4517716fe35f2e4f3682d88625a184a4b110a7e2496c7c2d2dc"
+    },
+    {
+      "name": "imagemagick",
+      "version": "6.9.12-98",
+      "path": "/opt/rvs/bin/convert",
+      "sha256": "f850fa2c14a101804ce101b967405b63952f85380e6cd5a868ffca1d5e412ed4"
+    },
+    {
+      "name": "chrome-for-testing",
+      "version": "151.0.7922.138",
+      "path": "/opt/chrome/chrome",
+      "sha256": "22f1017b80d5744b3ece65a585fcdd462fcbc487df57d211db39b44a4e9f948f"
+    },
+    {
+      "name": "wanted-sans",
+      "version": "1.0.3",
+      "path": "/opt/rvs/fonts/WantedSansVariable.ttf",
+      "sha256": "9953a7cfc4a3cba4ef1242abaf89779b3cd15fd9729c2d67d9e9d37a0da967f5"
+    },
+    {
+      "name": "inter",
+      "version": "4.1",
+      "path": "/opt/rvs/fonts/Inter.ttf",
+      "sha256": "4989b125924991b90d05b2d16e0e388c48f7d5bb8b30539bbf9c755278d0ccaf"
+    },
+    {
+      "name": "uv",
+      "version": "0.11.8",
+      "path": "/opt/uv/uv",
+      "sha256": "646adf5cf12ba17d1a41fa77c8dd6496f73651dcfeeed6b5f4ec019b36bc7153"
+    },
+    {
+      "name": "node",
+      "version": "24.19.0",
+      "path": "/usr/local/bin/node",
+      "sha256": "bc17c508ffeed0ec622934f9b7fa72f8e78da65350e63c3eceb56fa688aa5e12"
+    },
+    {
+      "name": "python",
+      "version": "3.12.14",
+      "path": "/usr/local/bin/python3.12",
+      "sha256": "4dbf3143240288fb2170257ffaa7bd030cdda5d2703d1f5f30b627042267e2e3"
+    }
+  ]
+}
