@@ -5,7 +5,17 @@ export const MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024;
 export const MAX_CHUNK_BYTES = 8 * 1024 * 1024;
 export const UPLOAD_TTL_MS = 24 * 60 * 60 * 1000;
 
-export type UploadState = "PENDING" | "QUARANTINED" | "ACCEPTED" | "EXPIRED";
+export type UploadState =
+  | "PENDING"
+  | "VALIDATING"
+  | "QUARANTINED"
+  | "ACCEPTED"
+  | "EXPIRED";
+export type UploadMedia = {
+  readonly fps: 24 | 25 | 30 | 50 | 60;
+  readonly frameCount: number;
+  readonly durationSeconds: number;
+};
 export type UploadRecord = {
   readonly id: string;
   readonly tenantId: string;
@@ -16,6 +26,8 @@ export type UploadRecord = {
   readonly createdAt: string;
   readonly expiresAt: string;
   casObjectId: string | null;
+  sourceSha256: string | null;
+  media: UploadMedia | null;
   readonly chunks: Uint8Array[];
   actualBytes: number;
 };
@@ -42,9 +54,13 @@ export type UploadStore = {
 
 export const CreateUploadSchema = z
   .object({
-    filename: z.string().min(1).max(255),
-    contentType: z.literal("video/mp4"),
+    fileName: z.string().min(1).max(255),
     sizeBytes: z.number().int().min(1).max(MAX_UPLOAD_BYTES),
+    sha256: z
+      .string()
+      .regex(/^[a-f0-9]{64}$/)
+      .optional(),
+    mimeHint: z.string().max(100).optional(),
   })
   .strict();
 
@@ -54,6 +70,11 @@ export class UploadFailure extends Error {
     | "VIDEO_SIZE_LIMIT_EXCEEDED"
     | "VIDEO_TYPE_INVALID"
     | "UPLOAD_QUARANTINED"
+    | "UPLOAD_RANGE_INVALID"
+    | "UPLOAD_INCOMPLETE"
+    | "HASH_MISMATCH"
+    | "UPLOAD_EXPIRED"
+    | "UPLOAD_NOT_ABORTABLE"
     | "RESOURCE_NOT_FOUND"
     | "TENANT_BOUNDARY_BYPASS";
   constructor(code: UploadFailure["code"]) {
@@ -71,12 +92,6 @@ const isSafeFilename = (filename: string): boolean =>
   filename !== "." &&
   filename !== ".." &&
   !filename.includes("..");
-const visibleUpload = (
-  upload: UploadRecord,
-): Omit<UploadRecord, "chunks" | "actualBytes"> => {
-  const { chunks: _chunks, actualBytes: _actualBytes, ...safe } = upload;
-  return safe;
-};
 const owns = (
   store: UploadStore,
   tenantId: string,
@@ -120,7 +135,8 @@ export function createUpload(
   input: unknown,
 ): UploadRecord {
   const parsed = CreateUploadSchema.safeParse(input);
-  if (!parsed.success || !isSafeFilename(parsed.data.filename))
+  const filename = parsed.success ? parsed.data.fileName : "";
+  if (!parsed.success || !isSafeFilename(filename))
     throw new UploadFailure(
       !parsed.success &&
       parsed.error.issues.some((issue) => issue.path[0] === "sizeBytes")
@@ -131,13 +147,15 @@ export function createUpload(
   const upload: UploadRecord = {
     id: id("upl"),
     tenantId,
-    filename: parsed.data.filename,
-    contentType: parsed.data.contentType,
+    filename,
+    contentType: "video/mp4",
     sizeBytes: parsed.data.sizeBytes,
     state: "PENDING",
     createdAt: new Date(now).toISOString(),
     expiresAt: new Date(now + UPLOAD_TTL_MS).toISOString(),
     casObjectId: null,
+    sourceSha256: null,
+    media: null,
     chunks: [],
     actualBytes: 0,
   };
@@ -145,41 +163,79 @@ export function createUpload(
   return upload;
 }
 
-export function appendChunk(
+const openUpload = (
   store: UploadStore,
   tenantId: string,
   uploadId: string,
-  chunk: Uint8Array,
-): UploadRecord {
+): UploadRecord => {
   const upload = owns(store, tenantId, uploadId);
   if (store.now() >= Date.parse(upload.expiresAt)) {
     upload.state = "EXPIRED";
-    throw new UploadFailure("UPLOAD_QUARANTINED");
+    throw new UploadFailure("UPLOAD_EXPIRED");
   }
-  if (
-    chunk.byteLength > MAX_CHUNK_BYTES ||
-    upload.actualBytes + chunk.byteLength > upload.sizeBytes
-  )
-    throw new UploadFailure("VIDEO_SIZE_LIMIT_EXCEEDED");
   if (upload.state !== "PENDING") throw new UploadFailure("UPLOAD_QUARANTINED");
+  return upload;
+};
+
+export function putChunk(
+  store: UploadStore,
+  tenantId: string,
+  uploadId: string,
+  index: number,
+  chunk: Uint8Array,
+  contentRange: string,
+  declaredSha256: string,
+): UploadRecord {
+  const upload = openUpload(store, tenantId, uploadId);
+  const range = /^bytes (\d+)-(\d+)\/(\d+)$/.exec(contentRange);
+  const start = Number(range?.[1]);
+  const end = Number(range?.[2]);
+  const total = Number(range?.[3]);
+  const actualSha256 = createHash("sha256").update(chunk).digest("hex");
+  if (
+    !Number.isInteger(index) ||
+    index < 0 ||
+    !range ||
+    total !== upload.sizeBytes ||
+    start !== index * MAX_CHUNK_BYTES ||
+    end !== start + chunk.byteLength - 1 ||
+    end >= total ||
+    chunk.byteLength < 1 ||
+    chunk.byteLength > MAX_CHUNK_BYTES
+  )
+    throw new UploadFailure("UPLOAD_RANGE_INVALID");
+  if (actualSha256 !== declaredSha256) throw new UploadFailure("HASH_MISMATCH");
+  const existing = upload.chunks[index];
+  if (existing) {
+    if (createHash("sha256").update(existing).digest("hex") !== declaredSha256)
+      throw new UploadFailure("HASH_MISMATCH");
+    return upload;
+  }
+  if (index !== upload.chunks.length)
+    throw new UploadFailure("UPLOAD_RANGE_INVALID");
   upload.chunks.push(chunk);
   upload.actualBytes += chunk.byteLength;
   return upload;
 }
 
-export function finalizeUpload(
-  store: UploadStore,
-  tenantId: string,
-  uploadId: string,
-): UploadRecord {
-  const upload = owns(store, tenantId, uploadId);
-  if (upload.state === "ACCEPTED") return upload;
-  if (upload.state !== "PENDING" || upload.actualBytes !== upload.sizeBytes)
-    throw new UploadFailure(
-      upload.actualBytes > upload.sizeBytes
-        ? "VIDEO_SIZE_LIMIT_EXCEEDED"
-        : "UPLOAD_QUARANTINED",
-    );
+export const FinalizeUploadSchema = z
+  .object({
+    orderedChunkCount: z.number().int().min(1).max(262_144),
+    declaredSha256: z.string().regex(/^[a-f0-9]{64}$/),
+  })
+  .strict();
+type FinalizeExpectation = Readonly<z.infer<typeof FinalizeUploadSchema>>;
+
+const verifyFinalize = (
+  upload: UploadRecord,
+  expectation?: FinalizeExpectation,
+): string => {
+  if (
+    upload.state !== "PENDING" ||
+    upload.actualBytes !== upload.sizeBytes ||
+    (expectation && upload.chunks.length !== expectation.orderedChunkCount)
+  )
+    throw new UploadFailure("UPLOAD_INCOMPLETE");
   if (!hasFtyp(upload.chunks)) {
     upload.state = "QUARANTINED";
     throw new UploadFailure("VIDEO_TYPE_INVALID");
@@ -187,14 +243,24 @@ export function finalizeUpload(
   const digest = createHash("sha256");
   for (const chunk of upload.chunks) digest.update(chunk);
   const sha256 = digest.digest("hex");
-  const key = `${tenantId}:${sha256}`;
+  if (expectation && sha256 !== expectation.declaredSha256)
+    throw new UploadFailure("HASH_MISMATCH");
+  return sha256;
+};
+
+const acceptUpload = (
+  store: UploadStore,
+  upload: UploadRecord,
+  sha256: string,
+): UploadRecord => {
+  const key = `${upload.tenantId}:${sha256}`;
   const existingId = store.casByTenantDigest.get(key);
   const casObjectId = existingId ?? id("cas");
   if (!existingId) {
     store.casByTenantDigest.set(key, casObjectId);
     store.cas.set(casObjectId, {
       id: casObjectId,
-      tenantId,
+      tenantId: upload.tenantId,
       sha256,
       contentType: upload.contentType,
       sizeBytes: upload.sizeBytes,
@@ -203,9 +269,62 @@ export function finalizeUpload(
     });
   }
   upload.casObjectId = casObjectId;
+  upload.sourceSha256 = sha256;
   upload.state = "ACCEPTED";
   return upload;
+};
+
+const verifyAcceptedReplay = (
+  upload: UploadRecord,
+  expectation?: FinalizeExpectation,
+): boolean => {
+  if (upload.state !== "ACCEPTED") return false;
+  if (expectation && upload.chunks.length !== expectation.orderedChunkCount)
+    throw new UploadFailure("UPLOAD_INCOMPLETE");
+  if (expectation && upload.sourceSha256 !== expectation.declaredSha256)
+    throw new UploadFailure("HASH_MISMATCH");
+  return true;
+};
+
+export function finalizeUpload(
+  store: UploadStore,
+  tenantId: string,
+  uploadId: string,
+  expectation?: FinalizeExpectation,
+): UploadRecord {
+  const upload = owns(store, tenantId, uploadId);
+  if (verifyAcceptedReplay(upload, expectation)) return upload;
+  return acceptUpload(store, upload, verifyFinalize(upload, expectation));
 }
+
+export async function validateAndFinalizeUpload(
+  store: UploadStore,
+  tenantId: string,
+  uploadId: string,
+  expectation: FinalizeExpectation,
+  validate: (
+    upload: UploadRecord,
+    sourceSha256: string,
+  ) => Promise<UploadMedia>,
+): Promise<UploadRecord> {
+  const upload = owns(store, tenantId, uploadId);
+  if (verifyAcceptedReplay(upload, expectation)) return upload;
+  const sourceSha256 = verifyFinalize(upload, expectation);
+  upload.state = "VALIDATING";
+  try {
+    upload.media = await validate(upload, sourceSha256);
+  } catch {
+    upload.state = "QUARANTINED";
+    throw new UploadFailure("VIDEO_TYPE_INVALID");
+  }
+  return acceptUpload(store, upload, sourceSha256);
+}
+
+export const getUpload = (
+  store: UploadStore,
+  tenantId: string,
+  uploadId: string,
+): UploadRecord => owns(store, tenantId, uploadId);
 
 export function abortUpload(
   store: UploadStore,
@@ -213,16 +332,20 @@ export function abortUpload(
   uploadId: string,
 ): void {
   const upload = owns(store, tenantId, uploadId);
-  if (upload.state === "PENDING") upload.state = "EXPIRED";
+  if (upload.state !== "PENDING" && upload.state !== "VALIDATING")
+    throw new UploadFailure("UPLOAD_NOT_ABORTABLE");
+  upload.state = "EXPIRED";
 }
 export function cleanupExpiredUploads(store: UploadStore): number {
   const now = store.now();
   let removed = 0;
   for (const [uploadId, upload] of store.uploads)
-    if (upload.state !== "ACCEPTED" && Date.parse(upload.expiresAt) <= now) {
+    if (
+      ["PENDING", "VALIDATING", "EXPIRED"].includes(upload.state) &&
+      Date.parse(upload.expiresAt) <= now
+    ) {
       store.uploads.delete(uploadId);
       removed += 1;
     }
   return removed;
 }
-export { isSafeFilename, visibleUpload };

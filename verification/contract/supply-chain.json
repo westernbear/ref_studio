@@ -2,221 +2,38 @@
   "schemaVersion": "rvs-supply-chain-lock-v2",
   "generatedAt": "2026-08-21",
   "artifacts": [
-    {
-      "name": "node-image",
-      "version": "24-bookworm-slim",
-      "url": "https://registry-1.docker.io/v2/library/node/manifests/24-bookworm-slim",
-      "digest": "sha256:65932751ed4073ed02f5c04e494e4b2572a891b7dbea0568a863dc80341bf848",
-      "license": "Node MIT + Debian component licenses"
-    },
-    {
-      "name": "python-image",
-      "version": "3.12.14-slim-bookworm",
-      "url": "https://registry-1.docker.io/v2/library/python/manifests/3.12.14-slim-bookworm",
-      "digest": "sha256:356b0d18f9385f4bdcc673af60e1e64c9d1504952e4ec36ee32044c722a6bc4e",
-      "license": "PSF-2.0 + Debian component licenses"
-    },
-    {
-      "name": "pnpm",
-      "version": "11.20.0",
-      "url": "https://registry.npmjs.org/pnpm/-/pnpm-11.20.0.tgz",
-      "integrity": "sha512-mm8zCpW2ZEbqCI+vFSFAWooB8H/ecSTMmVjf7VLUu0NnN+ZbCPhfN7Rvy6N1CSVYrFEmK4FoRLIvY0Bu0Wa/7g==",
-      "license": "MIT"
-    },
-    {
-      "name": "uv",
-      "version": "0.11.8",
-      "url": "https://github.com/astral-sh/uv/releases/download/0.11.8/uv-x86_64-unknown-linux-gnu.tar.gz",
-      "sha256": "56dd1b66701ecb62fe896abb919444e4b83c5e8645cca953e6ddd496ff8a0feb",
-      "license": "MIT OR Apache-2.0"
-    },
-    {
-      "name": "ffmpeg",
-      "version": "8.0.1",
-      "url": "https://ffmpeg.org/releases/ffmpeg-8.0.1.tar.xz",
-      "sha256": "05ee0b03119b45c0bdb4df654b96802e909e0a752f72e4fe3794f487229e5a41",
-      "license": "LGPL-2.1-or-later core plus GPL-2.0-or-later build when linked with x264; build must pass --enable-gpl --enable-libx264"
-    },
-    {
-      "name": "x264-source",
-      "version": "373697b467f7cd0af88f1e9e32d4f10540df4687",
-      "url": "https://github.com/mirror/x264/archive/373697b467f7cd0af88f1e9e32d4f10540df4687.tar.gz",
-      "sha256": "ecf458e716d1f2f14db3f83575165df4911462933fff9863c3b3da60fe802edf",
-      "license": "GPL-2.0-or-later"
-    },
-    {
-      "name": "imagemagick",
-      "version": "6.9.12-98",
-      "url": "https://download.imagemagick.org/archive/releases/ImageMagick-6.9.12-98.tar.xz",
-      "sha256": "05e3f1994bcd2dd35aad33739832deb5ac5a3db46b4bcf39c8cdc281d72ed7d7",
-      "license": "Apache-2.0"
-    },
-    {
-      "name": "chrome-for-testing",
-      "version": "151.0.7922.138",
-      "url": "https://storage.googleapis.com/chrome-for-testing-public/151.0.7922.138/linux64/chrome-linux64.zip",
-      "sha256": "f2c1d48c310a2fc79aad59e985103902f27b70fd186b3f663ee67c4c722f5566",
-      "license": "Google Chrome Terms + Chromium component licenses"
-    },
-    {
-      "name": "torch",
-      "version": "2.9.1+cpu",
-      "url": "https://download-r2.pytorch.org/whl/cpu/torch-2.9.1%2Bcpu-cp312-cp312-manylinux_2_28_x86_64.whl",
-      "sha256": "7417d8c565f219d3455654cb431c6d892a3eb40246055e14d645422de13b9ea1",
-      "license": "BSD-3-Clause"
-    },
-    {
-      "name": "torchvision",
-      "version": "0.24.1+cpu",
-      "url": "https://download-r2.pytorch.org/whl/cpu/torchvision-0.24.1%2Bcpu-cp312-cp312-manylinux_2_28_x86_64.whl",
-      "sha256": "48ff40694812292f1f75cddb517f9eef224a2e8388798a0aa191e27bf159fc5d",
-      "license": "BSD-3-Clause"
-    },
-    {
-      "name": "easyocr",
-      "version": "1.7.2",
-      "url": "https://files.pythonhosted.org/packages/bb/84/4a2cab0e6adde6a85e7ba543862e5fc0250c51f3ac721a078a55cdcff250/easyocr-1.7.2-py3-none-any.whl",
-      "sha256": "5be12f9b0e595d443c9c3d10b0542074b50f0ec2d98b141a109cd961fd1c177c",
-      "license": "Apache-2.0"
-    },
-    {
-      "name": "opencv-python-headless",
-      "version": "4.11.0.86",
-      "url": "https://files.pythonhosted.org/packages/dd/5c/c139a7876099916879609372bfa513b7f1257f7f1a908b0bdc1c2328241b/opencv_python_headless-4.11.0.86-cp37-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
-      "sha256": "0e0a27c19dd1f40ddff94976cfe43066fbbe9dfbb2ec1907d66c19caef42a57b",
-      "license": "Apache-2.0"
-    },
-    {
-      "name": "numpy",
-      "version": "2.2.6",
-      "url": "https://files.pythonhosted.org/packages/8c/3d/1e1db36cfd41f895d266b103df00ca5b3cbe965184df824dec5c08c6b803/numpy-2.2.6-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
-      "sha256": "fd83c01228a688733f1ded5201c678f0c53ecc1006ffbc404db9f7a899ac6249",
-      "license": "BSD-3-Clause"
-    },
-    {
-      "name": "scipy",
-      "version": "1.15.3",
-      "url": "https://files.pythonhosted.org/packages/0b/1f/03f52c282437a168ee2c7c14a1a0d0781a9a4a8962d84ac05c06b4c5b555/scipy-1.15.3-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
-      "sha256": "271e3713e645149ea5ea3e97b57fdab61ce61333f97cfae392c28ba786f9bb49",
-      "license": "BSD-3-Clause"
-    },
-    {
-      "name": "librosa",
-      "version": "0.11.0",
-      "url": "https://files.pythonhosted.org/packages/b5/ba/c63c5786dfee4c3417094c4b00966e61e4a63efecee22cb7b4c0387dda83/librosa-0.11.0-py3-none-any.whl",
-      "sha256": "0b6415c4fd68bff4c29288abe67c6d80b587e0e1e2cfb0aad23e4559504a7fa1",
-      "license": "ISC"
-    },
-    {
-      "name": "soundfile",
-      "version": "0.13.1",
-      "url": "https://files.pythonhosted.org/packages/57/5e/70bdd9579b35003a489fc850b5047beeda26328053ebadc1fb60f320f7db/soundfile-0.13.1-py2.py3-none-manylinux_2_28_x86_64.whl",
-      "sha256": "03267c4e493315294834a0870f31dbb3b28a95561b80b134f0bd3cf2d5f0e618",
-      "license": "BSD-3-Clause"
-    },
-    {
-      "name": "rvm-source",
-      "version": "53d74c6826735f01f4406b5ca9075eee27bec094",
-      "url": "https://github.com/PeterL1n/RobustVideoMatting/archive/53d74c6826735f01f4406b5ca9075eee27bec094.tar.gz",
-      "sha256": "dfc067a77e56bd88590264f7392a22328654acbabca8a2f9c66bcd4f3b107e1e",
-      "license": "GPL-3.0"
-    },
-    {
-      "name": "rvm_mobilenetv3.pth",
-      "version": "v1.0.0",
-      "url": "https://github.com/PeterL1n/RobustVideoMatting/releases/download/v1.0.0/rvm_mobilenetv3.pth",
-      "sha256": "3c7c1d92033f7c38d6577c481d13a195d7d80a159b960f4f3119ac7b534cf4f8",
-      "license": "GPL-3.0"
-    },
-    {
-      "name": "easyocr-source",
-      "version": "363afb184047ce452e436f4224f3098422df872e5",
-      "url": "https://github.com/JaidedAI/EasyOCR/archive/363afb184047ce452e436f4224f3098422df872e5.tar.gz",
-      "sha256": "ebe942f1ffdd3fdeaabcdf6b483721ad5f414cb983c767dd3646e86e22790d83",
-      "license": "Apache-2.0"
-    },
-    {
-      "name": "easyocr-craft",
-      "version": "pre-v1.1.6",
-      "url": "https://github.com/JaidedAI/EasyOCR/releases/download/pre-v1.1.6/craft_mlt_25k.zip",
-      "sha256": "8dc6a1c703a89ed56308ef742d26ebd45c656248cbbbda6e7fe60e569f873e65",
-      "license": "Apache-2.0"
-    },
-    {
-      "name": "easyocr-korean",
-      "version": "v1.3",
-      "url": "https://github.com/JaidedAI/EasyOCR/releases/download/v1.3/korean_g2.zip",
-      "sha256": "3cdaad22676723040ceb5c6fe72089d656b3bc1f630889c373ade86f3ab38c2e",
-      "license": "Apache-2.0"
-    },
-    {
-      "name": "easyocr-english",
-      "version": "v1.3",
-      "url": "https://github.com/JaidedAI/EasyOCR/releases/download/v1.3/english_g2.zip",
-      "sha256": "1b5eaebf1c062de6205560c97ffcfa8dc0e6f413c340e8adc5cfc57e159f61ff",
-      "license": "Apache-2.0"
-    },
-    {
-      "name": "midas-source",
-      "version": "454597711a62eabcbf7d1e89f3fb9f569051ac9b",
-      "url": "https://github.com/isl-org/MiDaS/archive/454597711a62eabcbf7d1e89f3fb9f569051ac9b.tar.gz",
-      "sha256": "9ba43907030b57a0cd21ab9c2029611e8f587c54e8093f0fd6ab5b14016a0ed6",
-      "license": "MIT"
-    },
-    {
-      "name": "midas_v21_small_256.pt",
-      "version": "v2_1",
-      "url": "https://github.com/isl-org/MiDaS/releases/download/v2_1/midas_v21_small_256.pt",
-      "sha256": "70d6b9c891758c67f974a6097fb0c608c7ee67fb81ac3e5588847d5596d56fca",
-      "license": "MIT"
-    },
-    {
-      "name": "wanted-sans",
-      "version": "1.0.3",
-      "url": "https://github.com/wanteddev/wanted-sans/releases/download/v1.0.3/WantedSans-1.0.3.zip",
-      "sha256": "e0734c1e29426d2a6213650383fec37051145fccaed8360c8fe30d75321d98ab",
-      "license": "OFL-1.1"
-    },
-    {
-      "name": "manrope",
-      "version": "google-fonts-ec626514f79f831f1ab848a82114a0ce7e2d6372",
-      "url": "https://raw.githubusercontent.com/google/fonts/ec626514f79f831f1ab848a82114a0ce7e2d6372/ofl/manrope/Manrope%5Bwght%5D.ttf",
-      "sha256": "d0639be45d0af36e798172419d7bd173c4bd4f29e2b76cbb69db1d11bf8b0a40",
-      "license": "OFL-1.1"
-    },
-    {
-      "name": "inter",
-      "version": "4.1",
-      "url": "https://github.com/rsms/inter/releases/download/v4.1/Inter-4.1.zip",
-      "sha256": "9883fdd4a49d4fb66bd8177ba6625ef9a64aa45899767dde3d36aa425756b11e",
-      "license": "OFL-1.1"
-    },
-    {
-      "name": "geist-sans-mono",
-      "version": "1.7.2",
-      "url": "https://github.com/vercel/geist-font/releases/download/v1.7.2/geist-font-v1.7.2.zip",
-      "sha256": "7fc800d2ac6b92844895196e5041aca55d814c15db70c44f79b3b83ab82b04e2",
-      "license": "OFL-1.1"
-    },
-    {
-      "name": "material-symbols-outlined",
-      "version": "e083cc60a0828fdd3b404cea0cb8a5b900e9c23e",
-      "url": "https://raw.githubusercontent.com/google/material-design-icons/e083cc60a0828fdd3b404cea0cb8a5b900e9c23e/variablefont/MaterialSymbolsOutlined%5BFILL%2CGRAD%2Copsz%2Cwght%5D.ttf",
-      "sha256": "45b022a58ac39268b80c8e314dcb928874d693988ced8118e164b384020e4acd",
-      "license": "Apache-2.0"
-    }
+    {"name":"node-image","version":"24-bookworm-slim","url":"https://registry-1.docker.io/v2/library/node/manifests/24-bookworm-slim","digest":"sha256:65932751ed4073ed02f5c04e494e4b2572a891b7dbea0568a863dc80341bf848","license":"Node MIT + Debian component licenses"},
+    {"name":"python-image","version":"3.12.14-slim-bookworm","url":"https://registry-1.docker.io/v2/library/python/manifests/3.12.14-slim-bookworm","digest":"sha256:356b0d18f9385f4bdcc673af60e1e64c9d1504952e4ec36ee32044c722a6bc4e","license":"PSF-2.0 + Debian component licenses"},
+    {"name":"pnpm","version":"11.20.0","url":"https://registry.npmjs.org/pnpm/-/pnpm-11.20.0.tgz","integrity":"sha512-mm8zCpW2ZEbqCI+vFSFAWooB8H/ecSTMmVjf7VLUu0NnN+ZbCPhfN7Rvy6N1CSVYrFEmK4FoRLIvY0Bu0Wa/7g==","license":"MIT"},
+    {"name":"uv","version":"0.11.8","url":"https://github.com/astral-sh/uv/releases/download/0.11.8/uv-x86_64-unknown-linux-gnu.tar.gz","sha256":"56dd1b66701ecb62fe896abb919444e4b83c5e8645cca953e6ddd496ff8a0feb","license":"MIT OR Apache-2.0"},
+    {"name":"ffmpeg","version":"8.0.1","url":"https://ffmpeg.org/releases/ffmpeg-8.0.1.tar.xz","sha256":"05ee0b03119b45c0bdb4df654b96802e909e0a752f72e4fe3794f487229e5a41","license":"LGPL-2.1-or-later core plus GPL-2.0-or-later build when linked with x264; build must pass --enable-gpl --enable-libx264"},
+    {"name":"x264-source","version":"373697b467f7cd0af88f1e9e32d4f10540df4687","url":"https://github.com/mirror/x264/archive/373697b467f7cd0af88f1e9e32d4f10540df4687.tar.gz","sha256":"ecf458e716d1f2f14db3f83575165df4911462933fff9863c3b3da60fe802edf","license":"GPL-2.0-or-later"},
+    {"name":"imagemagick","version":"6.9.12-98","url":"https://download.imagemagick.org/archive/releases/ImageMagick-6.9.12-98.tar.xz","sha256":"05e3f1994bcd2dd35aad33739832deb5ac5a3db46b4bcf39c8cdc281d72ed7d7","license":"Apache-2.0"},
+    {"name":"chrome-for-testing","version":"151.0.7922.138","url":"https://storage.googleapis.com/chrome-for-testing-public/151.0.7922.138/linux64/chrome-linux64.zip","sha256":"f2c1d48c310a2fc79aad59e985103902f27b70fd186b3f663ee67c4c722f5566","license":"Google Chrome Terms + Chromium component licenses"},
+    {"name":"torch","version":"2.9.1+cpu","url":"https://download-r2.pytorch.org/whl/cpu/torch-2.9.1%2Bcpu-cp312-cp312-manylinux_2_28_x86_64.whl","sha256":"7417d8c565f219d3455654cb431c6d892a3eb40246055e14d645422de13b9ea1","license":"BSD-3-Clause"},
+    {"name":"torchvision","version":"0.24.1+cpu","url":"https://download-r2.pytorch.org/whl/cpu/torchvision-0.24.1%2Bcpu-cp312-cp312-manylinux_2_28_x86_64.whl","sha256":"48ff40694812292f1f75cddb517f9eef224a2e8388798a0aa191e27bf159fc5d","license":"BSD-3-Clause"},
+    {"name":"easyocr","version":"1.7.2","url":"https://files.pythonhosted.org/packages/bb/84/4a2cab0e6adde6a85e7ba543862e5fc0250c51f3ac721a078a55cdcff250/easyocr-1.7.2-py3-none-any.whl","sha256":"5be12f9b0e595d443c9c3d10b0542074b50f0ec2d98b141a109cd961fd1c177c","license":"Apache-2.0"},
+    {"name":"opencv-python-headless","version":"4.11.0.86","url":"https://files.pythonhosted.org/packages/dd/5c/c139a7876099916879609372bfa513b7f1257f7f1a908b0bdc1c2328241b/opencv_python_headless-4.11.0.86-cp37-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl","sha256":"0e0a27c19dd1f40ddff94976cfe43066fbbe9dfbb2ec1907d66c19caef42a57b","license":"Apache-2.0"},
+    {"name":"numpy","version":"2.2.6","url":"https://files.pythonhosted.org/packages/8c/3d/1e1db36cfd41f895d266b103df00ca5b3cbe965184df824dec5c08c6b803/numpy-2.2.6-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl","sha256":"fd83c01228a688733f1ded5201c678f0c53ecc1006ffbc404db9f7a899ac6249","license":"BSD-3-Clause"},
+    {"name":"scipy","version":"1.15.3","url":"https://files.pythonhosted.org/packages/0b/1f/03f52c282437a168ee2c7c14a1a0d0781a9a4a8962d84ac05c06b4c5b555/scipy-1.15.3-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl","sha256":"271e3713e645149ea5ea3e97b57fdab61ce61333f97cfae392c28ba786f9bb49","license":"BSD-3-Clause"},
+    {"name":"librosa","version":"0.11.0","url":"https://files.pythonhosted.org/packages/b5/ba/c63c5786dfee4c3417094c4b00966e61e4a63efecee22cb7b4c0387dda83/librosa-0.11.0-py3-none-any.whl","sha256":"0b6415c4fd68bff4c29288abe67c6d80b587e0e1e2cfb0aad23e4559504a7fa1","license":"ISC"},
+    {"name":"soundfile","version":"0.13.1","url":"https://files.pythonhosted.org/packages/57/5e/70bdd9579b35003a489fc850b5047beeda26328053ebadc1fb60f320f7db/soundfile-0.13.1-py2.py3-none-manylinux_2_28_x86_64.whl","sha256":"03267c4e493315294834a0870f31dbb3b28a95561b80b134f0bd3cf2d5f0e618","license":"BSD-3-Clause"},
+    {"name":"rvm-source","version":"53d74c6826735f01f4406b5ca9075eee27bec094","url":"https://github.com/PeterL1n/RobustVideoMatting/archive/53d74c6826735f01f4406b5ca9075eee27bec094.tar.gz","sha256":"dfc067a77e56bd88590264f7392a22328654acbabca8a2f9c66bcd4f3b107e1e","license":"GPL-3.0"},
+    {"name":"rvm_mobilenetv3.pth","version":"v1.0.0","url":"https://github.com/PeterL1n/RobustVideoMatting/releases/download/v1.0.0/rvm_mobilenetv3.pth","sha256":"3c7c1d92033f7c38d6577c481d13a195d7d80a159b960f4f3119ac7b534cf4f8","license":"GPL-3.0"},
+    {"name":"easyocr-source","version":"363afb184047ce452e436f4224f3098422df872e5","url":"https://github.com/JaidedAI/EasyOCR/archive/363afb184047ce452e436f4224f3098422df872e5.tar.gz","sha256":"ebe942f1ffdd3fdeaabcdf6b483721ad5f414cb983c767dd3646e86e22790d83","license":"Apache-2.0"},
+    {"name":"easyocr-craft","version":"pre-v1.1.6","url":"https://github.com/JaidedAI/EasyOCR/releases/download/pre-v1.1.6/craft_mlt_25k.zip","sha256":"8dc6a1c703a89ed56308ef742d26ebd45c656248cbbbda6e7fe60e569f873e65","license":"Apache-2.0"},
+    {"name":"easyocr-korean","version":"v1.3","url":"https://github.com/JaidedAI/EasyOCR/releases/download/v1.3/korean_g2.zip","sha256":"3cdaad22676723040ceb5c6fe72089d656b3bc1f630889c373ade86f3ab38c2e","license":"Apache-2.0"},
+    {"name":"easyocr-english","version":"v1.3","url":"https://github.com/JaidedAI/EasyOCR/releases/download/v1.3/english_g2.zip","sha256":"1b5eaebf1c062de6205560c97ffcfa8dc0e6f413c340e8adc5cfc57e159f61ff","license":"Apache-2.0"},
+    {"name":"midas-source","version":"454597711a62eabcbf7d1e89f3fb9f569051ac9b","url":"https://github.com/isl-org/MiDaS/archive/454597711a62eabcbf7d1e89f3fb9f569051ac9b.tar.gz","sha256":"9ba43907030b57a0cd21ab9c2029611e8f587c54e8093f0fd6ab5b14016a0ed6","license":"MIT"},
+    {"name":"midas_v21_small_256.pt","version":"v2_1","url":"https://github.com/isl-org/MiDaS/releases/download/v2_1/midas_v21_small_256.pt","sha256":"70d6b9c891758c67f974a6097fb0c608c7ee67fb81ac3e5588847d5596d56fca","license":"MIT"},
+    {"name":"wanted-sans","version":"1.0.3","url":"https://github.com/wanteddev/wanted-sans/releases/download/v1.0.3/WantedSans-1.0.3.zip","sha256":"e0734c1e29426d2a6213650383fec37051145fccaed8360c8fe30d75321d98ab","license":"OFL-1.1"},
+    {"name":"manrope","version":"google-fonts-ec626514f79f831f1ab848a82114a0ce7e2d6372","url":"https://raw.githubusercontent.com/google/fonts/ec626514f79f831f1ab848a82114a0ce7e2d6372/ofl/manrope/Manrope%5Bwght%5D.ttf","sha256":"d0639be45d0af36e798172419d7bd173c4bd4f29e2b76cbb69db1d11bf8b0a40","license":"OFL-1.1"},
+    {"name":"inter","version":"4.1","url":"https://github.com/rsms/inter/releases/download/v4.1/Inter-4.1.zip","sha256":"9883fdd4a49d4fb66bd8177ba6625ef9a64aa45899767dde3d36aa425756b11e","license":"OFL-1.1"},
+    {"name":"geist-sans-mono","version":"1.7.2","url":"https://github.com/vercel/geist-font/releases/download/v1.7.2/geist-font-v1.7.2.zip","sha256":"7fc800d2ac6b92844895196e5041aca55d814c15db70c44f79b3b83ab82b04e2","license":"OFL-1.1"},
+    {"name":"material-symbols-outlined","version":"e083cc60a0828fdd3b404cea0cb8a5b900e9c23e","url":"https://raw.githubusercontent.com/google/material-design-icons/e083cc60a0828fdd3b404cea0cb8a5b900e9c23e/variablefont/MaterialSymbolsOutlined%5BFILL%2CGRAD%2Copsz%2Cwght%5D.ttf","sha256":"45b022a58ac39268b80c8e314dcb928874d693988ced8118e164b384020e4acd","license":"Apache-2.0"}
   ],
   "dependencyPins": ".omo/drafts/reference-video-studio-saas-dependency-pins-v2.json",
-  "requiredGeneratedClosures": [
-    "pnpm-lock.yaml",
-    "uv.lock",
-    "npm-artifact-manifest.json",
-    "python-wheel-manifest.json",
-    "debian-snapshot-manifest.json",
-    "container-child-digest-manifest.json",
-    "ffmpeg-build-manifest.json",
-    "x264-build-manifest.json"
-  ],
+  "requiredGeneratedClosures": ["pnpm-lock.yaml","uv.lock","npm-artifact-manifest.json","python-wheel-manifest.json","debian-snapshot-manifest.json","container-child-digest-manifest.json","ffmpeg-build-manifest.json","x264-build-manifest.json"],
   "closurePolicy": "Before product source, exact direct pins are resolved once by pinned pnpm/uv, every transitive artifact is hash-enumerated, hydrated, and proven by frozen offline install; child authority root must bind all closure digests. FFmpeg is built from the pinned source with pinned x264 and --enable-gpl --enable-libx264; if that GPL-enabled build cannot be produced, Todo 1 stops SUPPLY_PIN_UNAVAILABLE. No version selection or substitution is permitted.",
   "licensePolicy": "The pilot deliverable accepts the GPL-enabled FFmpeg/x264 runtime closure. Redistributing the runtime image or binaries must preserve GPL notices/source-offer artifacts in the handoff package; replacing x264 for proprietary distribution is out of scope and requires a new owner-approved plan.",
   "unresolved": [],

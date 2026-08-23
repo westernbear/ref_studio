@@ -278,7 +278,6 @@ export function registerCreatorWorkflow(
           uploadId: string;
           startFrame?: number;
           sourceFps?: number;
-          frameCount?: number;
           outputProfile?: string;
         };
       }>,
@@ -296,16 +295,17 @@ export function registerCreatorWorkflow(
               throw new Error("RESOURCE_NOT_FOUND");
             if (upload.state !== "ACCEPTED")
               throw new Error("UPLOAD_QUARANTINED");
-            const fps = Number(request.body.sourceFps);
+            const requestedFps = Number(request.body.sourceFps);
             const start = Number(request.body.startFrame);
-            const frames = Number(request.body.frameCount);
+            const fps = upload.media?.fps;
+            const frames = upload.media?.frameCount;
             if (
-              !Number.isInteger(fps) ||
-              ![24, 25, 30, 50, 60].includes(fps) ||
+              fps === undefined ||
+              frames === undefined ||
+              requestedFps !== fps ||
+              request.body.outputProfile !== "vertical-1080p30" ||
               !Number.isInteger(start) ||
               start < 0 ||
-              !Number.isInteger(frames) ||
-              frames < 1 ||
               start + fps * 4 > frames
             )
               throw new Error("INTERVAL_INVALID");

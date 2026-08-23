@@ -1,10 +1,13 @@
+import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { buildAuthApp } from "./app.js";
 import { hashBearer, type AuthStore } from "./auth.js";
+import { createCreatorWorkflowStore } from "./creator-workflow.js";
 import {
   cleanupExpiredUploads,
   createUpload,
   MAX_CHUNK_BYTES,
+  type UploadMedia,
   type UploadStore,
 } from "./uploads.js";
 
@@ -32,7 +35,7 @@ const fixture = (): {
         userId: "usr_a",
         tenantId: "ten_a",
         tokenHash: hashBearer("secret-a"),
-        expiresAt: 9_000,
+        expiresAt: 200_000_000,
         revokedAt: null,
       },
       {
@@ -40,7 +43,7 @@ const fixture = (): {
         userId: "usr_b",
         tenantId: "ten_b",
         tokenHash: hashBearer("secret-b"),
-        expiresAt: 9_000,
+        expiresAt: 200_000_000,
         revokedAt: null,
       },
     ],
@@ -62,67 +65,185 @@ const fixture = (): {
 };
 const mp4 = (size = 16): Uint8Array => {
   const data = Buffer.alloc(size);
-  const header = [0, 0, 0, 16, 102, 116, 121, 112, 105, 115, 111, 109];
-  data.set(header.slice(0, size));
+  data.set([0, 0, 0, 16, 102, 116, 121, 112, 105, 115, 111, 109]);
   return data;
 };
+const sha256 = (value: Uint8Array): string =>
+  createHash("sha256").update(value).digest("hex");
 const headers = (token: string, tenant: string) => ({
   authorization: `Bearer ${token}`,
   "x-tenant-id": tenant,
 });
+const commandHeaders = (token: string, tenant: string, key: string) => ({
+  ...headers(token, tenant),
+  "idempotency-key": key,
+  "x-correlation-id": "00000000-0000-4000-8000-000000000000",
+});
+const appFor = (
+  state: ReturnType<typeof fixture>,
+  validateUpload: () => Promise<UploadMedia> = async () => ({
+    fps: 25,
+    frameCount: 100,
+    durationSeconds: 4,
+  }),
+) =>
+  buildAuthApp({
+    store: state.auth,
+    expectedOrigin: "https://studio.invalid",
+    introspectSecret: "secret",
+    uploads: state.uploads,
+    creatorWorkflow: createCreatorWorkflowStore(),
+    validateUpload,
+    now: state.uploads.now,
+  });
+const uploadBytes = async (
+  app: ReturnType<typeof buildAuthApp>,
+  bytes: Uint8Array,
+  suffix: string,
+): Promise<string> => {
+  const created = await app.inject({
+    method: "POST",
+    url: "/v1/uploads",
+    headers: commandHeaders("secret-a", "ten_a", `create-${suffix}`),
+    payload: {
+      fileName: `${suffix}.mp4`,
+      mimeHint: "video/mp4",
+      sizeBytes: bytes.byteLength,
+    },
+  });
+  expect(created.statusCode).toBe(201);
+  expect(created.json()).toMatchObject({
+    chunkSize: MAX_CHUNK_BYTES,
+    state: "PENDING",
+  });
+  const uploadId = String(created.json().uploadId);
+  const chunk = await app.inject({
+    method: "PUT",
+    url: `/v1/uploads/${uploadId}/chunks/0`,
+    headers: {
+      ...headers("secret-a", "ten_a"),
+      "content-type": "application/octet-stream",
+      "content-range": `bytes 0-${bytes.byteLength - 1}/${bytes.byteLength}`,
+      "x-chunk-sha256": sha256(bytes),
+    },
+    payload: bytes,
+  });
+  expect(chunk.statusCode).toBe(204);
+  expect(chunk.headers["x-received-bytes"]).toBe(String(bytes.byteLength));
+  const finalized = await app.inject({
+    method: "POST",
+    url: `/v1/uploads/${uploadId}/finalize`,
+    headers: commandHeaders("secret-a", "ten_a", `finalize-${suffix}`),
+    payload: { orderedChunkCount: 1, declaredSha256: sha256(bytes) },
+  });
+  expect(finalized.statusCode).toBe(202);
+  expect(finalized.json()).toEqual({ uploadId, state: "VALIDATING" });
+  return uploadId;
+};
 
 describe("sandboxed upload sessions", () => {
-  it("streams a synthetic MP4 in chunks and creates tenant-local CAS after finalize", async () => {
+  it("replays upload creation and finalization only for identical requests", async () => {
     const state = fixture();
-    const app = buildAuthApp({
-      store: state.auth,
-      expectedOrigin: "https://studio.invalid",
-      introspectSecret: "secret",
-      uploads: state.uploads,
-      now: state.uploads.now,
+    let validations = 0;
+    const app = appFor(state, async () => {
+      validations += 1;
+      return { fps: 25, frameCount: 100, durationSeconds: 4 };
     });
-    const created = await app.inject({
-      method: "POST",
+    const bytes = mp4();
+    const createRequest = {
+      method: "POST" as const,
       url: "/v1/uploads",
+      headers: commandHeaders("secret-a", "ten_a", "same-create"),
+      payload: { fileName: "same.mp4", sizeBytes: bytes.byteLength },
+    };
+    const first = await app.inject(createRequest);
+    const replay = await app.inject(createRequest);
+    const missingKey = await app.inject({
+      ...createRequest,
       headers: headers("secret-a", "ten_a"),
-      payload: {
-        filename: "reference.mp4",
-        contentType: "video/mp4",
-        sizeBytes: 16,
-      },
     });
-    const uploadId = created.json().upload.id;
+    const changed = await app.inject({
+      ...createRequest,
+      payload: { fileName: "changed.mp4", sizeBytes: bytes.byteLength },
+    });
+    const uploadId = String(first.json().uploadId);
     await app.inject({
-      method: "POST",
-      url: `/v1/uploads/${uploadId}/chunks`,
+      method: "PUT",
+      url: `/v1/uploads/${uploadId}/chunks/0`,
       headers: {
         ...headers("secret-a", "ten_a"),
         "content-type": "application/octet-stream",
+        "content-range": `bytes 0-${bytes.byteLength - 1}/${bytes.byteLength}`,
+        "x-chunk-sha256": sha256(bytes),
       },
-      payload: mp4(8),
+      payload: bytes,
     });
-    await app.inject({
-      method: "POST",
-      url: `/v1/uploads/${uploadId}/chunks`,
-      headers: {
-        ...headers("secret-a", "ten_a"),
-        "content-type": "application/octet-stream",
-      },
-      payload: mp4(16).subarray(8),
-    });
-    const finalized = await app.inject({
-      method: "POST",
+    const finalizeRequest = {
+      method: "POST" as const,
       url: `/v1/uploads/${uploadId}/finalize`,
-      headers: headers("secret-a", "ten_a"),
+      headers: commandHeaders("secret-a", "ten_a", "same-finalize"),
+      payload: { orderedChunkCount: 1, declaredSha256: sha256(bytes) },
+    };
+    const finalized = await app.inject(finalizeRequest);
+    const finalizeReplay = await app.inject(finalizeRequest);
+    const changedFinalize = await app.inject({
+      ...finalizeRequest,
+      payload: { orderedChunkCount: 2, declaredSha256: sha256(bytes) },
     });
-    expect(created.statusCode).toBe(201);
-    expect(finalized.statusCode).toBe(200);
-    expect(finalized.json().upload.state).toBe("ACCEPTED");
-    expect(state.uploads.cas.size).toBe(1);
-    expect(finalized.json()).not.toHaveProperty("path");
+
+    expect(first.statusCode).toBe(201);
+    expect(replay.json()).toEqual(first.json());
+    expect(state.uploads.uploads.size).toBe(1);
+    expect(missingKey.json().error.code).toBe("INVALID_REQUEST");
+    expect(changed.json().error.code).toBe("INVALID_REQUEST");
+    expect(finalized.statusCode).toBe(202);
+    expect(finalizeReplay.json()).toEqual(finalized.json());
+    expect(changedFinalize.json().error.code).toBe("INVALID_REQUEST");
+    expect(validations).toBe(1);
     await app.close();
   });
-  it("allows same-origin session uploads without a bearer token", async () => {
+
+  it("uses indexed hashes, server-probed 25fps metadata, and tenant-local duplicate CAS", async () => {
+    const state = fixture();
+    const app = appFor(state);
+    const bytes = mp4();
+    const firstId = await uploadBytes(app, bytes, "first");
+    const status = await app.inject({
+      method: "GET",
+      url: `/v1/uploads/${firstId}`,
+      headers: headers("secret-a", "ten_a"),
+    });
+    const job = await app.inject({
+      method: "POST",
+      url: "/v1/jobs",
+      headers: commandHeaders("secret-a", "ten_a", "job-25fps"),
+      payload: {
+        uploadId: firstId,
+        startFrame: 0,
+        sourceFps: 25,
+        outputProfile: "vertical-1080p30",
+      },
+    });
+    const secondId = await uploadBytes(app, bytes, "second");
+
+    expect(status.json()).toEqual({
+      uploadId: firstId,
+      state: "ACCEPTED",
+      fps: 25,
+      frameCount: 100,
+      durationSeconds: 4,
+    });
+    expect(job.statusCode).toBe(201);
+    expect(job.json()).toMatchObject({ sourceFps: 25, frameCount: 100 });
+    expect(secondId).not.toBe(firstId);
+    expect(state.uploads.cas.size).toBe(1);
+    expect(state.uploads.uploads.get(firstId)?.sourceSha256).toBe(
+      sha256(bytes),
+    );
+    await app.close();
+  });
+
+  it("allows same-origin session creation without exposing tenant internals", async () => {
     const state = fixture();
     state.auth.sessions.push({
       id: "session-a",
@@ -131,13 +252,7 @@ describe("sandboxed upload sessions", () => {
       expiresAt: 9_000,
       revokedAt: null,
     });
-    const app = buildAuthApp({
-      store: state.auth,
-      expectedOrigin: "https://studio.invalid",
-      introspectSecret: "secret",
-      uploads: state.uploads,
-      now: state.uploads.now,
-    });
+    const app = appFor(state);
     const created = await app.inject({
       method: "POST",
       url: "/v1/uploads",
@@ -145,135 +260,143 @@ describe("sandboxed upload sessions", () => {
         cookie: "rvs_session=session-a",
         origin: "https://studio.invalid",
         "x-csrf-token": "csrf",
+        "idempotency-key": "session-create",
+        "x-correlation-id": "00000000-0000-4000-8000-000000000000",
       },
-      payload: {
-        filename: "session.mp4",
-        contentType: "video/mp4",
-        sizeBytes: 16,
-      },
+      payload: { fileName: "session.mp4", sizeBytes: 16 },
     });
 
     expect(created.statusCode).toBe(201);
-    expect(created.json().upload.tenantId).toBe("ten_a");
+    expect(created.json()).not.toHaveProperty("tenantId");
+    expect(state.uploads.uploads.get(created.json().uploadId)?.tenantId).toBe(
+      "ten_a",
+    );
     await app.close();
   });
-  it("accepts the documented maximum chunk size", async () => {
+
+  it("accepts the exact maximum chunk size", async () => {
     const state = fixture();
-    const app = buildAuthApp({
-      store: state.auth,
-      expectedOrigin: "https://studio.invalid",
-      introspectSecret: "secret",
-      uploads: state.uploads,
-      now: state.uploads.now,
-    });
+    const app = appFor(state);
+    const bytes = mp4(MAX_CHUNK_BYTES);
     const created = await app.inject({
       method: "POST",
       url: "/v1/uploads",
-      headers: headers("secret-a", "ten_a"),
-      payload: {
-        filename: "max-chunk.mp4",
-        contentType: "video/mp4",
-        sizeBytes: MAX_CHUNK_BYTES,
-      },
+      headers: commandHeaders("secret-a", "ten_a", "max-create"),
+      payload: { fileName: "max.mp4", sizeBytes: bytes.byteLength },
     });
-    const uploadId = created.json().upload.id;
-    const chunk = mp4(MAX_CHUNK_BYTES);
-    const appended = await app.inject({
-      method: "POST",
-      url: `/v1/uploads/${uploadId}/chunks`,
+    const uploadId = String(created.json().uploadId);
+    const chunk = await app.inject({
+      method: "PUT",
+      url: `/v1/uploads/${uploadId}/chunks/0`,
       headers: {
         ...headers("secret-a", "ten_a"),
         "content-type": "application/octet-stream",
+        "content-range": `bytes 0-${bytes.byteLength - 1}/${bytes.byteLength}`,
+        "x-chunk-sha256": sha256(bytes),
       },
-      payload: chunk,
+      payload: bytes,
     });
 
-    expect(appended.statusCode).toBe(200);
-    expect(appended.json().upload.actualBytes).toBeUndefined();
+    expect(chunk.statusCode).toBe(204);
     expect(state.uploads.uploads.get(uploadId)?.actualBytes).toBe(
       MAX_CHUNK_BYTES,
     );
     await app.close();
   });
-  it("quarantines wrong magic, rejects unsafe metadata and exact size overflow", async () => {
+
+  it("rejects unsafe names, invalid ranges and hashes, and quarantines wrong magic", async () => {
     const state = fixture();
-    const app = buildAuthApp({
-      store: state.auth,
-      expectedOrigin: "https://studio.invalid",
-      introspectSecret: "secret",
-      uploads: state.uploads,
-      now: state.uploads.now,
-    });
+    const app = appFor(state);
     const unsafe = await app.inject({
       method: "POST",
       url: "/v1/uploads",
-      headers: headers("secret-a", "ten_a"),
-      payload: {
-        filename: "../secret.mp4",
-        contentType: "video/mp4",
-        sizeBytes: 4,
-      },
+      headers: commandHeaders("secret-a", "ten_a", "unsafe-create"),
+      payload: { fileName: "../secret.mp4", sizeBytes: 4 },
     });
     const created = await app.inject({
       method: "POST",
       url: "/v1/uploads",
-      headers: headers("secret-a", "ten_a"),
-      payload: { filename: "bad.mp4", contentType: "video/mp4", sizeBytes: 4 },
+      headers: commandHeaders("secret-a", "ten_a", "bad-create"),
+      payload: { fileName: "bad.mp4", sizeBytes: 4 },
     });
-    const id = created.json().upload.id;
+    const uploadId = String(created.json().uploadId);
+    const badBytes = Buffer.from("xxxx");
+    const wrongHash = await app.inject({
+      method: "PUT",
+      url: `/v1/uploads/${uploadId}/chunks/0`,
+      headers: {
+        ...headers("secret-a", "ten_a"),
+        "content-type": "application/octet-stream",
+        "content-range": "bytes 0-3/4",
+        "x-chunk-sha256": "0".repeat(64),
+      },
+      payload: badBytes,
+    });
+    const wrongRange = await app.inject({
+      method: "PUT",
+      url: `/v1/uploads/${uploadId}/chunks/0`,
+      headers: {
+        ...headers("secret-a", "ten_a"),
+        "content-type": "application/octet-stream",
+        "content-range": "bytes 1-4/4",
+        "x-chunk-sha256": sha256(badBytes),
+      },
+      payload: badBytes,
+    });
     await app.inject({
-      method: "POST",
-      url: `/v1/uploads/${id}/chunks`,
+      method: "PUT",
+      url: `/v1/uploads/${uploadId}/chunks/0`,
       headers: {
         ...headers("secret-a", "ten_a"),
         "content-type": "application/octet-stream",
+        "content-range": "bytes 0-3/4",
+        "x-chunk-sha256": sha256(badBytes),
       },
-      payload: Buffer.from("xxxx"),
+      payload: badBytes,
     });
-    const wrong = await app.inject({
+    const finalized = await app.inject({
       method: "POST",
-      url: `/v1/uploads/${id}/finalize`,
-      headers: headers("secret-a", "ten_a"),
+      url: `/v1/uploads/${uploadId}/finalize`,
+      headers: commandHeaders("secret-a", "ten_a", "bad-finalize"),
+      payload: { orderedChunkCount: 1, declaredSha256: sha256(badBytes) },
     });
-    const overflow = await app.inject({
-      method: "POST",
-      url: `/v1/uploads/${id}/chunks`,
-      headers: {
-        ...headers("secret-a", "ten_a"),
-        "content-type": "application/octet-stream",
-      },
-      payload: Buffer.from("x"),
-    });
+
     expect(unsafe.json().error.code).toBe("INVALID_REQUEST");
-    expect(wrong.json().error.code).toBe("VIDEO_TYPE_INVALID");
-    expect(overflow.json().error.code).toBe("VIDEO_SIZE_LIMIT_EXCEEDED");
-    expect(state.uploads.uploads.get(id)?.state).toBe("QUARANTINED");
+    expect(wrongHash.json().error.code).toBe("HASH_MISMATCH");
+    expect(wrongRange.json().error.code).toBe("UPLOAD_RANGE_INVALID");
+    expect(finalized.json().error.code).toBe("VIDEO_TYPE_INVALID");
+    expect(state.uploads.uploads.get(uploadId)?.state).toBe("QUARANTINED");
     await app.close();
   });
-  it("hides foreign resources and cleans expired interrupted sessions", async () => {
+
+  it("hides foreign uploads and expires interrupted sessions", async () => {
     const state = fixture();
-    const app = buildAuthApp({
-      store: state.auth,
-      expectedOrigin: "https://studio.invalid",
-      introspectSecret: "secret",
-      uploads: state.uploads,
-      now: state.uploads.now,
-    });
+    const app = appFor(state);
     const upload = createUpload(state.uploads, "ten_a", {
-      filename: "a.mp4",
-      contentType: "video/mp4",
+      fileName: "a.mp4",
       sizeBytes: 4,
     });
     const foreign = await app.inject({
-      method: "POST",
-      url: `/v1/uploads/${upload.id}/finalize`,
+      method: "GET",
+      url: `/v1/uploads/${upload.id}`,
       headers: headers("secret-b", "ten_b"),
     });
     state.advance(24 * 60 * 60 * 1000 + 1);
-    const removed = cleanupExpiredUploads(state.uploads);
+    const expired = await app.inject({
+      method: "PUT",
+      url: `/v1/uploads/${upload.id}/chunks/0`,
+      headers: {
+        ...headers("secret-a", "ten_a"),
+        "content-type": "application/octet-stream",
+        "content-range": "bytes 0-3/4",
+        "x-chunk-sha256": sha256(Buffer.from("xxxx")),
+      },
+      payload: Buffer.from("xxxx"),
+    });
+
     expect(foreign.statusCode).toBe(404);
-    expect(foreign.json().error.code).toBe("RESOURCE_NOT_FOUND");
-    expect(removed).toBe(1);
+    expect(expired.statusCode).toBe(410);
+    expect(cleanupExpiredUploads(state.uploads)).toBe(1);
     await app.close();
   });
 });

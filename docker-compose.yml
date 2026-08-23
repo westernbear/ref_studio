@@ -48,7 +48,7 @@ services:
     command:
       [
         "sh",
-        "-lc",
+        "-c",
         "pnpm --filter @rvs/web install --frozen-lockfile && pnpm --filter @rvs/web build && pnpm --filter @rvs/web exec next start --hostname 0.0.0.0 --port 3100",
       ]
   api:
@@ -80,7 +80,7 @@ services:
     command:
       [
         "sh",
-        "-lc",
+        "-c",
         "pnpm install --frozen-lockfile && pnpm --filter @rvs/api db:verify && pnpm --filter @rvs/api build && pnpm --filter @rvs/api start",
       ]
   qa:

@@ -75,9 +75,12 @@ export async function proxyV1(
   const headers = new Headers();
   for (const name of [
     "content-type",
+    "content-range",
     "cookie",
     "idempotency-key",
     "if-match",
+    "x-chunk-sha256",
+    "x-correlation-id",
   ]) {
     const value = request.headers.get(name);
     if (value) headers.set(name, value);
@@ -110,9 +113,14 @@ export async function proxyV1(
   const responseHeaders = new Headers();
   const contentType = response.headers.get("content-type");
   const cookie = forwardedSetCookie(response.headers.get("set-cookie"));
+  const receivedBytes = response.headers.get("x-received-bytes");
   if (contentType) responseHeaders.set("content-type", contentType);
   if (cookie) responseHeaders.set("set-cookie", cookie);
-  return new Response(await response.arrayBuffer(), {
+  if (receivedBytes) responseHeaders.set("x-received-bytes", receivedBytes);
+  const responseBody = [204, 205, 304].includes(response.status)
+    ? null
+    : await response.arrayBuffer();
+  return new Response(responseBody, {
     status: response.status,
     headers: responseHeaders,
   });

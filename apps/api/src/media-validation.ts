@@ -1,6 +1,11 @@
 import { createHash } from "node:crypto";
+import { execFile } from "node:child_process";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { promisify } from "node:util";
 import { z } from "zod";
-import type { UploadRecord } from "./uploads.js";
+import type { UploadMedia, UploadRecord } from "./uploads.js";
 
 export const MEDIA_LIMITS = {
   minDurationSeconds: 1,
@@ -25,6 +30,7 @@ export const SANDBOX_POLICY = {
 } as const;
 
 const FPS = [24, 25, 30, 50, 60] as const;
+const exec = promisify(execFile);
 const ProbeSchema = z
   .object({
     container: z.string(),
@@ -46,6 +52,30 @@ const ProbeSchema = z
   })
   .strict();
 export type MediaProbe = z.infer<typeof ProbeSchema>;
+const FfprobeSchema = z.object({
+  format: z.object({
+    duration: z.string(),
+    format_name: z.string(),
+  }),
+  streams: z.array(
+    z
+      .object({
+        codec_type: z.string(),
+        codec_name: z.string().optional(),
+        pix_fmt: z.string().optional(),
+        width: z.number().int().optional(),
+        height: z.number().int().optional(),
+        avg_frame_rate: z.string().optional(),
+        r_frame_rate: z.string().optional(),
+        nb_read_frames: z.string().optional(),
+        start_time: z.string().optional(),
+        color_transfer: z.string().optional(),
+        channels: z.number().int().optional(),
+        tags: z.object({ rotate: z.string().optional() }).default({}),
+      })
+      .passthrough(),
+  ),
+});
 export type MediaCommand = {
   readonly executable: "ffprobe" | "ffmpeg";
   readonly args: readonly string[];
@@ -164,6 +194,10 @@ const fpsValue = (probe: MediaProbe): (typeof FPS)[number] => {
     throw new MediaValidationFailure("MEDIA_FPS_UNSUPPORTED");
   return fps;
 };
+const fraction = (value: string | undefined): number => {
+  const [numerator, denominator] = (value ?? "").split("/").map(Number);
+  return numerator && denominator ? numerator / denominator : Number.NaN;
+};
 export const exactSourceInterval = (
   startFrame: number,
   fps: (typeof FPS)[number],
@@ -187,6 +221,34 @@ export const exactSourceInterval = (
   };
 };
 
+const validateProbe = (
+  value: unknown,
+): {
+  readonly probe: MediaProbe;
+  readonly fps: (typeof FPS)[number];
+} => {
+  const parsed = ProbeSchema.safeParse(value);
+  if (!parsed.success || !parsed.data.metadataSafe)
+    throw new MediaValidationFailure("MEDIA_METADATA_INVALID");
+  const probe = parsed.data;
+  if (
+    probe.durationSeconds < MEDIA_LIMITS.minDurationSeconds ||
+    probe.durationSeconds > MEDIA_LIMITS.maxDurationSeconds
+  )
+    throw new MediaValidationFailure("MEDIA_DURATION_INVALID");
+  if (probe.container !== "mp4")
+    throw new MediaValidationFailure("MEDIA_CONTAINER_INVALID");
+  if (!["h264", "hevc", "vp9", "av1"].includes(probe.codec))
+    throw new MediaValidationFailure("MEDIA_CODEC_INVALID");
+  if (
+    Math.max(probe.width, probe.height) > MEDIA_LIMITS.maxWidth ||
+    Math.min(probe.width, probe.height) > MEDIA_LIMITS.maxHeight
+  )
+    throw new MediaValidationFailure("MEDIA_DIMENSIONS_INVALID");
+  const fps = fpsValue(probe);
+  return { probe, fps };
+};
+
 export async function validateAndNormalize(
   upload: UploadRecord,
   sourceSha256: string,
@@ -207,25 +269,7 @@ export async function validateAndNormalize(
   }
   if (execution.normalizedBytes > SANDBOX_POLICY.maxOutputBytes)
     throw new MediaValidationFailure("MEDIA_SANDBOX_OUTPUT_LIMIT");
-  const probeResult = ProbeSchema.safeParse(execution.probe);
-  if (!probeResult.success || !probeResult.data.metadataSafe)
-    throw new MediaValidationFailure("MEDIA_METADATA_INVALID");
-  const probe = probeResult.data;
-  if (
-    probe.durationSeconds < MEDIA_LIMITS.minDurationSeconds ||
-    probe.durationSeconds > MEDIA_LIMITS.maxDurationSeconds
-  )
-    throw new MediaValidationFailure("MEDIA_DURATION_INVALID");
-  if (probe.container !== "mp4")
-    throw new MediaValidationFailure("MEDIA_CONTAINER_INVALID");
-  if (!["h264", "hevc"].includes(probe.codec))
-    throw new MediaValidationFailure("MEDIA_CODEC_INVALID");
-  if (
-    probe.width > MEDIA_LIMITS.maxWidth ||
-    probe.height > MEDIA_LIMITS.maxHeight
-  )
-    throw new MediaValidationFailure("MEDIA_DIMENSIONS_INVALID");
-  const fps = fpsValue(probe);
+  const { probe, fps } = validateProbe(execution.probe);
   const interval = exactSourceInterval(
     intervalStartFrame,
     fps,
@@ -266,4 +310,74 @@ export async function validateAndNormalize(
     sourceImmutable: true,
     interval,
   };
+}
+
+export async function inspectUploadedMedia(
+  upload: UploadRecord,
+): Promise<UploadMedia> {
+  const directory = await mkdtemp(join(tmpdir(), "rvs-upload-probe-"));
+  const input = join(directory, "source.mp4");
+  try {
+    await writeFile(
+      input,
+      Buffer.concat(upload.chunks.map((chunk) => Buffer.from(chunk))),
+    );
+    const result = await exec(
+      process.env["RVS_FFPROBE_PATH"] ?? "ffprobe",
+      [
+        "-v",
+        "error",
+        "-count_frames",
+        "-show_entries",
+        "format=duration,format_name:stream=codec_type,codec_name,pix_fmt,width,height,avg_frame_rate,r_frame_rate,nb_read_frames,start_time,color_transfer,channels:stream_tags=rotate",
+        "-of",
+        "json",
+        input,
+      ],
+      {
+        encoding: "utf8",
+        timeout: SANDBOX_POLICY.maxWallMilliseconds,
+        maxBuffer: SANDBOX_POLICY.maxOutputBytes,
+      },
+    );
+    const raw = FfprobeSchema.parse(JSON.parse(result.stdout));
+    const video = raw.streams.find((stream) => stream.codec_type === "video");
+    const audio = raw.streams.find((stream) => stream.codec_type === "audio");
+    const rotation = Number(video?.tags.rotate ?? 0);
+    const normalizedRotation = ((rotation % 360) + 360) % 360;
+    const { probe, fps } = validateProbe({
+      container: raw.format.format_name.includes("mp4") ? "mp4" : "invalid",
+      codec: video?.codec_name ?? "",
+      durationSeconds: Number(raw.format.duration),
+      avgFrameRate: fraction(video?.avg_frame_rate),
+      realFrameRate: fraction(video?.r_frame_rate),
+      frameCount: Number(video?.nb_read_frames),
+      width: video?.width ?? 0,
+      height: video?.height ?? 0,
+      rotationDegrees: normalizedRotation,
+      hasAudio: Boolean(audio),
+      metadataSafe:
+        Number(video?.start_time ?? 0) >= 0 &&
+        [
+          "yuv420p",
+          "yuv422p",
+          "yuv444p",
+          "yuv420p10le",
+          "yuv422p10le",
+          "yuv444p10le",
+        ].includes(video?.pix_fmt ?? "") &&
+        ["bt709", "iec61966-2-1"].includes(video?.color_transfer ?? "") &&
+        (!audio ||
+          (audio.channels !== undefined &&
+            audio.channels > 0 &&
+            audio.channels <= 8)),
+    });
+    return {
+      fps,
+      frameCount: probe.frameCount,
+      durationSeconds: probe.durationSeconds,
+    };
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 }

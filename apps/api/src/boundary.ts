@@ -99,6 +99,7 @@ export type IdempotencyRecord = {
 
 export class IdempotencyStore {
   private readonly records = new Map<string, IdempotencyRecord>();
+  private readonly pending = new Map<string, Promise<IdempotencyRecord>>();
 
   replayOrReserve(
     scope: string,
@@ -141,6 +142,39 @@ export class IdempotencyStore {
     }
     const response = action();
     return this.replayOrReserve(scope, key, hash, tenantId, response, now);
+  }
+
+  async executeAsync(
+    scope: string,
+    key: string,
+    hash: string,
+    tenantId: string | null,
+    action: () => Promise<
+      readonly [number, SafeError | Record<string, unknown>]
+    >,
+    now = new Date(0).toISOString(),
+  ): Promise<IdempotencyRecord> {
+    const identity = `${scope}:${tenantId ?? "release"}:${key}`;
+    const existing = this.records.get(identity);
+    if (existing) {
+      if (existing.requestHash !== hash) throw new Error("INVALID_REQUEST");
+      return existing;
+    }
+    const pending = this.pending.get(identity);
+    if (pending) {
+      const record = await pending;
+      if (record.requestHash !== hash) throw new Error("INVALID_REQUEST");
+      return record;
+    }
+    const execution = action().then((response) =>
+      this.replayOrReserve(scope, key, hash, tenantId, response, now),
+    );
+    this.pending.set(identity, execution);
+    try {
+      return await execution;
+    } finally {
+      this.pending.delete(identity);
+    }
   }
 }
 

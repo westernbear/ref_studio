@@ -1,7 +1,11 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
-import { forwardedSetCookie, internalApiUrl } from "../src/app/api/auth-proxy";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  forwardedSetCookie,
+  internalApiUrl,
+  proxyV1,
+} from "../src/app/api/auth-proxy";
 
 const root = resolve(import.meta.dirname, "../../..");
 const source = readFileSync(
@@ -20,6 +24,7 @@ describe("shared sign-in contract", () => {
     resetEnv("NEXT_PUBLIC_API_URL");
     resetEnv("RVS_INTERNAL_API_URL");
     resetEnv("RVS_INSECURE_COOKIES");
+    vi.unstubAllGlobals();
   });
 
   it("uses safe API destinations and rejects external return paths", () => {
@@ -70,5 +75,29 @@ describe("shared sign-in contract", () => {
         "rvs_session=fixture; Path=/; HttpOnly; Secure; SameSite=Lax",
       ),
     ).toBe("rvs_session=fixture; Path=/; HttpOnly; SameSite=Lax");
+  });
+
+  it("forwards 204 responses without constructing a forbidden body", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(null, {
+            status: 204,
+            headers: { "x-received-bytes": "12" },
+          }),
+      ),
+    );
+    const response = await proxyV1(
+      new Request("http://localhost/api/v1/uploads/upl_a/chunks/0", {
+        method: "PUT",
+        body: Uint8Array.from([1]),
+      }),
+      ["uploads", "upl_a", "chunks", "0"],
+    );
+
+    expect(response.status).toBe(204);
+    expect(response.headers.get("x-received-bytes")).toBe("12");
+    expect((await response.arrayBuffer()).byteLength).toBe(0);
   });
 });

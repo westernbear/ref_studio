@@ -100,19 +100,9 @@ export default function NewProjectPage() {
     setState("uploading");
     try {
       const result = await uploadMp4(candidate, setProgress, controller.signal);
-      const acceptedDuration = result.durationSeconds || duration;
-      const acceptedFps = result.fps || 30;
-      const acceptedFrames =
-        result.frameCount || Math.floor(acceptedDuration * acceptedFps);
-      const normalized = {
-        ...result,
-        durationSeconds: acceptedDuration,
-        fps: acceptedFps,
-        frameCount: acceptedFrames,
-      };
-      if (acceptedDuration < 4 || acceptedFrames < acceptedFps * 4)
+      if (result.durationSeconds < 4 || result.frameCount < result.fps * 4)
         throw new Error("MEDIA_DURATION_INVALID");
-      setMedia(normalized);
+      setMedia(result);
       setState("accepted");
       setReason("Accepted normalized media. Select a four-second interval.");
     } catch (error) {

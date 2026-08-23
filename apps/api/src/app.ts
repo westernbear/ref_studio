@@ -27,14 +27,17 @@ import {
   safeEnvelope,
 } from "./boundary.js";
 import {
-  appendChunk,
   abortUpload,
   cleanupExpiredUploads,
   createUpload,
-  finalizeUpload,
+  FinalizeUploadSchema,
+  getUpload,
   MAX_CHUNK_BYTES,
+  putChunk,
   UploadFailure,
-  visibleUpload,
+  validateAndFinalizeUpload,
+  type UploadMedia,
+  type UploadRecord,
   type UploadStore,
 } from "./uploads.js";
 import {
@@ -62,6 +65,10 @@ export type AppOptions = {
   readonly idempotency?: IdempotencyStore;
   readonly onTenantAction?: () => Record<string, unknown>;
   readonly uploads?: UploadStore;
+  readonly validateUpload?: (
+    upload: UploadRecord,
+    sourceSha256: string,
+  ) => Promise<UploadMedia>;
   readonly creatorWorkflow?: CreatorWorkflowStore;
   readonly adminReads?: AdminReadStore;
   readonly adminMutations?: AdminMutationStore;
@@ -99,12 +106,18 @@ const failure = (
       ? 401
       : result.code === "RESOURCE_NOT_FOUND"
         ? 404
-        : result.code === "VIDEO_TYPE_INVALID" ||
-            result.code === "VIDEO_SIZE_LIMIT_EXCEEDED" ||
-            result.code === "INVALID_REQUEST" ||
-            result.code === "UPLOAD_QUARANTINED"
-          ? 422
-          : 403;
+        : result.code === "UPLOAD_EXPIRED"
+          ? 410
+          : result.code === "VIDEO_TYPE_INVALID" ||
+              result.code === "VIDEO_SIZE_LIMIT_EXCEEDED" ||
+              result.code === "INVALID_REQUEST" ||
+              result.code === "UPLOAD_QUARANTINED" ||
+              result.code === "UPLOAD_RANGE_INVALID" ||
+              result.code === "UPLOAD_INCOMPLETE" ||
+              result.code === "HASH_MISMATCH" ||
+              result.code === "UPLOAD_NOT_ABORTABLE"
+            ? 422
+            : 403;
   return reply.code(status).send(safeEnvelope(new Error(result.code), id));
 };
 const principalResult = (
@@ -132,6 +145,7 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
     },
   );
   const now = (): number => options.now?.() ?? Date.now();
+  const idempotency = options.idempotency ?? new IdempotencyStore();
   app.addHook("onRequest", async (request, reply) => {
     const correlation = correlationId();
     reply.header("x-correlation-id", correlation);
@@ -344,7 +358,7 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
       return;
     }
     try {
-      const replay = (options.idempotency ?? new IdempotencyStore()).execute(
+      const replay = idempotency.execute(
         "tenant-action",
         key,
         requestHash(request.body ?? {}),
@@ -370,19 +384,35 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
     const uploads = options.uploads;
     app.post("/v1/uploads", async (request, reply) => {
       try {
-        const upload = createUpload(
-          uploads,
-          header(request, "x-tenant-id") ?? "",
-          request.body,
+        const tenantId = header(request, "x-tenant-id") ?? "";
+        const key = header(request, "idempotency-key");
+        if (!key) throw new UploadFailure("INVALID_REQUEST");
+        const replay = idempotency.execute(
+          "upload-create",
+          key,
+          requestHash(request.body ?? {}),
+          tenantId,
+          () => {
+            const upload = createUpload(uploads, tenantId, request.body);
+            return [
+              201,
+              {
+                uploadId: upload.id,
+                chunkSize: MAX_CHUNK_BYTES,
+                expiresAt: upload.expiresAt,
+                state: upload.state,
+              },
+            ];
+          },
         );
-        reply.code(201).send({
-          upload: visibleUpload(upload),
-          uploadUrl: `/v1/uploads/${upload.id}/chunks`,
-          requiredHeaders: { "Content-Type": "video/mp4" },
-        });
+        reply.code(replay.response[0]).send(replay.response[1]);
       } catch (error) {
         if (error instanceof UploadFailure) {
           failure(reply, error);
+          return;
+        }
+        if (error instanceof Error && error.message === "INVALID_REQUEST") {
+          failure(reply, new UploadFailure("INVALID_REQUEST"));
           return;
         }
         throw error;
@@ -391,9 +421,14 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
     app.post("/v1/uploads/cleanup", async (_request, reply) => {
       reply.send({ removed: cleanupExpiredUploads(uploads) });
     });
-    app.post(
-      "/v1/uploads/:id/chunks",
-      async (request: FastifyRequest<{ Params: { id: string } }>, reply) => {
+    app.put(
+      "/v1/uploads/:id/chunks/:index",
+      async (
+        request: FastifyRequest<{
+          Params: { id: string; index: string };
+        }>,
+        reply,
+      ) => {
         try {
           const body = request.body;
           const chunk =
@@ -404,13 +439,16 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
                 : (() => {
                     throw new UploadFailure("INVALID_REQUEST");
                   })();
-          const upload = appendChunk(
+          const upload = putChunk(
             uploads,
             header(request, "x-tenant-id") ?? "",
             request.params.id,
+            Number(request.params.index),
             chunk,
+            header(request, "content-range") ?? "",
+            header(request, "x-chunk-sha256") ?? "",
           );
-          reply.send({ upload: visibleUpload(upload) });
+          reply.header("x-received-bytes", upload.actualBytes).code(204).send();
         } catch (error) {
           if (error instanceof UploadFailure) {
             failure(reply, error);
@@ -422,17 +460,87 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
     );
     app.post(
       "/v1/uploads/:id/finalize",
+      async (
+        request: FastifyRequest<{
+          Params: { id: string };
+          Body: unknown;
+        }>,
+        reply,
+      ) => {
+        try {
+          const expectation = FinalizeUploadSchema.safeParse(request.body);
+          const validateUpload = options.validateUpload;
+          if (!expectation.success || !validateUpload)
+            throw new UploadFailure("INVALID_REQUEST");
+          const tenantId = header(request, "x-tenant-id") ?? "";
+          const key = header(request, "idempotency-key");
+          if (!key) throw new UploadFailure("INVALID_REQUEST");
+          const replay = await idempotency.executeAsync(
+            `upload-finalize:${request.params.id}`,
+            key,
+            requestHash(request.body ?? {}),
+            tenantId,
+            async () => {
+              await validateAndFinalizeUpload(
+                uploads,
+                tenantId,
+                request.params.id,
+                expectation.data,
+                validateUpload,
+              );
+              return [
+                202,
+                { uploadId: request.params.id, state: "VALIDATING" },
+              ];
+            },
+          );
+          reply.code(replay.response[0]).send(replay.response[1]);
+        } catch (error) {
+          if (error instanceof UploadFailure) {
+            failure(reply, error);
+            return;
+          }
+          if (error instanceof Error && error.message === "INVALID_REQUEST") {
+            failure(reply, new UploadFailure("INVALID_REQUEST"));
+            return;
+          }
+          throw error;
+        }
+      },
+    );
+    app.get(
+      "/v1/uploads/:id",
       async (request: FastifyRequest<{ Params: { id: string } }>, reply) => {
         try {
-          const upload = finalizeUpload(
+          const upload = getUpload(
             uploads,
             header(request, "x-tenant-id") ?? "",
             request.params.id,
           );
           reply.send({
-            upload: visibleUpload(upload),
-            sandbox: { parser: "scheduled", network: false },
+            uploadId: upload.id,
+            state: upload.state,
+            ...(upload.media ?? {}),
           });
+        } catch (error) {
+          if (error instanceof UploadFailure) {
+            failure(reply, error);
+            return;
+          }
+          throw error;
+        }
+      },
+    );
+    app.delete(
+      "/v1/uploads/:id",
+      async (request: FastifyRequest<{ Params: { id: string } }>, reply) => {
+        try {
+          abortUpload(
+            uploads,
+            header(request, "x-tenant-id") ?? "",
+            request.params.id,
+          );
+          reply.code(202).send({ state: "aborted" });
         } catch (error) {
           if (error instanceof UploadFailure) {
             failure(reply, error);

@@ -67,8 +67,7 @@ const fixture = (): {
     now: () => 1_000,
   };
   const upload = createUpload(uploads, "ten_a", {
-    filename: "reference.mp4",
-    contentType: "video/mp4",
+    fileName: "reference.mp4",
     sizeBytes: 12,
   });
   upload.chunks.push(
@@ -76,6 +75,7 @@ const fixture = (): {
   );
   upload.actualBytes = 12;
   finalizeUpload(uploads, "ten_a", upload.id);
+  upload.media = { fps: 30, frameCount: 120, durationSeconds: 4 };
   const workflow = createCreatorWorkflowStore();
   const reviews = createReviewStore();
   const app = buildAuthApp({
@@ -94,6 +94,12 @@ const reviewerHeaders = {
   authorization: "Bearer reviewer-secret",
   "x-tenant-id": "ten_a",
 };
+const jobPayload = (uploadId: string, startFrame = 0) => ({
+  uploadId,
+  sourceFps: 30,
+  startFrame,
+  outputProfile: "vertical-1080p30",
+});
 const approveThroughT4 = async (
   state: ReturnType<typeof fixture>,
   job: Job,
@@ -151,7 +157,7 @@ describe("creator workflow API", () => {
       method: "POST",
       url: "/v1/jobs",
       headers: { ...headers, "idempotency-key": "job-create-1" },
-      payload: { uploadId, sourceFps: 30, startFrame: 0, frameCount: 120 },
+      payload: jobPayload(uploadId),
     });
     expect(created.statusCode).toBe(201);
     const jobId = created.json().id;
@@ -179,7 +185,7 @@ describe("creator workflow API", () => {
       method: "POST",
       url: "/v1/jobs",
       headers: { ...headers, "idempotency-key": "ready-create" },
-      payload: { uploadId, sourceFps: 30, startFrame: 0, frameCount: 120 },
+      payload: jobPayload(uploadId),
     });
     const job = state.workflow.jobs.get(created.json().id);
     expect(job).toBeDefined();
@@ -343,7 +349,7 @@ describe("creator workflow API", () => {
       method: "POST",
       url: "/v1/jobs",
       headers: { ...headers, "idempotency-key": "job-create-2" },
-      payload: { uploadId, sourceFps: 30, startFrame: 0, frameCount: 120 },
+      payload: jobPayload(uploadId),
     });
     const response = await state.app.inject({
       method: "PATCH",
@@ -357,7 +363,7 @@ describe("creator workflow API", () => {
   it("runs job creation once per idempotency key and rejects changed replays", async () => {
     const state = fixture();
     const uploadId = [...state.uploads.uploads.keys()][0];
-    const request = { uploadId, sourceFps: 30, startFrame: 0, frameCount: 120 };
+    const request = jobPayload(uploadId);
     const first = await state.app.inject({
       method: "POST",
       url: "/v1/jobs",
@@ -385,7 +391,7 @@ describe("creator workflow API", () => {
     const state = fixture();
     const uploadId = [...state.uploads.uploads.keys()][0];
     const createHeaders = { ...headers, "idempotency-key": "flow-create" };
-    const payload = { uploadId, sourceFps: 30, startFrame: 0, frameCount: 120 };
+    const payload = jobPayload(uploadId);
     const created = await state.app.inject({
       method: "POST",
       url: "/v1/jobs",
@@ -496,7 +502,7 @@ describe("creator workflow API", () => {
   it("enforces command and edit headers plus failure preconditions", async () => {
     const state = fixture();
     const uploadId = [...state.uploads.uploads.keys()][0];
-    const payload = { uploadId, sourceFps: 30, startFrame: 0, frameCount: 120 };
+    const payload = jobPayload(uploadId);
     const missingCreate = await state.app.inject({
       method: "POST",
       url: "/v1/jobs",
@@ -572,7 +578,7 @@ describe("creator workflow API", () => {
       method: "POST",
       url: "/v1/jobs",
       headers: { ...headers, "idempotency-key": "retry-create" },
-      payload: { uploadId, sourceFps: 30, startFrame: 0, frameCount: 120 },
+      payload: jobPayload(uploadId),
     });
     const job = state.workflow.jobs.get(created.json().id);
     expect(job).toBeDefined();
@@ -619,26 +625,20 @@ describe("creator workflow API", () => {
     const state = fixture();
     const uploadId = [...state.uploads.uploads.keys()][0];
     const pending = createUpload(state.uploads, "ten_a", {
-      filename: "pending.mp4",
-      contentType: "video/mp4",
+      fileName: "pending.mp4",
       sizeBytes: 12,
     });
     const pendingResponse = await state.app.inject({
       method: "POST",
       url: "/v1/jobs",
       headers: { ...headers, "idempotency-key": "pending-1" },
-      payload: {
-        uploadId: pending.id,
-        sourceFps: 30,
-        startFrame: 0,
-        frameCount: 120,
-      },
+      payload: jobPayload(pending.id),
     });
     const impossible = await state.app.inject({
       method: "POST",
       url: "/v1/jobs",
       headers: { ...headers, "idempotency-key": "bad-interval" },
-      payload: { uploadId, sourceFps: 30, startFrame: 1, frameCount: 120 },
+      payload: jobPayload(uploadId, 1),
     });
     const foreign = await state.app.inject({
       method: "POST",
@@ -648,7 +648,7 @@ describe("creator workflow API", () => {
         "x-tenant-id": "ten_b",
         "idempotency-key": "foreign-1",
       },
-      payload: { uploadId, sourceFps: 30, startFrame: 0, frameCount: 120 },
+      payload: jobPayload(uploadId),
     });
     expect(pendingResponse.statusCode).toBe(400);
     expect(impossible.statusCode).toBe(400);

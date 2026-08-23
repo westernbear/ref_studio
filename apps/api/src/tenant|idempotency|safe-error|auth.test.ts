@@ -78,6 +78,23 @@ describe("idempotency boundary", () => {
       ]),
     ).toThrow("INVALID_REQUEST");
   });
+
+  it("coalesces concurrent async replays", async () => {
+    const store = new IdempotencyStore();
+    let effects = 0;
+    const action = async () => {
+      effects += 1;
+      await Promise.resolve();
+      return [202, { id: "upload_a" }] as const;
+    };
+    const [first, replay] = await Promise.all([
+      store.executeAsync("upload", "k1", "hash-a", "ten_a", action),
+      store.executeAsync("upload", "k1", "hash-a", "ten_a", action),
+    ]);
+
+    expect(replay).toEqual(first);
+    expect(effects).toBe(1);
+  });
 });
 
 describe("release review boundary", () => {

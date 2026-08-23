@@ -17,6 +17,7 @@ import {
   createCreatorWorkflowStore,
   type CreatorWorkflowStore,
 } from "./creator-workflow.js";
+import { inspectUploadedMedia } from "./media-validation.js";
 import { createReviewStore, type ReviewStore } from "./reviews.js";
 import type { UploadStore } from "./uploads.js";
 import { createWorkerStore, hashWorkerToken } from "./workers.js";
@@ -447,6 +448,23 @@ export function createApiServer(config: ApiServerConfig) {
     expectedOrigin: config.expectedOrigin,
     introspectSecret: config.introspectSecret,
     uploads,
+    validateUpload: async (upload) => {
+      try {
+        return await inspectUploadedMedia(upload);
+      } catch (error) {
+        console.error(
+          JSON.stringify({
+            event: "api.upload.validation.failed",
+            uploadId: upload.id,
+            errorName: error instanceof Error ? error.name : "UnknownError",
+            errorMessage:
+              error instanceof Error ? error.message : "Unknown error",
+            errorStack: error instanceof Error ? error.stack : undefined,
+          }),
+        );
+        throw error;
+      }
+    },
     creatorWorkflow,
     adminReads: loadAdminReadStore(
       config.databasePath,

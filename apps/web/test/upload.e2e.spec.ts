@@ -67,34 +67,69 @@ test.describe("upload validation @upload", () => {
     await page.route("**/api/v1/**", async (route) => {
       const url = new URL(route.request().url());
       if (url.pathname === "/api/v1/uploads") {
+        expect(route.request().postDataJSON()).toEqual({
+          fileName: "clip.mp4",
+          mimeHint: "video/mp4",
+          sizeBytes: 12,
+        });
         await route.fulfill({
           contentType: "application/json",
           status: 201,
-          body: JSON.stringify({ upload: { id: "upl_redirect" } }),
+          body: JSON.stringify({
+            uploadId: "upl_redirect",
+            chunkSize: 8_388_608,
+            expiresAt: "2026-08-24T00:00:00.000Z",
+            state: "PENDING",
+          }),
         });
         return;
       }
-      if (url.pathname === "/api/v1/uploads/upl_redirect/chunks") {
-        await route.fulfill({
-          contentType: "application/json",
-          body: JSON.stringify({ upload: { id: "upl_redirect" } }),
-        });
+      if (url.pathname === "/api/v1/uploads/upl_redirect/chunks/0") {
+        expect(route.request().method()).toBe("PUT");
+        expect(route.request().headers()["content-range"]).toBe(
+          "bytes 0-11/12",
+        );
+        expect(route.request().headers()["x-chunk-sha256"]).toMatch(
+          /^[a-f0-9]{64}$/u,
+        );
+        await route.fulfill({ status: 204 });
         return;
       }
       if (url.pathname === "/api/v1/uploads/upl_redirect/finalize") {
+        expect(route.request().postDataJSON()).toMatchObject({
+          orderedChunkCount: 1,
+          declaredSha256: expect.stringMatching(/^[a-f0-9]{64}$/u),
+        });
+        await route.fulfill({
+          contentType: "application/json",
+          status: 202,
+          body: JSON.stringify({
+            uploadId: "upl_redirect",
+            state: "VALIDATING",
+          }),
+        });
+        return;
+      }
+      if (url.pathname === "/api/v1/uploads/upl_redirect") {
         await route.fulfill({
           contentType: "application/json",
           body: JSON.stringify({
-            upload: { id: "upl_redirect", casObjectId: "cas_redirect" },
+            uploadId: "upl_redirect",
+            state: "ACCEPTED",
             fps: 30,
             frameCount: 120,
             durationSeconds: 4,
-            normalizedDigest: "digest_redirect",
           }),
         });
         return;
       }
       if (url.pathname === "/api/v1/jobs") {
+        expect(route.request().postDataJSON()).toEqual({
+          uploadId: "upl_redirect",
+          startFrame: 0,
+          sourceFps: 30,
+          outputProfile: "vertical-1080p30",
+        });
         await route.fulfill({
           contentType: "application/json",
           status: 201,
@@ -124,28 +159,42 @@ test.describe("upload validation @upload", () => {
     const jobKeys: string[] = [];
     await page.route("**/api/v1/**", async (route) => {
       const url = new URL(route.request().url());
-      const uploadId = uploadCount === 0 ? "upl_first" : "upl_second";
       if (url.pathname === "/api/v1/uploads") {
-        uploadCount += 1;
+        const uploadId = uploadCount++ === 0 ? "upl_first" : "upl_second";
         await route.fulfill({
           contentType: "application/json",
           status: 201,
-          body: JSON.stringify({ upload: { id: uploadId } }),
+          body: JSON.stringify({
+            uploadId,
+            chunkSize: 8_388_608,
+            expiresAt: "2026-08-24T00:00:00.000Z",
+            state: "PENDING",
+          }),
         });
         return;
       }
-      if (url.pathname.endsWith("/chunks")) {
-        await route.fulfill({
-          contentType: "application/json",
-          body: JSON.stringify({ upload: { id: uploadId } }),
-        });
+      if (url.pathname.endsWith("/chunks/0")) {
+        await route.fulfill({ status: 204 });
         return;
       }
       if (url.pathname.endsWith("/finalize")) {
         await route.fulfill({
           contentType: "application/json",
+          status: 202,
           body: JSON.stringify({
-            upload: { id: uploadId, casObjectId: "cas_same" },
+            uploadId: url.pathname.split("/").at(-2),
+            state: "VALIDATING",
+          }),
+        });
+        return;
+      }
+      if (/\/api\/v1\/uploads\/upl_(first|second)$/u.test(url.pathname)) {
+        const uploadId = url.pathname.split("/").at(-1);
+        await route.fulfill({
+          contentType: "application/json",
+          body: JSON.stringify({
+            uploadId,
+            state: "ACCEPTED",
             fps: 30,
             frameCount: 120,
             durationSeconds: 4,
@@ -191,22 +240,33 @@ test.describe("upload validation @upload", () => {
         await route.fulfill({
           contentType: "application/json",
           status: 201,
-          body: JSON.stringify({ upload: { id: "upl_error" } }),
+          body: JSON.stringify({
+            uploadId: "upl_error",
+            chunkSize: 8_388_608,
+            expiresAt: "2026-08-24T00:00:00.000Z",
+            state: "PENDING",
+          }),
         });
         return;
       }
-      if (url.pathname.endsWith("/chunks")) {
-        await route.fulfill({
-          contentType: "application/json",
-          body: JSON.stringify({ upload: { id: "upl_error" } }),
-        });
+      if (url.pathname.endsWith("/chunks/0")) {
+        await route.fulfill({ status: 204 });
         return;
       }
       if (url.pathname.endsWith("/finalize")) {
         await route.fulfill({
           contentType: "application/json",
+          status: 202,
+          body: JSON.stringify({ uploadId: "upl_error", state: "VALIDATING" }),
+        });
+        return;
+      }
+      if (url.pathname === "/api/v1/uploads/upl_error") {
+        await route.fulfill({
+          contentType: "application/json",
           body: JSON.stringify({
-            upload: { id: "upl_error", casObjectId: "cas_error" },
+            uploadId: "upl_error",
+            state: "ACCEPTED",
             fps: 30,
             frameCount: 120,
             durationSeconds: 4,

@@ -31,3 +31,6 @@ handoff-extracted/**
 stitch-extracted
 stitch-extracted/**
 *.zip
+verification/contract/
+verification/contract-lock.json
+dist/handoff/verification/contract/

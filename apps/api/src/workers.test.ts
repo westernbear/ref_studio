@@ -102,6 +102,8 @@ const uploadFixture = (): UploadStore => ({
         createdAt: "2026-01-01T00:00:00.000Z",
         expiresAt: "2026-01-02T00:00:00.000Z",
         casObjectId: "cas_a",
+        sourceSha256: sha256(sourceBytes),
+        media: { fps: 30, frameCount: 120, durationSeconds: 4 },
         chunks: [sourceBytes],
         actualBytes: sourceBytes.byteLength,
       },

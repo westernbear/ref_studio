@@ -21,6 +21,8 @@ const upload = (sizeBytes = 100): UploadRecord => ({
   createdAt: "2026-01-01T00:00:00.000Z",
   expiresAt: "2026-01-02T00:00:00.000Z",
   casObjectId: "cas_source",
+  sourceSha256: "source_digest",
+  media: { fps: 30, frameCount: 120, durationSeconds: 4 },
   chunks: [],
   actualBytes: sizeBytes,
 });
@@ -86,7 +88,7 @@ describe("media-validation", () => {
     { patch: { durationSeconds: 0.5 }, code: "MEDIA_DURATION_INVALID" },
     { patch: { durationSeconds: 301 }, code: "MEDIA_DURATION_INVALID" },
     { patch: { container: "avi" }, code: "MEDIA_CONTAINER_INVALID" },
-    { patch: { codec: "vp9" }, code: "MEDIA_CODEC_INVALID" },
+    { patch: { codec: "mpeg4" }, code: "MEDIA_CODEC_INVALID" },
     { patch: { width: 3841 }, code: "MEDIA_DIMENSIONS_INVALID" },
     { patch: { metadataSafe: false }, code: "MEDIA_METADATA_INVALID" },
   ])("rejects invalid media metadata", async ({ patch, code }) => {
@@ -110,15 +112,22 @@ describe("media-validation", () => {
     const result = await validateAndNormalize(
       upload(),
       "source_digest",
-      runner(probe({ rotationDegrees: 90, hasAudio: false })),
+      runner(
+        probe({
+          width: 2160,
+          height: 3840,
+          rotationDegrees: 90,
+          hasAudio: false,
+        }),
+      ),
     );
     expect(result.sourceImmutable).toBe(true);
     expect(result.sourceSha256).toBe("source_digest");
     expect(result.sourceCasObjectId).toBe("cas_source");
     expect(result.normalizedCasObjectId).toBe("norm_normalized_digest");
     expect(result.landscapeFit).toEqual({
-      width: 1080,
-      height: 1920,
+      width: 3840,
+      height: 2160,
       rotated: true,
     });
     expect(result.audio).toEqual({

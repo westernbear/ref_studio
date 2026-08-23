@@ -1,27 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-lock_dir=".next-e2e.lock"
-while ! mkdir "$lock_dir" 2>/dev/null; do
-  owner="$(cat "$lock_dir/pid" 2>/dev/null || true)"
-  if [[ -n "$owner" ]] && ! kill -0 "$owner" 2>/dev/null; then
-    rm -rf "$lock_dir"
-    continue
-  fi
-  if [[ -z "$owner" ]] && [[ $(( $(date +%s) - $(stat -c %Y "$lock_dir") )) -gt 5 ]]; then
-    rm -rf "$lock_dir"
-    continue
-  fi
-  sleep 0.1
-done
-printf '%s\n' "$$" > "$lock_dir/pid"
+lock_file=".next-e2e.lock"
+if [[ -d "$lock_file" ]]; then rm -rf "$lock_file"; fi
+exec 9>"$lock_file"
+flock --wait 120 9
 server_pid=""
 cleanup() {
   if [[ -n "$server_pid" ]] && kill -0 "$server_pid" 2>/dev/null; then
     kill "$server_pid" 2>/dev/null || true
     wait "$server_pid" 2>/dev/null || true
   fi
-  rm -rf "$lock_dir"
 }
 trap cleanup EXIT
 trap 'exit 143' INT TERM
