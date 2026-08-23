@@ -4,7 +4,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 const workspace = resolve(import.meta.dirname, "../..");
-const image = "reference-video-studio-runtime:todo1";
+const image = "reference-video-studio-runtime:1.0.0";
 
 function run(command, args) {
   return execFileSync(command, args, {

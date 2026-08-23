@@ -22,7 +22,7 @@
   ],
   "builtImages": [
     {
-      "name": "reference-video-studio-runtime:todo1",
+      "name": "reference-video-studio-runtime:1.0.0",
       "contentDigest": "sha256:8404a853a499143346f188f5ebefea9e6131c6f59e41c7c2b13b8827ad30c5f0",
       "rootfsLayers": [
         "sha256:66462cc862fe2053b9863fefa3866e07bb5dfb06f6b3ce3177cc096e4021aabe",

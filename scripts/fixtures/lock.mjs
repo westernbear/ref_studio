@@ -4,7 +4,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 const workspace = resolve(import.meta.dirname, "../..");
-const runtimeImage = "reference-video-studio-runtime:todo1";
+const runtimeImage = "reference-video-studio-runtime:1.0.0";
 const ffmpeg = "/opt/rvs/bin/ffmpeg";
 const ffprobe = "/opt/rvs/bin/ffprobe";
 

@@ -1,7 +1,7 @@
 {
   "schemaVersion": "rvs-runtime-artifacts-v1",
   "image": {
-    "name": "reference-video-studio-runtime:todo1",
+    "name": "reference-video-studio-runtime:1.0.0",
     "contentDigest": "sha256:8404a853a499143346f188f5ebefea9e6131c6f59e41c7c2b13b8827ad30c5f0"
   },
   "artifacts": [

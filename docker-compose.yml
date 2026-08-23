@@ -6,11 +6,11 @@ services:
       dockerfile: Dockerfile
       target: runtime
       provenance: false
-    image: reference-video-studio-runtime:todo1
+    image: reference-video-studio-runtime:1.0.0
     network_mode: none
   runtime-preflight:
     profiles: ["verify"]
-    image: reference-video-studio-runtime:todo1
+    image: reference-video-studio-runtime:1.0.0
     network_mode: none
     command: ["node", "/opt/rvs/preflight.mjs"]
   compiler:
@@ -20,7 +20,7 @@ services:
       dockerfile: Dockerfile
       target: compiler
       provenance: false
-    image: reference-video-studio-compiler:task17
+    image: reference-video-studio-compiler:1.0.0
     network_mode: none
     command: ["python3.12", "-m", "compiler.preflight"]
   web:
@@ -29,7 +29,7 @@ services:
       dockerfile: Dockerfile
       target: runtime
       provenance: false
-    image: reference-video-studio-runtime:todo1
+    image: reference-video-studio-runtime:1.0.0
     networks: [appnet, default]
     environment:
       CI: "true"
@@ -57,7 +57,7 @@ services:
       dockerfile: Dockerfile
       target: runtime
       provenance: false
-    image: reference-video-studio-runtime:todo1
+    image: reference-video-studio-runtime:1.0.0
     networks: [appnet, default]
     environment:
       CI: "true"
@@ -85,7 +85,7 @@ services:
       ]
   qa:
     profiles: ["qa"]
-    image: reference-video-studio-runtime:todo1
+    image: reference-video-studio-runtime:1.0.0
     network_mode: none
     environment:
       CI: "true"
@@ -100,7 +100,7 @@ services:
 
   qa-audit-egress:
     profiles: ["verify"]
-    image: reference-video-studio-runtime:todo1
+    image: reference-video-studio-runtime:1.0.0
     working_dir: /workspace
     volumes:
       - ./package.json:/workspace/package.json:ro
