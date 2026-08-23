@@ -1,1 +1,6 @@
-{"fixtureId":"ablation","expectedError":"UNBOUND_EFFECT","requiredEffectBinding":"bloomProfile","observedEffectBinding":"ownerRect"}
+{
+  "fixtureId": "ablation",
+  "expectedError": "UNBOUND_EFFECT",
+  "requiredEffectBinding": "bloomProfile",
+  "observedEffectBinding": "ownerRect"
+}

@@ -6,37 +6,325 @@
     "seed": 20260821,
     "locale": "C.UTF-8",
     "timezone": "UTC",
-    "videoArgvPrefix": ["ffmpeg", "-hide_banner", "-nostdin", "-f", "lavfi", "-i"],
-    "videoOnlyArgvSuffix": ["-t", "4", "-pix_fmt", "yuv420p", "-color_primaries", "bt709", "-color_trc", "bt709", "-colorspace", "bt709", "-c:v", "libx264", "-profile:v", "high", "-level:v", "4.1", "-crf", "18", "-preset", "medium", "-g", "60", "-an"],
-    "audioArgvPrefix": ["ffmpeg", "-hide_banner", "-nostdin", "-f", "lavfi", "-i"],
-    "audioArgvSuffix": ["-t", "4", "-ar", "48000", "-ac", "2", "-c:a", "pcm_s16le"],
-    "sourceMuxArgvTemplate": ["ffmpeg", "-hide_banner", "-nostdin", "-i", "{videoOnlyMp4}", "-i", "{audioWav}", "-map", "0:v:0", "-map", "1:a:0", "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-ac", "2", "-movflags", "+faststart", "{sourceMp4}"],
+    "videoArgvPrefix": [
+      "ffmpeg",
+      "-hide_banner",
+      "-nostdin",
+      "-f",
+      "lavfi",
+      "-i"
+    ],
+    "videoOnlyArgvSuffix": [
+      "-t",
+      "4",
+      "-pix_fmt",
+      "yuv420p",
+      "-color_primaries",
+      "bt709",
+      "-color_trc",
+      "bt709",
+      "-colorspace",
+      "bt709",
+      "-c:v",
+      "libx264",
+      "-profile:v",
+      "high",
+      "-level:v",
+      "4.1",
+      "-crf",
+      "18",
+      "-preset",
+      "medium",
+      "-g",
+      "60",
+      "-an"
+    ],
+    "audioArgvPrefix": [
+      "ffmpeg",
+      "-hide_banner",
+      "-nostdin",
+      "-f",
+      "lavfi",
+      "-i"
+    ],
+    "audioArgvSuffix": [
+      "-t",
+      "4",
+      "-ar",
+      "48000",
+      "-ac",
+      "2",
+      "-c:a",
+      "pcm_s16le"
+    ],
+    "sourceMuxArgvTemplate": [
+      "ffmpeg",
+      "-hide_banner",
+      "-nostdin",
+      "-i",
+      "{videoOnlyMp4}",
+      "-i",
+      "{audioWav}",
+      "-map",
+      "0:v:0",
+      "-map",
+      "1:a:0",
+      "-c:v",
+      "copy",
+      "-c:a",
+      "aac",
+      "-b:a",
+      "192k",
+      "-ar",
+      "48000",
+      "-ac",
+      "2",
+      "-movflags",
+      "+faststart",
+      "{sourceMp4}"
+    ],
     "sourceMuxRule": "source.mp4 is the single upload fixture and always contains the measured 48kHz stereo audio track (or exact silence). video-only intermediates are not upload inputs and are hash-locked only to reproduce source.mp4."
   },
-  "outputNaming": {"videoOnly": "verification/contract/fixtures/{id}/video-only.mp4", "audio": "verification/contract/fixtures/{id}/audio.wav", "source": "verification/contract/fixtures/{id}/source.mp4", "normalized": "verification/contract/fixtures/{id}/normalized-working.mkv"},
+  "outputNaming": {
+    "videoOnly": "verification/contract/fixtures/{id}/video-only.mp4",
+    "audio": "verification/contract/fixtures/{id}/audio.wav",
+    "source": "verification/contract/fixtures/{id}/source.mp4",
+    "normalized": "verification/contract/fixtures/{id}/normalized-working.mkv"
+  },
   "fixtures": [
-    {"id": "identity", "fps": 25, "frames": 100, "size": [1080, 1920], "videoFiltergraph": "color=c=0x050505:s=1080x1920:r=25,drawbox=x=100:y=200:w=320:h=80:color=white@1:t=fill,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='IDENTITY':x=112:y=218:fontsize=42:fontcolor=black,drawbox=x=400:y=740:w=280:h=440:color=cyan@0.92:t=fill", "audioFiltergraph": "anullsrc=r=48000:cl=stereo", "truth": {"textRect": "x=100,y=200,w=320,h=80", "subjectRect": "x=400,y=740,w=280,h=440", "oracle": "owner IDs unchanged for every visible frame; no drawbox expression uses frame variable n"}},
-    {"id": "occlusion", "fps": 25, "frames": 100, "size": [1080, 1920], "videoFiltergraph": "color=c=0x050505:s=1080x1920:r=25,drawbox=x=0:y=880:w=1080:h=160:color=gray@0.92:t=fill:enable='lte(n,39)',drawbox=x=400:y=740:w=280:h=440:color=cyan@0.92:t=fill,drawbox=x=0:y=880:w=1080:h=160:color=gray@0.45:t=fill:enable='between(n,40,59)',drawbox=x=0:y=880:w=1080:h=160:color=gray@0.92:t=fill:enable='gte(n,60)'", "audioFiltergraph": "anullsrc=r=48000:cl=stereo", "truth": {"residualBar": "x=0..1080,y=880..1040", "behindFrames": "0..39: bar is drawn before subject", "ambiguousFrames": "40..59: semi-transparent overlap emits UNCLASSIFIED_DEPTH_OVERLAP", "overFrames": "60..99: opaque bar is drawn after subject", "oracle": "behind/ambiguous/over phases are visually and oracle-distinguishable"}},
-    {"id": "ui-text", "fps": 25, "frames": 100, "size": [1080, 1920], "videoFiltergraph": "color=c=0x080808:s=1080x1920:r=25,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='분석 완료':x=120:y=280:fontsize=72:fontcolor=white,drawtext=fontfile=verification/contract/fonts/Inter.ttf:text='Analysis complete':x=120:y=390:fontsize=42:fontcolor=0xb8c7ff", "audioFiltergraph": "anullsrc=r=48000:cl=stereo", "truth": {"koreanText": "분석 완료 x=120,y=280", "englishText": "Analysis complete x=120,y=390", "oracle": "independent title/subtitle boxes"}},
-    {"id": "camera", "fps": 25, "frames": 100, "size": [1080, 1920], "videoFiltergraph": "color=c=0x101018:s=1320x2160:r=25,drawgrid=width=96:height=96:thickness=2:color=0x404860,drawbox=x=180:y=220:w=180:h=120:color=0x80a0ff:t=fill,drawbox=x=760:y=520:w=220:h=160:color=0xffc080:t=fill,drawbox=x=420:y=1380:w=260:h=180:color=0x80ffc0:t=fill,rotate='0.1*PI/180*n':ow=1320:oh=2160:fillcolor=black,scale=w='1320*(1+0.001*n)':h='2160*(1+0.001*n)':eval=frame,crop=w=1080:h=1920:x='120+1.5*n':y='120-0.5*n'", "audioFiltergraph": "anullsrc=r=48000:cl=stereo", "truth": {"camera": "static drawgrid/landmark background; crop window x=120+1.5f,y=120-0.5f, rotation=0.1f deg, scale=1+0.001f", "affineSignConvention": "positive crop x moves observed background left; verifier records both crop-window delta and observed-image homography sign", "oracle": "background homography comes only from static source crop/rotate/scale; no temporal source animation, foreground object, or drawbox frame expression participates"}},
-    {"id": "rhythm", "fps": 25, "frames": 100, "size": [1080, 1920], "videoFiltergraph": "color=c=0x040404:s=1080x1920:r=25,drawbox=x=240:y=780:w=600:h=360:color=0x2b2bff@0.35:t=fill,drawbox=x=240:y=780:w=600:h=360:color=0xffffff@0.80:t=fill:enable='eq(n,10)+eq(n,35)+eq(n,60)+eq(n,85)'", "audioFiltergraph": "aevalsrc=exprs='if(eq(n,19200)+eq(n,67200)+eq(n,115200)+eq(n,163200),0.95,0)':sample_rate=48000:channel_layout=stereo", "truth": {"impulseFrames": [10, 35, 60, 85], "clickSamples": [19200, 67200, 115200, 163200], "oracle": "four exact single-frame visual peaks and audio clicks; no ease-out is asserted by this fixture"}},
-    {"id": "vfx-ownership", "fps": 25, "frames": 100, "size": [1080, 1920], "videoFiltergraph": "color=c=0x050505:s=1080x1920:r=25,drawbox=x=300:y=590:w=480:h=620:color=0x0e3640:t=fill,drawbox=x=320:y=610:w=440:h=580:color=0x155c70:t=fill,drawbox=x=350:y=640:w=380:h=520:color=0x24d1ff:t=fill,drawbox=x=346:y=636:w=388:h=528:color=white@0.75:t=4,drawbox=x=0:y=1560:w=1080:h=360:color=0x101020:t=fill[base];color=c=white:s=240x240:r=25,drawgrid=width=24:height=24:thickness=2:color=black@1,gblur=sigma=6[defocus];[base][defocus]overlay=120:1240", "audioFiltergraph": "anullsrc=r=48000:cl=stereo", "truth": {"bloomProfile": [{"rect": "x=300,y=590,w=480,h=620", "rgb": "0x0e3640"}, {"rect": "x=320,y=610,w=440,h=580", "rgb": "0x155c70"}], "ownerRect": "x=350,y=640,w=380,h=520,rgb=0x24d1ff", "defocusSigmaPx": 6, "defocusPatchRect": "x=120,y=1240,w=240,h=240", "rimWidthPx": 4, "lowerLightRect": "x=0,y=1560,w=1080,h=360,rgb=0x101020", "oracle": "outer and inner bloom bands are visible outside owner alpha, Gaussian defocus calibration patch is separate, and rim/lower-light channels are numerically separable"}},
-    {"id": "audio", "fps": 25, "frames": 100, "size": [1080, 1920], "videoFiltergraph": "color=c=black:s=1080x1920:r=25,drawtext=fontfile=verification/contract/fonts/Inter.ttf:text='AUDIO':x=120:y=280:fontsize=72:fontcolor=white", "audioFiltergraph": "aevalsrc=exprs='0.063*sin(2*PI*440*t)+if(eq(n,19200)+eq(n,67200)+eq(n,115200)+eq(n,163200),0.90,0)':sample_rate=48000:channel_layout=stereo", "truth": {"clickSamples": [19200, 67200, 115200, 163200], "toneDbfs": -24, "oracle": "sample/frame anchors exact"}},
-    {"id": "coherent-wrong", "fps": 25, "frames": 100, "size": [1080, 1920], "videoFiltergraph": "color=c=0x050505:s=1080x1920:r=25,drawbox=x=108:y=200:w=320:h=80:color=white@1:t=fill,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='IDENTITY':x=120:y=218:fontsize=42:fontcolor=black", "audioFiltergraph": "aevalsrc=exprs='if(eq(n,21600)+eq(n,69600)+eq(n,117600)+eq(n,165600),0.95,0)':sample_rate=48000:channel_layout=stereo", "truth": {"expectedFailure": "static text box offset +8px and audio anchors +2400 samples must reject; no drawbox expression uses frame variable n"}},
-    {"id": "pass-swapped", "fps": 25, "frames": 100, "size": [1080, 1920], "videoFiltergraph": "color=c=0x050505:s=1080x1920:r=25,drawbox=x=0:y=880:w=1080:h=160:color=gray@0.92:t=fill:enable='lte(n,39)',drawbox=x=400:y=740:w=280:h=440:color=cyan@0.92:t=fill,drawbox=x=0:y=880:w=1080:h=160:color=gray@0.92:t=fill:enable='gte(n,60)'", "audioFiltergraph": "anullsrc=r=48000:cl=stereo", "truth": {"expectedFailure": "behind/over swap emits WRONG_FRAME_CONTRACT"}},
-    {"id": "ablation", "fps": 25, "frames": 100, "size": [1080, 1920], "videoFiltergraph": "color=c=0x050505:s=1080x1920:r=25,drawbox=x=400:y=740:w=280:h=440:color=cyan@0.92:t=fill", "audioFiltergraph": "anullsrc=r=48000:cl=stereo", "variantFiltergraphs": {"removeText": "color=c=0x050505:s=1080x1920:r=25,drawbox=x=400:y=740:w=280:h=440:color=cyan@0.92:t=fill", "removeCamera": "color=c=0x101018:s=1320x2160:r=25,drawgrid=width=96:height=96:thickness=2:color=0x404860,drawbox=x=180:y=220:w=180:h=120:color=0x80a0ff:t=fill,drawbox=x=760:y=520:w=220:h=160:color=0xffc080:t=fill,drawbox=x=420:y=1380:w=260:h=180:color=0x80ffc0:t=fill,crop=w=1080:h=1920:x=120:y=120", "removeBloom": "color=c=0x050505:s=1080x1920:r=25,drawbox=x=350:y=640:w=380:h=520:color=0x24d1ff:t=fill,drawbox=x=346:y=636:w=388:h=528:color=white@0.75:t=4,drawbox=x=0:y=1560:w=1080:h=360:color=0x101020:t=fill[base];color=c=white:s=240x240:r=25,drawgrid=width=24:height=24:thickness=2:color=black@1,gblur=sigma=6[defocus];[base][defocus]overlay=120:1240", "removeDefocus": "color=c=0x050505:s=1080x1920:r=25,drawbox=x=300:y=590:w=480:h=620:color=0x0e3640:t=fill,drawbox=x=320:y=610:w=440:h=580:color=0x155c70:t=fill,drawbox=x=350:y=640:w=380:h=520:color=0x24d1ff:t=fill,drawbox=x=346:y=636:w=388:h=528:color=white@0.75:t=4,drawbox=x=0:y=1560:w=1080:h=360:color=0x101020:t=fill[base];color=c=white:s=240x240:r=25,drawgrid=width=24:height=24:thickness=2:color=black@1[sharp];[base][sharp]overlay=120:1240"}, "truth": {"variants": {"removeText": "identity text and text box absent", "removeCamera": "static camera source with no crop/rotate/scale transform", "removeBloom": "vfx bloom bands absent while owner/rim/defocus/lower-light remain", "removeDefocus": "defocus calibration patch is sharp while sigma=6 is claimed"}, "expectedFailure": "each executable variant is generated and hash-locked separately and fails only its corresponding text/camera/bloom/defocus claim"}},
-    {"id": "frame-contract-trial1", "fps": 25, "frames": 100, "size": [1080, 1920], "videoFiltergraph": "testsrc2=s=1080x1920:r=25,drawtext=fontfile=verification/contract/fonts/Inter.ttf:text='TRIAL1 %{n}':x=96:y=96:fontsize=54:fontcolor=white", "audioFiltergraph": "sine=frequency=440:sample_rate=48000", "truth": {"oracle": "preserved handoff Trial1 identity; 100 source frames and 120 output frames"}},
-    {"id": "frame-contract-trial2-pilot", "fps": 25, "frames": 100, "size": [1080, 1920], "videoFiltergraph": "testsrc2=s=1080x1920:r=25,drawtext=fontfile=verification/contract/fonts/Inter.ttf:text='TRIAL2 %{n}':x=96:y=96:fontsize=54:fontcolor=white", "audioFiltergraph": "sine=frequency=660:sample_rate=48000", "truth": {"oracle": "preserved handoff Trial2 identity; 100 source frames and 120 output frames"}},
-    {"id": "frame-contract-24fps", "fps": 24, "frames": 96, "size": [1080, 1920], "videoFiltergraph": "testsrc2=s=1080x1920:r=24,drawtext=fontfile=verification/contract/fonts/Inter.ttf:text='24FPS %{n}':x=96:y=96:fontsize=54:fontcolor=white", "audioFiltergraph": "sine=frequency=240:sample_rate=48000", "truth": {"oracle": "SMPTE index 0..95; 96 source frames; 120 output frames"}},
-    {"id": "frame-contract-30fps", "fps": 30, "frames": 120, "size": [1080, 1920], "videoFiltergraph": "testsrc2=s=1080x1920:r=30,drawtext=fontfile=verification/contract/fonts/Inter.ttf:text='30FPS %{n}':x=96:y=96:fontsize=54:fontcolor=white", "audioFiltergraph": "sine=frequency=300:sample_rate=48000", "truth": {"oracle": "SMPTE index 0..119; 120 source frames; 120 output frames"}},
-    {"id": "frame-contract-50fps", "fps": 50, "frames": 200, "size": [1080, 1920], "videoFiltergraph": "testsrc2=s=1080x1920:r=50,drawtext=fontfile=verification/contract/fonts/Inter.ttf:text='50FPS %{n}':x=96:y=96:fontsize=54:fontcolor=white", "audioFiltergraph": "sine=frequency=500:sample_rate=48000", "truth": {"oracle": "SMPTE index 0..199; 200 source frames; 120 output frames"}},
-    {"id": "capacity-dense-ocr-4k-60fps", "fps": 60, "frames": 240, "size": [3840, 2160], "videoFiltergraph": "color=c=0x060606:s=3840x2160:r=60,drawgrid=width=96:height=54:thickness=1:color=0x333333,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='분석 완료 00':x=120:y=120:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='Analysis complete 01':x=840:y=120:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='분석 완료 02':x=1560:y=120:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='Analysis complete 03':x=2280:y=120:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='분석 완료 04':x=3000:y=120:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='Analysis complete 05':x=120:y=360:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='분석 완료 06':x=840:y=360:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='Analysis complete 07':x=1560:y=360:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='분석 완료 08':x=2280:y=360:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='Analysis complete 09':x=3000:y=360:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='분석 완료 10':x=120:y=600:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='Analysis complete 11':x=840:y=600:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='분석 완료 12':x=1560:y=600:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='Analysis complete 13':x=2280:y=600:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='분석 완료 14':x=3000:y=600:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='Analysis complete 15':x=120:y=840:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='분석 완료 16':x=840:y=840:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='Analysis complete 17':x=1560:y=840:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='분석 완료 18':x=2280:y=840:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='Analysis complete 19':x=3000:y=840:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='분석 완료 20':x=120:y=1080:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='Analysis complete 21':x=840:y=1080:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='분석 완료 22':x=1560:y=1080:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='Analysis complete 23':x=2280:y=1080:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='분석 완료 24':x=3000:y=1080:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='Analysis complete 25':x=120:y=1320:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='분석 완료 26':x=840:y=1320:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='Analysis complete 27':x=1560:y=1320:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='분석 완료 28':x=2280:y=1320:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='Analysis complete 29':x=3000:y=1320:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='분석 완료 30':x=120:y=1560:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='Analysis complete 31':x=840:y=1560:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='분석 완료 32':x=1560:y=1560:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='Analysis complete 33':x=2280:y=1560:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='분석 완료 34':x=3000:y=1560:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='Analysis complete 35':x=120:y=1800:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='분석 완료 36':x=840:y=1800:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='Analysis complete 37':x=1560:y=1800:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='분석 완료 38':x=2280:y=1800:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='Analysis complete 39':x=3000:y=1800:fontsize=44:fontcolor=white", "audioFiltergraph": "sine=frequency=600:sample_rate=48000", "truth": {"regionsPerFrame": 40, "oracle": "240 source frames; native OCR crops; mandatory worst-case capacity boundary"}}
+    {
+      "id": "identity",
+      "fps": 25,
+      "frames": 100,
+      "size": [1080, 1920],
+      "videoFiltergraph": "color=c=0x050505:s=1080x1920:r=25,drawbox=x=100:y=200:w=320:h=80:color=white@1:t=fill,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='IDENTITY':x=112:y=218:fontsize=42:fontcolor=black,drawbox=x=400:y=740:w=280:h=440:color=cyan@0.92:t=fill",
+      "audioFiltergraph": "anullsrc=r=48000:cl=stereo",
+      "truth": {
+        "textRect": "x=100,y=200,w=320,h=80",
+        "subjectRect": "x=400,y=740,w=280,h=440",
+        "oracle": "owner IDs unchanged for every visible frame; no drawbox expression uses frame variable n"
+      }
+    },
+    {
+      "id": "occlusion",
+      "fps": 25,
+      "frames": 100,
+      "size": [1080, 1920],
+      "videoFiltergraph": "color=c=0x050505:s=1080x1920:r=25,drawbox=x=0:y=880:w=1080:h=160:color=gray@0.92:t=fill:enable='lte(n,39)',drawbox=x=400:y=740:w=280:h=440:color=cyan@0.92:t=fill,drawbox=x=0:y=880:w=1080:h=160:color=gray@0.45:t=fill:enable='between(n,40,59)',drawbox=x=0:y=880:w=1080:h=160:color=gray@0.92:t=fill:enable='gte(n,60)'",
+      "audioFiltergraph": "anullsrc=r=48000:cl=stereo",
+      "truth": {
+        "residualBar": "x=0..1080,y=880..1040",
+        "behindFrames": "0..39: bar is drawn before subject",
+        "ambiguousFrames": "40..59: semi-transparent overlap emits UNCLASSIFIED_DEPTH_OVERLAP",
+        "overFrames": "60..99: opaque bar is drawn after subject",
+        "oracle": "behind/ambiguous/over phases are visually and oracle-distinguishable"
+      }
+    },
+    {
+      "id": "ui-text",
+      "fps": 25,
+      "frames": 100,
+      "size": [1080, 1920],
+      "videoFiltergraph": "color=c=0x080808:s=1080x1920:r=25,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='분석 완료':x=120:y=280:fontsize=72:fontcolor=white,drawtext=fontfile=verification/contract/fonts/Inter.ttf:text='Analysis complete':x=120:y=390:fontsize=42:fontcolor=0xb8c7ff",
+      "audioFiltergraph": "anullsrc=r=48000:cl=stereo",
+      "truth": {
+        "koreanText": "분석 완료 x=120,y=280",
+        "englishText": "Analysis complete x=120,y=390",
+        "oracle": "independent title/subtitle boxes"
+      }
+    },
+    {
+      "id": "camera",
+      "fps": 25,
+      "frames": 100,
+      "size": [1080, 1920],
+      "videoFiltergraph": "color=c=0x101018:s=1320x2160:r=25,drawgrid=width=96:height=96:thickness=2:color=0x404860,drawbox=x=180:y=220:w=180:h=120:color=0x80a0ff:t=fill,drawbox=x=760:y=520:w=220:h=160:color=0xffc080:t=fill,drawbox=x=420:y=1380:w=260:h=180:color=0x80ffc0:t=fill,rotate='0.1*PI/180*n':ow=1320:oh=2160:fillcolor=black,scale=w='1320*(1+0.001*n)':h='2160*(1+0.001*n)':eval=frame,crop=w=1080:h=1920:x='120+1.5*n':y='120-0.5*n'",
+      "audioFiltergraph": "anullsrc=r=48000:cl=stereo",
+      "truth": {
+        "camera": "static drawgrid/landmark background; crop window x=120+1.5f,y=120-0.5f, rotation=0.1f deg, scale=1+0.001f",
+        "affineSignConvention": "positive crop x moves observed background left; verifier records both crop-window delta and observed-image homography sign",
+        "oracle": "background homography comes only from static source crop/rotate/scale; no temporal source animation, foreground object, or drawbox frame expression participates"
+      }
+    },
+    {
+      "id": "rhythm",
+      "fps": 25,
+      "frames": 100,
+      "size": [1080, 1920],
+      "videoFiltergraph": "color=c=0x040404:s=1080x1920:r=25,drawbox=x=240:y=780:w=600:h=360:color=0x2b2bff@0.35:t=fill,drawbox=x=240:y=780:w=600:h=360:color=0xffffff@0.80:t=fill:enable='eq(n,10)+eq(n,35)+eq(n,60)+eq(n,85)'",
+      "audioFiltergraph": "aevalsrc=exprs='if(eq(n,19200)+eq(n,67200)+eq(n,115200)+eq(n,163200),0.95,0)':sample_rate=48000:channel_layout=stereo",
+      "truth": {
+        "impulseFrames": [10, 35, 60, 85],
+        "clickSamples": [19200, 67200, 115200, 163200],
+        "oracle": "four exact single-frame visual peaks and audio clicks; no ease-out is asserted by this fixture"
+      }
+    },
+    {
+      "id": "vfx-ownership",
+      "fps": 25,
+      "frames": 100,
+      "size": [1080, 1920],
+      "videoFiltergraph": "color=c=0x050505:s=1080x1920:r=25,drawbox=x=300:y=590:w=480:h=620:color=0x0e3640:t=fill,drawbox=x=320:y=610:w=440:h=580:color=0x155c70:t=fill,drawbox=x=350:y=640:w=380:h=520:color=0x24d1ff:t=fill,drawbox=x=346:y=636:w=388:h=528:color=white@0.75:t=4,drawbox=x=0:y=1560:w=1080:h=360:color=0x101020:t=fill[base];color=c=white:s=240x240:r=25,drawgrid=width=24:height=24:thickness=2:color=black@1,gblur=sigma=6[defocus];[base][defocus]overlay=120:1240",
+      "audioFiltergraph": "anullsrc=r=48000:cl=stereo",
+      "truth": {
+        "bloomProfile": [
+          { "rect": "x=300,y=590,w=480,h=620", "rgb": "0x0e3640" },
+          { "rect": "x=320,y=610,w=440,h=580", "rgb": "0x155c70" }
+        ],
+        "ownerRect": "x=350,y=640,w=380,h=520,rgb=0x24d1ff",
+        "defocusSigmaPx": 6,
+        "defocusPatchRect": "x=120,y=1240,w=240,h=240",
+        "rimWidthPx": 4,
+        "lowerLightRect": "x=0,y=1560,w=1080,h=360,rgb=0x101020",
+        "oracle": "outer and inner bloom bands are visible outside owner alpha, Gaussian defocus calibration patch is separate, and rim/lower-light channels are numerically separable"
+      }
+    },
+    {
+      "id": "audio",
+      "fps": 25,
+      "frames": 100,
+      "size": [1080, 1920],
+      "videoFiltergraph": "color=c=black:s=1080x1920:r=25,drawtext=fontfile=verification/contract/fonts/Inter.ttf:text='AUDIO':x=120:y=280:fontsize=72:fontcolor=white",
+      "audioFiltergraph": "aevalsrc=exprs='0.063*sin(2*PI*440*t)+if(eq(n,19200)+eq(n,67200)+eq(n,115200)+eq(n,163200),0.90,0)':sample_rate=48000:channel_layout=stereo",
+      "truth": {
+        "clickSamples": [19200, 67200, 115200, 163200],
+        "toneDbfs": -24,
+        "oracle": "sample/frame anchors exact"
+      }
+    },
+    {
+      "id": "coherent-wrong",
+      "fps": 25,
+      "frames": 100,
+      "size": [1080, 1920],
+      "videoFiltergraph": "color=c=0x050505:s=1080x1920:r=25,drawbox=x=108:y=200:w=320:h=80:color=white@1:t=fill,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='IDENTITY':x=120:y=218:fontsize=42:fontcolor=black",
+      "audioFiltergraph": "aevalsrc=exprs='if(eq(n,21600)+eq(n,69600)+eq(n,117600)+eq(n,165600),0.95,0)':sample_rate=48000:channel_layout=stereo",
+      "truth": {
+        "expectedFailure": "static text box offset +8px and audio anchors +2400 samples must reject; no drawbox expression uses frame variable n"
+      }
+    },
+    {
+      "id": "pass-swapped",
+      "fps": 25,
+      "frames": 100,
+      "size": [1080, 1920],
+      "videoFiltergraph": "color=c=0x050505:s=1080x1920:r=25,drawbox=x=0:y=880:w=1080:h=160:color=gray@0.92:t=fill:enable='lte(n,39)',drawbox=x=400:y=740:w=280:h=440:color=cyan@0.92:t=fill,drawbox=x=0:y=880:w=1080:h=160:color=gray@0.92:t=fill:enable='gte(n,60)'",
+      "audioFiltergraph": "anullsrc=r=48000:cl=stereo",
+      "truth": {
+        "expectedFailure": "behind/over swap emits WRONG_FRAME_CONTRACT"
+      }
+    },
+    {
+      "id": "ablation",
+      "fps": 25,
+      "frames": 100,
+      "size": [1080, 1920],
+      "videoFiltergraph": "color=c=0x050505:s=1080x1920:r=25,drawbox=x=400:y=740:w=280:h=440:color=cyan@0.92:t=fill",
+      "audioFiltergraph": "anullsrc=r=48000:cl=stereo",
+      "variantFiltergraphs": {
+        "removeText": "color=c=0x050505:s=1080x1920:r=25,drawbox=x=400:y=740:w=280:h=440:color=cyan@0.92:t=fill",
+        "removeCamera": "color=c=0x101018:s=1320x2160:r=25,drawgrid=width=96:height=96:thickness=2:color=0x404860,drawbox=x=180:y=220:w=180:h=120:color=0x80a0ff:t=fill,drawbox=x=760:y=520:w=220:h=160:color=0xffc080:t=fill,drawbox=x=420:y=1380:w=260:h=180:color=0x80ffc0:t=fill,crop=w=1080:h=1920:x=120:y=120",
+        "removeBloom": "color=c=0x050505:s=1080x1920:r=25,drawbox=x=350:y=640:w=380:h=520:color=0x24d1ff:t=fill,drawbox=x=346:y=636:w=388:h=528:color=white@0.75:t=4,drawbox=x=0:y=1560:w=1080:h=360:color=0x101020:t=fill[base];color=c=white:s=240x240:r=25,drawgrid=width=24:height=24:thickness=2:color=black@1,gblur=sigma=6[defocus];[base][defocus]overlay=120:1240",
+        "removeDefocus": "color=c=0x050505:s=1080x1920:r=25,drawbox=x=300:y=590:w=480:h=620:color=0x0e3640:t=fill,drawbox=x=320:y=610:w=440:h=580:color=0x155c70:t=fill,drawbox=x=350:y=640:w=380:h=520:color=0x24d1ff:t=fill,drawbox=x=346:y=636:w=388:h=528:color=white@0.75:t=4,drawbox=x=0:y=1560:w=1080:h=360:color=0x101020:t=fill[base];color=c=white:s=240x240:r=25,drawgrid=width=24:height=24:thickness=2:color=black@1[sharp];[base][sharp]overlay=120:1240"
+      },
+      "truth": {
+        "variants": {
+          "removeText": "identity text and text box absent",
+          "removeCamera": "static camera source with no crop/rotate/scale transform",
+          "removeBloom": "vfx bloom bands absent while owner/rim/defocus/lower-light remain",
+          "removeDefocus": "defocus calibration patch is sharp while sigma=6 is claimed"
+        },
+        "expectedFailure": "each executable variant is generated and hash-locked separately and fails only its corresponding text/camera/bloom/defocus claim"
+      }
+    },
+    {
+      "id": "frame-contract-trial1",
+      "fps": 25,
+      "frames": 100,
+      "size": [1080, 1920],
+      "videoFiltergraph": "testsrc2=s=1080x1920:r=25,drawtext=fontfile=verification/contract/fonts/Inter.ttf:text='TRIAL1 %{n}':x=96:y=96:fontsize=54:fontcolor=white",
+      "audioFiltergraph": "sine=frequency=440:sample_rate=48000",
+      "truth": {
+        "oracle": "preserved handoff Trial1 identity; 100 source frames and 120 output frames"
+      }
+    },
+    {
+      "id": "frame-contract-trial2-pilot",
+      "fps": 25,
+      "frames": 100,
+      "size": [1080, 1920],
+      "videoFiltergraph": "testsrc2=s=1080x1920:r=25,drawtext=fontfile=verification/contract/fonts/Inter.ttf:text='TRIAL2 %{n}':x=96:y=96:fontsize=54:fontcolor=white",
+      "audioFiltergraph": "sine=frequency=660:sample_rate=48000",
+      "truth": {
+        "oracle": "preserved handoff Trial2 identity; 100 source frames and 120 output frames"
+      }
+    },
+    {
+      "id": "frame-contract-24fps",
+      "fps": 24,
+      "frames": 96,
+      "size": [1080, 1920],
+      "videoFiltergraph": "testsrc2=s=1080x1920:r=24,drawtext=fontfile=verification/contract/fonts/Inter.ttf:text='24FPS %{n}':x=96:y=96:fontsize=54:fontcolor=white",
+      "audioFiltergraph": "sine=frequency=240:sample_rate=48000",
+      "truth": {
+        "oracle": "SMPTE index 0..95; 96 source frames; 120 output frames"
+      }
+    },
+    {
+      "id": "frame-contract-30fps",
+      "fps": 30,
+      "frames": 120,
+      "size": [1080, 1920],
+      "videoFiltergraph": "testsrc2=s=1080x1920:r=30,drawtext=fontfile=verification/contract/fonts/Inter.ttf:text='30FPS %{n}':x=96:y=96:fontsize=54:fontcolor=white",
+      "audioFiltergraph": "sine=frequency=300:sample_rate=48000",
+      "truth": {
+        "oracle": "SMPTE index 0..119; 120 source frames; 120 output frames"
+      }
+    },
+    {
+      "id": "frame-contract-50fps",
+      "fps": 50,
+      "frames": 200,
+      "size": [1080, 1920],
+      "videoFiltergraph": "testsrc2=s=1080x1920:r=50,drawtext=fontfile=verification/contract/fonts/Inter.ttf:text='50FPS %{n}':x=96:y=96:fontsize=54:fontcolor=white",
+      "audioFiltergraph": "sine=frequency=500:sample_rate=48000",
+      "truth": {
+        "oracle": "SMPTE index 0..199; 200 source frames; 120 output frames"
+      }
+    },
+    {
+      "id": "capacity-dense-ocr-4k-60fps",
+      "fps": 60,
+      "frames": 240,
+      "size": [3840, 2160],
+      "videoFiltergraph": "color=c=0x060606:s=3840x2160:r=60,drawgrid=width=96:height=54:thickness=1:color=0x333333,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='분석 완료 00':x=120:y=120:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='Analysis complete 01':x=840:y=120:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='분석 완료 02':x=1560:y=120:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='Analysis complete 03':x=2280:y=120:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='분석 완료 04':x=3000:y=120:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='Analysis complete 05':x=120:y=360:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='분석 완료 06':x=840:y=360:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='Analysis complete 07':x=1560:y=360:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='분석 완료 08':x=2280:y=360:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='Analysis complete 09':x=3000:y=360:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='분석 완료 10':x=120:y=600:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='Analysis complete 11':x=840:y=600:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='분석 완료 12':x=1560:y=600:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='Analysis complete 13':x=2280:y=600:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='분석 완료 14':x=3000:y=600:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='Analysis complete 15':x=120:y=840:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='분석 완료 16':x=840:y=840:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='Analysis complete 17':x=1560:y=840:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='분석 완료 18':x=2280:y=840:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='Analysis complete 19':x=3000:y=840:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='분석 완료 20':x=120:y=1080:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='Analysis complete 21':x=840:y=1080:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='분석 완료 22':x=1560:y=1080:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='Analysis complete 23':x=2280:y=1080:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='분석 완료 24':x=3000:y=1080:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='Analysis complete 25':x=120:y=1320:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='분석 완료 26':x=840:y=1320:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='Analysis complete 27':x=1560:y=1320:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='분석 완료 28':x=2280:y=1320:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='Analysis complete 29':x=3000:y=1320:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='분석 완료 30':x=120:y=1560:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='Analysis complete 31':x=840:y=1560:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='분석 완료 32':x=1560:y=1560:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='Analysis complete 33':x=2280:y=1560:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='분석 완료 34':x=3000:y=1560:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='Analysis complete 35':x=120:y=1800:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='분석 완료 36':x=840:y=1800:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='Analysis complete 37':x=1560:y=1800:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='분석 완료 38':x=2280:y=1800:fontsize=44:fontcolor=white,drawtext=fontfile=verification/contract/fonts/WantedSansVariable.ttf:text='Analysis complete 39':x=3000:y=1800:fontsize=44:fontcolor=white",
+      "audioFiltergraph": "sine=frequency=600:sample_rate=48000",
+      "truth": {
+        "regionsPerFrame": 40,
+        "oracle": "240 source frames; native OCR crops; mandatory worst-case capacity boundary"
+      }
+    }
   ],
   "fixtureLock": {
     "path": "verification/contract/fixture-manifest.lock.json",
     "owner": "Todo 1 authority bootstrap creates the first lock before product source by expanding this contract with pinned FFmpeg/ImageMagick/fonts/x264 and running every fixture twice.",
     "todo4Policy": "Todo 4 is verification-only for this lock: it implements a generator that must reproduce the locked rawFrameSha256, audioPcmSha256, videoOnlySha256, sourceMp4Sha256, normalizedWorkingSha256, ffprobe JSON digest and truth digest exactly; it may not rewrite fixture-manifest.lock.json or any authority-root child extension.",
     "variantPolicy": "If a fixture defines variantFiltergraphs, Todo 1 fixture lock must include variantFiltergraphSha256, variantRawFrameSha256, variantVideoOnlySha256, variantSourceMp4Sha256, variantNormalizedWorkingSha256, variantFfprobeSha256 and variantTruthSha256 per variant name; Todo 4 verifies every variant byte-for-byte and cannot collapse prose variants into one output.",
-    "requiredFields": ["id", "fps", "frames", "size", "videoFiltergraphSha256", "audioFiltergraphSha256", "rawFrameSha256", "audioPcmSha256", "videoOnlySha256", "sourceMp4Sha256", "normalizedWorkingSha256", "ffprobeSha256", "truthSha256", "generatorClosureSha256"]
+    "requiredFields": [
+      "id",
+      "fps",
+      "frames",
+      "size",
+      "videoFiltergraphSha256",
+      "audioFiltergraphSha256",
+      "rawFrameSha256",
+      "audioPcmSha256",
+      "videoOnlySha256",
+      "sourceMp4Sha256",
+      "normalizedWorkingSha256",
+      "ffprobeSha256",
+      "truthSha256",
+      "generatorClosureSha256"
+    ]
   }
 }

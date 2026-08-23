@@ -22,18 +22,18 @@
     "media:verify": "node scripts/media/verify.mjs",
     "controls:validate": "node scripts/controls/validate.mjs --write && node scripts/controls/validate.mjs",
     "controls:coverage": "node scripts/controls/coverage.mjs",
-    "verify:authority": "node verification/blackbox/verify-authority-root.mjs --root .omo/drafts/reference-video-studio-saas-authority-root.md"
-     ,"qa:self-test": "node scripts/qa/self-test.mjs"
-     ,"pilot:admission": "node scripts/pilot/admission.mjs"
-     ,"pilot:run": "node scripts/pilot/run.mjs"
-     ,"pilot:verify": "node scripts/pilot/verify.mjs"
-    ,"test:security": "pnpm --filter @rvs/api test --run && pnpm --filter @rvs/worker test --run src/compiler-orchestrator.test.ts src/capture/smoke.test.ts src/render-app/dom-renderer.test.ts src/render-app/webgl.test.ts src/delivery.test.ts"
-    ,"test:concurrency": "pnpm --filter @rvs/worker test --run src/queue.test.ts src/orchestration.test.ts"
-     ,"qa:task43-evidence": "node scripts/qa/archive-task43.mjs"
-     ,"deploy:verify": "node scripts/deploy/verify.mjs"
-     ,"recovery:test": "node scripts/recovery/test.mjs"
-     ,"handoff:build": "node scripts/handoff/build.mjs"
-     ,"handoff:verify": "node scripts/handoff/verify.mjs"
+    "verify:authority": "node verification/blackbox/verify-authority-root.mjs --root .omo/drafts/reference-video-studio-saas-authority-root.md",
+    "qa:self-test": "node scripts/qa/self-test.mjs",
+    "pilot:admission": "node scripts/pilot/admission.mjs",
+    "pilot:run": "node scripts/pilot/run.mjs",
+    "pilot:verify": "node scripts/pilot/verify.mjs",
+    "test:security": "pnpm --filter @rvs/api test --run && pnpm --filter @rvs/worker test --run src/compiler-orchestrator.test.ts src/capture/smoke.test.ts src/render-app/dom-renderer.test.ts src/render-app/webgl.test.ts src/delivery.test.ts",
+    "test:concurrency": "pnpm --filter @rvs/worker test --run src/queue.test.ts src/orchestration.test.ts",
+    "qa:task43-evidence": "node scripts/qa/archive-task43.mjs",
+    "deploy:verify": "node scripts/deploy/verify.mjs",
+    "recovery:test": "node scripts/recovery/test.mjs",
+    "handoff:build": "node scripts/handoff/build.mjs",
+    "handoff:verify": "node scripts/handoff/verify.mjs"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.10.2",

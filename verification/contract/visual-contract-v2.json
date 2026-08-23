@@ -1,19 +1,190 @@
 {
-  "schemaVersion":"rvs-visual-contract-v2",
-  "desktop":{"viewport":[1440,900],"ssim":0.92,"landmarkEdgeErrorPx":4,"reference":"each screen.png in normative-inputs"},
-  "narrow":{"fidelityViewport":[390,844],"structuralOnly":true,"landmarkEdgeErrorPx":3,"overflowOnlyWidths":[320,768]},
-  "allowedMasks":["seeded timestamp text bounds","focused caret bounds","one-pixel browser raster fringe"],
-  "screens":{
-    "ref_studio_landing":{"route":"/","seed":"public healthy","landmarks":["header","brand","hero-heading","primary-cta","workflow-section","footer"],"narrowOrder":["header","hero-heading","primary-cta","workflow-section","footer"]},
-    "admin_sign_in":{"route":"/admin/sign-in","seed":"anonymous","landmarks":["brand","login-card","identifier","secret","submit","legal-footer"],"narrowOrder":["brand","login-card","legal-footer"]},
-    "upload_validation":{"route":"/projects/new","seed":"member accepted-upload fixture","landmarks":["app-header","dropzone","file-row","validation-panel","interval-control","proceed"],"narrowOrder":["app-header","dropzone","file-row","validation-panel","interval-control","proceed"]},
-    "scene_review_approval":{"route":"/jobs/fixture/review","seed":"designated reviewer current T2 fixture","landmarks":["app-header","preview","timeline","evidence-panel","mapping-table","gate-action"],"narrowOrder":["app-header","preview","timeline","evidence-panel","mapping-table","gate-action"]},
-    "job_queue_delivery":{"route":"/jobs","seed":"member mixed-state jobs","landmarks":["app-header","filters","job-table","detail-panel","pagination","footer"],"narrowOrder":["app-header","filters","job-table","detail-panel","pagination","footer"]},
-    "admin_tenants":{"route":"/admin/tenants","seed":"assigned ops three tenants","landmarks":["sidebar","scope-header","filters","tenant-table","detail-drawer","pagination"],"narrowOrder":["scope-header","filters","tenant-table","detail-drawer","pagination"]},
-    "admin_receipt_chain":{"route":"/admin/receipts","seed":"assigned ops valid T1-T6 chain","landmarks":["sidebar","scope-header","timeline","receipt-detail","export-action"],"narrowOrder":["scope-header","timeline-list","receipt-detail","export-action"]},
-    "admin_quarantine":{"route":"/admin/quarantine","seed":"assigned ops releasable and blocked items","landmarks":["sidebar","scope-header","filters","quarantine-table","evidence-drawer","pagination"],"narrowOrder":["scope-header","filters","quarantine-table","evidence-drawer","pagination"]},
-    "admin_audit_log":{"route":"/admin/audit","seed":"assigned ops immutable event page","landmarks":["sidebar","scope-header","filters","audit-table","detail-drawer","export-action"],"narrowOrder":["scope-header","filters","audit-table","detail-drawer","export-action"]}
+  "schemaVersion": "rvs-visual-contract-v2",
+  "desktop": {
+    "viewport": [1440, 900],
+    "ssim": 0.92,
+    "landmarkEdgeErrorPx": 4,
+    "reference": "each screen.png in normative-inputs"
   },
-  "landmarkRectangles":".omo/drafts/reference-video-studio-saas-visual-landmarks-v1.json",
-  "rule":"desktop landmark rectangles are parent-root-bound in reference-video-studio-saas-visual-landmarks-v1.json before Todo 1 and are never derived from implementation screenshots; narrow assertions use only listed order, containment, visibility and no-overflow constraints"
+  "narrow": {
+    "fidelityViewport": [390, 844],
+    "structuralOnly": true,
+    "landmarkEdgeErrorPx": 3,
+    "overflowOnlyWidths": [320, 768]
+  },
+  "allowedMasks": [
+    "seeded timestamp text bounds",
+    "focused caret bounds",
+    "one-pixel browser raster fringe"
+  ],
+  "screens": {
+    "ref_studio_landing": {
+      "route": "/",
+      "seed": "public healthy",
+      "landmarks": [
+        "header",
+        "brand",
+        "hero-heading",
+        "primary-cta",
+        "workflow-section",
+        "footer"
+      ],
+      "narrowOrder": [
+        "header",
+        "hero-heading",
+        "primary-cta",
+        "workflow-section",
+        "footer"
+      ]
+    },
+    "admin_sign_in": {
+      "route": "/admin/sign-in",
+      "seed": "anonymous",
+      "landmarks": [
+        "brand",
+        "login-card",
+        "identifier",
+        "secret",
+        "submit",
+        "legal-footer"
+      ],
+      "narrowOrder": ["brand", "login-card", "legal-footer"]
+    },
+    "upload_validation": {
+      "route": "/projects/new",
+      "seed": "member accepted-upload fixture",
+      "landmarks": [
+        "app-header",
+        "dropzone",
+        "file-row",
+        "validation-panel",
+        "interval-control",
+        "proceed"
+      ],
+      "narrowOrder": [
+        "app-header",
+        "dropzone",
+        "file-row",
+        "validation-panel",
+        "interval-control",
+        "proceed"
+      ]
+    },
+    "scene_review_approval": {
+      "route": "/jobs/fixture/review",
+      "seed": "designated reviewer current T2 fixture",
+      "landmarks": [
+        "app-header",
+        "preview",
+        "timeline",
+        "evidence-panel",
+        "mapping-table",
+        "gate-action"
+      ],
+      "narrowOrder": [
+        "app-header",
+        "preview",
+        "timeline",
+        "evidence-panel",
+        "mapping-table",
+        "gate-action"
+      ]
+    },
+    "job_queue_delivery": {
+      "route": "/jobs",
+      "seed": "member mixed-state jobs",
+      "landmarks": [
+        "app-header",
+        "filters",
+        "job-table",
+        "detail-panel",
+        "pagination",
+        "footer"
+      ],
+      "narrowOrder": [
+        "app-header",
+        "filters",
+        "job-table",
+        "detail-panel",
+        "pagination",
+        "footer"
+      ]
+    },
+    "admin_tenants": {
+      "route": "/admin/tenants",
+      "seed": "assigned ops three tenants",
+      "landmarks": [
+        "sidebar",
+        "scope-header",
+        "filters",
+        "tenant-table",
+        "detail-drawer",
+        "pagination"
+      ],
+      "narrowOrder": [
+        "scope-header",
+        "filters",
+        "tenant-table",
+        "detail-drawer",
+        "pagination"
+      ]
+    },
+    "admin_receipt_chain": {
+      "route": "/admin/receipts",
+      "seed": "assigned ops valid T1-T6 chain",
+      "landmarks": [
+        "sidebar",
+        "scope-header",
+        "timeline",
+        "receipt-detail",
+        "export-action"
+      ],
+      "narrowOrder": [
+        "scope-header",
+        "timeline-list",
+        "receipt-detail",
+        "export-action"
+      ]
+    },
+    "admin_quarantine": {
+      "route": "/admin/quarantine",
+      "seed": "assigned ops releasable and blocked items",
+      "landmarks": [
+        "sidebar",
+        "scope-header",
+        "filters",
+        "quarantine-table",
+        "evidence-drawer",
+        "pagination"
+      ],
+      "narrowOrder": [
+        "scope-header",
+        "filters",
+        "quarantine-table",
+        "evidence-drawer",
+        "pagination"
+      ]
+    },
+    "admin_audit_log": {
+      "route": "/admin/audit",
+      "seed": "assigned ops immutable event page",
+      "landmarks": [
+        "sidebar",
+        "scope-header",
+        "filters",
+        "audit-table",
+        "detail-drawer",
+        "export-action"
+      ],
+      "narrowOrder": [
+        "scope-header",
+        "filters",
+        "audit-table",
+        "detail-drawer",
+        "export-action"
+      ]
+    }
+  },
+  "landmarkRectangles": ".omo/drafts/reference-video-studio-saas-visual-landmarks-v1.json",
+  "rule": "desktop landmark rectangles are parent-root-bound in reference-video-studio-saas-visual-landmarks-v1.json before Todo 1 and are never derived from implementation screenshots; narrow assertions use only listed order, containment, visibility and no-overflow constraints"
 }

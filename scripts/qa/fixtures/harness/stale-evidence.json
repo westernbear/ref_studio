@@ -1,1 +1,6 @@
-{"status":"PASS","taskId":"T3","stale":true,"expected":"STALE_EVIDENCE"}
+{
+  "status": "PASS",
+  "taskId": "T3",
+  "stale": true,
+  "expected": "STALE_EVIDENCE"
+}

@@ -1,1 +1,8 @@
-{"status":"PASS","claimedStatus":"PASS","exitCode":1,"taskId":"T3","assertions":[],"expected":"MISLEADING_SUCCESS_OUTPUT"}
+{
+  "status": "PASS",
+  "claimedStatus": "PASS",
+  "exitCode": 1,
+  "taskId": "T3",
+  "assertions": [],
+  "expected": "MISLEADING_SUCCESS_OUTPUT"
+}

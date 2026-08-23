@@ -3,5 +3,11 @@
   "standard": "WCAG 2.2 A/AA",
   "requiredEvidence": ".omo/evidence/wave7/task-42-reference-video-studio-saas.json",
   "zeroViolations": true,
-  "requiredChecks": ["axe-wcag2a-aa", "keyboard-focus", "live-region-presence", "reduced-motion", "overflow"]
+  "requiredChecks": [
+    "axe-wcag2a-aa",
+    "keyboard-focus",
+    "live-region-presence",
+    "reduced-motion",
+    "overflow"
+  ]
 }

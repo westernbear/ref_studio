@@ -9,118 +9,1850 @@
     "browserAuth": "same-origin BFF session plus origin-bound CSRF; BFF forwards only opaque sessionId plus CSRF assertion using an audience-limited session:introspect service credential",
     "adminAuth": "server-derived platform, tenant assignment or release assignment scope",
     "releaseReviewAuth": "POST /v1/release-reviews uses bearer auth plus a release-scope assignment; tenantId must be null, X-Tenant-Id must be absent, and no tenant membership can widen or replace release authorization.",
-    "safeErrorSchema": {"$ref": "#/schemaDefinitions/SafeError"}
+    "safeErrorSchema": { "$ref": "#/schemaDefinitions/SafeError" }
   },
   "coverage": {
     "directControlOperations": "derived by exact METHOD plus canonical-path match from the 151-row control contract",
-    "compositeControls": {"upload_validation:8": ["POST /v1/uploads", "PUT /v1/uploads/{uploadId}/chunks/{index}", "POST /v1/uploads/{uploadId}/finalize"]},
-    "screenLoadOrStateOperations": ["GET /v1/jobs/{jobId}", "GET /v1/jobs/{jobId}/attempts", "GET /v1/jobs/{jobId}/authoring-ir", "GET /v1/jobs/{jobId}/preview", "GET /v1/receipts", "GET /admin/tenants/{tenantId}/jobs", "GET /admin/jobs", "GET /admin/jobs/{jobId}", "GET /admin/receipts", "GET /admin/quarantine", "GET /admin/billing/{tenantId}"],
-    "additionalRequiredControls": ["DELETE /auth/session", "POST /auth/active-tenant", "DELETE /v1/uploads/{uploadId}", "POST /v1/jobs/{jobId}/retry", "POST /v1/jobs/{jobId}/choices", "POST /admin/jobs/{jobId}/cancel", "POST /admin/jobs/{jobId}/retry", "POST /admin/quarantine/{itemId}/reject", "PATCH /admin/billing/{tenantId}", "GET /admin/receipt-exports/{exportId}", "GET /admin/receipt-exports/{exportId}/download", "GET /admin/audit-exports/{exportId}", "GET /admin/audit-exports/{exportId}/download"],
-    "opsOnlyOperations": ["POST /v1/release-reviews", "POST /admin/queue/drain", "POST /admin/queue/resume", "POST /admin/reviewer-assignments", "DELETE /admin/reviewer-assignments/{assignmentId}"],
+    "compositeControls": {
+      "upload_validation:8": [
+        "POST /v1/uploads",
+        "PUT /v1/uploads/{uploadId}/chunks/{index}",
+        "POST /v1/uploads/{uploadId}/finalize"
+      ]
+    },
+    "screenLoadOrStateOperations": [
+      "GET /v1/jobs/{jobId}",
+      "GET /v1/jobs/{jobId}/attempts",
+      "GET /v1/jobs/{jobId}/authoring-ir",
+      "GET /v1/jobs/{jobId}/preview",
+      "GET /v1/receipts",
+      "GET /admin/tenants/{tenantId}/jobs",
+      "GET /admin/jobs",
+      "GET /admin/jobs/{jobId}",
+      "GET /admin/receipts",
+      "GET /admin/quarantine",
+      "GET /admin/billing/{tenantId}"
+    ],
+    "additionalRequiredControls": [
+      "DELETE /auth/session",
+      "POST /auth/active-tenant",
+      "DELETE /v1/uploads/{uploadId}",
+      "POST /v1/jobs/{jobId}/retry",
+      "POST /v1/jobs/{jobId}/choices",
+      "POST /admin/jobs/{jobId}/cancel",
+      "POST /admin/jobs/{jobId}/retry",
+      "POST /admin/quarantine/{itemId}/reject",
+      "PATCH /admin/billing/{tenantId}",
+      "GET /admin/receipt-exports/{exportId}",
+      "GET /admin/receipt-exports/{exportId}/download",
+      "GET /admin/audit-exports/{exportId}",
+      "GET /admin/audit-exports/{exportId}/download"
+    ],
+    "opsOnlyOperations": [
+      "POST /v1/release-reviews",
+      "POST /admin/queue/drain",
+      "POST /admin/queue/resume",
+      "POST /admin/reviewer-assignments",
+      "DELETE /admin/reviewer-assignments/{assignmentId}"
+    ],
     "rule": "Every operation must be direct-control matched or listed exactly once in one non-direct category; zero unclassified operations. Additional controls are tested but do not increase the immutable 151 Stitch count. POST /v1/reviews is job-scope T1-T5 only; POST /v1/release-reviews is release-scope T6 only."
   },
   "schemaDefinitions": {
-    "SafeError": {"type": "object", "required": ["code", "message", "correlationId"], "additionalProperties": false, "properties": {"code": {"type": "string", "pattern": "^[A-Z0-9_]+$"}, "message": {"type": "string", "minLength": 1, "maxLength": 300}, "correlationId": {"type": "string", "format": "uuid"}}},
-    "Empty": {"type": "object", "additionalProperties": false, "properties": {}},
-    "Uuid": {"type": "string", "format": "uuid"},
-    "HexSha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
-    "TenantId": {"type": "string", "pattern": "^[a-z0-9][a-z0-9_-]{1,63}$"},
-    "UserId": {"type": "string", "pattern": "^[a-z0-9][a-z0-9_-]{1,63}$"},
-    "UploadId": {"type": "string", "pattern": "^upl_[A-Za-z0-9_-]{8,64}$"},
-    "QuarantineItemId": {"type": "string", "pattern": "^qitem_[A-Za-z0-9_-]{8,64}$"},
-    "JobId": {"type": "string", "pattern": "^job_[A-Za-z0-9_-]{8,64}$"},
-    "JobAttemptId": {"type": "string", "pattern": "^attempt_[A-Za-z0-9_-]{8,64}$"},
-    "ReleaseId": {"type": "string", "pattern": "^rel_[A-Za-z0-9_-]{8,64}$"},
-    "ReceiptId": {"type": "string", "pattern": "^rcpt_[A-Za-z0-9_-]{8,64}$"},
-    "ExportId": {"type": "string", "pattern": "^exp_[A-Za-z0-9_-]{8,64}$"},
-    "AssignmentId": {"type": "string", "pattern": "^asg_[A-Za-z0-9_-]{8,64}$"},
-    "ChoiceId": {"type": "string", "pattern": "^choice_[A-Za-z0-9_-]{8,64}$"},
-    "Cursor": {"type": "string", "minLength": 1, "maxLength": 512},
-    "Reason500": {"type": "string", "minLength": 1, "maxLength": 500},
-    "Reason2000": {"type": "string", "minLength": 1, "maxLength": 2000},
-    "IdempotencyKey": {"type": "string", "minLength": 8, "maxLength": 128},
-    "IfMatch": {"type": "string", "minLength": 1, "maxLength": 160},
-    "CommandHeaders": {"type": "object", "required": ["Idempotency-Key", "X-Correlation-Id"], "additionalProperties": false, "properties": {"Idempotency-Key": {"$ref": "#/schemaDefinitions/IdempotencyKey"}, "X-Correlation-Id": {"$ref": "#/schemaDefinitions/Uuid"}}},
-    "EditHeaders": {"type": "object", "required": ["If-Match", "Idempotency-Key", "X-Correlation-Id"], "additionalProperties": false, "properties": {"If-Match": {"$ref": "#/schemaDefinitions/IfMatch"}, "Idempotency-Key": {"$ref": "#/schemaDefinitions/IdempotencyKey"}, "X-Correlation-Id": {"$ref": "#/schemaDefinitions/Uuid"}}},
-    "PageInfo": {"type": "object", "required": ["hasNextPage", "hasPreviousPage"], "additionalProperties": false, "properties": {"hasNextPage": {"type": "boolean"}, "hasPreviousPage": {"type": "boolean"}, "startCursor": {"$ref": "#/schemaDefinitions/Cursor"}, "endCursor": {"$ref": "#/schemaDefinitions/Cursor"}}},
-    "PageQuery": {"type": "object", "additionalProperties": false, "properties": {"q": {"type": "string", "maxLength": 200}, "state": {"type": "string", "maxLength": 64}, "status": {"type": "string", "maxLength": 64}, "plan": {"type": "string", "maxLength": 64}, "eventType": {"type": "string", "maxLength": 80}, "outcome": {"type": "string", "pattern": "^[a-zA-Z0-9_.:-]{1,80}$"}, "range": {"type": "string", "maxLength": 80}, "object": {"type": "string", "maxLength": 160}, "tenant": {"$ref": "#/schemaDefinitions/TenantId"}, "actor": {"type": "string", "maxLength": 120}, "after": {"$ref": "#/schemaDefinitions/Cursor"}, "before": {"$ref": "#/schemaDefinitions/Cursor"}, "limit": {"type": "integer", "minimum": 1, "maximum": 100}}},
-    "JobProjection": {"type": "object", "required": ["jobId", "state", "tenantId"], "additionalProperties": true, "properties": {"jobId": {"$ref": "#/schemaDefinitions/JobId"}, "tenantId": {"$ref": "#/schemaDefinitions/TenantId"}, "state": {"enum": ["PREPARING", "QUEUED", "RENDERING", "COMPLETED", "CANCELLED", "FAILED"]}}},
-    "AdminJobProjection": {"type": "object", "required": ["jobId", "tenantId", "internalState"], "additionalProperties": true, "properties": {"jobId": {"$ref": "#/schemaDefinitions/JobId"}, "tenantId": {"$ref": "#/schemaDefinitions/TenantId"}, "internalState": {"type": "string"}}},
-    "Receipt": {"type": "object", "required": ["receiptId", "scope", "subjectId", "gate", "decision", "predecessorId", "decisionVersion"], "additionalProperties": true, "properties": {"receiptId": {"$ref": "#/schemaDefinitions/ReceiptId"}, "scope": {"enum": ["job", "release"]}, "subjectId": {"type": "string"}, "gate": {"enum": ["T1", "T2", "T3", "T4", "T5", "T6"]}, "decision": {"enum": ["APPROVED", "REJECTED"]}, "predecessorId": {"type": ["string", "null"]}, "decisionVersion": {"type": "integer", "minimum": 1}}},
-    "UploadCreateRequest": {"type": "object", "required": ["fileName", "sizeBytes"], "additionalProperties": false, "properties": {"fileName": {"type": "string", "minLength": 1, "maxLength": 255}, "sizeBytes": {"type": "integer", "minimum": 1, "maximum": 2147483648}, "sha256": {"$ref": "#/schemaDefinitions/HexSha256"}, "mimeHint": {"type": "string", "maxLength": 100}}},
-    "ChunkHeaders": {"type": "object", "required": ["Content-Range", "X-Chunk-Sha256"], "additionalProperties": false, "properties": {"Content-Range": {"type": "string", "pattern": "^bytes [0-9]+-[0-9]+/[0-9]+$"}, "X-Chunk-Sha256": {"$ref": "#/schemaDefinitions/HexSha256"}}},
-    "ChunkBody": {"type": "string", "contentEncoding": "binary", "maxLength": 8388608},
-    "UploadFinalizeRequest": {"type": "object", "required": ["orderedChunkCount", "declaredSha256"], "additionalProperties": false, "properties": {"orderedChunkCount": {"type": "integer", "minimum": 1, "maximum": 262144}, "declaredSha256": {"$ref": "#/schemaDefinitions/HexSha256"}}},
-    "JobCreateRequest": {"type": "object", "required": ["uploadId", "startFrame", "sourceFps", "outputProfile"], "additionalProperties": false, "properties": {"uploadId": {"$ref": "#/schemaDefinitions/UploadId"}, "startFrame": {"type": "integer", "minimum": 0}, "sourceFps": {"enum": [24, 25, 30, 50, 60]}, "outputProfile": {"const": "vertical-1080p30"}}},
-    "ReasonRequest": {"type": "object", "required": ["reason"], "additionalProperties": false, "properties": {"reason": {"$ref": "#/schemaDefinitions/Reason500"}}},
-    "EvidenceQuery": {"type": "object", "additionalProperties": false, "properties": {"layer": {"enum": ["ocr", "camera", "light", "owners", "audio", "all"]}}},
-    "IRPatchRequest": {"type": "object", "required": ["ops", "reason"], "additionalProperties": false, "properties": {"reason": {"$ref": "#/schemaDefinitions/Reason500"}, "ops": {"type": "array", "minItems": 1, "maxItems": 64, "items": {"type": "object", "required": ["op", "path", "value"], "additionalProperties": false, "properties": {"op": {"const": "replace"}, "path": {"type": "string", "pattern": "^/(copy|geometry|owners|passOrder|effects|assets)(/|$)"}, "value": {"type": ["string", "number", "integer", "boolean", "object", "array", "null"]}}}}}},
-    "ChoiceResolveRequest": {"type": "object", "required": ["choiceId", "polygonOrOwner", "reason"], "additionalProperties": false, "properties": {"choiceId": {"$ref": "#/schemaDefinitions/ChoiceId"}, "polygonOrOwner": {"oneOf": [{"type": "object", "required": ["ownerId"], "additionalProperties": false, "properties": {"ownerId": {"type": "string", "minLength": 1, "maxLength": 100}}}, {"type": "object", "required": ["polygon"], "additionalProperties": false, "properties": {"polygon": {"type": "array", "minItems": 3, "maxItems": 64, "items": {"type": "object", "required": ["x", "y"], "additionalProperties": false, "properties": {"x": {"type": "number", "minimum": 0, "maximum": 1080}, "y": {"type": "number", "minimum": 0, "maximum": 1920}}}}}}]}, "reason": {"$ref": "#/schemaDefinitions/Reason500"}}},
-    "JobReviewRequest": {"type": "object", "required": ["scope", "subjectId", "gate", "decision", "reason", "evidenceDigest", "runtimeDigest", "predecessorId", "decisionVersion"], "additionalProperties": false, "properties": {"scope": {"const": "job"}, "subjectId": {"$ref": "#/schemaDefinitions/JobAttemptId"}, "gate": {"enum": ["T1", "T2", "T3", "T4", "T5"]}, "decision": {"enum": ["APPROVED", "REJECTED"]}, "reason": {"$ref": "#/schemaDefinitions/Reason2000"}, "evidenceDigest": {"$ref": "#/schemaDefinitions/HexSha256"}, "irDigest": {"$ref": "#/schemaDefinitions/HexSha256"}, "runtimeDigest": {"$ref": "#/schemaDefinitions/HexSha256"}, "predecessorId": {"type": ["string", "null"]}, "decisionVersion": {"type": "integer", "minimum": 1}}},
-    "ReleaseReviewRequest": {"type": "object", "required": ["scope", "releaseId", "gate", "decision", "reason", "evidenceDigest", "runtimeDigest", "releaseBaselineDigest", "predecessorId", "decisionVersion"], "additionalProperties": false, "properties": {"scope": {"const": "release"}, "releaseId": {"$ref": "#/schemaDefinitions/ReleaseId"}, "gate": {"const": "T6"}, "decision": {"enum": ["APPROVED", "REJECTED"]}, "reason": {"$ref": "#/schemaDefinitions/Reason2000"}, "evidenceDigest": {"$ref": "#/schemaDefinitions/HexSha256"}, "runtimeDigest": {"$ref": "#/schemaDefinitions/HexSha256"}, "releaseBaselineDigest": {"$ref": "#/schemaDefinitions/HexSha256"}, "predecessorId": {"$ref": "#/schemaDefinitions/HexSha256"}, "decisionVersion": {"type": "integer", "minimum": 1}}},
-    "RenderRequest": {"type": "object", "required": ["irDigest", "approvalDigest", "outputProfile"], "additionalProperties": false, "properties": {"irDigest": {"$ref": "#/schemaDefinitions/HexSha256"}, "approvalDigest": {"$ref": "#/schemaDefinitions/HexSha256"}, "outputProfile": {"const": "vertical-1080p30"}}},
-    "QuarantineDecisionRequest": {"type": "object", "required": ["reason", "confirmTenantId", "confirmItemId"], "additionalProperties": false, "properties": {"reason": {"$ref": "#/schemaDefinitions/Reason500"}, "confirmTenantId": {"$ref": "#/schemaDefinitions/TenantId"}, "confirmItemId": {"$ref": "#/schemaDefinitions/QuarantineItemId"}}},
-    "BillingPatchRequest": {"type": "object", "required": ["reason"], "additionalProperties": false, "properties": {"planMetadata": {"type": "object", "maxProperties": 20, "additionalProperties": {"type": ["string", "number", "integer", "boolean", "null"]}}, "quotaBytes": {"type": "integer", "minimum": 0, "maximum": 10995116277760}, "reason": {"$ref": "#/schemaDefinitions/Reason500"}}},
-    "ExportCreateRequest": {"type": "object", "required": ["format"], "additionalProperties": false, "properties": {"tenantId": {"$ref": "#/schemaDefinitions/TenantId"}, "jobId": {"$ref": "#/schemaDefinitions/JobId"}, "gate": {"enum": ["T1", "T2", "T3", "T4", "T5", "T6"]}, "q": {"type": "string", "maxLength": 200}, "eventType": {"type": "string", "maxLength": 80}, "outcome": {"type": "string", "pattern": "^[a-zA-Z0-9_.:-]{1,80}$"}, "actor": {"type": "string", "maxLength": 120}, "range": {"type": "string", "maxLength": 80}, "format": {"const": "jsonl"}}},
-    "ReviewerAssignmentRequest": {"oneOf": [{"type": "object", "required": ["scope", "tenantId", "userId", "gate", "reason"], "additionalProperties": false, "properties": {"scope": {"const": "job"}, "tenantId": {"$ref": "#/schemaDefinitions/TenantId"}, "userId": {"$ref": "#/schemaDefinitions/UserId"}, "gate": {"enum": ["T1", "T2", "T3", "T4", "T5"]}, "reason": {"$ref": "#/schemaDefinitions/Reason500"}}}, {"type": "object", "required": ["scope", "releaseId", "userId", "gate", "reason"], "additionalProperties": false, "properties": {"scope": {"const": "release"}, "releaseId": {"$ref": "#/schemaDefinitions/ReleaseId"}, "userId": {"$ref": "#/schemaDefinitions/UserId"}, "gate": {"const": "T6"}, "reason": {"$ref": "#/schemaDefinitions/Reason500"}}}]},
-    "TenantMembersPatchRequest": {"type": "object", "required": ["reason"], "additionalProperties": false, "properties": {"addOrUpdate": {"type": "object", "required": ["userId", "role"], "additionalProperties": false, "properties": {"userId": {"$ref": "#/schemaDefinitions/UserId"}, "role": {"enum": ["OWNER", "ADMIN", "MEMBER"]}}}, "removeUserId": {"$ref": "#/schemaDefinitions/UserId"}, "reason": {"$ref": "#/schemaDefinitions/Reason500"}}},
-    "UploadSession": {"type": "object", "required": ["uploadId", "chunkSize", "expiresAt", "state"], "additionalProperties": false, "properties": {"uploadId": {"$ref": "#/schemaDefinitions/UploadId"}, "chunkSize": {"type": "integer", "minimum": 1}, "expiresAt": {"type": "string", "format": "date-time"}, "state": {"type": "string"}}},
-    "ExportStatus": {"type": "object", "required": ["exportId", "state", "expiresAt", "downloadReady"], "additionalProperties": false, "properties": {"exportId": {"$ref": "#/schemaDefinitions/ExportId"}, "state": {"enum": ["PENDING", "READY", "FAILED"]}, "expiresAt": {"type": "string", "format": "date-time"}, "downloadReady": {"type": "boolean"}}}
+    "SafeError": {
+      "type": "object",
+      "required": ["code", "message", "correlationId"],
+      "additionalProperties": false,
+      "properties": {
+        "code": { "type": "string", "pattern": "^[A-Z0-9_]+$" },
+        "message": { "type": "string", "minLength": 1, "maxLength": 300 },
+        "correlationId": { "type": "string", "format": "uuid" }
+      }
+    },
+    "Empty": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {}
+    },
+    "Uuid": { "type": "string", "format": "uuid" },
+    "HexSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "TenantId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_-]{1,63}$" },
+    "UserId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_-]{1,63}$" },
+    "UploadId": { "type": "string", "pattern": "^upl_[A-Za-z0-9_-]{8,64}$" },
+    "QuarantineItemId": {
+      "type": "string",
+      "pattern": "^qitem_[A-Za-z0-9_-]{8,64}$"
+    },
+    "JobId": { "type": "string", "pattern": "^job_[A-Za-z0-9_-]{8,64}$" },
+    "JobAttemptId": {
+      "type": "string",
+      "pattern": "^attempt_[A-Za-z0-9_-]{8,64}$"
+    },
+    "ReleaseId": { "type": "string", "pattern": "^rel_[A-Za-z0-9_-]{8,64}$" },
+    "ReceiptId": { "type": "string", "pattern": "^rcpt_[A-Za-z0-9_-]{8,64}$" },
+    "ExportId": { "type": "string", "pattern": "^exp_[A-Za-z0-9_-]{8,64}$" },
+    "AssignmentId": {
+      "type": "string",
+      "pattern": "^asg_[A-Za-z0-9_-]{8,64}$"
+    },
+    "ChoiceId": { "type": "string", "pattern": "^choice_[A-Za-z0-9_-]{8,64}$" },
+    "Cursor": { "type": "string", "minLength": 1, "maxLength": 512 },
+    "Reason500": { "type": "string", "minLength": 1, "maxLength": 500 },
+    "Reason2000": { "type": "string", "minLength": 1, "maxLength": 2000 },
+    "IdempotencyKey": { "type": "string", "minLength": 8, "maxLength": 128 },
+    "IfMatch": { "type": "string", "minLength": 1, "maxLength": 160 },
+    "CommandHeaders": {
+      "type": "object",
+      "required": ["Idempotency-Key", "X-Correlation-Id"],
+      "additionalProperties": false,
+      "properties": {
+        "Idempotency-Key": { "$ref": "#/schemaDefinitions/IdempotencyKey" },
+        "X-Correlation-Id": { "$ref": "#/schemaDefinitions/Uuid" }
+      }
+    },
+    "EditHeaders": {
+      "type": "object",
+      "required": ["If-Match", "Idempotency-Key", "X-Correlation-Id"],
+      "additionalProperties": false,
+      "properties": {
+        "If-Match": { "$ref": "#/schemaDefinitions/IfMatch" },
+        "Idempotency-Key": { "$ref": "#/schemaDefinitions/IdempotencyKey" },
+        "X-Correlation-Id": { "$ref": "#/schemaDefinitions/Uuid" }
+      }
+    },
+    "PageInfo": {
+      "type": "object",
+      "required": ["hasNextPage", "hasPreviousPage"],
+      "additionalProperties": false,
+      "properties": {
+        "hasNextPage": { "type": "boolean" },
+        "hasPreviousPage": { "type": "boolean" },
+        "startCursor": { "$ref": "#/schemaDefinitions/Cursor" },
+        "endCursor": { "$ref": "#/schemaDefinitions/Cursor" }
+      }
+    },
+    "PageQuery": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "q": { "type": "string", "maxLength": 200 },
+        "state": { "type": "string", "maxLength": 64 },
+        "status": { "type": "string", "maxLength": 64 },
+        "plan": { "type": "string", "maxLength": 64 },
+        "eventType": { "type": "string", "maxLength": 80 },
+        "outcome": { "type": "string", "pattern": "^[a-zA-Z0-9_.:-]{1,80}$" },
+        "range": { "type": "string", "maxLength": 80 },
+        "object": { "type": "string", "maxLength": 160 },
+        "tenant": { "$ref": "#/schemaDefinitions/TenantId" },
+        "actor": { "type": "string", "maxLength": 120 },
+        "after": { "$ref": "#/schemaDefinitions/Cursor" },
+        "before": { "$ref": "#/schemaDefinitions/Cursor" },
+        "limit": { "type": "integer", "minimum": 1, "maximum": 100 }
+      }
+    },
+    "JobProjection": {
+      "type": "object",
+      "required": ["jobId", "state", "tenantId"],
+      "additionalProperties": true,
+      "properties": {
+        "jobId": { "$ref": "#/schemaDefinitions/JobId" },
+        "tenantId": { "$ref": "#/schemaDefinitions/TenantId" },
+        "state": {
+          "enum": [
+            "PREPARING",
+            "QUEUED",
+            "RENDERING",
+            "COMPLETED",
+            "CANCELLED",
+            "FAILED"
+          ]
+        }
+      }
+    },
+    "AdminJobProjection": {
+      "type": "object",
+      "required": ["jobId", "tenantId", "internalState"],
+      "additionalProperties": true,
+      "properties": {
+        "jobId": { "$ref": "#/schemaDefinitions/JobId" },
+        "tenantId": { "$ref": "#/schemaDefinitions/TenantId" },
+        "internalState": { "type": "string" }
+      }
+    },
+    "Receipt": {
+      "type": "object",
+      "required": [
+        "receiptId",
+        "scope",
+        "subjectId",
+        "gate",
+        "decision",
+        "predecessorId",
+        "decisionVersion"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "receiptId": { "$ref": "#/schemaDefinitions/ReceiptId" },
+        "scope": { "enum": ["job", "release"] },
+        "subjectId": { "type": "string" },
+        "gate": { "enum": ["T1", "T2", "T3", "T4", "T5", "T6"] },
+        "decision": { "enum": ["APPROVED", "REJECTED"] },
+        "predecessorId": { "type": ["string", "null"] },
+        "decisionVersion": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "UploadCreateRequest": {
+      "type": "object",
+      "required": ["fileName", "sizeBytes"],
+      "additionalProperties": false,
+      "properties": {
+        "fileName": { "type": "string", "minLength": 1, "maxLength": 255 },
+        "sizeBytes": { "type": "integer", "minimum": 1, "maximum": 2147483648 },
+        "sha256": { "$ref": "#/schemaDefinitions/HexSha256" },
+        "mimeHint": { "type": "string", "maxLength": 100 }
+      }
+    },
+    "ChunkHeaders": {
+      "type": "object",
+      "required": ["Content-Range", "X-Chunk-Sha256"],
+      "additionalProperties": false,
+      "properties": {
+        "Content-Range": {
+          "type": "string",
+          "pattern": "^bytes [0-9]+-[0-9]+/[0-9]+$"
+        },
+        "X-Chunk-Sha256": { "$ref": "#/schemaDefinitions/HexSha256" }
+      }
+    },
+    "ChunkBody": {
+      "type": "string",
+      "contentEncoding": "binary",
+      "maxLength": 8388608
+    },
+    "UploadFinalizeRequest": {
+      "type": "object",
+      "required": ["orderedChunkCount", "declaredSha256"],
+      "additionalProperties": false,
+      "properties": {
+        "orderedChunkCount": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 262144
+        },
+        "declaredSha256": { "$ref": "#/schemaDefinitions/HexSha256" }
+      }
+    },
+    "JobCreateRequest": {
+      "type": "object",
+      "required": ["uploadId", "startFrame", "sourceFps", "outputProfile"],
+      "additionalProperties": false,
+      "properties": {
+        "uploadId": { "$ref": "#/schemaDefinitions/UploadId" },
+        "startFrame": { "type": "integer", "minimum": 0 },
+        "sourceFps": { "enum": [24, 25, 30, 50, 60] },
+        "outputProfile": { "const": "vertical-1080p30" }
+      }
+    },
+    "ReasonRequest": {
+      "type": "object",
+      "required": ["reason"],
+      "additionalProperties": false,
+      "properties": { "reason": { "$ref": "#/schemaDefinitions/Reason500" } }
+    },
+    "EvidenceQuery": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "layer": {
+          "enum": ["ocr", "camera", "light", "owners", "audio", "all"]
+        }
+      }
+    },
+    "IRPatchRequest": {
+      "type": "object",
+      "required": ["ops", "reason"],
+      "additionalProperties": false,
+      "properties": {
+        "reason": { "$ref": "#/schemaDefinitions/Reason500" },
+        "ops": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "items": {
+            "type": "object",
+            "required": ["op", "path", "value"],
+            "additionalProperties": false,
+            "properties": {
+              "op": { "const": "replace" },
+              "path": {
+                "type": "string",
+                "pattern": "^/(copy|geometry|owners|passOrder|effects|assets)(/|$)"
+              },
+              "value": {
+                "type": [
+                  "string",
+                  "number",
+                  "integer",
+                  "boolean",
+                  "object",
+                  "array",
+                  "null"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "ChoiceResolveRequest": {
+      "type": "object",
+      "required": ["choiceId", "polygonOrOwner", "reason"],
+      "additionalProperties": false,
+      "properties": {
+        "choiceId": { "$ref": "#/schemaDefinitions/ChoiceId" },
+        "polygonOrOwner": {
+          "oneOf": [
+            {
+              "type": "object",
+              "required": ["ownerId"],
+              "additionalProperties": false,
+              "properties": {
+                "ownerId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                }
+              }
+            },
+            {
+              "type": "object",
+              "required": ["polygon"],
+              "additionalProperties": false,
+              "properties": {
+                "polygon": {
+                  "type": "array",
+                  "minItems": 3,
+                  "maxItems": 64,
+                  "items": {
+                    "type": "object",
+                    "required": ["x", "y"],
+                    "additionalProperties": false,
+                    "properties": {
+                      "x": { "type": "number", "minimum": 0, "maximum": 1080 },
+                      "y": { "type": "number", "minimum": 0, "maximum": 1920 }
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "reason": { "$ref": "#/schemaDefinitions/Reason500" }
+      }
+    },
+    "JobReviewRequest": {
+      "type": "object",
+      "required": [
+        "scope",
+        "subjectId",
+        "gate",
+        "decision",
+        "reason",
+        "evidenceDigest",
+        "runtimeDigest",
+        "predecessorId",
+        "decisionVersion"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "scope": { "const": "job" },
+        "subjectId": { "$ref": "#/schemaDefinitions/JobAttemptId" },
+        "gate": { "enum": ["T1", "T2", "T3", "T4", "T5"] },
+        "decision": { "enum": ["APPROVED", "REJECTED"] },
+        "reason": { "$ref": "#/schemaDefinitions/Reason2000" },
+        "evidenceDigest": { "$ref": "#/schemaDefinitions/HexSha256" },
+        "irDigest": { "$ref": "#/schemaDefinitions/HexSha256" },
+        "runtimeDigest": { "$ref": "#/schemaDefinitions/HexSha256" },
+        "predecessorId": { "type": ["string", "null"] },
+        "decisionVersion": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "ReleaseReviewRequest": {
+      "type": "object",
+      "required": [
+        "scope",
+        "releaseId",
+        "gate",
+        "decision",
+        "reason",
+        "evidenceDigest",
+        "runtimeDigest",
+        "releaseBaselineDigest",
+        "predecessorId",
+        "decisionVersion"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "scope": { "const": "release" },
+        "releaseId": { "$ref": "#/schemaDefinitions/ReleaseId" },
+        "gate": { "const": "T6" },
+        "decision": { "enum": ["APPROVED", "REJECTED"] },
+        "reason": { "$ref": "#/schemaDefinitions/Reason2000" },
+        "evidenceDigest": { "$ref": "#/schemaDefinitions/HexSha256" },
+        "runtimeDigest": { "$ref": "#/schemaDefinitions/HexSha256" },
+        "releaseBaselineDigest": { "$ref": "#/schemaDefinitions/HexSha256" },
+        "predecessorId": { "$ref": "#/schemaDefinitions/HexSha256" },
+        "decisionVersion": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "RenderRequest": {
+      "type": "object",
+      "required": ["irDigest", "approvalDigest", "outputProfile"],
+      "additionalProperties": false,
+      "properties": {
+        "irDigest": { "$ref": "#/schemaDefinitions/HexSha256" },
+        "approvalDigest": { "$ref": "#/schemaDefinitions/HexSha256" },
+        "outputProfile": { "const": "vertical-1080p30" }
+      }
+    },
+    "QuarantineDecisionRequest": {
+      "type": "object",
+      "required": ["reason", "confirmTenantId", "confirmItemId"],
+      "additionalProperties": false,
+      "properties": {
+        "reason": { "$ref": "#/schemaDefinitions/Reason500" },
+        "confirmTenantId": { "$ref": "#/schemaDefinitions/TenantId" },
+        "confirmItemId": { "$ref": "#/schemaDefinitions/QuarantineItemId" }
+      }
+    },
+    "BillingPatchRequest": {
+      "type": "object",
+      "required": ["reason"],
+      "additionalProperties": false,
+      "properties": {
+        "planMetadata": {
+          "type": "object",
+          "maxProperties": 20,
+          "additionalProperties": {
+            "type": ["string", "number", "integer", "boolean", "null"]
+          }
+        },
+        "quotaBytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10995116277760
+        },
+        "reason": { "$ref": "#/schemaDefinitions/Reason500" }
+      }
+    },
+    "ExportCreateRequest": {
+      "type": "object",
+      "required": ["format"],
+      "additionalProperties": false,
+      "properties": {
+        "tenantId": { "$ref": "#/schemaDefinitions/TenantId" },
+        "jobId": { "$ref": "#/schemaDefinitions/JobId" },
+        "gate": { "enum": ["T1", "T2", "T3", "T4", "T5", "T6"] },
+        "q": { "type": "string", "maxLength": 200 },
+        "eventType": { "type": "string", "maxLength": 80 },
+        "outcome": { "type": "string", "pattern": "^[a-zA-Z0-9_.:-]{1,80}$" },
+        "actor": { "type": "string", "maxLength": 120 },
+        "range": { "type": "string", "maxLength": 80 },
+        "format": { "const": "jsonl" }
+      }
+    },
+    "ReviewerAssignmentRequest": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["scope", "tenantId", "userId", "gate", "reason"],
+          "additionalProperties": false,
+          "properties": {
+            "scope": { "const": "job" },
+            "tenantId": { "$ref": "#/schemaDefinitions/TenantId" },
+            "userId": { "$ref": "#/schemaDefinitions/UserId" },
+            "gate": { "enum": ["T1", "T2", "T3", "T4", "T5"] },
+            "reason": { "$ref": "#/schemaDefinitions/Reason500" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["scope", "releaseId", "userId", "gate", "reason"],
+          "additionalProperties": false,
+          "properties": {
+            "scope": { "const": "release" },
+            "releaseId": { "$ref": "#/schemaDefinitions/ReleaseId" },
+            "userId": { "$ref": "#/schemaDefinitions/UserId" },
+            "gate": { "const": "T6" },
+            "reason": { "$ref": "#/schemaDefinitions/Reason500" }
+          }
+        }
+      ]
+    },
+    "TenantMembersPatchRequest": {
+      "type": "object",
+      "required": ["reason"],
+      "additionalProperties": false,
+      "properties": {
+        "addOrUpdate": {
+          "type": "object",
+          "required": ["userId", "role"],
+          "additionalProperties": false,
+          "properties": {
+            "userId": { "$ref": "#/schemaDefinitions/UserId" },
+            "role": { "enum": ["OWNER", "ADMIN", "MEMBER"] }
+          }
+        },
+        "removeUserId": { "$ref": "#/schemaDefinitions/UserId" },
+        "reason": { "$ref": "#/schemaDefinitions/Reason500" }
+      }
+    },
+    "UploadSession": {
+      "type": "object",
+      "required": ["uploadId", "chunkSize", "expiresAt", "state"],
+      "additionalProperties": false,
+      "properties": {
+        "uploadId": { "$ref": "#/schemaDefinitions/UploadId" },
+        "chunkSize": { "type": "integer", "minimum": 1 },
+        "expiresAt": { "type": "string", "format": "date-time" },
+        "state": { "type": "string" }
+      }
+    },
+    "ExportStatus": {
+      "type": "object",
+      "required": ["exportId", "state", "expiresAt", "downloadReady"],
+      "additionalProperties": false,
+      "properties": {
+        "exportId": { "$ref": "#/schemaDefinitions/ExportId" },
+        "state": { "enum": ["PENDING", "READY", "FAILED"] },
+        "expiresAt": { "type": "string", "format": "date-time" },
+        "downloadReady": { "type": "boolean" }
+      }
+    }
   },
   "operations": [
-    {"key": "POST /auth/session", "request": {"body": {"type": "object", "required": ["identifier", "secret", "surface"], "additionalProperties": false, "properties": {"identifier": {"type": "string", "minLength": 1, "maxLength": 254}, "secret": {"type": "string", "minLength": 1, "maxLength": 1024}, "surface": {"enum": ["creator", "admin"]}, "returnTo": {"type": "string", "pattern": "^/[A-Za-z0-9/_?=&.-]*$", "maxLength": 512}}}}, "success": {"status": 204, "headers": {"Set-Cookie": {"type": "string"}, "X-Redirect-To": {"type": "string"}}}, "state": "anonymous", "idem": "duplicate-submit guard", "audit": "AUTH_LOGIN_ATTEMPT", "errors": ["INVALID_CREDENTIALS", "CSRF_INVALID", "RETURN_URL_INVALID"]},
-    {"key": "DELETE /auth/session", "request": {"body": {"$ref": "#/schemaDefinitions/Empty"}}, "success": {"status": 204, "body": {"$ref": "#/schemaDefinitions/Empty"}}, "state": "authenticated", "idem": "safe replay", "audit": "SESSION_REVOKED", "errors": ["AUTH_REQUIRED"]},
-    {"key": "POST /auth/active-tenant", "request": {"headers": {"$ref": "#/schemaDefinitions/CommandHeaders"}, "body": {"type": "object", "required": ["tenantId"], "additionalProperties": false, "properties": {"tenantId": {"$ref": "#/schemaDefinitions/TenantId"}}}}, "success": {"status": 200, "body": {"type": "object", "required": ["tenantId", "csrfRotated"], "additionalProperties": true, "properties": {"tenantId": {"$ref": "#/schemaDefinitions/TenantId"}, "csrfRotated": {"type": "boolean"}}}}, "state": "authenticated membership", "idem": "required", "audit": "ACTIVE_TENANT_CHANGED", "errors": ["TENANT_FORBIDDEN"]},
-    {"key": "GET /health", "request": {"query": {"$ref": "#/schemaDefinitions/Empty"}}, "success": {"status": 200, "body": {"type": "object", "required": ["status", "checks"], "additionalProperties": false, "properties": {"status": {"enum": ["ok", "degraded"]}, "checks": {"type": "object", "additionalProperties": {"type": "string"}}}}}, "state": "public", "idem": "n/a", "audit": "none", "errors": ["HEALTH_UNAVAILABLE"]},
-    {"key": "POST /v1/uploads", "request": {"headers": {"$ref": "#/schemaDefinitions/CommandHeaders"}, "body": {"$ref": "#/schemaDefinitions/UploadCreateRequest"}}, "success": {"status": 201, "body": {"$ref": "#/schemaDefinitions/UploadSession"}}, "state": "tenant OWNER|ADMIN; disk admitted", "idem": "required", "audit": "UPLOAD_SESSION_CREATED", "errors": ["VIDEO_SIZE_LIMIT_EXCEEDED", "QUOTA_EXCEEDED"]},
-    {"key": "PUT /v1/uploads/{uploadId}/chunks/{index}", "request": {"headers": {"$ref": "#/schemaDefinitions/ChunkHeaders"}, "path": {"type": "object", "required": ["uploadId", "index"], "additionalProperties": false, "properties": {"uploadId": {"$ref": "#/schemaDefinitions/UploadId"}, "index": {"type": "integer", "minimum": 0}}}, "body": {"$ref": "#/schemaDefinitions/ChunkBody"}}, "success": {"status": 204, "headers": {"X-Received-Bytes": {"type": "integer", "minimum": 0}}}, "state": "open upload owned by tenant", "idem": "chunk index+hash", "audit": "none", "errors": ["UPLOAD_RANGE_INVALID", "UPLOAD_EXPIRED", "TENANT_FORBIDDEN"]},
-    {"key": "POST /v1/uploads/{uploadId}/finalize", "request": {"headers": {"$ref": "#/schemaDefinitions/CommandHeaders"}, "path": {"type": "object", "required": ["uploadId"], "additionalProperties": false, "properties": {"uploadId": {"$ref": "#/schemaDefinitions/UploadId"}}}, "body": {"$ref": "#/schemaDefinitions/UploadFinalizeRequest"}}, "success": {"status": 202, "body": {"type": "object", "required": ["uploadId", "state"], "additionalProperties": false, "properties": {"uploadId": {"$ref": "#/schemaDefinitions/UploadId"}, "state": {"const": "VALIDATING"}}}}, "state": "all chunks present", "idem": "required", "audit": "UPLOAD_FINALIZED", "errors": ["UPLOAD_INCOMPLETE", "HASH_MISMATCH", "QUOTA_EXCEEDED"]},
-    {"key": "DELETE /v1/uploads/{uploadId}", "request": {"path": {"type": "object", "required": ["uploadId"], "additionalProperties": false, "properties": {"uploadId": {"$ref": "#/schemaDefinitions/UploadId"}}}, "body": {"$ref": "#/schemaDefinitions/Empty"}}, "success": {"status": 202, "body": {"type": "object", "required": ["state"], "additionalProperties": false, "properties": {"state": {"enum": ["abort-requested", "aborted"]}}}}, "state": "open nonterminal upload", "idem": "safe replay", "audit": "UPLOAD_ABORTED", "errors": ["UPLOAD_NOT_ABORTABLE", "TENANT_FORBIDDEN"]},
-    {"key": "POST /v1/jobs", "request": {"headers": {"$ref": "#/schemaDefinitions/CommandHeaders"}, "body": {"$ref": "#/schemaDefinitions/JobCreateRequest"}}, "success": {"status": 201, "body": {"$ref": "#/schemaDefinitions/JobProjection"}}, "state": "uploadState=ACCEPTED with normalizedArtifactId resolved server-side; exact 4s frame interval", "idem": "required", "audit": "JOB_CREATED", "errors": ["COMPILER_ADMISSION_BLOCKED", "INTERVAL_INVALID", "TENANT_FORBIDDEN"]},
-    {"key": "GET /v1/jobs", "request": {"query": {"$ref": "#/schemaDefinitions/PageQuery"}}, "success": {"status": 200, "body": {"type": "object", "required": ["items", "pageInfo"], "additionalProperties": false, "properties": {"items": {"type": "array", "items": {"$ref": "#/schemaDefinitions/JobProjection"}}, "pageInfo": {"$ref": "#/schemaDefinitions/PageInfo"}}}}, "state": "tenant member", "idem": "n/a", "audit": "none", "errors": ["CURSOR_INVALID"]},
-    {"key": "GET /v1/jobs/{jobId}", "request": {"path": {"type": "object", "required": ["jobId"], "additionalProperties": false, "properties": {"jobId": {"$ref": "#/schemaDefinitions/JobId"}}}}, "success": {"status": 200, "body": {"$ref": "#/schemaDefinitions/JobProjection"}}, "state": "tenant member", "idem": "n/a", "audit": "JOB_VIEWED", "errors": ["JOB_NOT_FOUND"]},
-    {"key": "GET /v1/jobs/{jobId}/attempts", "request": {"path": {"type": "object", "required": ["jobId"], "additionalProperties": false, "properties": {"jobId": {"$ref": "#/schemaDefinitions/JobId"}}}, "query": {"$ref": "#/schemaDefinitions/PageQuery"}}, "success": {"status": 200, "body": {"type": "object", "required": ["items", "pageInfo"], "additionalProperties": false, "properties": {"items": {"type": "array", "items": {"type": "object", "additionalProperties": true}}, "pageInfo": {"$ref": "#/schemaDefinitions/PageInfo"}}}}, "state": "tenant member", "idem": "n/a", "audit": "JOB_VIEWED", "errors": ["JOB_NOT_FOUND"]},
-    {"key": "POST /v1/jobs/{jobId}/cancel", "request": {"headers": {"$ref": "#/schemaDefinitions/EditHeaders"}, "path": {"type": "object", "required": ["jobId"], "additionalProperties": false, "properties": {"jobId": {"$ref": "#/schemaDefinitions/JobId"}}}, "body": {"$ref": "#/schemaDefinitions/ReasonRequest"}}, "success": {"status": 202, "body": {"type": "object", "required": ["state"], "additionalProperties": false, "properties": {"state": {"const": "CANCEL_REQUESTED"}}}}, "state": "QUEUED|PREPARING|RENDERING", "idem": "required", "audit": "JOB_CANCEL_REQUESTED", "errors": ["JOB_NOT_CANCELLABLE", "VERSION_CONFLICT"]},
-    {"key": "POST /v1/jobs/{jobId}/retry", "request": {"headers": {"$ref": "#/schemaDefinitions/EditHeaders"}, "path": {"type": "object", "required": ["jobId"], "additionalProperties": false, "properties": {"jobId": {"$ref": "#/schemaDefinitions/JobId"}}}, "body": {"$ref": "#/schemaDefinitions/ReasonRequest"}}, "success": {"status": 201, "body": {"$ref": "#/schemaDefinitions/JobProjection"}}, "state": "retryable failed attempt; cap policy", "idem": "required", "audit": "JOB_RETRY_REQUESTED", "errors": ["JOB_NOT_RETRYABLE", "RETRY_LIMIT_EXCEEDED"]},
-    {"key": "GET /v1/jobs/{jobId}/evidence", "request": {"path": {"type": "object", "required": ["jobId"], "additionalProperties": false, "properties": {"jobId": {"$ref": "#/schemaDefinitions/JobId"}}}, "query": {"$ref": "#/schemaDefinitions/EvidenceQuery"}}, "success": {"status": 200, "body": {"type": "object", "required": ["version", "state", "layers"], "additionalProperties": true, "properties": {"version": {"type": "integer", "minimum": 1}, "state": {"enum": ["OBSERVED", "MAPPED", "NEEDS_CHOICE"]}, "layers": {"type": "object"}}}}, "state": "evidence published; tenant member or assigned reviewer", "idem": "n/a", "audit": "EVIDENCE_VIEWED", "errors": ["EVIDENCE_UNAVAILABLE"]},
-    {"key": "GET /v1/jobs/{jobId}/authoring-ir", "request": {"path": {"type": "object", "required": ["jobId"], "additionalProperties": false, "properties": {"jobId": {"$ref": "#/schemaDefinitions/JobId"}}}}, "success": {"status": 200, "body": {"type": "object", "required": ["digest", "version"], "additionalProperties": true, "properties": {"digest": {"$ref": "#/schemaDefinitions/HexSha256"}, "version": {"type": "integer", "minimum": 1}}}}, "state": "IR available", "idem": "n/a", "audit": "IR_VIEWED", "errors": ["IR_UNAVAILABLE"]},
-    {"key": "PATCH /v1/jobs/{jobId}/authoring-ir", "request": {"headers": {"$ref": "#/schemaDefinitions/EditHeaders"}, "path": {"type": "object", "required": ["jobId"], "additionalProperties": false, "properties": {"jobId": {"$ref": "#/schemaDefinitions/JobId"}}}, "body": {"$ref": "#/schemaDefinitions/IRPatchRequest"}}, "success": {"status": 201, "body": {"type": "object", "required": ["authoringIrDigest", "sceneIrDigest", "browserPassSpecDigest"], "additionalProperties": false, "properties": {"authoringIrDigest": {"$ref": "#/schemaDefinitions/HexSha256"}, "sceneIrDigest": {"$ref": "#/schemaDefinitions/HexSha256"}, "browserPassSpecDigest": {"$ref": "#/schemaDefinitions/HexSha256"}}}}, "state": "OWNER|ADMIN; current If-Match", "idem": "required", "audit": "IR_VERSION_CREATED", "errors": ["VERSION_CONFLICT", "EDIT_FORBIDDEN", "OWNER_MISMATCH"]},
-    {"key": "POST /v1/jobs/{jobId}/choices", "request": {"headers": {"$ref": "#/schemaDefinitions/EditHeaders"}, "path": {"type": "object", "required": ["jobId"], "additionalProperties": false, "properties": {"jobId": {"$ref": "#/schemaDefinitions/JobId"}}}, "body": {"$ref": "#/schemaDefinitions/ChoiceResolveRequest"}}, "success": {"status": 201, "body": {"type": "object", "required": ["evidenceDigest", "irDigest"], "additionalProperties": false, "properties": {"evidenceDigest": {"$ref": "#/schemaDefinitions/HexSha256"}, "irDigest": {"$ref": "#/schemaDefinitions/HexSha256"}}}}, "state": "exactly one current NEEDS CHOICE", "idem": "required", "audit": "EVIDENCE_CHOICE_RESOLVED", "errors": ["CHOICE_NOT_CURRENT", "VERSION_CONFLICT"]},
-    {"key": "GET /v1/jobs/{jobId}/preview", "request": {"path": {"type": "object", "required": ["jobId"], "additionalProperties": false, "properties": {"jobId": {"$ref": "#/schemaDefinitions/JobId"}}}, "query": {"type": "object", "required": ["frame"], "additionalProperties": false, "properties": {"frame": {"type": "integer", "minimum": 0, "maximum": 119}}}}, "success": {"status": 200, "body": {"type": "object", "required": ["frame", "previewRef", "irDigest"], "additionalProperties": false, "properties": {"frame": {"type": "integer", "minimum": 0, "maximum": 119}, "previewRef": {"type": "string"}, "irDigest": {"$ref": "#/schemaDefinitions/HexSha256"}}}}, "state": "preview available", "idem": "n/a", "audit": "none", "errors": ["PREVIEW_UNAVAILABLE", "FRAME_OUT_OF_RANGE"]},
-    {"key": "GET /v1/jobs/{jobId}/mappings/{mappingId}", "request": {"path": {"type": "object", "required": ["jobId", "mappingId"], "additionalProperties": false, "properties": {"jobId": {"$ref": "#/schemaDefinitions/JobId"}, "mappingId": {"type": "string", "minLength": 1, "maxLength": 100}}}}, "success": {"status": 200, "body": {"type": "object", "required": ["mappingId", "options"], "additionalProperties": true, "properties": {"mappingId": {"type": "string"}, "options": {"type": "array"}}}}, "state": "IR available", "idem": "n/a", "audit": "EVIDENCE_VIEWED", "errors": ["MAPPING_NOT_FOUND"]},
-    {"key": "POST /v1/reviews", "request": {"headers": {"$ref": "#/schemaDefinitions/CommandHeaders"}, "body": {"$ref": "#/schemaDefinitions/JobReviewRequest"}}, "success": {"status": 201, "body": {"$ref": "#/schemaDefinitions/Receipt"}}, "state": "assigned active job-scope gate reviewer; T1 predecessorId=null; T2-T5 current predecessor receipt", "idem": "required; unique (job,subjectId,gate,predecessorId,decisionVersion)", "audit": "GATE_DECISION_RECORDED", "errors": ["REVIEW_FORBIDDEN", "PREDECESSOR_MISSING", "STALE_APPROVAL_UNSAFE", "DUPLICATE_DECISION"]},
-    {"key": "POST /v1/release-reviews", "request": {"headers": {"$ref": "#/schemaDefinitions/CommandHeaders"}, "body": {"$ref": "#/schemaDefinitions/ReleaseReviewRequest"}}, "success": {"status": 201, "body": {"$ref": "#/schemaDefinitions/Receipt"}}, "state": "assigned active release-scope T6 reviewer; X-Tenant-Id is forbidden/absent; tenantId=null assignment only; release baseline digest is predecessorId; evidence references at least one T5-approved pilot chain", "idem": "required; unique (release,releaseId,T6,predecessorId,decisionVersion)", "audit": "GATE_DECISION_RECORDED", "errors": ["REVIEW_FORBIDDEN", "PREDECESSOR_MISSING", "STALE_APPROVAL_UNSAFE", "DUPLICATE_DECISION", "TENANT_HEADER_FORBIDDEN"]},
-    {"key": "POST /v1/jobs/{jobId}/render", "request": {"headers": {"$ref": "#/schemaDefinitions/EditHeaders"}, "path": {"type": "object", "required": ["jobId"], "additionalProperties": false, "properties": {"jobId": {"$ref": "#/schemaDefinitions/JobId"}}}, "body": {"$ref": "#/schemaDefinitions/RenderRequest"}}, "success": {"status": 202, "body": {"type": "object", "required": ["state", "attemptId"], "additionalProperties": false, "properties": {"state": {"const": "QUEUED"}, "attemptId": {"$ref": "#/schemaDefinitions/JobAttemptId"}}}}, "state": "T4 approved and current; OWNER|ADMIN", "idem": "required", "audit": "RENDER_REQUESTED", "errors": ["RENDER_BLOCKED", "STALE_APPROVAL_UNSAFE", "VERSION_CONFLICT"]},
-    {"key": "GET /v1/receipts", "request": {"query": {"type": "object", "additionalProperties": false, "properties": {"jobId": {"$ref": "#/schemaDefinitions/JobId"}, "gate": {"enum": ["T1", "T2", "T3", "T4", "T5", "T6"]}, "after": {"$ref": "#/schemaDefinitions/Cursor"}, "limit": {"type": "integer", "minimum": 1, "maximum": 100}}}}, "success": {"status": 200, "body": {"type": "object", "required": ["items", "pageInfo"], "additionalProperties": false, "properties": {"items": {"type": "array", "items": {"$ref": "#/schemaDefinitions/Receipt"}}, "pageInfo": {"$ref": "#/schemaDefinitions/PageInfo"}}}}, "state": "tenant member", "idem": "n/a", "audit": "RECEIPT_CHAIN_VIEWED", "errors": ["CURSOR_INVALID"]},
-    {"key": "GET /v1/jobs/{jobId}/report-download", "request": {"path": {"type": "object", "required": ["jobId"], "additionalProperties": false, "properties": {"jobId": {"$ref": "#/schemaDefinitions/JobId"}}}}, "success": {"status": 200, "body": {"type": "string", "contentEncoding": "binary"}}, "state": "T5-approved COMPLETED; unexpired", "idem": "n/a", "audit": "ARTIFACT_DOWNLOADED", "errors": ["ARTIFACT_UNAVAILABLE"]},
-    {"key": "GET /v1/jobs/{jobId}/delivery-download", "request": {"path": {"type": "object", "required": ["jobId"], "additionalProperties": false, "properties": {"jobId": {"$ref": "#/schemaDefinitions/JobId"}}}}, "success": {"status": 200, "body": {"type": "string", "contentEncoding": "binary"}}, "state": "T5-approved COMPLETED; unexpired", "idem": "n/a", "audit": "ARTIFACT_DOWNLOADED", "errors": ["ARTIFACT_UNAVAILABLE"]},
-    {"key": "GET /admin/tenants", "request": {"query": {"$ref": "#/schemaDefinitions/PageQuery"}}, "success": {"status": 200, "body": {"type": "object", "required": ["items", "pageInfo"], "additionalProperties": false, "properties": {"items": {"type": "array", "items": {"type": "object", "additionalProperties": true}}, "pageInfo": {"$ref": "#/schemaDefinitions/PageInfo"}}}}, "state": "super-admin platform or assigned read scope", "idem": "n/a", "audit": "TENANT_VIEWED", "errors": ["ADMIN_ACCESS_DENIED", "CURSOR_INVALID"]},
-    {"key": "GET /admin/tenants/{tenantId}", "request": {"path": {"type": "object", "required": ["tenantId"], "additionalProperties": false, "properties": {"tenantId": {"$ref": "#/schemaDefinitions/TenantId"}}}}, "success": {"status": 200, "body": {"type": "object", "additionalProperties": true}}, "state": "server-derived scope", "idem": "n/a", "audit": "TENANT_VIEWED", "errors": ["TENANT_NOT_FOUND"]},
-    {"key": "GET /admin/tenants/{tenantId}/jobs", "request": {"path": {"type": "object", "required": ["tenantId"], "additionalProperties": false, "properties": {"tenantId": {"$ref": "#/schemaDefinitions/TenantId"}}}, "query": {"$ref": "#/schemaDefinitions/PageQuery"}}, "success": {"status": 200, "body": {"type": "object", "required": ["items", "pageInfo"], "additionalProperties": false, "properties": {"items": {"type": "array", "items": {"$ref": "#/schemaDefinitions/AdminJobProjection"}}, "pageInfo": {"$ref": "#/schemaDefinitions/PageInfo"}}}}, "state": "server-derived scope", "idem": "n/a", "audit": "TENANT_VIEWED", "errors": ["TENANT_NOT_FOUND"]},
-    {"key": "PATCH /admin/tenants/{tenantId}/members", "request": {"headers": {"$ref": "#/schemaDefinitions/EditHeaders"}, "path": {"type": "object", "required": ["tenantId"], "additionalProperties": false, "properties": {"tenantId": {"$ref": "#/schemaDefinitions/TenantId"}}}, "body": {"$ref": "#/schemaDefinitions/TenantMembersPatchRequest"}}, "success": {"status": 200, "body": {"type": "object", "required": ["version"], "additionalProperties": true, "properties": {"version": {"type": "integer", "minimum": 1}}}}, "state": "super-admin or assigned access-manager; current If-Match", "idem": "required", "audit": "TENANT_ACCESS_CHANGED", "errors": ["ADMIN_ACCESS_DENIED", "VERSION_CONFLICT", "ROLE_FORBIDDEN"]},
-    {"key": "POST /admin/tenants/{tenantId}/suspend", "request": {"headers": {"$ref": "#/schemaDefinitions/EditHeaders"}, "path": {"type": "object", "required": ["tenantId"], "additionalProperties": false, "properties": {"tenantId": {"$ref": "#/schemaDefinitions/TenantId"}}}, "body": {"$ref": "#/schemaDefinitions/ReasonRequest"}}, "success": {"status": 200, "body": {"type": "object", "required": ["status", "version"], "additionalProperties": false, "properties": {"status": {"const": "suspended"}, "version": {"type": "integer", "minimum": 1}}}}, "state": "super-admin or assigned suspend capability", "idem": "required", "audit": "TENANT_SUSPENDED", "errors": ["ADMIN_ACCESS_DENIED", "VERSION_CONFLICT"]},
-    {"key": "GET /admin/jobs", "request": {"query": {"$ref": "#/schemaDefinitions/PageQuery"}}, "success": {"status": 200, "body": {"type": "object", "required": ["items", "pageInfo", "summary"], "additionalProperties": false, "properties": {"items": {"type": "array", "items": {"$ref": "#/schemaDefinitions/AdminJobProjection"}}, "pageInfo": {"$ref": "#/schemaDefinitions/PageInfo"}, "summary": {"type": "object", "additionalProperties": true}}}}, "state": "server-derived admin scope", "idem": "n/a", "audit": "TENANT_VIEWED", "errors": ["ADMIN_ACCESS_DENIED", "CURSOR_INVALID"]},
-    {"key": "GET /admin/jobs/{jobId}", "request": {"path": {"type": "object", "required": ["jobId"], "additionalProperties": false, "properties": {"jobId": {"$ref": "#/schemaDefinitions/JobId"}}}}, "success": {"status": 200, "body": {"$ref": "#/schemaDefinitions/AdminJobProjection"}}, "state": "server-derived admin scope", "idem": "n/a", "audit": "JOB_VIEWED", "errors": ["ADMIN_ACCESS_DENIED", "JOB_NOT_FOUND"]},
-    {"key": "POST /admin/jobs/{jobId}/cancel", "request": {"headers": {"$ref": "#/schemaDefinitions/EditHeaders"}, "path": {"type": "object", "required": ["jobId"], "additionalProperties": false, "properties": {"jobId": {"$ref": "#/schemaDefinitions/JobId"}}}, "body": {"$ref": "#/schemaDefinitions/ReasonRequest"}}, "success": {"status": 202, "body": {"type": "object", "required": ["state"], "additionalProperties": false, "properties": {"state": {"const": "CANCEL_REQUESTED"}}}}, "state": "allowed admin capability and cancellable state", "idem": "required", "audit": "JOB_CANCEL_REQUESTED", "errors": ["ADMIN_ACCESS_DENIED", "JOB_NOT_CANCELLABLE"]},
-    {"key": "POST /admin/jobs/{jobId}/retry", "request": {"headers": {"$ref": "#/schemaDefinitions/EditHeaders"}, "path": {"type": "object", "required": ["jobId"], "additionalProperties": false, "properties": {"jobId": {"$ref": "#/schemaDefinitions/JobId"}}}, "body": {"$ref": "#/schemaDefinitions/ReasonRequest"}}, "success": {"status": 201, "body": {"$ref": "#/schemaDefinitions/AdminJobProjection"}}, "state": "allowed admin capability and transient failure", "idem": "required", "audit": "JOB_RETRY_REQUESTED", "errors": ["ADMIN_ACCESS_DENIED", "JOB_NOT_RETRYABLE"]},
-    {"key": "POST /admin/queue/drain", "request": {"headers": {"$ref": "#/schemaDefinitions/EditHeaders"}, "body": {"$ref": "#/schemaDefinitions/ReasonRequest"}}, "success": {"status": 202, "body": {"type": "object", "required": ["draining"], "additionalProperties": false, "properties": {"draining": {"const": true}}}}, "state": "super-admin only", "idem": "required", "audit": "JOB_QUEUE_DRAIN_REQUESTED", "errors": ["ADMIN_ACCESS_DENIED", "VERSION_CONFLICT"]},
-    {"key": "POST /admin/queue/resume", "request": {"headers": {"$ref": "#/schemaDefinitions/EditHeaders"}, "body": {"$ref": "#/schemaDefinitions/ReasonRequest"}}, "success": {"status": 202, "body": {"type": "object", "required": ["draining"], "additionalProperties": false, "properties": {"draining": {"const": false}}}}, "state": "super-admin only", "idem": "required", "audit": "JOB_QUEUE_RESUME_REQUESTED", "errors": ["ADMIN_ACCESS_DENIED", "VERSION_CONFLICT"]},
-    {"key": "GET /admin/receipts", "request": {"query": {"$ref": "#/schemaDefinitions/PageQuery"}}, "success": {"status": 200, "body": {"type": "object", "required": ["items", "pageInfo"], "additionalProperties": false, "properties": {"items": {"type": "array", "items": {"$ref": "#/schemaDefinitions/Receipt"}}, "pageInfo": {"$ref": "#/schemaDefinitions/PageInfo"}}}}, "state": "server-derived admin scope", "idem": "n/a", "audit": "RECEIPT_CHAIN_VIEWED", "errors": ["ADMIN_ACCESS_DENIED", "CURSOR_INVALID"]},
-    {"key": "GET /admin/receipts/{receiptId}", "request": {"path": {"type": "object", "required": ["receiptId"], "additionalProperties": false, "properties": {"receiptId": {"$ref": "#/schemaDefinitions/ReceiptId"}}}}, "success": {"status": 200, "body": {"$ref": "#/schemaDefinitions/Receipt"}}, "state": "server-derived admin scope", "idem": "n/a", "audit": "RECEIPT_CHAIN_VIEWED", "errors": ["RECEIPT_NOT_FOUND"]},
-    {"key": "POST /admin/receipt-exports", "request": {"headers": {"$ref": "#/schemaDefinitions/CommandHeaders"}, "body": {"$ref": "#/schemaDefinitions/ExportCreateRequest"}}, "success": {"status": 202, "body": {"$ref": "#/schemaDefinitions/ExportStatus"}}, "state": "export capability", "idem": "required", "audit": "AUDIT_EXPORT_CREATED", "errors": ["ADMIN_ACCESS_DENIED", "EXPORT_FAILED"]},
-    {"key": "GET /admin/receipt-exports/{exportId}", "request": {"path": {"type": "object", "required": ["exportId"], "additionalProperties": false, "properties": {"exportId": {"$ref": "#/schemaDefinitions/ExportId"}}}}, "success": {"status": 200, "body": {"$ref": "#/schemaDefinitions/ExportStatus"}}, "state": "same scoped export principal", "idem": "n/a", "audit": "none", "errors": ["ADMIN_ACCESS_DENIED", "EXPORT_FAILED"]},
-    {"key": "GET /admin/receipt-exports/{exportId}/download", "request": {"path": {"type": "object", "required": ["exportId"], "additionalProperties": false, "properties": {"exportId": {"$ref": "#/schemaDefinitions/ExportId"}}}}, "success": {"status": 200, "body": {"type": "string", "contentEncoding": "binary"}}, "state": "READY and unexpired; same scoped export principal", "idem": "n/a", "audit": "AUDIT_EXPORT_DOWNLOADED", "errors": ["ADMIN_ACCESS_DENIED", "ARTIFACT_UNAVAILABLE"]},
-    {"key": "GET /admin/audit-log", "request": {"query": {"$ref": "#/schemaDefinitions/PageQuery"}}, "success": {"status": 200, "body": {"type": "object", "required": ["items", "pageInfo"], "additionalProperties": false, "properties": {"items": {"type": "array", "items": {"type": "object", "additionalProperties": true}}, "pageInfo": {"$ref": "#/schemaDefinitions/PageInfo"}}}}, "state": "admin read scope", "idem": "n/a", "audit": "AUDIT_LOG_VIEWED", "errors": ["ADMIN_ACCESS_DENIED", "CURSOR_INVALID"]},
-    {"key": "POST /admin/audit-exports", "request": {"headers": {"$ref": "#/schemaDefinitions/CommandHeaders"}, "body": {"$ref": "#/schemaDefinitions/ExportCreateRequest"}}, "success": {"status": 202, "body": {"$ref": "#/schemaDefinitions/ExportStatus"}}, "state": "export capability", "idem": "required", "audit": "AUDIT_EXPORT_CREATED", "errors": ["ADMIN_ACCESS_DENIED", "EXPORT_FAILED"]},
-    {"key": "GET /admin/audit-exports/{exportId}", "request": {"path": {"type": "object", "required": ["exportId"], "additionalProperties": false, "properties": {"exportId": {"$ref": "#/schemaDefinitions/ExportId"}}}}, "success": {"status": 200, "body": {"$ref": "#/schemaDefinitions/ExportStatus"}}, "state": "same scoped export principal", "idem": "n/a", "audit": "none", "errors": ["ADMIN_ACCESS_DENIED", "EXPORT_FAILED"]},
-    {"key": "GET /admin/audit-exports/{exportId}/download", "request": {"path": {"type": "object", "required": ["exportId"], "additionalProperties": false, "properties": {"exportId": {"$ref": "#/schemaDefinitions/ExportId"}}}}, "success": {"status": 200, "body": {"type": "string", "contentEncoding": "binary"}}, "state": "READY and unexpired; same scoped export principal", "idem": "n/a", "audit": "AUDIT_EXPORT_DOWNLOADED", "errors": ["ADMIN_ACCESS_DENIED", "ARTIFACT_UNAVAILABLE"]},
-    {"key": "GET /admin/quarantine", "request": {"query": {"$ref": "#/schemaDefinitions/PageQuery"}}, "success": {"status": 200, "body": {"type": "object", "required": ["items", "pageInfo"], "additionalProperties": false, "properties": {"items": {"type": "array", "items": {"type": "object", "additionalProperties": true}}, "pageInfo": {"$ref": "#/schemaDefinitions/PageInfo"}}}}, "state": "admin read scope", "idem": "n/a", "audit": "QUARANTINE_VIEWED", "errors": ["ADMIN_ACCESS_DENIED", "CURSOR_INVALID"]},
-    {"key": "GET /admin/quarantine/{itemId}", "request": {"path": {"type": "object", "required": ["itemId"], "additionalProperties": false, "properties": {"itemId": {"$ref": "#/schemaDefinitions/QuarantineItemId"}}}}, "success": {"status": 200, "body": {"type": "object", "additionalProperties": true}}, "state": "admin read scope; QT-* display IDs appear only in response/display fields, never as canonical path IDs", "idem": "n/a", "audit": "QUARANTINE_VIEWED", "errors": ["QUARANTINE_NOT_FOUND"]},
-    {"key": "POST /admin/quarantine/{itemId}/release", "request": {"headers": {"$ref": "#/schemaDefinitions/EditHeaders"}, "path": {"type": "object", "required": ["itemId"], "additionalProperties": false, "properties": {"itemId": {"$ref": "#/schemaDefinitions/QuarantineItemId"}}}, "body": {"$ref": "#/schemaDefinitions/QuarantineDecisionRequest"}}, "success": {"status": 202, "body": {"type": "object", "required": ["revalidationUploadId", "originalQuarantineState", "state"], "additionalProperties": false, "properties": {"revalidationUploadId": {"$ref": "#/schemaDefinitions/UploadId"}, "originalQuarantineState": {"const": "QUARANTINED"}, "state": {"const": "VALIDATING"}}}}, "state": "release capability; preserves terminal QUARANTINED record and creates a linked sandboxed revalidation upload attempt; no accepted artifact is returned until VALIDATING reaches ACCEPTED", "idem": "required", "audit": "QUARANTINE_RELEASE_REVIEWED", "errors": ["ADMIN_ACCESS_DENIED", "QUARANTINE_RELEASE_BLOCKED", "QUARANTINE_REVALIDATION_FAILED", "VERSION_CONFLICT"]},
-    {"key": "POST /admin/quarantine/{itemId}/reject", "request": {"headers": {"$ref": "#/schemaDefinitions/EditHeaders"}, "path": {"type": "object", "required": ["itemId"], "additionalProperties": false, "properties": {"itemId": {"$ref": "#/schemaDefinitions/QuarantineItemId"}}}, "body": {"$ref": "#/schemaDefinitions/QuarantineDecisionRequest"}}, "success": {"status": 200, "body": {"type": "object", "required": ["state"], "additionalProperties": false, "properties": {"state": {"enum": ["retained", "rejected"]}}}}, "state": "reject capability; current item", "idem": "required", "audit": "QUARANTINE_RETAINED", "errors": ["ADMIN_ACCESS_DENIED", "VERSION_CONFLICT"]},
-    {"key": "GET /admin/billing/{tenantId}", "request": {"path": {"type": "object", "required": ["tenantId"], "additionalProperties": false, "properties": {"tenantId": {"$ref": "#/schemaDefinitions/TenantId"}}}}, "success": {"status": 200, "body": {"type": "object", "additionalProperties": true}}, "state": "admin read scope", "idem": "n/a", "audit": "BILLING_METADATA_VIEWED", "errors": ["TENANT_NOT_FOUND"]},
-    {"key": "PATCH /admin/billing/{tenantId}", "request": {"headers": {"$ref": "#/schemaDefinitions/EditHeaders"}, "path": {"type": "object", "required": ["tenantId"], "additionalProperties": false, "properties": {"tenantId": {"$ref": "#/schemaDefinitions/TenantId"}}}, "body": {"$ref": "#/schemaDefinitions/BillingPatchRequest"}}, "success": {"status": 200, "body": {"type": "object", "required": ["version"], "additionalProperties": true, "properties": {"version": {"type": "integer", "minimum": 1}}}}, "state": "change capability; current If-Match", "idem": "required", "audit": "BILLING_METADATA_CHANGED", "errors": ["ADMIN_ACCESS_DENIED", "VERSION_CONFLICT", "PAYMENT_DATA_FORBIDDEN"]},
-    {"key": "POST /admin/reviewer-assignments", "request": {"headers": {"$ref": "#/schemaDefinitions/CommandHeaders"}, "body": {"$ref": "#/schemaDefinitions/ReviewerAssignmentRequest"}}, "success": {"status": 201, "body": {"type": "object", "required": ["assignmentId", "scope", "gate", "userId"], "additionalProperties": true, "properties": {"assignmentId": {"$ref": "#/schemaDefinitions/AssignmentId"}, "scope": {"enum": ["job", "release"]}, "gate": {"enum": ["T1", "T2", "T3", "T4", "T5", "T6"]}, "userId": {"$ref": "#/schemaDefinitions/UserId"}}}}, "state": "super-admin; assignee cannot equal actor; job scope uses tenantId and T1-T5; release scope uses releaseId and T6", "idem": "required", "audit": "REVIEWER_ASSIGNED", "errors": ["ADMIN_ACCESS_DENIED", "ROLE_FORBIDDEN", "VERSION_CONFLICT"]},
-    {"key": "DELETE /admin/reviewer-assignments/{assignmentId}", "request": {"headers": {"$ref": "#/schemaDefinitions/EditHeaders"}, "path": {"type": "object", "required": ["assignmentId"], "additionalProperties": false, "properties": {"assignmentId": {"$ref": "#/schemaDefinitions/AssignmentId"}}}, "body": {"$ref": "#/schemaDefinitions/ReasonRequest"}}, "success": {"status": 204, "body": {"$ref": "#/schemaDefinitions/Empty"}}, "state": "super-admin; current assignment", "idem": "safe replay", "audit": "REVIEWER_ASSIGNMENT_REVOKED", "errors": ["ADMIN_ACCESS_DENIED", "VERSION_CONFLICT"]}
+    {
+      "key": "POST /auth/session",
+      "request": {
+        "body": {
+          "type": "object",
+          "required": ["identifier", "secret", "surface"],
+          "additionalProperties": false,
+          "properties": {
+            "identifier": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 254
+            },
+            "secret": { "type": "string", "minLength": 1, "maxLength": 1024 },
+            "surface": { "enum": ["creator", "admin"] },
+            "returnTo": {
+              "type": "string",
+              "pattern": "^/[A-Za-z0-9/_?=&.-]*$",
+              "maxLength": 512
+            }
+          }
+        }
+      },
+      "success": {
+        "status": 204,
+        "headers": {
+          "Set-Cookie": { "type": "string" },
+          "X-Redirect-To": { "type": "string" }
+        }
+      },
+      "state": "anonymous",
+      "idem": "duplicate-submit guard",
+      "audit": "AUTH_LOGIN_ATTEMPT",
+      "errors": ["INVALID_CREDENTIALS", "CSRF_INVALID", "RETURN_URL_INVALID"]
+    },
+    {
+      "key": "DELETE /auth/session",
+      "request": { "body": { "$ref": "#/schemaDefinitions/Empty" } },
+      "success": {
+        "status": 204,
+        "body": { "$ref": "#/schemaDefinitions/Empty" }
+      },
+      "state": "authenticated",
+      "idem": "safe replay",
+      "audit": "SESSION_REVOKED",
+      "errors": ["AUTH_REQUIRED"]
+    },
+    {
+      "key": "POST /auth/active-tenant",
+      "request": {
+        "headers": { "$ref": "#/schemaDefinitions/CommandHeaders" },
+        "body": {
+          "type": "object",
+          "required": ["tenantId"],
+          "additionalProperties": false,
+          "properties": {
+            "tenantId": { "$ref": "#/schemaDefinitions/TenantId" }
+          }
+        }
+      },
+      "success": {
+        "status": 200,
+        "body": {
+          "type": "object",
+          "required": ["tenantId", "csrfRotated"],
+          "additionalProperties": true,
+          "properties": {
+            "tenantId": { "$ref": "#/schemaDefinitions/TenantId" },
+            "csrfRotated": { "type": "boolean" }
+          }
+        }
+      },
+      "state": "authenticated membership",
+      "idem": "required",
+      "audit": "ACTIVE_TENANT_CHANGED",
+      "errors": ["TENANT_FORBIDDEN"]
+    },
+    {
+      "key": "GET /health",
+      "request": { "query": { "$ref": "#/schemaDefinitions/Empty" } },
+      "success": {
+        "status": 200,
+        "body": {
+          "type": "object",
+          "required": ["status", "checks"],
+          "additionalProperties": false,
+          "properties": {
+            "status": { "enum": ["ok", "degraded"] },
+            "checks": {
+              "type": "object",
+              "additionalProperties": { "type": "string" }
+            }
+          }
+        }
+      },
+      "state": "public",
+      "idem": "n/a",
+      "audit": "none",
+      "errors": ["HEALTH_UNAVAILABLE"]
+    },
+    {
+      "key": "POST /v1/uploads",
+      "request": {
+        "headers": { "$ref": "#/schemaDefinitions/CommandHeaders" },
+        "body": { "$ref": "#/schemaDefinitions/UploadCreateRequest" }
+      },
+      "success": {
+        "status": 201,
+        "body": { "$ref": "#/schemaDefinitions/UploadSession" }
+      },
+      "state": "tenant OWNER|ADMIN; disk admitted",
+      "idem": "required",
+      "audit": "UPLOAD_SESSION_CREATED",
+      "errors": ["VIDEO_SIZE_LIMIT_EXCEEDED", "QUOTA_EXCEEDED"]
+    },
+    {
+      "key": "PUT /v1/uploads/{uploadId}/chunks/{index}",
+      "request": {
+        "headers": { "$ref": "#/schemaDefinitions/ChunkHeaders" },
+        "path": {
+          "type": "object",
+          "required": ["uploadId", "index"],
+          "additionalProperties": false,
+          "properties": {
+            "uploadId": { "$ref": "#/schemaDefinitions/UploadId" },
+            "index": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "body": { "$ref": "#/schemaDefinitions/ChunkBody" }
+      },
+      "success": {
+        "status": 204,
+        "headers": { "X-Received-Bytes": { "type": "integer", "minimum": 0 } }
+      },
+      "state": "open upload owned by tenant",
+      "idem": "chunk index+hash",
+      "audit": "none",
+      "errors": ["UPLOAD_RANGE_INVALID", "UPLOAD_EXPIRED", "TENANT_FORBIDDEN"]
+    },
+    {
+      "key": "POST /v1/uploads/{uploadId}/finalize",
+      "request": {
+        "headers": { "$ref": "#/schemaDefinitions/CommandHeaders" },
+        "path": {
+          "type": "object",
+          "required": ["uploadId"],
+          "additionalProperties": false,
+          "properties": {
+            "uploadId": { "$ref": "#/schemaDefinitions/UploadId" }
+          }
+        },
+        "body": { "$ref": "#/schemaDefinitions/UploadFinalizeRequest" }
+      },
+      "success": {
+        "status": 202,
+        "body": {
+          "type": "object",
+          "required": ["uploadId", "state"],
+          "additionalProperties": false,
+          "properties": {
+            "uploadId": { "$ref": "#/schemaDefinitions/UploadId" },
+            "state": { "const": "VALIDATING" }
+          }
+        }
+      },
+      "state": "all chunks present",
+      "idem": "required",
+      "audit": "UPLOAD_FINALIZED",
+      "errors": ["UPLOAD_INCOMPLETE", "HASH_MISMATCH", "QUOTA_EXCEEDED"]
+    },
+    {
+      "key": "DELETE /v1/uploads/{uploadId}",
+      "request": {
+        "path": {
+          "type": "object",
+          "required": ["uploadId"],
+          "additionalProperties": false,
+          "properties": {
+            "uploadId": { "$ref": "#/schemaDefinitions/UploadId" }
+          }
+        },
+        "body": { "$ref": "#/schemaDefinitions/Empty" }
+      },
+      "success": {
+        "status": 202,
+        "body": {
+          "type": "object",
+          "required": ["state"],
+          "additionalProperties": false,
+          "properties": { "state": { "enum": ["abort-requested", "aborted"] } }
+        }
+      },
+      "state": "open nonterminal upload",
+      "idem": "safe replay",
+      "audit": "UPLOAD_ABORTED",
+      "errors": ["UPLOAD_NOT_ABORTABLE", "TENANT_FORBIDDEN"]
+    },
+    {
+      "key": "POST /v1/jobs",
+      "request": {
+        "headers": { "$ref": "#/schemaDefinitions/CommandHeaders" },
+        "body": { "$ref": "#/schemaDefinitions/JobCreateRequest" }
+      },
+      "success": {
+        "status": 201,
+        "body": { "$ref": "#/schemaDefinitions/JobProjection" }
+      },
+      "state": "uploadState=ACCEPTED with normalizedArtifactId resolved server-side; exact 4s frame interval",
+      "idem": "required",
+      "audit": "JOB_CREATED",
+      "errors": [
+        "COMPILER_ADMISSION_BLOCKED",
+        "INTERVAL_INVALID",
+        "TENANT_FORBIDDEN"
+      ]
+    },
+    {
+      "key": "GET /v1/jobs",
+      "request": { "query": { "$ref": "#/schemaDefinitions/PageQuery" } },
+      "success": {
+        "status": 200,
+        "body": {
+          "type": "object",
+          "required": ["items", "pageInfo"],
+          "additionalProperties": false,
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": { "$ref": "#/schemaDefinitions/JobProjection" }
+            },
+            "pageInfo": { "$ref": "#/schemaDefinitions/PageInfo" }
+          }
+        }
+      },
+      "state": "tenant member",
+      "idem": "n/a",
+      "audit": "none",
+      "errors": ["CURSOR_INVALID"]
+    },
+    {
+      "key": "GET /v1/jobs/{jobId}",
+      "request": {
+        "path": {
+          "type": "object",
+          "required": ["jobId"],
+          "additionalProperties": false,
+          "properties": { "jobId": { "$ref": "#/schemaDefinitions/JobId" } }
+        }
+      },
+      "success": {
+        "status": 200,
+        "body": { "$ref": "#/schemaDefinitions/JobProjection" }
+      },
+      "state": "tenant member",
+      "idem": "n/a",
+      "audit": "JOB_VIEWED",
+      "errors": ["JOB_NOT_FOUND"]
+    },
+    {
+      "key": "GET /v1/jobs/{jobId}/attempts",
+      "request": {
+        "path": {
+          "type": "object",
+          "required": ["jobId"],
+          "additionalProperties": false,
+          "properties": { "jobId": { "$ref": "#/schemaDefinitions/JobId" } }
+        },
+        "query": { "$ref": "#/schemaDefinitions/PageQuery" }
+      },
+      "success": {
+        "status": 200,
+        "body": {
+          "type": "object",
+          "required": ["items", "pageInfo"],
+          "additionalProperties": false,
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": { "type": "object", "additionalProperties": true }
+            },
+            "pageInfo": { "$ref": "#/schemaDefinitions/PageInfo" }
+          }
+        }
+      },
+      "state": "tenant member",
+      "idem": "n/a",
+      "audit": "JOB_VIEWED",
+      "errors": ["JOB_NOT_FOUND"]
+    },
+    {
+      "key": "POST /v1/jobs/{jobId}/cancel",
+      "request": {
+        "headers": { "$ref": "#/schemaDefinitions/EditHeaders" },
+        "path": {
+          "type": "object",
+          "required": ["jobId"],
+          "additionalProperties": false,
+          "properties": { "jobId": { "$ref": "#/schemaDefinitions/JobId" } }
+        },
+        "body": { "$ref": "#/schemaDefinitions/ReasonRequest" }
+      },
+      "success": {
+        "status": 202,
+        "body": {
+          "type": "object",
+          "required": ["state"],
+          "additionalProperties": false,
+          "properties": { "state": { "const": "CANCEL_REQUESTED" } }
+        }
+      },
+      "state": "QUEUED|PREPARING|RENDERING",
+      "idem": "required",
+      "audit": "JOB_CANCEL_REQUESTED",
+      "errors": ["JOB_NOT_CANCELLABLE", "VERSION_CONFLICT"]
+    },
+    {
+      "key": "POST /v1/jobs/{jobId}/retry",
+      "request": {
+        "headers": { "$ref": "#/schemaDefinitions/EditHeaders" },
+        "path": {
+          "type": "object",
+          "required": ["jobId"],
+          "additionalProperties": false,
+          "properties": { "jobId": { "$ref": "#/schemaDefinitions/JobId" } }
+        },
+        "body": { "$ref": "#/schemaDefinitions/ReasonRequest" }
+      },
+      "success": {
+        "status": 201,
+        "body": { "$ref": "#/schemaDefinitions/JobProjection" }
+      },
+      "state": "retryable failed attempt; cap policy",
+      "idem": "required",
+      "audit": "JOB_RETRY_REQUESTED",
+      "errors": ["JOB_NOT_RETRYABLE", "RETRY_LIMIT_EXCEEDED"]
+    },
+    {
+      "key": "GET /v1/jobs/{jobId}/evidence",
+      "request": {
+        "path": {
+          "type": "object",
+          "required": ["jobId"],
+          "additionalProperties": false,
+          "properties": { "jobId": { "$ref": "#/schemaDefinitions/JobId" } }
+        },
+        "query": { "$ref": "#/schemaDefinitions/EvidenceQuery" }
+      },
+      "success": {
+        "status": 200,
+        "body": {
+          "type": "object",
+          "required": ["version", "state", "layers"],
+          "additionalProperties": true,
+          "properties": {
+            "version": { "type": "integer", "minimum": 1 },
+            "state": { "enum": ["OBSERVED", "MAPPED", "NEEDS_CHOICE"] },
+            "layers": { "type": "object" }
+          }
+        }
+      },
+      "state": "evidence published; tenant member or assigned reviewer",
+      "idem": "n/a",
+      "audit": "EVIDENCE_VIEWED",
+      "errors": ["EVIDENCE_UNAVAILABLE"]
+    },
+    {
+      "key": "GET /v1/jobs/{jobId}/authoring-ir",
+      "request": {
+        "path": {
+          "type": "object",
+          "required": ["jobId"],
+          "additionalProperties": false,
+          "properties": { "jobId": { "$ref": "#/schemaDefinitions/JobId" } }
+        }
+      },
+      "success": {
+        "status": 200,
+        "body": {
+          "type": "object",
+          "required": ["digest", "version"],
+          "additionalProperties": true,
+          "properties": {
+            "digest": { "$ref": "#/schemaDefinitions/HexSha256" },
+            "version": { "type": "integer", "minimum": 1 }
+          }
+        }
+      },
+      "state": "IR available",
+      "idem": "n/a",
+      "audit": "IR_VIEWED",
+      "errors": ["IR_UNAVAILABLE"]
+    },
+    {
+      "key": "PATCH /v1/jobs/{jobId}/authoring-ir",
+      "request": {
+        "headers": { "$ref": "#/schemaDefinitions/EditHeaders" },
+        "path": {
+          "type": "object",
+          "required": ["jobId"],
+          "additionalProperties": false,
+          "properties": { "jobId": { "$ref": "#/schemaDefinitions/JobId" } }
+        },
+        "body": { "$ref": "#/schemaDefinitions/IRPatchRequest" }
+      },
+      "success": {
+        "status": 201,
+        "body": {
+          "type": "object",
+          "required": [
+            "authoringIrDigest",
+            "sceneIrDigest",
+            "browserPassSpecDigest"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "authoringIrDigest": { "$ref": "#/schemaDefinitions/HexSha256" },
+            "sceneIrDigest": { "$ref": "#/schemaDefinitions/HexSha256" },
+            "browserPassSpecDigest": { "$ref": "#/schemaDefinitions/HexSha256" }
+          }
+        }
+      },
+      "state": "OWNER|ADMIN; current If-Match",
+      "idem": "required",
+      "audit": "IR_VERSION_CREATED",
+      "errors": ["VERSION_CONFLICT", "EDIT_FORBIDDEN", "OWNER_MISMATCH"]
+    },
+    {
+      "key": "POST /v1/jobs/{jobId}/choices",
+      "request": {
+        "headers": { "$ref": "#/schemaDefinitions/EditHeaders" },
+        "path": {
+          "type": "object",
+          "required": ["jobId"],
+          "additionalProperties": false,
+          "properties": { "jobId": { "$ref": "#/schemaDefinitions/JobId" } }
+        },
+        "body": { "$ref": "#/schemaDefinitions/ChoiceResolveRequest" }
+      },
+      "success": {
+        "status": 201,
+        "body": {
+          "type": "object",
+          "required": ["evidenceDigest", "irDigest"],
+          "additionalProperties": false,
+          "properties": {
+            "evidenceDigest": { "$ref": "#/schemaDefinitions/HexSha256" },
+            "irDigest": { "$ref": "#/schemaDefinitions/HexSha256" }
+          }
+        }
+      },
+      "state": "exactly one current NEEDS CHOICE",
+      "idem": "required",
+      "audit": "EVIDENCE_CHOICE_RESOLVED",
+      "errors": ["CHOICE_NOT_CURRENT", "VERSION_CONFLICT"]
+    },
+    {
+      "key": "GET /v1/jobs/{jobId}/preview",
+      "request": {
+        "path": {
+          "type": "object",
+          "required": ["jobId"],
+          "additionalProperties": false,
+          "properties": { "jobId": { "$ref": "#/schemaDefinitions/JobId" } }
+        },
+        "query": {
+          "type": "object",
+          "required": ["frame"],
+          "additionalProperties": false,
+          "properties": {
+            "frame": { "type": "integer", "minimum": 0, "maximum": 119 }
+          }
+        }
+      },
+      "success": {
+        "status": 200,
+        "body": {
+          "type": "object",
+          "required": ["frame", "previewRef", "irDigest"],
+          "additionalProperties": false,
+          "properties": {
+            "frame": { "type": "integer", "minimum": 0, "maximum": 119 },
+            "previewRef": { "type": "string" },
+            "irDigest": { "$ref": "#/schemaDefinitions/HexSha256" }
+          }
+        }
+      },
+      "state": "preview available",
+      "idem": "n/a",
+      "audit": "none",
+      "errors": ["PREVIEW_UNAVAILABLE", "FRAME_OUT_OF_RANGE"]
+    },
+    {
+      "key": "GET /v1/jobs/{jobId}/mappings/{mappingId}",
+      "request": {
+        "path": {
+          "type": "object",
+          "required": ["jobId", "mappingId"],
+          "additionalProperties": false,
+          "properties": {
+            "jobId": { "$ref": "#/schemaDefinitions/JobId" },
+            "mappingId": { "type": "string", "minLength": 1, "maxLength": 100 }
+          }
+        }
+      },
+      "success": {
+        "status": 200,
+        "body": {
+          "type": "object",
+          "required": ["mappingId", "options"],
+          "additionalProperties": true,
+          "properties": {
+            "mappingId": { "type": "string" },
+            "options": { "type": "array" }
+          }
+        }
+      },
+      "state": "IR available",
+      "idem": "n/a",
+      "audit": "EVIDENCE_VIEWED",
+      "errors": ["MAPPING_NOT_FOUND"]
+    },
+    {
+      "key": "POST /v1/reviews",
+      "request": {
+        "headers": { "$ref": "#/schemaDefinitions/CommandHeaders" },
+        "body": { "$ref": "#/schemaDefinitions/JobReviewRequest" }
+      },
+      "success": {
+        "status": 201,
+        "body": { "$ref": "#/schemaDefinitions/Receipt" }
+      },
+      "state": "assigned active job-scope gate reviewer; T1 predecessorId=null; T2-T5 current predecessor receipt",
+      "idem": "required; unique (job,subjectId,gate,predecessorId,decisionVersion)",
+      "audit": "GATE_DECISION_RECORDED",
+      "errors": [
+        "REVIEW_FORBIDDEN",
+        "PREDECESSOR_MISSING",
+        "STALE_APPROVAL_UNSAFE",
+        "DUPLICATE_DECISION"
+      ]
+    },
+    {
+      "key": "POST /v1/release-reviews",
+      "request": {
+        "headers": { "$ref": "#/schemaDefinitions/CommandHeaders" },
+        "body": { "$ref": "#/schemaDefinitions/ReleaseReviewRequest" }
+      },
+      "success": {
+        "status": 201,
+        "body": { "$ref": "#/schemaDefinitions/Receipt" }
+      },
+      "state": "assigned active release-scope T6 reviewer; X-Tenant-Id is forbidden/absent; tenantId=null assignment only; release baseline digest is predecessorId; evidence references at least one T5-approved pilot chain",
+      "idem": "required; unique (release,releaseId,T6,predecessorId,decisionVersion)",
+      "audit": "GATE_DECISION_RECORDED",
+      "errors": [
+        "REVIEW_FORBIDDEN",
+        "PREDECESSOR_MISSING",
+        "STALE_APPROVAL_UNSAFE",
+        "DUPLICATE_DECISION",
+        "TENANT_HEADER_FORBIDDEN"
+      ]
+    },
+    {
+      "key": "POST /v1/jobs/{jobId}/render",
+      "request": {
+        "headers": { "$ref": "#/schemaDefinitions/EditHeaders" },
+        "path": {
+          "type": "object",
+          "required": ["jobId"],
+          "additionalProperties": false,
+          "properties": { "jobId": { "$ref": "#/schemaDefinitions/JobId" } }
+        },
+        "body": { "$ref": "#/schemaDefinitions/RenderRequest" }
+      },
+      "success": {
+        "status": 202,
+        "body": {
+          "type": "object",
+          "required": ["state", "attemptId"],
+          "additionalProperties": false,
+          "properties": {
+            "state": { "const": "QUEUED" },
+            "attemptId": { "$ref": "#/schemaDefinitions/JobAttemptId" }
+          }
+        }
+      },
+      "state": "T4 approved and current; OWNER|ADMIN",
+      "idem": "required",
+      "audit": "RENDER_REQUESTED",
+      "errors": ["RENDER_BLOCKED", "STALE_APPROVAL_UNSAFE", "VERSION_CONFLICT"]
+    },
+    {
+      "key": "GET /v1/receipts",
+      "request": {
+        "query": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "jobId": { "$ref": "#/schemaDefinitions/JobId" },
+            "gate": { "enum": ["T1", "T2", "T3", "T4", "T5", "T6"] },
+            "after": { "$ref": "#/schemaDefinitions/Cursor" },
+            "limit": { "type": "integer", "minimum": 1, "maximum": 100 }
+          }
+        }
+      },
+      "success": {
+        "status": 200,
+        "body": {
+          "type": "object",
+          "required": ["items", "pageInfo"],
+          "additionalProperties": false,
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": { "$ref": "#/schemaDefinitions/Receipt" }
+            },
+            "pageInfo": { "$ref": "#/schemaDefinitions/PageInfo" }
+          }
+        }
+      },
+      "state": "tenant member",
+      "idem": "n/a",
+      "audit": "RECEIPT_CHAIN_VIEWED",
+      "errors": ["CURSOR_INVALID"]
+    },
+    {
+      "key": "GET /v1/jobs/{jobId}/report-download",
+      "request": {
+        "path": {
+          "type": "object",
+          "required": ["jobId"],
+          "additionalProperties": false,
+          "properties": { "jobId": { "$ref": "#/schemaDefinitions/JobId" } }
+        }
+      },
+      "success": {
+        "status": 200,
+        "body": { "type": "string", "contentEncoding": "binary" }
+      },
+      "state": "T5-approved COMPLETED; unexpired",
+      "idem": "n/a",
+      "audit": "ARTIFACT_DOWNLOADED",
+      "errors": ["ARTIFACT_UNAVAILABLE"]
+    },
+    {
+      "key": "GET /v1/jobs/{jobId}/delivery-download",
+      "request": {
+        "path": {
+          "type": "object",
+          "required": ["jobId"],
+          "additionalProperties": false,
+          "properties": { "jobId": { "$ref": "#/schemaDefinitions/JobId" } }
+        }
+      },
+      "success": {
+        "status": 200,
+        "body": { "type": "string", "contentEncoding": "binary" }
+      },
+      "state": "T5-approved COMPLETED; unexpired",
+      "idem": "n/a",
+      "audit": "ARTIFACT_DOWNLOADED",
+      "errors": ["ARTIFACT_UNAVAILABLE"]
+    },
+    {
+      "key": "GET /admin/tenants",
+      "request": { "query": { "$ref": "#/schemaDefinitions/PageQuery" } },
+      "success": {
+        "status": 200,
+        "body": {
+          "type": "object",
+          "required": ["items", "pageInfo"],
+          "additionalProperties": false,
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": { "type": "object", "additionalProperties": true }
+            },
+            "pageInfo": { "$ref": "#/schemaDefinitions/PageInfo" }
+          }
+        }
+      },
+      "state": "super-admin platform or assigned read scope",
+      "idem": "n/a",
+      "audit": "TENANT_VIEWED",
+      "errors": ["ADMIN_ACCESS_DENIED", "CURSOR_INVALID"]
+    },
+    {
+      "key": "GET /admin/tenants/{tenantId}",
+      "request": {
+        "path": {
+          "type": "object",
+          "required": ["tenantId"],
+          "additionalProperties": false,
+          "properties": {
+            "tenantId": { "$ref": "#/schemaDefinitions/TenantId" }
+          }
+        }
+      },
+      "success": {
+        "status": 200,
+        "body": { "type": "object", "additionalProperties": true }
+      },
+      "state": "server-derived scope",
+      "idem": "n/a",
+      "audit": "TENANT_VIEWED",
+      "errors": ["TENANT_NOT_FOUND"]
+    },
+    {
+      "key": "GET /admin/tenants/{tenantId}/jobs",
+      "request": {
+        "path": {
+          "type": "object",
+          "required": ["tenantId"],
+          "additionalProperties": false,
+          "properties": {
+            "tenantId": { "$ref": "#/schemaDefinitions/TenantId" }
+          }
+        },
+        "query": { "$ref": "#/schemaDefinitions/PageQuery" }
+      },
+      "success": {
+        "status": 200,
+        "body": {
+          "type": "object",
+          "required": ["items", "pageInfo"],
+          "additionalProperties": false,
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": { "$ref": "#/schemaDefinitions/AdminJobProjection" }
+            },
+            "pageInfo": { "$ref": "#/schemaDefinitions/PageInfo" }
+          }
+        }
+      },
+      "state": "server-derived scope",
+      "idem": "n/a",
+      "audit": "TENANT_VIEWED",
+      "errors": ["TENANT_NOT_FOUND"]
+    },
+    {
+      "key": "PATCH /admin/tenants/{tenantId}/members",
+      "request": {
+        "headers": { "$ref": "#/schemaDefinitions/EditHeaders" },
+        "path": {
+          "type": "object",
+          "required": ["tenantId"],
+          "additionalProperties": false,
+          "properties": {
+            "tenantId": { "$ref": "#/schemaDefinitions/TenantId" }
+          }
+        },
+        "body": { "$ref": "#/schemaDefinitions/TenantMembersPatchRequest" }
+      },
+      "success": {
+        "status": 200,
+        "body": {
+          "type": "object",
+          "required": ["version"],
+          "additionalProperties": true,
+          "properties": { "version": { "type": "integer", "minimum": 1 } }
+        }
+      },
+      "state": "super-admin or assigned access-manager; current If-Match",
+      "idem": "required",
+      "audit": "TENANT_ACCESS_CHANGED",
+      "errors": ["ADMIN_ACCESS_DENIED", "VERSION_CONFLICT", "ROLE_FORBIDDEN"]
+    },
+    {
+      "key": "POST /admin/tenants/{tenantId}/suspend",
+      "request": {
+        "headers": { "$ref": "#/schemaDefinitions/EditHeaders" },
+        "path": {
+          "type": "object",
+          "required": ["tenantId"],
+          "additionalProperties": false,
+          "properties": {
+            "tenantId": { "$ref": "#/schemaDefinitions/TenantId" }
+          }
+        },
+        "body": { "$ref": "#/schemaDefinitions/ReasonRequest" }
+      },
+      "success": {
+        "status": 200,
+        "body": {
+          "type": "object",
+          "required": ["status", "version"],
+          "additionalProperties": false,
+          "properties": {
+            "status": { "const": "suspended" },
+            "version": { "type": "integer", "minimum": 1 }
+          }
+        }
+      },
+      "state": "super-admin or assigned suspend capability",
+      "idem": "required",
+      "audit": "TENANT_SUSPENDED",
+      "errors": ["ADMIN_ACCESS_DENIED", "VERSION_CONFLICT"]
+    },
+    {
+      "key": "GET /admin/jobs",
+      "request": { "query": { "$ref": "#/schemaDefinitions/PageQuery" } },
+      "success": {
+        "status": 200,
+        "body": {
+          "type": "object",
+          "required": ["items", "pageInfo", "summary"],
+          "additionalProperties": false,
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": { "$ref": "#/schemaDefinitions/AdminJobProjection" }
+            },
+            "pageInfo": { "$ref": "#/schemaDefinitions/PageInfo" },
+            "summary": { "type": "object", "additionalProperties": true }
+          }
+        }
+      },
+      "state": "server-derived admin scope",
+      "idem": "n/a",
+      "audit": "TENANT_VIEWED",
+      "errors": ["ADMIN_ACCESS_DENIED", "CURSOR_INVALID"]
+    },
+    {
+      "key": "GET /admin/jobs/{jobId}",
+      "request": {
+        "path": {
+          "type": "object",
+          "required": ["jobId"],
+          "additionalProperties": false,
+          "properties": { "jobId": { "$ref": "#/schemaDefinitions/JobId" } }
+        }
+      },
+      "success": {
+        "status": 200,
+        "body": { "$ref": "#/schemaDefinitions/AdminJobProjection" }
+      },
+      "state": "server-derived admin scope",
+      "idem": "n/a",
+      "audit": "JOB_VIEWED",
+      "errors": ["ADMIN_ACCESS_DENIED", "JOB_NOT_FOUND"]
+    },
+    {
+      "key": "POST /admin/jobs/{jobId}/cancel",
+      "request": {
+        "headers": { "$ref": "#/schemaDefinitions/EditHeaders" },
+        "path": {
+          "type": "object",
+          "required": ["jobId"],
+          "additionalProperties": false,
+          "properties": { "jobId": { "$ref": "#/schemaDefinitions/JobId" } }
+        },
+        "body": { "$ref": "#/schemaDefinitions/ReasonRequest" }
+      },
+      "success": {
+        "status": 202,
+        "body": {
+          "type": "object",
+          "required": ["state"],
+          "additionalProperties": false,
+          "properties": { "state": { "const": "CANCEL_REQUESTED" } }
+        }
+      },
+      "state": "allowed admin capability and cancellable state",
+      "idem": "required",
+      "audit": "JOB_CANCEL_REQUESTED",
+      "errors": ["ADMIN_ACCESS_DENIED", "JOB_NOT_CANCELLABLE"]
+    },
+    {
+      "key": "POST /admin/jobs/{jobId}/retry",
+      "request": {
+        "headers": { "$ref": "#/schemaDefinitions/EditHeaders" },
+        "path": {
+          "type": "object",
+          "required": ["jobId"],
+          "additionalProperties": false,
+          "properties": { "jobId": { "$ref": "#/schemaDefinitions/JobId" } }
+        },
+        "body": { "$ref": "#/schemaDefinitions/ReasonRequest" }
+      },
+      "success": {
+        "status": 201,
+        "body": { "$ref": "#/schemaDefinitions/AdminJobProjection" }
+      },
+      "state": "allowed admin capability and transient failure",
+      "idem": "required",
+      "audit": "JOB_RETRY_REQUESTED",
+      "errors": ["ADMIN_ACCESS_DENIED", "JOB_NOT_RETRYABLE"]
+    },
+    {
+      "key": "POST /admin/queue/drain",
+      "request": {
+        "headers": { "$ref": "#/schemaDefinitions/EditHeaders" },
+        "body": { "$ref": "#/schemaDefinitions/ReasonRequest" }
+      },
+      "success": {
+        "status": 202,
+        "body": {
+          "type": "object",
+          "required": ["draining"],
+          "additionalProperties": false,
+          "properties": { "draining": { "const": true } }
+        }
+      },
+      "state": "super-admin only",
+      "idem": "required",
+      "audit": "JOB_QUEUE_DRAIN_REQUESTED",
+      "errors": ["ADMIN_ACCESS_DENIED", "VERSION_CONFLICT"]
+    },
+    {
+      "key": "POST /admin/queue/resume",
+      "request": {
+        "headers": { "$ref": "#/schemaDefinitions/EditHeaders" },
+        "body": { "$ref": "#/schemaDefinitions/ReasonRequest" }
+      },
+      "success": {
+        "status": 202,
+        "body": {
+          "type": "object",
+          "required": ["draining"],
+          "additionalProperties": false,
+          "properties": { "draining": { "const": false } }
+        }
+      },
+      "state": "super-admin only",
+      "idem": "required",
+      "audit": "JOB_QUEUE_RESUME_REQUESTED",
+      "errors": ["ADMIN_ACCESS_DENIED", "VERSION_CONFLICT"]
+    },
+    {
+      "key": "GET /admin/receipts",
+      "request": { "query": { "$ref": "#/schemaDefinitions/PageQuery" } },
+      "success": {
+        "status": 200,
+        "body": {
+          "type": "object",
+          "required": ["items", "pageInfo"],
+          "additionalProperties": false,
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": { "$ref": "#/schemaDefinitions/Receipt" }
+            },
+            "pageInfo": { "$ref": "#/schemaDefinitions/PageInfo" }
+          }
+        }
+      },
+      "state": "server-derived admin scope",
+      "idem": "n/a",
+      "audit": "RECEIPT_CHAIN_VIEWED",
+      "errors": ["ADMIN_ACCESS_DENIED", "CURSOR_INVALID"]
+    },
+    {
+      "key": "GET /admin/receipts/{receiptId}",
+      "request": {
+        "path": {
+          "type": "object",
+          "required": ["receiptId"],
+          "additionalProperties": false,
+          "properties": {
+            "receiptId": { "$ref": "#/schemaDefinitions/ReceiptId" }
+          }
+        }
+      },
+      "success": {
+        "status": 200,
+        "body": { "$ref": "#/schemaDefinitions/Receipt" }
+      },
+      "state": "server-derived admin scope",
+      "idem": "n/a",
+      "audit": "RECEIPT_CHAIN_VIEWED",
+      "errors": ["RECEIPT_NOT_FOUND"]
+    },
+    {
+      "key": "POST /admin/receipt-exports",
+      "request": {
+        "headers": { "$ref": "#/schemaDefinitions/CommandHeaders" },
+        "body": { "$ref": "#/schemaDefinitions/ExportCreateRequest" }
+      },
+      "success": {
+        "status": 202,
+        "body": { "$ref": "#/schemaDefinitions/ExportStatus" }
+      },
+      "state": "export capability",
+      "idem": "required",
+      "audit": "AUDIT_EXPORT_CREATED",
+      "errors": ["ADMIN_ACCESS_DENIED", "EXPORT_FAILED"]
+    },
+    {
+      "key": "GET /admin/receipt-exports/{exportId}",
+      "request": {
+        "path": {
+          "type": "object",
+          "required": ["exportId"],
+          "additionalProperties": false,
+          "properties": {
+            "exportId": { "$ref": "#/schemaDefinitions/ExportId" }
+          }
+        }
+      },
+      "success": {
+        "status": 200,
+        "body": { "$ref": "#/schemaDefinitions/ExportStatus" }
+      },
+      "state": "same scoped export principal",
+      "idem": "n/a",
+      "audit": "none",
+      "errors": ["ADMIN_ACCESS_DENIED", "EXPORT_FAILED"]
+    },
+    {
+      "key": "GET /admin/receipt-exports/{exportId}/download",
+      "request": {
+        "path": {
+          "type": "object",
+          "required": ["exportId"],
+          "additionalProperties": false,
+          "properties": {
+            "exportId": { "$ref": "#/schemaDefinitions/ExportId" }
+          }
+        }
+      },
+      "success": {
+        "status": 200,
+        "body": { "type": "string", "contentEncoding": "binary" }
+      },
+      "state": "READY and unexpired; same scoped export principal",
+      "idem": "n/a",
+      "audit": "AUDIT_EXPORT_DOWNLOADED",
+      "errors": ["ADMIN_ACCESS_DENIED", "ARTIFACT_UNAVAILABLE"]
+    },
+    {
+      "key": "GET /admin/audit-log",
+      "request": { "query": { "$ref": "#/schemaDefinitions/PageQuery" } },
+      "success": {
+        "status": 200,
+        "body": {
+          "type": "object",
+          "required": ["items", "pageInfo"],
+          "additionalProperties": false,
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": { "type": "object", "additionalProperties": true }
+            },
+            "pageInfo": { "$ref": "#/schemaDefinitions/PageInfo" }
+          }
+        }
+      },
+      "state": "admin read scope",
+      "idem": "n/a",
+      "audit": "AUDIT_LOG_VIEWED",
+      "errors": ["ADMIN_ACCESS_DENIED", "CURSOR_INVALID"]
+    },
+    {
+      "key": "POST /admin/audit-exports",
+      "request": {
+        "headers": { "$ref": "#/schemaDefinitions/CommandHeaders" },
+        "body": { "$ref": "#/schemaDefinitions/ExportCreateRequest" }
+      },
+      "success": {
+        "status": 202,
+        "body": { "$ref": "#/schemaDefinitions/ExportStatus" }
+      },
+      "state": "export capability",
+      "idem": "required",
+      "audit": "AUDIT_EXPORT_CREATED",
+      "errors": ["ADMIN_ACCESS_DENIED", "EXPORT_FAILED"]
+    },
+    {
+      "key": "GET /admin/audit-exports/{exportId}",
+      "request": {
+        "path": {
+          "type": "object",
+          "required": ["exportId"],
+          "additionalProperties": false,
+          "properties": {
+            "exportId": { "$ref": "#/schemaDefinitions/ExportId" }
+          }
+        }
+      },
+      "success": {
+        "status": 200,
+        "body": { "$ref": "#/schemaDefinitions/ExportStatus" }
+      },
+      "state": "same scoped export principal",
+      "idem": "n/a",
+      "audit": "none",
+      "errors": ["ADMIN_ACCESS_DENIED", "EXPORT_FAILED"]
+    },
+    {
+      "key": "GET /admin/audit-exports/{exportId}/download",
+      "request": {
+        "path": {
+          "type": "object",
+          "required": ["exportId"],
+          "additionalProperties": false,
+          "properties": {
+            "exportId": { "$ref": "#/schemaDefinitions/ExportId" }
+          }
+        }
+      },
+      "success": {
+        "status": 200,
+        "body": { "type": "string", "contentEncoding": "binary" }
+      },
+      "state": "READY and unexpired; same scoped export principal",
+      "idem": "n/a",
+      "audit": "AUDIT_EXPORT_DOWNLOADED",
+      "errors": ["ADMIN_ACCESS_DENIED", "ARTIFACT_UNAVAILABLE"]
+    },
+    {
+      "key": "GET /admin/quarantine",
+      "request": { "query": { "$ref": "#/schemaDefinitions/PageQuery" } },
+      "success": {
+        "status": 200,
+        "body": {
+          "type": "object",
+          "required": ["items", "pageInfo"],
+          "additionalProperties": false,
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": { "type": "object", "additionalProperties": true }
+            },
+            "pageInfo": { "$ref": "#/schemaDefinitions/PageInfo" }
+          }
+        }
+      },
+      "state": "admin read scope",
+      "idem": "n/a",
+      "audit": "QUARANTINE_VIEWED",
+      "errors": ["ADMIN_ACCESS_DENIED", "CURSOR_INVALID"]
+    },
+    {
+      "key": "GET /admin/quarantine/{itemId}",
+      "request": {
+        "path": {
+          "type": "object",
+          "required": ["itemId"],
+          "additionalProperties": false,
+          "properties": {
+            "itemId": { "$ref": "#/schemaDefinitions/QuarantineItemId" }
+          }
+        }
+      },
+      "success": {
+        "status": 200,
+        "body": { "type": "object", "additionalProperties": true }
+      },
+      "state": "admin read scope; QT-* display IDs appear only in response/display fields, never as canonical path IDs",
+      "idem": "n/a",
+      "audit": "QUARANTINE_VIEWED",
+      "errors": ["QUARANTINE_NOT_FOUND"]
+    },
+    {
+      "key": "POST /admin/quarantine/{itemId}/release",
+      "request": {
+        "headers": { "$ref": "#/schemaDefinitions/EditHeaders" },
+        "path": {
+          "type": "object",
+          "required": ["itemId"],
+          "additionalProperties": false,
+          "properties": {
+            "itemId": { "$ref": "#/schemaDefinitions/QuarantineItemId" }
+          }
+        },
+        "body": { "$ref": "#/schemaDefinitions/QuarantineDecisionRequest" }
+      },
+      "success": {
+        "status": 202,
+        "body": {
+          "type": "object",
+          "required": [
+            "revalidationUploadId",
+            "originalQuarantineState",
+            "state"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "revalidationUploadId": { "$ref": "#/schemaDefinitions/UploadId" },
+            "originalQuarantineState": { "const": "QUARANTINED" },
+            "state": { "const": "VALIDATING" }
+          }
+        }
+      },
+      "state": "release capability; preserves terminal QUARANTINED record and creates a linked sandboxed revalidation upload attempt; no accepted artifact is returned until VALIDATING reaches ACCEPTED",
+      "idem": "required",
+      "audit": "QUARANTINE_RELEASE_REVIEWED",
+      "errors": [
+        "ADMIN_ACCESS_DENIED",
+        "QUARANTINE_RELEASE_BLOCKED",
+        "QUARANTINE_REVALIDATION_FAILED",
+        "VERSION_CONFLICT"
+      ]
+    },
+    {
+      "key": "POST /admin/quarantine/{itemId}/reject",
+      "request": {
+        "headers": { "$ref": "#/schemaDefinitions/EditHeaders" },
+        "path": {
+          "type": "object",
+          "required": ["itemId"],
+          "additionalProperties": false,
+          "properties": {
+            "itemId": { "$ref": "#/schemaDefinitions/QuarantineItemId" }
+          }
+        },
+        "body": { "$ref": "#/schemaDefinitions/QuarantineDecisionRequest" }
+      },
+      "success": {
+        "status": 200,
+        "body": {
+          "type": "object",
+          "required": ["state"],
+          "additionalProperties": false,
+          "properties": { "state": { "enum": ["retained", "rejected"] } }
+        }
+      },
+      "state": "reject capability; current item",
+      "idem": "required",
+      "audit": "QUARANTINE_RETAINED",
+      "errors": ["ADMIN_ACCESS_DENIED", "VERSION_CONFLICT"]
+    },
+    {
+      "key": "GET /admin/billing/{tenantId}",
+      "request": {
+        "path": {
+          "type": "object",
+          "required": ["tenantId"],
+          "additionalProperties": false,
+          "properties": {
+            "tenantId": { "$ref": "#/schemaDefinitions/TenantId" }
+          }
+        }
+      },
+      "success": {
+        "status": 200,
+        "body": { "type": "object", "additionalProperties": true }
+      },
+      "state": "admin read scope",
+      "idem": "n/a",
+      "audit": "BILLING_METADATA_VIEWED",
+      "errors": ["TENANT_NOT_FOUND"]
+    },
+    {
+      "key": "PATCH /admin/billing/{tenantId}",
+      "request": {
+        "headers": { "$ref": "#/schemaDefinitions/EditHeaders" },
+        "path": {
+          "type": "object",
+          "required": ["tenantId"],
+          "additionalProperties": false,
+          "properties": {
+            "tenantId": { "$ref": "#/schemaDefinitions/TenantId" }
+          }
+        },
+        "body": { "$ref": "#/schemaDefinitions/BillingPatchRequest" }
+      },
+      "success": {
+        "status": 200,
+        "body": {
+          "type": "object",
+          "required": ["version"],
+          "additionalProperties": true,
+          "properties": { "version": { "type": "integer", "minimum": 1 } }
+        }
+      },
+      "state": "change capability; current If-Match",
+      "idem": "required",
+      "audit": "BILLING_METADATA_CHANGED",
+      "errors": [
+        "ADMIN_ACCESS_DENIED",
+        "VERSION_CONFLICT",
+        "PAYMENT_DATA_FORBIDDEN"
+      ]
+    },
+    {
+      "key": "POST /admin/reviewer-assignments",
+      "request": {
+        "headers": { "$ref": "#/schemaDefinitions/CommandHeaders" },
+        "body": { "$ref": "#/schemaDefinitions/ReviewerAssignmentRequest" }
+      },
+      "success": {
+        "status": 201,
+        "body": {
+          "type": "object",
+          "required": ["assignmentId", "scope", "gate", "userId"],
+          "additionalProperties": true,
+          "properties": {
+            "assignmentId": { "$ref": "#/schemaDefinitions/AssignmentId" },
+            "scope": { "enum": ["job", "release"] },
+            "gate": { "enum": ["T1", "T2", "T3", "T4", "T5", "T6"] },
+            "userId": { "$ref": "#/schemaDefinitions/UserId" }
+          }
+        }
+      },
+      "state": "super-admin; assignee cannot equal actor; job scope uses tenantId and T1-T5; release scope uses releaseId and T6",
+      "idem": "required",
+      "audit": "REVIEWER_ASSIGNED",
+      "errors": ["ADMIN_ACCESS_DENIED", "ROLE_FORBIDDEN", "VERSION_CONFLICT"]
+    },
+    {
+      "key": "DELETE /admin/reviewer-assignments/{assignmentId}",
+      "request": {
+        "headers": { "$ref": "#/schemaDefinitions/EditHeaders" },
+        "path": {
+          "type": "object",
+          "required": ["assignmentId"],
+          "additionalProperties": false,
+          "properties": {
+            "assignmentId": { "$ref": "#/schemaDefinitions/AssignmentId" }
+          }
+        },
+        "body": { "$ref": "#/schemaDefinitions/ReasonRequest" }
+      },
+      "success": {
+        "status": 204,
+        "body": { "$ref": "#/schemaDefinitions/Empty" }
+      },
+      "state": "super-admin; current assignment",
+      "idem": "safe replay",
+      "audit": "REVIEWER_ASSIGNMENT_REVOKED",
+      "errors": ["ADMIN_ACCESS_DENIED", "VERSION_CONFLICT"]
+    }
   ]
 }

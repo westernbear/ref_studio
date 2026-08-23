@@ -1,5 +1,5 @@
-import { SignInForm } from "../../components/SignInForm"
+import { SignInForm } from "../../components/SignInForm";
 
 export default function SignInPage() {
-  return <SignInForm mode="creator" />
+  return <SignInForm mode="creator" />;
 }

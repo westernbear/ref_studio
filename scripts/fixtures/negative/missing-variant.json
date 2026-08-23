@@ -1,1 +1,5 @@
-{"fixtureId":"ablation","expectedError":"FIXTURE_VARIANT_MISSING","requiredVariant":"removeCameraMissing"}
+{
+  "fixtureId": "ablation",
+  "expectedError": "FIXTURE_VARIANT_MISSING",
+  "requiredVariant": "removeCameraMissing"
+}

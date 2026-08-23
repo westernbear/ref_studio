@@ -1,52 +1,97 @@
-import { expect, test } from "@playwright/test"
+import { expect, test } from "@playwright/test";
 
-test("covers scoped tenant directory, detail links, access matrix, and suspension @admin-tenants", async ({ page }) => {
-  const seen = new Set<string>()
+test("covers scoped tenant directory, detail links, access matrix, and suspension @admin-tenants", async ({
+  page,
+}) => {
+  const seen = new Set<string>();
   const collectControls = async (): Promise<void> => {
-    for (const value of await page.locator('[data-control-id^="admin_tenants:"]').evaluateAll((elements) => elements.map((element) => element.getAttribute("data-control-id")))) {
-      if (value) seen.add(value)
+    for (const value of await page
+      .locator('[data-control-id^="admin_tenants:"]')
+      .evaluateAll((elements) =>
+        elements.map((element) => element.getAttribute("data-control-id")),
+      )) {
+      if (value) seen.add(value);
     }
-  }
-  await page.goto("/admin/tenants")
-  await expect(page.getByRole("heading", { name: "Tenants" })).toBeVisible()
-  await collectControls()
-  await expect(page.locator('[data-control-id^="admin_tenants:"]')).toHaveCount(8)
-  await page.getByLabel("Search tenants").fill("Aegis")
-  await expect(page.getByText("Aegis Corporation")).toBeVisible()
-  await page.getByRole("button", { name: "More actions for Aegis Corporation" }).click()
-  await collectControls()
-  await expect(page.getByRole("button", { name: "Open detail" })).toBeVisible()
-  await page.getByRole("button", { name: "Open detail" }).click()
-  await collectControls()
-  await page.getByRole("button", { name: "Close tenant details" }).evaluate((element) => (element as HTMLButtonElement).click())
-  await page.getByRole("button", { name: "Cards" }).click()
-  await expect(page.getByRole("button", { name: "Open detail" })).toHaveCount(1)
-  await page.getByRole("button", { name: "Open detail" }).click()
-  await expect(page.getByRole("dialog")).toContainText("tnt_aegis")
-  await collectControls()
-  await expect(page.getByRole("dialog").getByRole("link", { name: "Jobs" })).toHaveAttribute("href", "/admin/jobs?tenantId=tnt_aegis")
-  await expect(page.getByRole("dialog").getByRole("link", { name: "Billing / quota" })).toHaveAttribute("href", "/admin/billing?tenantId=tnt_aegis")
-  await page.getByRole("button", { name: "Manage access" }).evaluate((element) => (element as HTMLButtonElement).click())
-  await collectControls()
-  await page.getByLabel("Acting role").selectOption("VIEWER")
-  await expect(page.getByRole("button", { name: "Apply access" })).toBeDisabled()
-  await page.getByRole("dialog").getByRole("button", { name: "Cancel" }).evaluate((element) => (element as HTMLButtonElement).click())
-  await page.reload()
-  await page.getByLabel("Search tenants").fill("Aegis")
-  await page.getByRole("button", { name: "Cards" }).click()
-  await page.getByRole("button", { name: "Open detail" }).click()
-  await page.getByRole("button", { name: "Manage access" }).evaluate((element) => (element as HTMLButtonElement).click())
-  await collectControls()
-  await page.getByLabel("Acting role").selectOption("OPS_ADMIN")
-  await page.getByRole("button", { name: "Apply access" }).evaluate((element) => (element as HTMLButtonElement).click())
-  await expect(page.getByRole("status")).toContainText("before/after recorded in audit")
-  await page.getByRole("button", { name: "Suspend" }).evaluate((element) => (element as HTMLButtonElement).click())
-  await page.getByRole("checkbox").evaluate((element) => (element as HTMLInputElement).click())
-  await page.getByPlaceholder("Operational reason").fill("Policy review requested")
-  await page.getByRole("button", { name: "Confirm suspension" }).evaluate((element) => (element as HTMLButtonElement).click())
-  await expect(page.getByRole("status")).toContainText("Suspension applied")
-  await collectControls()
-  expect([...seen].sort((left, right) => Number(left.split(":")[1]) - Number(right.split(":")[1]))).toEqual(Array.from({ length: 23 }, (_, index) => `admin_tenants:${index + 1}`))
-  expect(seen.size).toBe(23)
-  await page.getByRole("button", { name: "Close tenant details" }).click()
-})
+  };
+  await page.goto("/admin/tenants");
+  await expect(page.getByRole("heading", { name: "Tenants" })).toBeVisible();
+  await collectControls();
+  await expect(page.locator('[data-control-id^="admin_tenants:"]')).toHaveCount(
+    8,
+  );
+  await page.getByLabel("Search tenants").fill("Aegis");
+  await expect(page.getByText("Aegis Corporation")).toBeVisible();
+  await page
+    .getByRole("button", { name: "More actions for Aegis Corporation" })
+    .click();
+  await collectControls();
+  await expect(page.getByRole("button", { name: "Open detail" })).toBeVisible();
+  await page.getByRole("button", { name: "Open detail" }).click();
+  await collectControls();
+  await page
+    .getByRole("button", { name: "Close tenant details" })
+    .evaluate((element) => (element as HTMLButtonElement).click());
+  await page.getByRole("button", { name: "Cards" }).click();
+  await expect(page.getByRole("button", { name: "Open detail" })).toHaveCount(
+    1,
+  );
+  await page.getByRole("button", { name: "Open detail" }).click();
+  await expect(page.getByRole("dialog")).toContainText("tnt_aegis");
+  await collectControls();
+  await expect(
+    page.getByRole("dialog").getByRole("link", { name: "Jobs" }),
+  ).toHaveAttribute("href", "/admin/jobs?tenantId=tnt_aegis");
+  await expect(
+    page.getByRole("dialog").getByRole("link", { name: "Billing / quota" }),
+  ).toHaveAttribute("href", "/admin/billing?tenantId=tnt_aegis");
+  await page
+    .getByRole("button", { name: "Manage access" })
+    .evaluate((element) => (element as HTMLButtonElement).click());
+  await collectControls();
+  await page.getByLabel("Acting role").selectOption("VIEWER");
+  await expect(
+    page.getByRole("button", { name: "Apply access" }),
+  ).toBeDisabled();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Cancel" })
+    .evaluate((element) => (element as HTMLButtonElement).click());
+  await page.reload();
+  await page.getByLabel("Search tenants").fill("Aegis");
+  await page.getByRole("button", { name: "Cards" }).click();
+  await page.getByRole("button", { name: "Open detail" }).click();
+  await page
+    .getByRole("button", { name: "Manage access" })
+    .evaluate((element) => (element as HTMLButtonElement).click());
+  await collectControls();
+  await page.getByLabel("Acting role").selectOption("OPS_ADMIN");
+  await page
+    .getByRole("button", { name: "Apply access" })
+    .evaluate((element) => (element as HTMLButtonElement).click());
+  await expect(page.getByRole("status")).toContainText(
+    "before/after recorded in audit",
+  );
+  await page
+    .getByRole("button", { name: "Suspend" })
+    .evaluate((element) => (element as HTMLButtonElement).click());
+  await page
+    .getByRole("checkbox")
+    .evaluate((element) => (element as HTMLInputElement).click());
+  await page
+    .getByPlaceholder("Operational reason")
+    .fill("Policy review requested");
+  await page
+    .getByRole("button", { name: "Confirm suspension" })
+    .evaluate((element) => (element as HTMLButtonElement).click());
+  await expect(page.getByRole("status")).toContainText("Suspension applied");
+  await collectControls();
+  expect(
+    [...seen].sort(
+      (left, right) => Number(left.split(":")[1]) - Number(right.split(":")[1]),
+    ),
+  ).toEqual(
+    Array.from({ length: 23 }, (_, index) => `admin_tenants:${index + 1}`),
+  );
+  expect(seen.size).toBe(23);
+  await page.getByRole("button", { name: "Close tenant details" }).click();
+});

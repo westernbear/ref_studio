@@ -1,5 +1,69 @@
-import { EVIDENCE, FAILURE_TOKENS, assert, parseArgs, readJson } from "./common.mjs"
-const required = (parseArgs(process.argv.slice(2))["require-integrated-fps"] ?? "").split(",").map(Number); const report = await readJson(`${EVIDENCE}/task-44-pilot-report.json`); const admission = await readJson(`${EVIDENCE}/task-44-admission.json`)
-assert(report.status === "PASS" && admission.status === "PASS", "PILOT_REPORT_NOT_PASS"); assert(JSON.stringify(required) === JSON.stringify([24, 25, 30, 50, 60]), "INTEGRATED_FPS_SET_INVALID")
-for (const fps of required) { const runs = report.runs.filter((run) => run.fps === fps); assert(runs.length === 2 && runs.every((run) => run.frames === fps * 4), "INTEGRATED_FRAME_COUNT_INVALID"); assert(runs.every((run) => run.determinism.repeatedManifestEqual && run.determinism.repeatedMediaDigestEqual), "DETERMINISM_DRIFT"); assert(runs.every((run) => run.resource.wallSeconds <= run.resource.maxWallSeconds && run.resource.rssGiB <= run.resource.maxRssGiB), "RESOURCE_LIMIT_ASSERTION_FAILED"); assert(runs.every((run) => run.stages.length === 11 && run.gates.T5 === "APPROVED" && run.publication === "PUBLISHED" && run.download === "AUTHORIZED"), "PUBLICATION_GATE_FAILED") }
-assert(FAILURE_TOKENS.every((token) => report.failureCases.some((item) => item.token === token && item.quality === "BLOCKED" && item.publication === "BLOCKED")), "FAILURE_MATRIX_INCOMPLETE"); process.stdout.write(`${JSON.stringify({ status: "pilot-verify-ok", integratedFps: required, failureCases: FAILURE_TOKENS.length })}\n`)
+import {
+  EVIDENCE,
+  FAILURE_TOKENS,
+  assert,
+  parseArgs,
+  readJson,
+} from "./common.mjs";
+const required = (
+  parseArgs(process.argv.slice(2))["require-integrated-fps"] ?? ""
+)
+  .split(",")
+  .map(Number);
+const report = await readJson(`${EVIDENCE}/task-44-pilot-report.json`);
+const admission = await readJson(`${EVIDENCE}/task-44-admission.json`);
+assert(
+  report.status === "PASS" && admission.status === "PASS",
+  "PILOT_REPORT_NOT_PASS",
+);
+assert(
+  JSON.stringify(required) === JSON.stringify([24, 25, 30, 50, 60]),
+  "INTEGRATED_FPS_SET_INVALID",
+);
+for (const fps of required) {
+  const runs = report.runs.filter((run) => run.fps === fps);
+  assert(
+    runs.length === 2 && runs.every((run) => run.frames === fps * 4),
+    "INTEGRATED_FRAME_COUNT_INVALID",
+  );
+  assert(
+    runs.every(
+      (run) =>
+        run.determinism.repeatedManifestEqual &&
+        run.determinism.repeatedMediaDigestEqual,
+    ),
+    "DETERMINISM_DRIFT",
+  );
+  assert(
+    runs.every(
+      (run) =>
+        run.resource.wallSeconds <= run.resource.maxWallSeconds &&
+        run.resource.rssGiB <= run.resource.maxRssGiB,
+    ),
+    "RESOURCE_LIMIT_ASSERTION_FAILED",
+  );
+  assert(
+    runs.every(
+      (run) =>
+        run.stages.length === 11 &&
+        run.gates.T5 === "APPROVED" &&
+        run.publication === "PUBLISHED" &&
+        run.download === "AUTHORIZED",
+    ),
+    "PUBLICATION_GATE_FAILED",
+  );
+}
+assert(
+  FAILURE_TOKENS.every((token) =>
+    report.failureCases.some(
+      (item) =>
+        item.token === token &&
+        item.quality === "BLOCKED" &&
+        item.publication === "BLOCKED",
+    ),
+  ),
+  "FAILURE_MATRIX_INCOMPLETE",
+);
+process.stdout.write(
+  `${JSON.stringify({ status: "pilot-verify-ok", integratedFps: required, failureCases: FAILURE_TOKENS.length })}\n`,
+);
