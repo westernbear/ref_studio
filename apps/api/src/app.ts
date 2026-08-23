@@ -491,7 +491,13 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
   if (options.creatorWorkflow && options.uploads)
     registerCreatorWorkflow(app, options.creatorWorkflow, options.uploads);
   if (options.adminReads)
-    registerAdminRead(app, options.store, options.adminReads, now());
+    registerAdminRead(
+      app,
+      options.store,
+      options.adminReads,
+      now(),
+      options.expectedOrigin,
+    );
   if (options.adminMutations)
     registerAdminMutation(app, options.store, options.adminMutations, now());
   if (options.reviews)

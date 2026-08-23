@@ -6,7 +6,7 @@ test("@scene-review renders no static review evidence", async ({ page }) => {
     page.getByRole("heading", { name: "Scene Review" }),
   ).toBeVisible();
   await expect(
-    page.getByText("No live scene review is connected yet."),
+    page.getByText("Choose a compiler job from Workflow to review."),
   ).toBeVisible();
   await expect(page.locator("[data-control-id]")).toHaveCount(0);
   await expect(page.locator("body")).not.toContainText(

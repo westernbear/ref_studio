@@ -157,9 +157,17 @@ export default function NewProjectPage() {
     abortRef.current = controller;
     setState("creating");
     try {
-      setJobId(await createCompilerJob(media, startFrame, controller.signal));
+      const createdJobId = await createCompilerJob(
+        media,
+        startFrame,
+        controller.signal,
+      );
+      setJobId(createdJobId);
       setState("created");
       setReason("Compiler job created. Your source is ready for review.");
+      window.location.assign(
+        `/scene-review?jobId=${encodeURIComponent(createdJobId)}`,
+      );
     } catch (error) {
       setState("error");
       setReason(safeReason(error));

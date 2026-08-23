@@ -560,6 +560,109 @@ progress {
   background: transparent;
   color: var(--color-body);
 }
+.live-stack {
+  display: grid;
+  gap: var(--space-xl);
+  max-width: 100%;
+  min-width: 0;
+}
+.page-title {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-lg);
+  min-width: 0;
+}
+.page-title h1 {
+  margin: 0;
+  color: var(--color-ink);
+  font: var(--type-display-sm);
+  letter-spacing: 0;
+}
+.page-title p {
+  max-width: 680px;
+  margin: var(--space-xs) 0 0;
+  color: var(--color-body-mid);
+  font: var(--type-body-md);
+}
+.metric-grid,
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-md);
+  margin: 0;
+  min-width: 0;
+  max-width: 100%;
+}
+.metric-grid div,
+.detail-grid div {
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+}
+.metric-grid dt,
+.detail-grid dt {
+  color: var(--color-body-mid);
+  font: var(--type-caption-mono-sm);
+  text-transform: uppercase;
+}
+.metric-grid dd,
+.detail-grid dd {
+  margin: var(--space-xs) 0 0;
+  color: var(--color-ink);
+  font: var(--type-body-lg);
+}
+.table-wrap {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+}
+.live-stack > .panel {
+  min-width: 0;
+  max-width: 100%;
+}
+.live-table {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+  font: var(--type-body-sm);
+}
+.live-table th,
+.live-table td {
+  border-bottom: 1px solid var(--color-hairline);
+  padding: var(--space-sm) var(--space-md);
+  text-align: left;
+  vertical-align: top;
+}
+.live-table th {
+  color: var(--color-body-mid);
+  font: var(--type-caption-mono-sm);
+  text-transform: uppercase;
+}
+.live-table td {
+  color: var(--color-body);
+}
+.live-table tr:last-child td {
+  border-bottom: 0;
+}
+.id-cell {
+  display: grid;
+  gap: 2px;
+  min-width: 160px;
+}
+.id-cell strong {
+  color: var(--color-ink);
+  font-weight: 650;
+}
+.id-cell small {
+  color: var(--color-body-mid);
+  overflow-wrap: anywhere;
+}
+.empty-copy {
+  margin: 0;
+  color: var(--color-body-mid);
+  font: var(--type-body-md);
+}
 .upload-shell > footer {
   margin-top: auto;
   display: flex;
@@ -640,6 +743,34 @@ progress {
   }
   .upload-card {
     padding: var(--space-lg);
+  }
+  .page-title {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .page-title h1 {
+    font: var(--type-display-xs);
+  }
+  .metric-grid,
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+  .panel {
+    max-width: 100%;
+    min-width: 0;
+    padding: var(--space-lg);
+  }
+  .live-table {
+    min-width: 100%;
+    table-layout: fixed;
+  }
+  .live-table th,
+  .live-table td {
+    overflow-wrap: anywhere;
+    padding: var(--space-xs);
+  }
+  .id-cell {
+    min-width: 0;
   }
   .card-actions {
     align-items: stretch;

@@ -23,27 +23,53 @@ if (command === "verify") {
   seed(db, seedEnv);
   const integrity = db.pragma("integrity_check", { simple: true });
   if (integrity !== "ok") throw new Error(`INTEGRITY_CHECK_${integrity}`);
-  for (const [table, expected] of [
-    ["tenants", 2],
-    ["users", 3],
-    ["tenant_memberships", 3],
-    ["reviewer_assignments", 1],
-    ["tenant_quotas", 1],
-  ]) {
-    const count = db
-      .prepare(`SELECT count(*) AS count FROM ${table}`)
-      .get().count;
-    if (count !== expected) throw new Error(`SEED_COUNT_${table}_${count}`);
-  }
+  const exists = (sql, ...params) => db.prepare(sql).get(...params);
+  for (const [table, id] of [
+    ["tenants", "ten_platform"],
+    ["tenants", "ten_stitch_demo"],
+    ["users", "usr_platform"],
+    ["users", "usr_owner"],
+    ["users", "usr_reviewer"],
+    ["credentials", "cred_platform_password"],
+    ["credentials", "cred_owner_password"],
+    ["credentials", "cred_reviewer_password"],
+    ["reviewer_assignments", "asn_release_t6"],
+  ])
+    if (!exists(`SELECT 1 FROM ${table} WHERE id=?`, id))
+      throw new Error(`SEED_MISSING_${table}_${id}`);
+  if (
+    !exists("SELECT 1 FROM tenant_quotas WHERE tenant_id=?", "ten_stitch_demo")
+  )
+    throw new Error("SEED_MISSING_tenant_quotas_ten_stitch_demo");
+  for (const [tenantId, userId, role] of [
+    ["ten_platform", "usr_platform", "SUPER_ADMIN"],
+    ["ten_stitch_demo", "usr_owner", "OWNER"],
+    ["ten_stitch_demo", "usr_reviewer", "DESIGNATED_REVIEWER"],
+  ])
+    if (
+      !exists(
+        "SELECT 1 FROM tenant_memberships WHERE tenant_id=? AND user_id=? AND role=?",
+        tenantId,
+        userId,
+        role,
+      )
+    )
+      throw new Error(`SEED_MISSING_tenant_memberships_${tenantId}_${userId}`);
   console.log(
     JSON.stringify({
       integrity,
       seeded: {
-        tenants: 2,
-        users: 3,
-        memberships: 3,
-        reviewerAssignments: 1,
-        quotas: 1,
+        tenants: db.prepare("SELECT count(*) AS count FROM tenants").get()
+          .count,
+        users: db.prepare("SELECT count(*) AS count FROM users").get().count,
+        memberships: db
+          .prepare("SELECT count(*) AS count FROM tenant_memberships")
+          .get().count,
+        reviewerAssignments: db
+          .prepare("SELECT count(*) AS count FROM reviewer_assignments")
+          .get().count,
+        quotas: db.prepare("SELECT count(*) AS count FROM tenant_quotas").get()
+          .count,
       },
       pragmas: {
         journalMode: db.pragma("journal_mode", { simple: true }),

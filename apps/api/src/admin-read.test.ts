@@ -239,6 +239,29 @@ describe("admin-read", () => {
     );
     expect(data.reads.queryCount?.value).toBe(6);
   });
+  it("allows browser admin sessions to read admin records", async () => {
+    const data = fixture();
+    data.auth.sessions.push({
+      id: "session-admin",
+      userId: "super",
+      tenantId: "platform",
+      expiresAt: Date.now() + 10000,
+      revokedAt: null,
+    });
+    const response = await appFor(data).inject({
+      method: "GET",
+      url: "/admin/tenants",
+      headers: {
+        cookie: "rvs_session=session-admin",
+        "x-csrf-token": "web-proxy",
+        origin: "https://admin.test",
+      },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(
+      response.json().items.map((item: { id: string }) => item.id),
+    ).toEqual(["tenant-a", "tenant-b"]);
+  });
   it("assigned ops-admin and viewer see only assigned tenant across all read routes", async () => {
     for (const id of ["ops", "viewer"]) {
       const data = fixture();

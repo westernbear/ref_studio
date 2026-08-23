@@ -12,10 +12,14 @@ const routes = readFileSync(
   "utf8",
 );
 describe("shared control contract projection", () => {
-  it("routes static admin pages to live empty states", () => {
+  it("routes admin pages to live API-backed surfaces", () => {
     expect(routes).toContain('"admin/jobs": "Queue & Delivery"');
     expect(routes).toContain('"admin/tenants": "Tenants"');
-    expect(routes).toContain("No live records are connected for this page.");
+    expect(routes).toContain('liveApiGet("/admin/tenants")');
+    expect(routes).toContain("Admin sign-in required.");
+    expect(routes).not.toContain(
+      "No live records are connected for this page.",
+    );
   });
   it("uses semantic disabled behavior and visible focus", () => {
     expect(primitives).toContain("disabled={isDisabled}");

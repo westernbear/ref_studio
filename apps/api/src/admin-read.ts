@@ -1,6 +1,8 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
   authenticateAdminBearer,
+  authenticateSession,
+  type AuthFailure,
   type AuthStore,
   type Principal,
 } from "./auth.js";
@@ -97,6 +99,41 @@ type Query = {
 };
 const role = (principal: Principal): string =>
   principal.roles[0]?.toUpperCase().replace("-", "_") ?? "";
+const header = (request: FastifyRequest, name: string): string | undefined => {
+  const value = request.headers[name];
+  return typeof value === "string" ? value : undefined;
+};
+const cookie = (request: FastifyRequest, name: string): string | undefined =>
+  header(request, "cookie")
+    ?.split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(`${name}=`))
+    ?.slice(name.length + 1);
+const adminPrincipal = (
+  auth: AuthStore,
+  request: FastifyRequest,
+  expectedOrigin: string,
+  now: number,
+): Principal | AuthFailure => {
+  const authorization = header(request, "authorization");
+  const raw = authorization?.startsWith("Bearer ")
+    ? authorization.slice(7)
+    : "";
+  const principal = raw
+    ? authenticateAdminBearer(auth, raw, now)
+    : authenticateSession(
+        auth,
+        decodeURIComponent(cookie(request, "rvs_session") ?? ""),
+        header(request, "x-csrf-token"),
+        header(request, "origin"),
+        expectedOrigin,
+        now,
+      );
+  if ("code" in principal) return principal;
+  return ["SUPER_ADMIN", "OPS_ADMIN", "VIEWER"].includes(role(principal))
+    ? principal
+    : { code: "ROLE_NOT_PERMITTED" };
+};
 const page = <T>(
   items: readonly T[],
   query: Query,
@@ -128,11 +165,16 @@ const fail = (reply: FastifyReply, error: unknown): void => {
   const code = error instanceof Error ? error.message : "INTERNAL_ERROR";
   reply
     .code(
-      code === "ADMIN_ACCESS_DENIED" || code === "ROLE_NOT_PERMITTED"
-        ? 403
-        : code === "RESOURCE_NOT_FOUND"
-          ? 404
-          : 400,
+      code === "AUTHENTICATION_REQUIRED"
+        ? 401
+        : code === "ADMIN_ACCESS_DENIED" ||
+            code === "ROLE_NOT_PERMITTED" ||
+            code === "CSRF_REQUIRED" ||
+            code === "CSRF_ORIGIN_INVALID"
+          ? 403
+          : code === "RESOURCE_NOT_FOUND"
+            ? 404
+            : 400,
     )
     .send(
       safeEnvelope(
@@ -167,13 +209,15 @@ export function registerAdminRead(
   auth: AuthStore,
   store: AdminReadStore,
   now = Date.now(),
+  expectedOrigin = "http://localhost:3100",
 ): void {
   app.addHook("onRequest", async (request, reply) => {
-    if (!request.url.startsWith("/admin/")) return;
-    const raw = request.headers.authorization?.startsWith("Bearer ")
-      ? request.headers.authorization.slice(7)
-      : "";
-    const principal = authenticateAdminBearer(auth, raw, now);
+    if (
+      !request.url.startsWith("/admin/") ||
+      request.url.startsWith("/admin/sign-in")
+    )
+      return;
+    const principal = adminPrincipal(auth, request, expectedOrigin, now);
     if ("code" in principal) {
       auth.audit({
         action: "ADMIN_ACCESS_DENIED",
@@ -182,6 +226,7 @@ export function registerAdminRead(
         decision: "DENIED",
       });
       fail(reply, new Error(principal.code));
+      return;
     } else
       (
         request as FastifyRequest & { adminPrincipal?: Principal }

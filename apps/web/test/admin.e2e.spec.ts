@@ -3,15 +3,15 @@ import { expect, test } from "@playwright/test";
 const legacyText = /Aegis|Aethelgard|Omni|RND-|RC-|QT-|tenant_alpha/u;
 
 test.describe("admin shell and dashboard @admin-dashboard @admin-shell", () => {
-  test("shows live empty state and narrow navigation", async ({ page }) => {
+  test("requires admin sign-in and keeps narrow navigation", async ({
+    page,
+  }) => {
     await page.goto("/admin");
     await expect(
       page.getByRole("heading", { name: "Admin dashboard" }),
     ).toBeVisible();
     await expect(page.getByText("Platform scope · Operations")).toBeVisible();
-    await expect(
-      page.getByText("No live records are connected for this page."),
-    ).toBeVisible();
+    await expect(page.getByText("Admin sign-in required.")).toBeVisible();
     await expect(
       page.locator('[data-control-id^="admin_"], [data-control-id^="job_"]'),
     ).toHaveCount(0);
@@ -31,12 +31,10 @@ for (const [route, heading] of [
   ["/admin/quarantine", "Quarantine"],
   ["/admin/audit", "Audit log"],
 ] as const) {
-  test(`shows empty live state for ${route}`, async ({ page }) => {
+  test(`requires admin sign-in for ${route}`, async ({ page }) => {
     await page.goto(route);
     await expect(page.getByRole("heading", { name: heading })).toBeVisible();
-    await expect(
-      page.getByText("No live records are connected for this page."),
-    ).toBeVisible();
+    await expect(page.getByText("Admin sign-in required.")).toBeVisible();
     await expect(
       page.locator('[data-control-id^="admin_"], [data-control-id^="job_"]'),
     ).toHaveCount(0);

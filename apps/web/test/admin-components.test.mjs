@@ -13,8 +13,12 @@ const routes = readFileSync(
 );
 
 describe("admin surface contracts", () => {
-  it("uses live empty states instead of static admin screens", () => {
-    expect(routes).toContain("No live records are connected for this page.");
+  it("uses live API-backed surfaces instead of static admin screens", () => {
+    expect(routes).toContain('liveApiGet("/admin/tenants")');
+    expect(routes).toContain("No compiler jobs have been created yet.");
+    expect(routes).not.toContain(
+      "No live records are connected for this page.",
+    );
     for (const name of [
       "AdminDashboard",
       "JobQueue",
