@@ -17,7 +17,15 @@ test.describe("upload validation @upload", () => {
     ).toBeVisible();
   });
 
-  test("routes to progress after compiler job creation", async ({ page }) => {
+  test("uploads without crypto.randomUUID and routes to progress", async ({
+    page,
+  }) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(globalThis.crypto, "randomUUID", {
+        configurable: true,
+        value: undefined,
+      });
+    });
     await page.route("**/api/v1/**", async (route) => {
       const url = new URL(route.request().url());
       if (url.pathname === "/api/v1/uploads") {

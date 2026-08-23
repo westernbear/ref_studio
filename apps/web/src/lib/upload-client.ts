@@ -53,7 +53,6 @@ export async function uploadMp4(
         contentType: "video/mp4",
         sizeBytes: file.size,
       }),
-      headers: { "idempotency-key": crypto.randomUUID() },
     },
     signal,
   );
@@ -86,7 +85,7 @@ export async function uploadMp4(
   }
   const finalized = await request(
     `/api/v1/uploads/${encodeURIComponent(uploadId)}/finalize`,
-    { method: "POST", headers: { "idempotency-key": crypto.randomUUID() } },
+    { method: "POST" },
     signal,
   );
   const upload = record(finalized.upload);
