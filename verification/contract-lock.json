@@ -1,0 +1,63 @@
+{
+  "schemaVersion": "rvs-contract-lock-v1",
+  "parentRootSha256": "8c0df9b22418180ab4a79d229fc5671640a50c875e62603d5ad99bb5dbe918e2",
+  "controlCount": 151,
+  "uniqueControlCount": 151,
+  "entries": [
+    {
+      "path": "verification/contract/api-action-contract.json",
+      "sha256": "165db55d1f0665589dcd6ec7b4a10c01e0619ea2833610a889548d2ee4960e5c",
+      "bytes": 46655
+    },
+    {
+      "path": "verification/contract/audit-registry-v2.json",
+      "sha256": "3f6e07a3c80acb683caabb95ac3a102d218cbed58c6f48ae02adb6a85dc87c6a",
+      "bytes": 1963
+    },
+    {
+      "path": "verification/contract/control-contract.jsonl",
+      "sha256": "3b2e78d8b0da5dc0d1bbfdb3307dee91cb2d27de4b39aa8b3e6e460a7242e849",
+      "bytes": 46059
+    },
+    {
+      "path": "verification/contract/execution-contract-v2.json",
+      "sha256": "5e1f89acb46d86e6cb5add7a3f060e8dd064a1b41d212b434398538bbd779c76",
+      "bytes": 9853
+    },
+    {
+      "path": "verification/contract/fixture-contract-v2.json",
+      "sha256": "a2a3f6c7688396690ebf61a458f355739855d2d8920a04eedb4ed2c3c0a2300c",
+      "bytes": 18858
+    },
+    {
+      "path": "verification/contract/media-contract-v2.json",
+      "sha256": "eae9d81e45bc9cc6cb57d6b4aac7736f06f6950946ac6886540728c3d0d43d74",
+      "bytes": 3136
+    },
+    {
+      "path": "verification/contract/normative-inputs.json",
+      "sha256": "1247a6d44504879a892eb19c20fe1a3962f1aaa08127c1465a68a538fcbc851e",
+      "bytes": 6815
+    },
+    {
+      "path": "verification/contract/supply-chain.json",
+      "sha256": "4456c5359836064f9754e92fe06fb679b6b95b4ac55a6af9d895f4ffb39cb4eb",
+      "bytes": 9265
+    },
+    {
+      "path": "verification/contract/verification-contract.json",
+      "sha256": "98b8483993d67a13fff8af928f23182b946a6d72fb45443ea6f133033abc2fc7",
+      "bytes": 8505
+    },
+    {
+      "path": "verification/contract/visual-contract-v2.json",
+      "sha256": "d06c1d7672d1278a2d94c7bad6568bc5a113dba3582d837317b3453507d5de8d",
+      "bytes": 3149
+    },
+    {
+      "path": "verification/contract/visual-landmarks-v1.json",
+      "sha256": "3eb3b8f2013682fcbee6e2b153fd6d05a7afb87859075d3666786cb5d9dfffc2",
+      "bytes": 4069
+    }
+  ]
+}

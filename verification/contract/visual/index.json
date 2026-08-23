@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "rvs-visual-structural-v1",
+  "authority": "verification/contract/visual-contract-v2.json",
+  "parentLandmarks": ".omo/drafts/reference-video-studio-saas-visual-landmarks-v1.json",
+  "screens": ["ref_studio_landing", "admin_sign_in", "upload_validation", "scene_review_approval", "job_queue_delivery", "admin_tenants", "admin_receipt_chain", "admin_quarantine", "admin_audit_log"],
+  "mode": "structural-fallback-when-parent-bound-ssim-assets-absent",
+  "requiredEvidence": ".omo/evidence/wave7/task-42-reference-video-studio-saas.json"
+}
