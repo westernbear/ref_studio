@@ -6,6 +6,7 @@ import {
   isTerminalJobState,
   jobProgressPercent,
   jobStatusCopy,
+  liveJobStatusError,
   parseJobProgress,
   progressStages,
   type JobProgress,
@@ -54,7 +55,7 @@ export function ProgressTracker({ initialJob }: Props) {
         );
         const body: unknown = await response.json();
         if (!response.ok) {
-          setError("Live job status is unavailable.");
+          setError(liveJobStatusError(body, response.status));
           return;
         }
         const parsed = parseJobProgress(body);

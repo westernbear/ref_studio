@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   formatJobStamp,
   isTerminalJobState,
+  liveJobStatusError,
   jobProgressPercent,
   parseJobProgress,
 } from "../src/lib/job-progress.ts";
@@ -35,6 +36,15 @@ describe("compiler progress projection", () => {
     expect(isTerminalJobState("PREPARING")).toBe(false);
     expect(formatJobStamp("2026-08-23T07:00:00.000Z")).toBe(
       "2026-08-23 07:00:00",
+    );
+  });
+
+  it("shows live status API error codes instead of a generic failure", () => {
+    expect(
+      liveJobStatusError({ error: { code: "CSRF_ORIGIN_INVALID" } }, 403),
+    ).toBe("Live job status is unavailable: CSRF_ORIGIN_INVALID.");
+    expect(liveJobStatusError({}, 502)).toBe(
+      "Live job status is unavailable: HTTP_502.",
     );
   });
 });

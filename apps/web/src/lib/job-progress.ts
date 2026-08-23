@@ -98,6 +98,11 @@ export const jobStatusCopy = (state: string): string => {
   return "Waiting for worker update.";
 };
 
+export const liveJobStatusError = (value: unknown, status: number): string => {
+  const code = text(field(field(value, "error"), "code")) || `HTTP_${status}`;
+  return `Live job status is unavailable: ${code}.`;
+};
+
 export const formatJobStamp = (value: string): string =>
   value.includes("T")
     ? value.replace("T", " ").slice(0, 19)
