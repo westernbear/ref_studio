@@ -70,4 +70,129 @@ test.describe("upload validation @upload", () => {
     await page.getByRole("button", { name: /Proceed to Compiler/ }).click();
     await expect(page).toHaveURL(/\/progress\?jobId=job_redirect$/u);
   });
+
+  test("allows duplicate media to create separate compiler jobs", async ({
+    page,
+  }) => {
+    let uploadCount = 0;
+    const jobKeys: string[] = [];
+    await page.route("**/api/v1/**", async (route) => {
+      const url = new URL(route.request().url());
+      const uploadId = uploadCount === 0 ? "upl_first" : "upl_second";
+      if (url.pathname === "/api/v1/uploads") {
+        uploadCount += 1;
+        await route.fulfill({
+          contentType: "application/json",
+          status: 201,
+          body: JSON.stringify({ upload: { id: uploadId } }),
+        });
+        return;
+      }
+      if (url.pathname.endsWith("/chunks")) {
+        await route.fulfill({
+          contentType: "application/json",
+          body: JSON.stringify({ upload: { id: uploadId } }),
+        });
+        return;
+      }
+      if (url.pathname.endsWith("/finalize")) {
+        await route.fulfill({
+          contentType: "application/json",
+          body: JSON.stringify({
+            upload: { id: uploadId, casObjectId: "cas_same" },
+            fps: 30,
+            frameCount: 120,
+            durationSeconds: 4,
+          }),
+        });
+        return;
+      }
+      if (url.pathname === "/api/v1/jobs") {
+        jobKeys.push(route.request().headers()["idempotency-key"] ?? "");
+        await route.fulfill({
+          contentType: "application/json",
+          status: 201,
+          body: JSON.stringify({ id: `job_${jobKeys.length}` }),
+        });
+        return;
+      }
+      await route.continue();
+    });
+    for (const jobId of ["job_1", "job_2"]) {
+      await page.goto("/projects/new");
+      await page.setInputFiles("input[type=file]", {
+        name: "clip.mp4",
+        mimeType: "video/mp4",
+        buffer: Buffer.from([
+          0, 0, 0, 16, 102, 116, 121, 112, 105, 115, 111, 109,
+        ]),
+      });
+      await expect(page.getByText("Accepted normalized media.")).toBeVisible();
+      await page.getByRole("button", { name: /Proceed to Compiler/ }).click();
+      await expect(page).toHaveURL(
+        new RegExp(`/progress\\?jobId=${jobId}$`, "u"),
+      );
+    }
+    expect(new Set(jobKeys).size).toBe(2);
+  });
+
+  test("does not show the safe-admission fallback on job errors", async ({
+    page,
+  }) => {
+    await page.route("**/api/v1/**", async (route) => {
+      const url = new URL(route.request().url());
+      if (url.pathname === "/api/v1/uploads") {
+        await route.fulfill({
+          contentType: "application/json",
+          status: 201,
+          body: JSON.stringify({ upload: { id: "upl_error" } }),
+        });
+        return;
+      }
+      if (url.pathname.endsWith("/chunks")) {
+        await route.fulfill({
+          contentType: "application/json",
+          body: JSON.stringify({ upload: { id: "upl_error" } }),
+        });
+        return;
+      }
+      if (url.pathname.endsWith("/finalize")) {
+        await route.fulfill({
+          contentType: "application/json",
+          body: JSON.stringify({
+            upload: { id: "upl_error", casObjectId: "cas_error" },
+            fps: 30,
+            frameCount: 120,
+            durationSeconds: 4,
+          }),
+        });
+        return;
+      }
+      if (url.pathname === "/api/v1/jobs") {
+        await route.fulfill({
+          contentType: "application/json",
+          status: 400,
+          body: JSON.stringify({ error: { code: "INVALID_REQUEST" } }),
+        });
+        return;
+      }
+      await route.continue();
+    });
+    await page.goto("/projects/new");
+    await page.setInputFiles("input[type=file]", {
+      name: "clip.mp4",
+      mimeType: "video/mp4",
+      buffer: Buffer.from([
+        0, 0, 0, 16, 102, 116, 121, 112, 105, 115, 111, 109,
+      ]),
+    });
+    await expect(page.getByText("Accepted normalized media.")).toBeVisible();
+    await page.getByRole("button", { name: /Proceed to Compiler/ }).click();
+    await expect(
+      page.getByText("The request could not be completed. Retry."),
+    ).toBeVisible();
+    await expect(page.locator("body")).not.toContainText(
+      /safely\s+admitted/u,
+    );
+  });
 });

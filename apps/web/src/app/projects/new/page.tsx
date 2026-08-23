@@ -31,14 +31,12 @@ const safeReason = (error: unknown): string => {
     MEDIA_DURATION_INVALID: "The video must be between 4 and 300 seconds.",
     MEDIA_INTERVAL_INVALID:
       "Choose a four-second interval inside the accepted media.",
+    INVALID_REQUEST: "The request could not be completed. Retry.",
     TENANT_BOUNDARY_BYPASS: "This upload session is no longer available.",
     RESOURCE_NOT_FOUND: "This upload session is no longer available.",
     NETWORK_INTERRUPTED: "The connection was interrupted. Retry to continue.",
   };
-  return (
-    reasons[code] ??
-    "The video could not be safely admitted. Retry or choose another file."
-  );
+  return reasons[code] ?? "The request could not be completed. Retry.";
 };
 
 const formatBytes = (bytes: number): string =>

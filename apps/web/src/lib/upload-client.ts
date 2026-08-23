@@ -119,7 +119,7 @@ export async function createCompilerJob(
         outputProfile: "540x960",
       }),
       headers: {
-        "idempotency-key": `job:${media.normalizedDigest}:${startFrame}`,
+        "idempotency-key": `job:${media.uploadId}:${startFrame}`,
       },
     },
     signal,

@@ -61,6 +61,9 @@ db.exec(
   "INSERT INTO uploads VALUES ('upl_a','ten_stitch_demo','a.mp4','video/mp4',1,'ACCEPTED',NULL,'2026-08-22T00:00:00Z','2026-08-23T00:00:00Z')",
 );
 db.exec(
+  "INSERT INTO cas_objects VALUES ('cas_dup_a','ten_stitch_demo','same-digest','video/mp4',1,'source','2026-08-23T00:00:00Z'); INSERT INTO cas_objects VALUES ('cas_dup_b','ten_stitch_demo','same-digest','video/mp4',1,'source','2026-08-23T00:00:00Z')",
+);
+db.exec(
   "INSERT INTO jobs VALUES ('job_a','ten_stitch_demo','usr_owner','upl_a','scene_a','QUEUED',0,0,'2026-08-22T00:00:00Z')",
 );
 db.exec(
@@ -107,6 +110,7 @@ console.log(
   JSON.stringify({
     integrity: db.pragma("integrity_check", { simple: true }),
     negativeCases: 4,
+    duplicateCasAllowed: true,
     singleClaim: true,
     orderedReceipts: true,
   }),
