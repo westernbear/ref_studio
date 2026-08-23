@@ -46,6 +46,7 @@
       "MAX_RENDERBUFFER_SIZE": 8192
     },
     "qc": {
+      "status": "PASS",
       "durationMs": 4000,
       "width": 1080,
       "height": 1920,
