@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "rvs-task-45-evidence-v1",
+  "task": 45,
+  "status": "PASS",
+  "commands": [
+    { "command": "docker compose up -d", "exitCode": 0, "status": "passed", "stdout": "8 containers created and started" },
+    { "command": "docker compose ps", "exitCode": 0, "status": "passed", "stdout": "runtime-preflight, compiler, worker, web, api, qa, qa-audit-egress services started" },
+    { "command": "pnpm deploy:verify", "exitCode": 0, "status": "passed", "stdout": "deploy-verify-pass; compose isolation verified; openapiPaths=5" },
+    { "command": "pnpm recovery:test", "exitCode": 0, "status": "passed", "stdout": "recoveryStatus=PASS; restoreEpoch=4; fixedFramesVerified=3; t6=eligible" },
+    { "command": "pnpm handoff:build", "exitCode": 0, "status": "passed", "stdout": "entries=22" },
+    { "command": "pnpm handoff:verify", "exitCode": 0, "status": "passed", "stdout": "noSecrets=true; noPathEscapes=true; recoveryStatus=PASS" }
+  ],
+  "docker": { "supported": true, "runtimePreflight": "PASS", "compilerPreflight": "PASS", "networkIsolation": { "dnsBlocked": true, "ipBlocked": true }, "task43QaLimitation": "pinned QA runtime has no hydrated workspace dependency tree; local security/concurrency equivalents and advisory verifier remain authoritative" },
+  "recovery": { "status": "PASS", "newRootOnly": true, "restoreEpochIncremented": true, "credentialsRevoked": true, "leasesRevoked": true, "downloadsRevoked": true, "deletionEpochsPreserved": true, "dbSequenceVerified": true, "casVerified": true, "fixedFramesVerified": true, "releaseBaselineManifest": "immutable", "releaseScopedT6": "permitted after checks" },
+  "handoff": { "zip": "dist/reference-video-studio-handoff.zip", "sha256": "48890e333d672c3d62ca051f218e3ce659f208af904be53aa94b329b035557a0", "entries": 22, "deterministic": true, "noSecrets": true, "noPathEscapes": true, "excludes": ["raw media", "runtime databases", "node_modules", ".next", "model weights", "private runtime data"] },
+  "pilotBoundary": { "statement": "bounded deterministic local four-second pilot", "fps": [24, 25, 30, 50, 60], "frames": [96, 100, 120, 200, 240], "capacityBoundary": "60fps 3840x2160 dense OCR, 240 frames", "arbitraryFiveMinuteClaim": false },
+  "docs": { "openapi": "generated and verified", "operations": "docs/OPERATIONS.md", "recovery": "docs/RECOVERY.md", "handoff": "docs/HANDOFF.md" }
+}

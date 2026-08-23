@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "rvs-final-f2-receipt-v1",
+  "task": "F2",
+  "verdict": "REJECT",
+  "generatedAt": "2026-08-22",
+  "scope": "read-only approval gate",
+  "docker": {
+    "status": "blocked",
+    "command": "COMPOSE_PROJECT_NAME=rvs_final_f2 RVS_ATTEMPT_DIR=.omo/evidence/final/F2 docker compose -p rvs_final_f2 run --rm qa-audit-egress sh -lc 'mkdir -p .omo/evidence/final/F2 && pnpm audit --prod --audit-level high --json --registry https://registry.npmjs.org > .omo/evidence/final/F2/npm-audit-advisory.json' && COMPOSE_PROJECT_NAME=rvs_final_f2 RVS_ATTEMPT_DIR=.omo/evidence/final/F2 docker compose -p rvs_final_f2 run --rm qa sh -lc 'pnpm lint && pnpm typecheck && pnpm test && pnpm build && uv run --frozen --offline --project compiler pytest && pnpm test:security && node verification/blackbox/verify-advisory.mjs --input .omo/evidence/final/F2/npm-audit-advisory.json --lock pnpm-lock.yaml --policy zero-high-critical && node verification/blackbox/final.mjs f2 --rules verification/contract/architecture-security.json --attempt-dir .omo/evidence/final/F2 --receipt-local-only'",
+    "failure": "qa-audit-egress registry requests returned EAI_AGAIN until the command timeout; qa hydration is known blocked because the pinned runtime image has no hydrated workspace dependency tree and qa network_mode is none",
+    "not_app_security_failure": true
+  },
+  "localEquivalents": {
+    "lint": { "status": "pass", "evidence": "lint.txt", "output": "stub command completed" },
+    "typecheck": { "status": "fail", "evidence": "typecheck.txt", "output": "missing vitest and zod declarations; exit 2" },
+    "test": { "status": "pass", "evidence": "test.txt", "output": "stub command completed" },
+    "build": { "status": "pass", "evidence": "build.txt", "output": "stub command completed" },
+    "pythonCompilerPytest": { "status": "pass", "evidence": "python-compiler-pytest.txt", "output": "34 passed in 1.20s" },
+    "security": { "status": "fail", "evidence": "security.txt", "output": "vitest: not found; exit 1" },
+    "advisoryVerifier": { "status": "pass", "evidence": "advisory-verifier.txt", "high": 0, "critical": 0 },
+    "runtimeIsolation": { "status": "pass", "evidence": "runtime-config.txt", "output": "runtime-config-frozen" }
+  },
+  "architectureCoverage": {
+    "status": "blocked",
+    "missing": ["verification/blackbox/final.mjs", "verification/contract/architecture-security.json"],
+    "reason": "Required final verifier and architecture/security rule file do not exist in this checkout; no coverage or success was fabricated"
+  },
+  "advisory": {
+    "source": ".omo/evidence/npm-audit-advisory.json",
+    "attemptLocalCopy": "npm-audit-advisory.json",
+    "status": "real prior collector output reused; fresh collector timed out",
+    "high": 0,
+    "critical": 0
+  },
+  "isolationChecks": {
+    "qaNetworkMode": "none",
+    "qaAppnet": false,
+    "qaDatabaseMounts": false,
+    "qaCasMounts": false,
+    "auditCollectorNetworkOnly": true,
+    "auditCollectorAppnet": false,
+    "auditCollectorDatabaseMounts": false,
+    "auditCollectorCasMounts": false
+  },
+  "observations": [
+    "Task 43 local security/concurrency/advisory evidence exists, but current local dependency hydration is unavailable.",
+    "No product files, canonical evidence index, F1 receipt, or plan checkboxes were modified."
+  ]
+}

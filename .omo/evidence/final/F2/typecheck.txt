@@ -1,0 +1,23 @@
+$ pnpm --filter contracts build
+$ tsc --noEmit
+src/contracts.test.ts(1,38): error TS2307: Cannot find module 'vitest' or its corresponding type declarations.
+src/contracts.test.ts(8,77): error TS2532: Object is possibly 'undefined'.
+src/contracts.test.ts(8,150): error TS7006: Parameter 'from' implicitly has an 'any' type.
+src/contracts.test.ts(8,156): error TS7006: Parameter 'to' implicitly has an 'any' type.
+src/contracts.test.ts(8,343): error TS7006: Parameter 'from' implicitly has an 'any' type.
+src/contracts.test.ts(8,349): error TS7006: Parameter 'to' implicitly has an 'any' type.
+src/enums.ts(1,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+src/errors.ts(1,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+src/ids.ts(1,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+src/ir.ts(1,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+src/ir.ts(9,172): error TS7006: Parameter 'item' implicitly has an 'any' type.
+src/ir.ts(9,220): error TS7006: Parameter 'track' implicitly has an 'any' type.
+src/lifecycle.ts(1,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+src/lifecycle.ts(14,77): error TS2532: Object is possibly 'undefined'.
+src/lifecycle.ts(18,309): error TS7006: Parameter 'v' implicitly has an 'any' type.
+src/models.ts(1,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+src/projection.ts(1,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+/home/singlerr/ref_studio/packages/contracts:
+[ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL] @rvs/contracts@0.0.0 build: `tsc --noEmit`
+Exit status 2
+[ELIFECYCLE] Command failed with exit code 2.

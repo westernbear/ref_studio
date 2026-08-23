@@ -1,0 +1,38 @@
+{
+  "task": 30,
+  "status": "implemented",
+  "assertions": {
+    "frozenControlCount": 151,
+    "uniqueSourceIds": 151,
+    "oracleFieldsPreserved": true,
+    "nonLocalOperationsResolved": true,
+    "sharedPrimitives": true,
+    "creatorAdminShells": true
+  },
+  "commands": [
+    {
+      "command": "node scripts/controls/validate.mjs --write && node scripts/controls/validate.mjs",
+      "result": "{\"status\":\"controls-valid\",\"controls\":151,\"uniqueSourceIds\":151}"
+    },
+    {
+      "command": "pnpm controls:validate",
+      "result": "$ node scripts/controls/validate.mjs --write && node scripts/controls/validate.mjs\n{\"status\":\"controls-valid\",\"controls\":151,\"uniqueSourceIds\":151}\n{\"status\":\"controls-valid\",\"controls\":151,\"uniqueSourceIds\":151}"
+    },
+    {
+      "command": "pnpm --filter web test --run components",
+      "result": "$ vitest --run components\nRUN v3.2.4 /home/singlerr/ref_studio/apps/web\n✓ test/components.test.mjs (3 tests) 20ms\nTest Files 1 passed (1)\nTests 3 passed (3)\nDuration 611ms"
+    },
+    {
+      "command": "pnpm --filter web build",
+      "result": "$ next build\n▲ Next.js 15.5.2\nCreating an optimized production build ...\n✓ Compiled successfully in 5.4s\n✓ Generating static pages (4/4)\nRoute (app) / 121 B 102 kB\n○ /_not-found 991 B 103 kB"
+    }
+  ],
+  "files": [
+    "scripts/controls/validate.mjs",
+    "tests/control-manifest.json",
+    "apps/web/src/components/Primitives.tsx",
+    "apps/web/src/components/Shells.tsx",
+    "apps/web/src/lib/controls.ts",
+    "apps/web/src/styles/primitives.css"
+  ]
+}

@@ -1,0 +1,114 @@
+{
+  "schemaVersion": "rvs-task-evidence-v1",
+  "task": 1,
+  "generatedAt": "2026-08-22",
+  "status": "passed",
+  "authority": {
+    "command": "node verification/blackbox/verify-authority-root.mjs --root .omo/drafts/reference-video-studio-saas-authority-root.md --expected $RVS_AUTHORITY_ROOT_SHA256",
+    "exitCode": 0,
+    "rootSha256": "8c0df9b22418180ab4a79d229fc5671640a50c875e62603d5ad99bb5dbe918e2",
+    "verifiedEntries": 14
+  },
+  "closures": {
+    "resolveCommand": "pnpm run supply:resolve-exact",
+    "resolveExitCode": 0,
+    "npmPackages": 284,
+    "pythonPackages": 48,
+    "debianPackages": 272,
+    "hydratedArtifacts": 29,
+    "pnpmLockSha256": "d79a98c0a1050fa838c6a866179644ee311de78db8d100e358975217ca78c61e",
+    "uvLockSha256": "1b71bf3e742326fc86f94e13eeb81dfb36f8c6b8701782d11f4c488af1e6adff",
+    "debianSnapshotDigest": "ef57c51e874179abfcff830a255a8ab6124d8dfe4f328561fcae63b9d34dc60c",
+    "metadataAudit": {
+      "nullOrUnknownNpmEntries": 0,
+      "nullOrUnknownPythonEntries": 0,
+      "nullRuntimeBuildEntries": 0
+    }
+  },
+  "offlineInstalls": [
+    {
+      "command": "pnpm install --frozen-lockfile --offline",
+      "exitCode": 0,
+      "output": "Lockfile is up to date; already up to date; pnpm 11.20.0"
+    },
+    {
+      "command": "uv sync --frozen --offline --project compiler",
+      "exitCode": 0,
+      "output": "Checked 47 packages"
+    }
+  ],
+  "fixtures": {
+    "command": "pnpm run fixtures:lock --contract .omo/drafts/reference-video-studio-saas-fixture-contract-v2.json",
+    "exitCode": 0,
+    "fixtureIds": 16,
+    "generationPasses": [
+      "ea2a41df93f446a126629545da33a2c403236b83bfeb2c7cabf1d05eea45d9b4",
+      "ea2a41df93f446a126629545da33a2c403236b83bfeb2c7cabf1d05eea45d9b4"
+    ],
+    "repeatedInvocations": [
+      {
+        "passSha256": "ea2a41df93f446a126629545da33a2c403236b83bfeb2c7cabf1d05eea45d9b4",
+        "fixtureManifestSha256": "c15f7b7170284f5625732740216d3f79261d54b2b58ca1f112997c0b7d90b2b9"
+      },
+      {
+        "passSha256": "ea2a41df93f446a126629545da33a2c403236b83bfeb2c7cabf1d05eea45d9b4",
+        "fixtureManifestSha256": "c15f7b7170284f5625732740216d3f79261d54b2b58ca1f112997c0b7d90b2b9"
+      }
+    ],
+    "generator": "reference-video-studio-runtime:todo1 with network none",
+    "fixtureManifestSha256": "c15f7b7170284f5625732740216d3f79261d54b2b58ca1f112997c0b7d90b2b9"
+  },
+  "runtime": {
+    "composeFile": "docker-compose.yml",
+    "configVerificationCommand": "node scripts/runtime/verify-frozen-config.mjs && docker compose config --quiet",
+    "configVerificationExitCode": 0,
+    "buildCommand": "docker compose build runtime",
+    "buildExitCode": 0,
+    "imageDigest": "sha256:8404a853a499143346f188f5ebefea9e6131c6f59e41c7c2b13b8827ad30c5f0",
+    "preflightCommand": "docker compose run --rm runtime-preflight",
+    "preflightExitCode": 0,
+    "versions": {
+      "node": "24.19.0",
+      "python": "3.12.14",
+      "pnpm": "11.20.0",
+      "uv": "0.11.8",
+      "ffmpeg": "8.0.1",
+      "imagemagick": "6.9.12-98",
+      "chrome": "151.0.7922.138"
+    },
+    "backends": {
+      "gpl": true,
+      "libx264": true,
+      "webgl2": true
+    },
+    "isolation": {
+      "dnsBlocked": true,
+      "externalIpBlocked": true,
+      "compilerNetworkMode": "none",
+      "workerNetworkMode": "none",
+      "runtimePreflightNetworkMode": "none",
+      "appnetInternal": true,
+      "qaAppnetDnsBlocked": true,
+      "qaAppnetExternalIpBlocked": true,
+      "qaAuditEgressService": "qa-audit-egress",
+      "qaAuditEgressNetwork": "default",
+      "qaAuditEgressRegistryProbe": "https://registry.npmjs.org/pnpm/latest",
+      "qaAuditEgressRegistryProbeExitCode": 0,
+      "qaAuditEgressHasAppnet": false,
+      "qaAuditEgressHasVolumes": false
+    }
+  },
+  "negativeScenario": {
+    "command": "docker compose run --rm -e EXPECTED_CHROMIUM_VERSION=151.0.7922.169 runtime-preflight",
+    "exitCode": 1,
+    "expectedToken": "RUNTIME_VERSION_MISMATCH",
+    "observed": "RUNTIME_VERSION_MISMATCH chrome expected=151.0.7922.169 actual=Google Chrome for Testing 151.0.7922.138"
+  },
+  "childRoot": {
+    "path": ".omo/drafts/reference-video-studio-saas-child-root-todo1.md",
+    "parentRootSha256": "8c0df9b22418180ab4a79d229fc5671640a50c875e62603d5ad99bb5dbe918e2",
+    "childRootSha256": "1254843c417d6dc3eb9ab45d3bdc7e2a7c395a926cce946932889cea99c9a7db",
+    "entries": 12,
+    "mismatches": 0
+  }
+}

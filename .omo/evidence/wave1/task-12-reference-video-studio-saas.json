@@ -1,0 +1,51 @@
+{
+  "task": 12,
+  "title": "tenant-scoped admin read APIs and masked cross-tenant operations",
+  "status": "verified",
+  "changedFiles": [
+    "apps/api/src/admin-read.ts",
+    "apps/api/src/admin-read.test.ts",
+    "apps/api/src/auth.ts",
+    "apps/api/src/app.ts",
+    "apps/api/src/index.ts"
+  ],
+  "verification": {
+    "focused": {
+      "command": "pnpm --filter api test --run admin-read",
+        "output": "Test Files 1 passed (1); Tests 4 passed (4)"
+    },
+    "fullApi": {
+      "command": "pnpm --filter api test --run",
+        "output": "Test Files 6 passed (6); Tests 46 passed (46)"
+    },
+    "build": {
+      "command": "pnpm --filter api build",
+      "output": "tsc --noEmit (exit 0)"
+    },
+    "negativeCaseTokens": [
+      "RESOURCE_NOT_FOUND",
+      "INVALID_REQUEST",
+      "CURSOR_INVALID",
+      "REDACTED",
+      "privatePath omitted",
+      "rawBytes omitted",
+      "ADMIN_ACCESS_DENIED"
+    ]
+  },
+  "coverage": [
+    "super-admin platform tenant and billing reads",
+    "assigned ops-admin tenant job read and foreign-tenant denial",
+    "bounded limit/cursor validation",
+    "billing payment-field masking",
+    "job private-path and quarantine raw-byte masking",
+    "assigned viewer scope, unassigned operator denial, and creator-only denial",
+    "all six admin GET routes exercised with sensitive read audit assertions",
+    "forbidden include/fields queries rejected safely",
+    "single bounded in-memory projection query counter assertion"
+  ],
+  "notes": [
+    "Read-only scope only; no admin mutation routes were added.",
+    "The read store is injectable to match the current in-memory API foundation and avoid N+1 projection lookups."
+    ,"Hardening added explicit role-matrix, audit, forbidden-field, and query-count coverage after the initial smoke verification was insufficient."
+  ]
+}

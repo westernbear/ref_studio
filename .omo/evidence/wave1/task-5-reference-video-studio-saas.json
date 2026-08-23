@@ -1,0 +1,27 @@
+{
+  "task": 5,
+  "commands": [
+    {
+      "command": "pnpm --filter api db:reset && pnpm --filter api db:migrate && pnpm --filter api db:migrate && pnpm --filter api db:verify",
+      "exitCode": 0,
+      "stdout": "{\"integrity\":\"ok\",\"seeded\":{\"tenants\":2,\"users\":3,\"memberships\":3,\"reviewerAssignments\":1,\"quotas\":1},\"pragmas\":{\"journalMode\":\"wal\",\"foreignKeys\":1,\"busyTimeout\":5000}}"
+    },
+    {
+      "command": "pnpm --filter api db:test",
+      "exitCode": 0,
+      "stdout": "{\"integrity\":\"ok\",\"negativeCases\":4,\"singleClaim\":true,\"orderedReceipts\":true}"
+    },
+    {
+      "command": "pnpm --filter api build",
+      "exitCode": 0,
+      "stdout": "tsc --noEmit"
+    }
+  ],
+  "negativeCases": [
+    "cross-tenant CAS/upload foreign key rejected",
+    "receipt update rejected by append-only trigger",
+    "decreasing tenant deletion epoch rejected",
+    "duplicate per-attempt receipt sequence rejected"
+  ],
+  "policy": ["WAL", "foreign_keys=ON", "busy_timeout=5000", "absolute local-disk database path", "BEGIN IMMEDIATE claims"]
+}

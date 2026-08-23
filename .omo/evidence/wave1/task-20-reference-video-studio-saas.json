@@ -1,0 +1,32 @@
+{
+  "task": "20",
+  "status": "verified",
+  "commands": [
+    {
+      "command": "uv run --project compiler pytest compiler/tests/test_matting_tracking.py",
+      "exit_code": 0,
+      "output": "5 passed in 0.05s",
+      "tests_collected": 5,
+      "tests_passed": 5,
+      "tests_failed": 0
+    },
+    {
+      "command": "uv run --project compiler basedpyright compiler/matting_tracking.py compiler/tests/test_matting_tracking.py",
+      "exit_code": 0,
+      "output": "0 errors, 0 warnings, 0 notes",
+      "errors": 0,
+      "warnings": 0,
+      "stable_failure_tokens": []
+    }
+  ],
+  "stable_failure_tokens": [
+    "INSUFFICIENT_MATTING_EVIDENCE",
+    "UNCLASSIFIED_DEPTH_OVERLAP",
+    "OWNER_MISMATCH"
+  ],
+  "counts": {
+    "tracks": 2,
+    "residual_frames": 3,
+    "needs_choice_for_multi_instance": 1
+  }
+}

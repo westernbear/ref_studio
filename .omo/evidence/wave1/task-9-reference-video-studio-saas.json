@@ -1,0 +1,41 @@
+{
+  "task": "9",
+  "title": "sandboxed upload sessions, quarantine, and tenant-scoped CAS",
+  "verification": [
+    {
+      "command": "pnpm --filter api test --run upload",
+      "status": "passed",
+      "output": "Test Files 1 passed (1); Tests 3 passed (3)"
+    },
+    {
+      "command": "pnpm --filter api build",
+      "status": "passed",
+      "output": "tsc --noEmit"
+    },
+    {
+      "command": "rg -n 'TODO|FIXME|HACK|as any|@ts-ignore|ffprobe|ffmpeg|child_process|/home/|/tmp/' apps/api/src/uploads.ts apps/api/src/app.ts apps/api/src/upload.test.ts apps/api/src/index.ts",
+      "status": "passed",
+      "output": "no matches"
+    }
+  ],
+  "negative_cases": [
+    "VIDEO_TYPE_INVALID",
+    "VIDEO_SIZE_LIMIT_EXCEEDED",
+    "INVALID_REQUEST",
+    "RESOURCE_NOT_FOUND",
+    "UPLOAD_QUARANTINED"
+  ],
+  "bounded_memory": {
+    "maxChunkBytes": 8388608,
+    "maxUploadBytes": 2147483648,
+    "strategy": "per-chunk quarantine buffers and incremental SHA-256; no whole-body concatenation"
+  },
+  "sandbox_boundary": "API returns scheduling metadata only and does not invoke ffprobe, ffmpeg, child_process, or expose storage paths.",
+  "changed_files": [
+    "apps/api/src/uploads.ts",
+    "apps/api/src/app.ts",
+    "apps/api/src/index.ts",
+    "apps/api/src/node-shims.d.ts",
+    "apps/api/src/upload.test.ts"
+  ]
+}

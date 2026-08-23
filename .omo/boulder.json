@@ -1,0 +1,1083 @@
+{
+  "schema_version": 2,
+  "active_work_id": "reference-video-studio-saas-3f980fe8",
+  "works": {
+    "reference-video-studio-saas-3f980fe8": {
+      "work_id": "reference-video-studio-saas-3f980fe8",
+      "active_plan": "/home/singlerr/ref_studio/.omo/plans/reference-video-studio-saas.md",
+      "plan_name": "reference-video-studio-saas",
+      "status": "completed",
+      "started_at": "2026-08-21T18:26:35.504Z",
+      "updated_at": "2026-08-22T18:25:57.980Z",
+      "session_ids": [
+        "opencode:ses_fdc31a2adffeUPnrFG6lPBYLVk"
+      ],
+      "session_origins": {
+        "opencode:ses_fdc31a2adffeUPnrFG6lPBYLVk": "direct"
+      },
+      "agent": "atlas",
+      "task_sessions": {
+        "todo:1": {
+          "task_key": "todo:1",
+          "task_label": "1",
+          "task_title": "Scaffold the workspace and verify the frozen Linux/runtime authority",
+          "session_id": "opencode:ses_fd8ad5be5ffeyhHsidC2G67Seg",
+          "agent": "oracle",
+          "started_at": "2026-08-21T21:31:25.559Z",
+          "status": "running",
+          "updated_at": "2026-08-22T02:41:59.505Z"
+        },
+        "todo:2": {
+          "task_key": "todo:2",
+          "task_label": "2",
+          "task_title": "Vendor the approved design tokens, fonts, icons, and local asset manifest",
+          "session_id": "opencode:ses_fd80fb71cffe4UAbfSm8cbN7dU",
+          "agent": "Sisyphus-Junior",
+          "category": "visual-engineering",
+          "started_at": "2026-08-22T02:47:36.551Z",
+          "status": "running",
+          "updated_at": "2026-08-22T05:33:56.803Z"
+        },
+        "todo:5": {
+          "task_key": "todo:5",
+          "task_label": "5",
+          "task_title": "Create the SQLite schema, migrations, seeds, and single-host durability policy",
+          "session_id": "opencode:ses_fd87fc00bffefmGy5u7XnbsH68",
+          "agent": "Sisyphus-Junior",
+          "category": "deep",
+          "updated_at": "2026-08-22T03:30:22.377Z",
+          "started_at": "2026-08-22T03:30:22.377Z",
+          "status": "running"
+        },
+        "todo:3": {
+          "task_key": "todo:3",
+          "task_label": "3",
+          "task_title": "Freeze the independent verification pack, then build the task evidence writer",
+          "session_id": "opencode:ses_fd808089bffecZ1MAKMoVzCYsw",
+          "agent": "Sisyphus-Junior",
+          "started_at": "2026-08-22T05:40:42.108Z",
+          "status": "running",
+          "updated_at": "2026-08-22T05:46:44.240Z"
+        },
+        "todo:4": {
+          "task_key": "todo:4",
+          "task_label": "4",
+          "task_title": "Generate the sixteen fixtures from immutable held-out recipes",
+          "session_id": "opencode:ses_fd7fcf39dffe8tHbNe0JDZ0jke",
+          "agent": "Sisyphus-Junior",
+          "started_at": "2026-08-22T06:58:39.848Z",
+          "status": "running",
+          "updated_at": "2026-08-22T07:40:48.866Z"
+        },
+        "todo:6": {
+          "task_key": "todo:6",
+          "task_label": "6",
+          "task_title": "Encode shared schemas, canonical lifecycle, safe errors, and API projection rules",
+          "session_id": "opencode:ses_fd769391affeOh3jV1hzAH55yu",
+          "agent": "Sisyphus-Junior",
+          "started_at": "2026-08-22T08:33:08.065Z",
+          "status": "running",
+          "updated_at": "2026-08-22T08:42:01.222Z"
+        },
+        "todo:17": {
+          "task_key": "todo:17",
+          "task_label": "17",
+          "task_title": "Hydrate the frozen CPU stack and pass the early feasibility stop-gate",
+          "session_id": "opencode:ses_fd75c3e74ffePeNq0x4L5yxspl",
+          "agent": "Sisyphus-Junior",
+          "category": "deep",
+          "updated_at": "2026-08-22T08:51:34.977Z",
+          "started_at": "2026-08-22T08:51:34.977Z",
+          "status": "running"
+        },
+        "todo:7": {
+          "task_key": "todo:7",
+          "task_label": "7",
+          "task_title": "Implement browser sessions, bearer credentials, CSRF, and server-derived principals",
+          "session_id": "opencode:ses_fd74e260cffeeBCQKY3WGwjtjy",
+          "agent": "Sisyphus-Junior",
+          "started_at": "2026-08-22T08:57:09.545Z",
+          "status": "running",
+          "updated_at": "2026-08-22T09:09:24.322Z"
+        },
+        "todo:8": {
+          "task_key": "todo:8",
+          "task_label": "8",
+          "task_title": "Enforce tenant fencing, idempotency, safe errors, and correlation IDs at every boundary",
+          "session_id": "opencode:ses_fd7433dcaffeApBGFC5UmsIOYU",
+          "agent": "Sisyphus-Junior",
+          "started_at": "2026-08-22T09:15:36.581Z",
+          "status": "running",
+          "updated_at": "2026-08-22T09:20:40.114Z"
+        },
+        "todo:9": {
+          "task_key": "todo:9",
+          "task_label": "9",
+          "task_title": "Implement sandboxed upload sessions, quarantine, and tenant-scoped CAS",
+          "session_id": "opencode:ses_fd738a36bffe3lX7szf236fDs2",
+          "agent": "Sisyphus-Junior",
+          "category": "deep",
+          "updated_at": "2026-08-22T09:28:55.043Z",
+          "started_at": "2026-08-22T09:28:55.043Z",
+          "status": "running"
+        },
+        "todo:10": {
+          "task_key": "todo:10",
+          "task_label": "10",
+          "task_title": "Validate media and create the immutable original plus normalized CFR working input",
+          "session_id": "opencode:ses_fd730e170ffeL3NRhqE1saHrJV",
+          "agent": "Sisyphus-Junior",
+          "started_at": "2026-08-22T09:35:56.912Z",
+          "status": "running",
+          "updated_at": "2026-08-22T09:38:25.255Z"
+        },
+        "todo:11": {
+          "task_key": "todo:11",
+          "task_label": "11",
+          "task_title": "Implement the complete creator workflow API except gate decisions",
+          "session_id": "opencode:ses_fd728a81dffeEN6A1K6i3dT5hN",
+          "agent": "Sisyphus-Junior",
+          "started_at": "2026-08-22T09:44:30.042Z",
+          "status": "running",
+          "updated_at": "2026-08-22T09:52:28.838Z"
+        },
+        "todo:12": {
+          "task_key": "todo:12",
+          "task_label": "12",
+          "task_title": "Implement tenant-scoped admin read APIs and masked cross-tenant operations",
+          "session_id": "opencode:ses_fd71b7ce9ffeME6MuMhdGErGcu",
+          "agent": "Sisyphus-Junior",
+          "started_at": "2026-08-22T10:01:38.566Z",
+          "status": "running",
+          "updated_at": "2026-08-22T10:06:04.014Z"
+        },
+        "todo:13": {
+          "task_key": "todo:13",
+          "task_label": "13",
+          "task_title": "Implement allowlisted admin mutations and append-only operational audit events",
+          "session_id": "opencode:ses_fd70f3c0dffe1CjqArrdPRzHEs",
+          "agent": "Sisyphus-Junior",
+          "started_at": "2026-08-22T10:12:23.188Z",
+          "status": "running",
+          "updated_at": "2026-08-22T10:16:59.432Z"
+        },
+        "todo:18": {
+          "task_key": "todo:18",
+          "task_label": "18",
+          "task_title": "Extract the admitted temporal volume and source-bound measurement workspace",
+          "session_id": "opencode:ses_fd704537cffegvGixobTbrYN56",
+          "agent": "Sisyphus-Junior",
+          "category": "quick",
+          "started_at": "2026-08-22T10:25:44.986Z",
+          "status": "running",
+          "updated_at": "2026-08-22T10:39:01.516Z"
+        },
+        "todo:15": {
+          "task_key": "todo:15",
+          "task_label": "15",
+          "task_title": "Implement the SQLite job queue, leases, retries, cancellation, and crash recovery",
+          "session_id": "opencode:ses_fd704550cffe9TKK5eHO9HyFn5",
+          "agent": "Sisyphus-Junior",
+          "category": "deep",
+          "updated_at": "2026-08-22T10:26:55.518Z",
+          "started_at": "2026-08-22T10:26:55.518Z",
+          "status": "running"
+        },
+        "todo:14": {
+          "task_key": "todo:14",
+          "task_label": "14",
+          "task_title": "Build designated reviewer assignments, predecessor gates, receipts, and stale-approval recovery",
+          "session_id": "opencode:ses_fd70456d3ffeMbijfFWFK2ccIy",
+          "agent": "Sisyphus-Junior",
+          "category": "unspecified-high",
+          "started_at": "2026-08-22T10:26:59.779Z",
+          "status": "running",
+          "updated_at": "2026-08-22T10:39:49.812Z"
+        },
+        "todo:19": {
+          "task_key": "todo:19",
+          "task_label": "19",
+          "task_title": "Measure Korean/English OCR, semantic text regions, and temporal UI bounds",
+          "session_id": "opencode:ses_fd6ef0e15ffeS2r6F9nsW56uu3",
+          "agent": "Sisyphus-Junior",
+          "category": "unspecified-high",
+          "updated_at": "2026-08-22T10:46:37.758Z",
+          "started_at": "2026-08-22T10:46:37.758Z",
+          "status": "running"
+        },
+        "todo:16": {
+          "task_key": "todo:16",
+          "task_label": "16",
+          "task_title": "Implement retention, deletion epochs, and expiring fenced downloads/exports",
+          "session_id": "opencode:ses_fd6ef0fe9ffel36G9lf17a851E",
+          "agent": "Sisyphus-Junior",
+          "category": "unspecified-high",
+          "started_at": "2026-08-22T10:47:04.206Z",
+          "status": "running",
+          "updated_at": "2026-08-22T10:50:18.781Z"
+        },
+        "todo:20": {
+          "task_key": "todo:20",
+          "task_label": "20",
+          "task_title": "Implement temporal matting, owner tracking, lifecycle, and residual-canvas separation",
+          "session_id": "opencode:ses_fd6e67c1bffeb4SMqPzDjyvvuE",
+          "agent": "Sisyphus-Junior",
+          "category": "unspecified-high",
+          "started_at": "2026-08-22T10:56:03.451Z",
+          "status": "running",
+          "updated_at": "2026-08-22T10:58:17.137Z"
+        },
+        "todo:21": {
+          "task_key": "todo:21",
+          "task_label": "21",
+          "task_title": "Measure camera/depth, rhythm, owner-bound effects, and audio anchors",
+          "session_id": "opencode:ses_fd6df3b31ffe3IStE7HJxyvQjq",
+          "agent": "Sisyphus-Junior",
+          "started_at": "2026-08-22T11:04:18.338Z",
+          "status": "running",
+          "updated_at": "2026-08-22T11:08:37.376Z"
+        },
+        "todo:22": {
+          "task_key": "todo:22",
+          "task_label": "22",
+          "task_title": "Assemble the evidence bundle and enforce OBSERVED/MAPPED/NEEDS CHOICE semantics",
+          "session_id": "opencode:ses_fd6d55326ffeuCN2ENWbZ1zlj0",
+          "agent": "Sisyphus-Junior",
+          "started_at": "2026-08-22T11:14:21.125Z",
+          "status": "running",
+          "updated_at": "2026-08-22T11:19:03.549Z"
+        },
+        "todo:24": {
+          "task_key": "todo:24",
+          "task_label": "24",
+          "task_title": "Compile measured evidence into editable AuthoringIR, SceneIR, and BrowserPassSpec",
+          "session_id": "opencode:ses_fd6cb52a0ffeMZuWeOpWXdUGUF",
+          "agent": "Sisyphus-Junior",
+          "started_at": "2026-08-22T11:25:27.175Z",
+          "status": "running",
+          "updated_at": "2026-08-22T11:50:30.887Z"
+        },
+        "todo:23": {
+          "task_key": "todo:23",
+          "task_label": "23",
+          "task_title": "Orchestrate the compiler from Node with admission, cancellation, and resource evidence",
+          "session_id": "opencode:ses_fd6cb5472ffe22Ska0j0onPoTz",
+          "agent": "Sisyphus-Junior",
+          "started_at": "2026-08-22T11:26:37.893Z",
+          "status": "running",
+          "updated_at": "2026-08-22T11:50:27.689Z"
+        },
+        "todo:25": {
+          "task_key": "todo:25",
+          "task_label": "25",
+          "task_title": "Build the semantic DOM/SVG scene and exact frame-indexed preview renderer",
+          "session_id": "opencode:ses_fd6addbe9ffePiBINuCglqt4Qb",
+          "agent": "Sisyphus-Junior",
+          "started_at": "2026-08-22T11:57:29.231Z",
+          "status": "running",
+          "updated_at": "2026-08-22T12:06:47.223Z"
+        },
+        "todo:26": {
+          "task_key": "todo:26",
+          "task_label": "26",
+          "task_title": "Implement owner-bound WebGL2 effects and residual-canvas composition passes",
+          "session_id": "opencode:ses_fd6add9f1ffeUSsgb5WNeRTW52",
+          "agent": "Sisyphus-Junior",
+          "started_at": "2026-08-22T11:59:27.304Z",
+          "status": "running",
+          "updated_at": "2026-08-22T12:05:01.184Z"
+        },
+        "todo:27": {
+          "task_key": "todo:27",
+          "task_label": "27",
+          "task_title": "Build the exact-Chromium CDP capture worker with network isolation and determinism proofs",
+          "session_id": "opencode:ses_fd6a0875affezqs0Q2GOiR4wps",
+          "agent": "Sisyphus-Junior",
+          "category": "quick",
+          "started_at": "2026-08-22T12:13:23.453Z",
+          "status": "running",
+          "updated_at": "2026-08-22T12:47:16.334Z"
+        },
+        "todo:30": {
+          "task_key": "todo:30",
+          "task_label": "30",
+          "task_title": "Build shared web primitives and project the frozen 151-control contract",
+          "session_id": "opencode:ses_fd6a085b4ffeaYLxHIRSgz0GQF",
+          "agent": "Sisyphus-Junior",
+          "started_at": "2026-08-22T12:14:55.736Z",
+          "status": "running",
+          "updated_at": "2026-08-22T12:25:46.639Z"
+        },
+        "todo:32": {
+          "task_key": "todo:32",
+          "task_label": "32",
+          "task_title": "Port the shared creator/admin sign-in with session, CSRF, support, and legal behavior",
+          "session_id": "opencode:ses_fd6897ed3ffeD7lZa0zVfvHpi9",
+          "agent": "Sisyphus-Junior",
+          "category": "visual-engineering",
+          "started_at": "2026-08-22T12:37:02.912Z",
+          "status": "running",
+          "updated_at": "2026-08-22T13:41:13.247Z"
+        },
+        "todo:31": {
+          "task_key": "todo:31",
+          "task_label": "31",
+          "task_title": "Port the REF_STUDIO landing page and all bounded public/static destinations",
+          "session_id": "opencode:ses_fd68980d8ffedAi034WM21VdzY",
+          "agent": "Sisyphus-Junior",
+          "category": "visual-engineering",
+          "started_at": "2026-08-22T12:37:26.902Z",
+          "status": "running",
+          "updated_at": "2026-08-22T13:32:01.413Z"
+        },
+        "todo:33": {
+          "task_key": "todo:33",
+          "task_label": "33",
+          "task_title": "Port upload validation with real file selection, progress, quarantine, and compiler admission",
+          "session_id": "opencode:ses_fd6897d19ffeWn5uD0JSPLi6c1",
+          "agent": "Sisyphus-Junior",
+          "category": "visual-engineering",
+          "started_at": "2026-08-22T12:39:49.790Z",
+          "status": "running",
+          "updated_at": "2026-08-22T13:45:12.914Z"
+        },
+        "todo:28": {
+          "task_key": "todo:28",
+          "task_label": "28",
+          "task_title": "Assemble delivery media, run FFmpeg QC, and stage private artifacts crash-atomically",
+          "session_id": "opencode:ses_fd674367affeLw1ZEo5C0RzduW",
+          "agent": "Sisyphus-Junior",
+          "category": "unspecified-high",
+          "started_at": "2026-08-22T12:52:52.012Z",
+          "status": "running",
+          "updated_at": "2026-08-22T13:07:34.637Z"
+        },
+        "todo:29": {
+          "task_key": "todo:29",
+          "task_label": "29",
+          "task_title": "Connect the complete job attempt state machine from upload through delivery",
+          "session_id": "opencode:ses_fd645b702ffePFpBzbcNIelauy",
+          "agent": "Sisyphus-Junior",
+          "category": "deep",
+          "started_at": "2026-08-22T13:54:59.705Z",
+          "status": "running",
+          "updated_at": "2026-08-22T13:57:52.030Z"
+        },
+        "todo:34": {
+          "task_key": "todo:34",
+          "task_label": "34",
+          "task_title": "Port scene evidence review, topology correction, designated approval, and final-render launch",
+          "session_id": "opencode:ses_fd63a3cb5ffe30KyKvsukpsUiL",
+          "agent": "Sisyphus-Junior",
+          "category": "visual-engineering",
+          "started_at": "2026-08-22T14:08:47.359Z",
+          "status": "running",
+          "updated_at": "2026-08-22T14:20:44.324Z"
+        },
+        "todo:35": {
+          "task_key": "todo:35",
+          "task_label": "35",
+          "task_title": "Port job queue and delivery with real state, actions, reports, and downloads",
+          "session_id": "opencode:ses_fd63a3a74ffeRbiy3ikeGYqyNG",
+          "agent": "Sisyphus-Junior",
+          "category": "visual-engineering",
+          "started_at": "2026-08-22T14:10:58.825Z",
+          "status": "running",
+          "updated_at": "2026-08-22T14:21:06.686Z"
+        },
+        "todo:36": {
+          "task_key": "todo:36",
+          "task_label": "36",
+          "task_title": "Build the shared admin shell, scoped navigation, data tables, drawers, and state patterns",
+          "session_id": "opencode:ses_fd6246b32ffeGTxCtsYcFHwEkK",
+          "agent": "Sisyphus-Junior",
+          "category": "visual-engineering",
+          "updated_at": "2026-08-22T14:31:31.855Z",
+          "started_at": "2026-08-22T14:31:31.855Z",
+          "status": "running"
+        },
+        "todo:37": {
+          "task_key": "todo:37",
+          "task_label": "37",
+          "task_title": "Port tenant list/detail with scoped filters, access management, suspension, and quota links",
+          "session_id": "opencode:ses_fd61ad566ffe43RehRiA45NaLb",
+          "agent": "Sisyphus-Junior",
+          "category": "visual-engineering",
+          "started_at": "2026-08-22T14:56:16.591Z",
+          "status": "running",
+          "updated_at": "2026-08-22T15:03:15.881Z"
+        },
+        "todo:38": {
+          "task_key": "todo:38",
+          "task_label": "38",
+          "task_title": "Port the immutable receipt-chain timeline, detail, copy, links, and export",
+          "session_id": "opencode:ses_fd5fdb42fffeKM5zDevM3Dz7MU",
+          "agent": "Sisyphus-Junior",
+          "category": "visual-engineering",
+          "updated_at": "2026-08-22T15:20:03.575Z",
+          "started_at": "2026-08-22T15:20:03.575Z",
+          "status": "running"
+        },
+        "todo:39": {
+          "task_key": "todo:39",
+          "task_label": "39",
+          "task_title": "Port quarantine evidence, release/reject confirmations, and isolation status",
+          "session_id": "opencode:ses_fd5eeac3cffeMpPcTPVqalDfM1",
+          "agent": "Sisyphus-Junior",
+          "category": "visual-engineering",
+          "started_at": "2026-08-22T15:32:11.352Z",
+          "status": "running",
+          "updated_at": "2026-08-22T15:40:21.064Z"
+        },
+        "todo:40": {
+          "task_key": "todo:40",
+          "task_label": "40",
+          "task_title": "Port audit log search, details, correlation actions, and scoped export",
+          "session_id": "opencode:ses_fd5dc6803ffeU2ZB2r8zzbIW7d",
+          "agent": "Sisyphus-Junior",
+          "category": "visual-engineering",
+          "started_at": "2026-08-22T15:53:55.022Z",
+          "status": "running",
+          "updated_at": "2026-08-22T16:05:01.338Z"
+        },
+        "todo:41": {
+          "task_key": "todo:41",
+          "task_label": "41",
+          "task_title": "Execute the machine-readable 151-control coverage contract end to end",
+          "session_id": "opencode:ses_fd5c59ddfffeRuRxh0hZ8UX717",
+          "agent": "Sisyphus-Junior",
+          "category": "visual-engineering",
+          "started_at": "2026-08-22T16:26:36.480Z",
+          "status": "running",
+          "updated_at": "2026-08-22T16:51:41.909Z"
+        },
+        "todo:42": {
+          "task_key": "todo:42",
+          "task_label": "42",
+          "task_title": "Prove accessibility, responsive behavior, and visual fidelity for all nine Stitch screens",
+          "session_id": "opencode:ses_fd59b2dddffeWQ4W0hvfbUnKYZ",
+          "agent": "Sisyphus-Junior",
+          "category": "visual-engineering",
+          "updated_at": "2026-08-22T17:03:36.801Z",
+          "started_at": "2026-08-22T17:03:36.801Z",
+          "status": "running"
+        },
+        "todo:43": {
+          "task_key": "todo:43",
+          "task_label": "43",
+          "task_title": "Run the adversarial security, authorization, queue, and crash-safety matrix",
+          "session_id": "opencode:ses_fd58ebd24ffetqJVgMHR0YUKkv",
+          "agent": "Sisyphus-Junior",
+          "category": "deep",
+          "started_at": "2026-08-22T17:12:09.080Z",
+          "status": "running",
+          "updated_at": "2026-08-22T17:30:39.389Z"
+        },
+        "todo:44": {
+          "task_key": "todo:44",
+          "task_label": "44",
+          "task_title": "Run the bounded 4-second pilot, deterministic renderer bake-off, and CPU resource baseline",
+          "session_id": "opencode:ses_fd58eb6b8ffeYaitYbGDhGwP7t",
+          "agent": "Sisyphus-Junior",
+          "category": "deep",
+          "updated_at": "2026-08-22T17:12:53.522Z",
+          "started_at": "2026-08-22T17:12:53.522Z",
+          "status": "running"
+        },
+        "todo:45": {
+          "task_key": "todo:45",
+          "task_label": "45",
+          "task_title": "Finalize deployment, monitoring, recovery, operator docs, and the clean handoff package",
+          "session_id": "opencode:ses_fd5781f5cffeDxGFCL7LiqyKGO",
+          "agent": "Sisyphus-Junior",
+          "started_at": "2026-08-22T17:38:05.473Z",
+          "status": "running",
+          "updated_at": "2026-08-22T17:43:45.890Z"
+        },
+        "final-wave:f4": {
+          "task_key": "final-wave:f4",
+          "task_label": "F4",
+          "task_title": "Scope and authority fidelity audit",
+          "session_id": "opencode:ses_fd56b1b40ffekhTh2esHH3TZ5S",
+          "agent": "Sisyphus-Junior",
+          "category": "deep",
+          "updated_at": "2026-08-22T17:50:02.613Z",
+          "started_at": "2026-08-22T17:50:02.613Z",
+          "status": "running"
+        },
+        "final-wave:f3": {
+          "task_key": "final-wave:f3",
+          "task_label": "F3",
+          "task_title": "Real external end-to-end and visual QA",
+          "session_id": "opencode:ses_fd56b1d94ffeAGKeQWMtlfjbHg",
+          "agent": "Sisyphus-Junior",
+          "category": "visual-engineering",
+          "updated_at": "2026-08-22T17:53:47.520Z",
+          "started_at": "2026-08-22T17:53:47.520Z",
+          "status": "running"
+        },
+        "final-wave:f2": {
+          "task_key": "final-wave:f2",
+          "task_label": "F2",
+          "task_title": "Code quality, architecture, and security verification",
+          "session_id": "opencode:ses_fd56b1fe0ffeCX0YgxET0dioHf",
+          "agent": "Sisyphus-Junior",
+          "category": "deep",
+          "updated_at": "2026-08-22T17:59:24.179Z",
+          "started_at": "2026-08-22T17:59:24.179Z",
+          "status": "running"
+        },
+        "final-wave:f1": {
+          "task_key": "final-wave:f1",
+          "task_label": "F1",
+          "task_title": "Plan, authority, contract-lock, and evidence audit",
+          "session_id": "opencode:ses_fd54d28c4ffe6RRcUwnlq3tVTQ",
+          "agent": "Sisyphus-Junior",
+          "category": "deep",
+          "started_at": "2026-08-22T18:11:24.397Z",
+          "status": "running",
+          "updated_at": "2026-08-22T18:24:09.821Z"
+        }
+      },
+      "ended_at": "2026-08-22T18:25:57.980Z",
+      "elapsed_ms": 86362476
+    }
+  },
+  "active_plan": "/home/singlerr/ref_studio/.omo/plans/reference-video-studio-saas.md",
+  "started_at": "2026-08-21T18:26:35.504Z",
+  "status": "completed",
+  "updated_at": "2026-08-22T18:25:57.980Z",
+  "session_ids": [
+    "opencode:ses_fdc31a2adffeUPnrFG6lPBYLVk"
+  ],
+  "session_origins": {
+    "opencode:ses_fdc31a2adffeUPnrFG6lPBYLVk": "direct"
+  },
+  "plan_name": "reference-video-studio-saas",
+  "task_sessions": {
+    "todo:1": {
+      "task_key": "todo:1",
+      "task_label": "1",
+      "task_title": "Scaffold the workspace and verify the frozen Linux/runtime authority",
+      "session_id": "opencode:ses_fd8ad5be5ffeyhHsidC2G67Seg",
+      "agent": "oracle",
+      "started_at": "2026-08-21T21:31:25.559Z",
+      "status": "running",
+      "updated_at": "2026-08-22T02:41:59.505Z"
+    },
+    "todo:2": {
+      "task_key": "todo:2",
+      "task_label": "2",
+      "task_title": "Vendor the approved design tokens, fonts, icons, and local asset manifest",
+      "session_id": "opencode:ses_fd80fb71cffe4UAbfSm8cbN7dU",
+      "agent": "Sisyphus-Junior",
+      "category": "visual-engineering",
+      "started_at": "2026-08-22T02:47:36.551Z",
+      "status": "running",
+      "updated_at": "2026-08-22T05:33:56.803Z"
+    },
+    "todo:5": {
+      "task_key": "todo:5",
+      "task_label": "5",
+      "task_title": "Create the SQLite schema, migrations, seeds, and single-host durability policy",
+      "session_id": "opencode:ses_fd87fc00bffefmGy5u7XnbsH68",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-08-22T03:30:22.377Z",
+      "started_at": "2026-08-22T03:30:22.377Z",
+      "status": "running"
+    },
+    "todo:3": {
+      "task_key": "todo:3",
+      "task_label": "3",
+      "task_title": "Freeze the independent verification pack, then build the task evidence writer",
+      "session_id": "opencode:ses_fd808089bffecZ1MAKMoVzCYsw",
+      "agent": "Sisyphus-Junior",
+      "started_at": "2026-08-22T05:40:42.108Z",
+      "status": "running",
+      "updated_at": "2026-08-22T05:46:44.240Z"
+    },
+    "todo:4": {
+      "task_key": "todo:4",
+      "task_label": "4",
+      "task_title": "Generate the sixteen fixtures from immutable held-out recipes",
+      "session_id": "opencode:ses_fd7fcf39dffe8tHbNe0JDZ0jke",
+      "agent": "Sisyphus-Junior",
+      "started_at": "2026-08-22T06:58:39.848Z",
+      "status": "running",
+      "updated_at": "2026-08-22T07:40:48.866Z"
+    },
+    "todo:6": {
+      "task_key": "todo:6",
+      "task_label": "6",
+      "task_title": "Encode shared schemas, canonical lifecycle, safe errors, and API projection rules",
+      "session_id": "opencode:ses_fd769391affeOh3jV1hzAH55yu",
+      "agent": "Sisyphus-Junior",
+      "started_at": "2026-08-22T08:33:08.065Z",
+      "status": "running",
+      "updated_at": "2026-08-22T08:42:01.222Z"
+    },
+    "todo:17": {
+      "task_key": "todo:17",
+      "task_label": "17",
+      "task_title": "Hydrate the frozen CPU stack and pass the early feasibility stop-gate",
+      "session_id": "opencode:ses_fd75c3e74ffePeNq0x4L5yxspl",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-08-22T08:51:34.977Z",
+      "started_at": "2026-08-22T08:51:34.977Z",
+      "status": "running"
+    },
+    "todo:7": {
+      "task_key": "todo:7",
+      "task_label": "7",
+      "task_title": "Implement browser sessions, bearer credentials, CSRF, and server-derived principals",
+      "session_id": "opencode:ses_fd74e260cffeeBCQKY3WGwjtjy",
+      "agent": "Sisyphus-Junior",
+      "started_at": "2026-08-22T08:57:09.545Z",
+      "status": "running",
+      "updated_at": "2026-08-22T09:09:24.322Z"
+    },
+    "todo:8": {
+      "task_key": "todo:8",
+      "task_label": "8",
+      "task_title": "Enforce tenant fencing, idempotency, safe errors, and correlation IDs at every boundary",
+      "session_id": "opencode:ses_fd7433dcaffeApBGFC5UmsIOYU",
+      "agent": "Sisyphus-Junior",
+      "started_at": "2026-08-22T09:15:36.581Z",
+      "status": "running",
+      "updated_at": "2026-08-22T09:20:40.114Z"
+    },
+    "todo:9": {
+      "task_key": "todo:9",
+      "task_label": "9",
+      "task_title": "Implement sandboxed upload sessions, quarantine, and tenant-scoped CAS",
+      "session_id": "opencode:ses_fd738a36bffe3lX7szf236fDs2",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-08-22T09:28:55.043Z",
+      "started_at": "2026-08-22T09:28:55.043Z",
+      "status": "running"
+    },
+    "todo:10": {
+      "task_key": "todo:10",
+      "task_label": "10",
+      "task_title": "Validate media and create the immutable original plus normalized CFR working input",
+      "session_id": "opencode:ses_fd730e170ffeL3NRhqE1saHrJV",
+      "agent": "Sisyphus-Junior",
+      "started_at": "2026-08-22T09:35:56.912Z",
+      "status": "running",
+      "updated_at": "2026-08-22T09:38:25.255Z"
+    },
+    "todo:11": {
+      "task_key": "todo:11",
+      "task_label": "11",
+      "task_title": "Implement the complete creator workflow API except gate decisions",
+      "session_id": "opencode:ses_fd728a81dffeEN6A1K6i3dT5hN",
+      "agent": "Sisyphus-Junior",
+      "started_at": "2026-08-22T09:44:30.042Z",
+      "status": "running",
+      "updated_at": "2026-08-22T09:52:28.838Z"
+    },
+    "todo:12": {
+      "task_key": "todo:12",
+      "task_label": "12",
+      "task_title": "Implement tenant-scoped admin read APIs and masked cross-tenant operations",
+      "session_id": "opencode:ses_fd71b7ce9ffeME6MuMhdGErGcu",
+      "agent": "Sisyphus-Junior",
+      "started_at": "2026-08-22T10:01:38.566Z",
+      "status": "running",
+      "updated_at": "2026-08-22T10:06:04.014Z"
+    },
+    "todo:13": {
+      "task_key": "todo:13",
+      "task_label": "13",
+      "task_title": "Implement allowlisted admin mutations and append-only operational audit events",
+      "session_id": "opencode:ses_fd70f3c0dffe1CjqArrdPRzHEs",
+      "agent": "Sisyphus-Junior",
+      "started_at": "2026-08-22T10:12:23.188Z",
+      "status": "running",
+      "updated_at": "2026-08-22T10:16:59.432Z"
+    },
+    "todo:18": {
+      "task_key": "todo:18",
+      "task_label": "18",
+      "task_title": "Extract the admitted temporal volume and source-bound measurement workspace",
+      "session_id": "opencode:ses_fd704537cffegvGixobTbrYN56",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "started_at": "2026-08-22T10:25:44.986Z",
+      "status": "running",
+      "updated_at": "2026-08-22T10:39:01.516Z"
+    },
+    "todo:15": {
+      "task_key": "todo:15",
+      "task_label": "15",
+      "task_title": "Implement the SQLite job queue, leases, retries, cancellation, and crash recovery",
+      "session_id": "opencode:ses_fd704550cffe9TKK5eHO9HyFn5",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-08-22T10:26:55.518Z",
+      "started_at": "2026-08-22T10:26:55.518Z",
+      "status": "running"
+    },
+    "todo:14": {
+      "task_key": "todo:14",
+      "task_label": "14",
+      "task_title": "Build designated reviewer assignments, predecessor gates, receipts, and stale-approval recovery",
+      "session_id": "opencode:ses_fd70456d3ffeMbijfFWFK2ccIy",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "started_at": "2026-08-22T10:26:59.779Z",
+      "status": "running",
+      "updated_at": "2026-08-22T10:39:49.812Z"
+    },
+    "todo:19": {
+      "task_key": "todo:19",
+      "task_label": "19",
+      "task_title": "Measure Korean/English OCR, semantic text regions, and temporal UI bounds",
+      "session_id": "opencode:ses_fd6ef0e15ffeS2r6F9nsW56uu3",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-08-22T10:46:37.758Z",
+      "started_at": "2026-08-22T10:46:37.758Z",
+      "status": "running"
+    },
+    "todo:16": {
+      "task_key": "todo:16",
+      "task_label": "16",
+      "task_title": "Implement retention, deletion epochs, and expiring fenced downloads/exports",
+      "session_id": "opencode:ses_fd6ef0fe9ffel36G9lf17a851E",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "started_at": "2026-08-22T10:47:04.206Z",
+      "status": "running",
+      "updated_at": "2026-08-22T10:50:18.781Z"
+    },
+    "todo:20": {
+      "task_key": "todo:20",
+      "task_label": "20",
+      "task_title": "Implement temporal matting, owner tracking, lifecycle, and residual-canvas separation",
+      "session_id": "opencode:ses_fd6e67c1bffeb4SMqPzDjyvvuE",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "started_at": "2026-08-22T10:56:03.451Z",
+      "status": "running",
+      "updated_at": "2026-08-22T10:58:17.137Z"
+    },
+    "todo:21": {
+      "task_key": "todo:21",
+      "task_label": "21",
+      "task_title": "Measure camera/depth, rhythm, owner-bound effects, and audio anchors",
+      "session_id": "opencode:ses_fd6df3b31ffe3IStE7HJxyvQjq",
+      "agent": "Sisyphus-Junior",
+      "started_at": "2026-08-22T11:04:18.338Z",
+      "status": "running",
+      "updated_at": "2026-08-22T11:08:37.376Z"
+    },
+    "todo:22": {
+      "task_key": "todo:22",
+      "task_label": "22",
+      "task_title": "Assemble the evidence bundle and enforce OBSERVED/MAPPED/NEEDS CHOICE semantics",
+      "session_id": "opencode:ses_fd6d55326ffeuCN2ENWbZ1zlj0",
+      "agent": "Sisyphus-Junior",
+      "started_at": "2026-08-22T11:14:21.125Z",
+      "status": "running",
+      "updated_at": "2026-08-22T11:19:03.549Z"
+    },
+    "todo:24": {
+      "task_key": "todo:24",
+      "task_label": "24",
+      "task_title": "Compile measured evidence into editable AuthoringIR, SceneIR, and BrowserPassSpec",
+      "session_id": "opencode:ses_fd6cb52a0ffeMZuWeOpWXdUGUF",
+      "agent": "Sisyphus-Junior",
+      "started_at": "2026-08-22T11:25:27.175Z",
+      "status": "running",
+      "updated_at": "2026-08-22T11:50:30.887Z"
+    },
+    "todo:23": {
+      "task_key": "todo:23",
+      "task_label": "23",
+      "task_title": "Orchestrate the compiler from Node with admission, cancellation, and resource evidence",
+      "session_id": "opencode:ses_fd6cb5472ffe22Ska0j0onPoTz",
+      "agent": "Sisyphus-Junior",
+      "started_at": "2026-08-22T11:26:37.893Z",
+      "status": "running",
+      "updated_at": "2026-08-22T11:50:27.689Z"
+    },
+    "todo:25": {
+      "task_key": "todo:25",
+      "task_label": "25",
+      "task_title": "Build the semantic DOM/SVG scene and exact frame-indexed preview renderer",
+      "session_id": "opencode:ses_fd6addbe9ffePiBINuCglqt4Qb",
+      "agent": "Sisyphus-Junior",
+      "started_at": "2026-08-22T11:57:29.231Z",
+      "status": "running",
+      "updated_at": "2026-08-22T12:06:47.223Z"
+    },
+    "todo:26": {
+      "task_key": "todo:26",
+      "task_label": "26",
+      "task_title": "Implement owner-bound WebGL2 effects and residual-canvas composition passes",
+      "session_id": "opencode:ses_fd6add9f1ffeUSsgb5WNeRTW52",
+      "agent": "Sisyphus-Junior",
+      "started_at": "2026-08-22T11:59:27.304Z",
+      "status": "running",
+      "updated_at": "2026-08-22T12:05:01.184Z"
+    },
+    "todo:27": {
+      "task_key": "todo:27",
+      "task_label": "27",
+      "task_title": "Build the exact-Chromium CDP capture worker with network isolation and determinism proofs",
+      "session_id": "opencode:ses_fd6a0875affezqs0Q2GOiR4wps",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "started_at": "2026-08-22T12:13:23.453Z",
+      "status": "running",
+      "updated_at": "2026-08-22T12:47:16.334Z"
+    },
+    "todo:30": {
+      "task_key": "todo:30",
+      "task_label": "30",
+      "task_title": "Build shared web primitives and project the frozen 151-control contract",
+      "session_id": "opencode:ses_fd6a085b4ffeaYLxHIRSgz0GQF",
+      "agent": "Sisyphus-Junior",
+      "started_at": "2026-08-22T12:14:55.736Z",
+      "status": "running",
+      "updated_at": "2026-08-22T12:25:46.639Z"
+    },
+    "todo:32": {
+      "task_key": "todo:32",
+      "task_label": "32",
+      "task_title": "Port the shared creator/admin sign-in with session, CSRF, support, and legal behavior",
+      "session_id": "opencode:ses_fd6897ed3ffeD7lZa0zVfvHpi9",
+      "agent": "Sisyphus-Junior",
+      "category": "visual-engineering",
+      "started_at": "2026-08-22T12:37:02.912Z",
+      "status": "running",
+      "updated_at": "2026-08-22T13:41:13.247Z"
+    },
+    "todo:31": {
+      "task_key": "todo:31",
+      "task_label": "31",
+      "task_title": "Port the REF_STUDIO landing page and all bounded public/static destinations",
+      "session_id": "opencode:ses_fd68980d8ffedAi034WM21VdzY",
+      "agent": "Sisyphus-Junior",
+      "category": "visual-engineering",
+      "started_at": "2026-08-22T12:37:26.902Z",
+      "status": "running",
+      "updated_at": "2026-08-22T13:32:01.413Z"
+    },
+    "todo:33": {
+      "task_key": "todo:33",
+      "task_label": "33",
+      "task_title": "Port upload validation with real file selection, progress, quarantine, and compiler admission",
+      "session_id": "opencode:ses_fd6897d19ffeWn5uD0JSPLi6c1",
+      "agent": "Sisyphus-Junior",
+      "category": "visual-engineering",
+      "started_at": "2026-08-22T12:39:49.790Z",
+      "status": "running",
+      "updated_at": "2026-08-22T13:45:12.914Z"
+    },
+    "todo:28": {
+      "task_key": "todo:28",
+      "task_label": "28",
+      "task_title": "Assemble delivery media, run FFmpeg QC, and stage private artifacts crash-atomically",
+      "session_id": "opencode:ses_fd674367affeLw1ZEo5C0RzduW",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "started_at": "2026-08-22T12:52:52.012Z",
+      "status": "running",
+      "updated_at": "2026-08-22T13:07:34.637Z"
+    },
+    "todo:29": {
+      "task_key": "todo:29",
+      "task_label": "29",
+      "task_title": "Connect the complete job attempt state machine from upload through delivery",
+      "session_id": "opencode:ses_fd645b702ffePFpBzbcNIelauy",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "started_at": "2026-08-22T13:54:59.705Z",
+      "status": "running",
+      "updated_at": "2026-08-22T13:57:52.030Z"
+    },
+    "todo:34": {
+      "task_key": "todo:34",
+      "task_label": "34",
+      "task_title": "Port scene evidence review, topology correction, designated approval, and final-render launch",
+      "session_id": "opencode:ses_fd63a3cb5ffe30KyKvsukpsUiL",
+      "agent": "Sisyphus-Junior",
+      "category": "visual-engineering",
+      "started_at": "2026-08-22T14:08:47.359Z",
+      "status": "running",
+      "updated_at": "2026-08-22T14:20:44.324Z"
+    },
+    "todo:35": {
+      "task_key": "todo:35",
+      "task_label": "35",
+      "task_title": "Port job queue and delivery with real state, actions, reports, and downloads",
+      "session_id": "opencode:ses_fd63a3a74ffeRbiy3ikeGYqyNG",
+      "agent": "Sisyphus-Junior",
+      "category": "visual-engineering",
+      "started_at": "2026-08-22T14:10:58.825Z",
+      "status": "running",
+      "updated_at": "2026-08-22T14:21:06.686Z"
+    },
+    "todo:36": {
+      "task_key": "todo:36",
+      "task_label": "36",
+      "task_title": "Build the shared admin shell, scoped navigation, data tables, drawers, and state patterns",
+      "session_id": "opencode:ses_fd6246b32ffeGTxCtsYcFHwEkK",
+      "agent": "Sisyphus-Junior",
+      "category": "visual-engineering",
+      "updated_at": "2026-08-22T14:31:31.855Z",
+      "started_at": "2026-08-22T14:31:31.855Z",
+      "status": "running"
+    },
+    "todo:37": {
+      "task_key": "todo:37",
+      "task_label": "37",
+      "task_title": "Port tenant list/detail with scoped filters, access management, suspension, and quota links",
+      "session_id": "opencode:ses_fd61ad566ffe43RehRiA45NaLb",
+      "agent": "Sisyphus-Junior",
+      "category": "visual-engineering",
+      "started_at": "2026-08-22T14:56:16.591Z",
+      "status": "running",
+      "updated_at": "2026-08-22T15:03:15.881Z"
+    },
+    "todo:38": {
+      "task_key": "todo:38",
+      "task_label": "38",
+      "task_title": "Port the immutable receipt-chain timeline, detail, copy, links, and export",
+      "session_id": "opencode:ses_fd5fdb42fffeKM5zDevM3Dz7MU",
+      "agent": "Sisyphus-Junior",
+      "category": "visual-engineering",
+      "updated_at": "2026-08-22T15:20:03.575Z",
+      "started_at": "2026-08-22T15:20:03.575Z",
+      "status": "running"
+    },
+    "todo:39": {
+      "task_key": "todo:39",
+      "task_label": "39",
+      "task_title": "Port quarantine evidence, release/reject confirmations, and isolation status",
+      "session_id": "opencode:ses_fd5eeac3cffeMpPcTPVqalDfM1",
+      "agent": "Sisyphus-Junior",
+      "category": "visual-engineering",
+      "started_at": "2026-08-22T15:32:11.352Z",
+      "status": "running",
+      "updated_at": "2026-08-22T15:40:21.064Z"
+    },
+    "todo:40": {
+      "task_key": "todo:40",
+      "task_label": "40",
+      "task_title": "Port audit log search, details, correlation actions, and scoped export",
+      "session_id": "opencode:ses_fd5dc6803ffeU2ZB2r8zzbIW7d",
+      "agent": "Sisyphus-Junior",
+      "category": "visual-engineering",
+      "started_at": "2026-08-22T15:53:55.022Z",
+      "status": "running",
+      "updated_at": "2026-08-22T16:05:01.338Z"
+    },
+    "todo:41": {
+      "task_key": "todo:41",
+      "task_label": "41",
+      "task_title": "Execute the machine-readable 151-control coverage contract end to end",
+      "session_id": "opencode:ses_fd5c59ddfffeRuRxh0hZ8UX717",
+      "agent": "Sisyphus-Junior",
+      "category": "visual-engineering",
+      "started_at": "2026-08-22T16:26:36.480Z",
+      "status": "running",
+      "updated_at": "2026-08-22T16:51:41.909Z"
+    },
+    "todo:42": {
+      "task_key": "todo:42",
+      "task_label": "42",
+      "task_title": "Prove accessibility, responsive behavior, and visual fidelity for all nine Stitch screens",
+      "session_id": "opencode:ses_fd59b2dddffeWQ4W0hvfbUnKYZ",
+      "agent": "Sisyphus-Junior",
+      "category": "visual-engineering",
+      "updated_at": "2026-08-22T17:03:36.801Z",
+      "started_at": "2026-08-22T17:03:36.801Z",
+      "status": "running"
+    },
+    "todo:43": {
+      "task_key": "todo:43",
+      "task_label": "43",
+      "task_title": "Run the adversarial security, authorization, queue, and crash-safety matrix",
+      "session_id": "opencode:ses_fd58ebd24ffetqJVgMHR0YUKkv",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "started_at": "2026-08-22T17:12:09.080Z",
+      "status": "running",
+      "updated_at": "2026-08-22T17:30:39.389Z"
+    },
+    "todo:44": {
+      "task_key": "todo:44",
+      "task_label": "44",
+      "task_title": "Run the bounded 4-second pilot, deterministic renderer bake-off, and CPU resource baseline",
+      "session_id": "opencode:ses_fd58eb6b8ffeYaitYbGDhGwP7t",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-08-22T17:12:53.522Z",
+      "started_at": "2026-08-22T17:12:53.522Z",
+      "status": "running"
+    },
+    "todo:45": {
+      "task_key": "todo:45",
+      "task_label": "45",
+      "task_title": "Finalize deployment, monitoring, recovery, operator docs, and the clean handoff package",
+      "session_id": "opencode:ses_fd5781f5cffeDxGFCL7LiqyKGO",
+      "agent": "Sisyphus-Junior",
+      "started_at": "2026-08-22T17:38:05.473Z",
+      "status": "running",
+      "updated_at": "2026-08-22T17:43:45.890Z"
+    },
+    "final-wave:f4": {
+      "task_key": "final-wave:f4",
+      "task_label": "F4",
+      "task_title": "Scope and authority fidelity audit",
+      "session_id": "opencode:ses_fd56b1b40ffekhTh2esHH3TZ5S",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-08-22T17:50:02.613Z",
+      "started_at": "2026-08-22T17:50:02.613Z",
+      "status": "running"
+    },
+    "final-wave:f3": {
+      "task_key": "final-wave:f3",
+      "task_label": "F3",
+      "task_title": "Real external end-to-end and visual QA",
+      "session_id": "opencode:ses_fd56b1d94ffeAGKeQWMtlfjbHg",
+      "agent": "Sisyphus-Junior",
+      "category": "visual-engineering",
+      "updated_at": "2026-08-22T17:53:47.520Z",
+      "started_at": "2026-08-22T17:53:47.520Z",
+      "status": "running"
+    },
+    "final-wave:f2": {
+      "task_key": "final-wave:f2",
+      "task_label": "F2",
+      "task_title": "Code quality, architecture, and security verification",
+      "session_id": "opencode:ses_fd56b1fe0ffeCX0YgxET0dioHf",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-08-22T17:59:24.179Z",
+      "started_at": "2026-08-22T17:59:24.179Z",
+      "status": "running"
+    },
+    "final-wave:f1": {
+      "task_key": "final-wave:f1",
+      "task_label": "F1",
+      "task_title": "Plan, authority, contract-lock, and evidence audit",
+      "session_id": "opencode:ses_fd54d28c4ffe6RRcUwnlq3tVTQ",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "started_at": "2026-08-22T18:11:24.397Z",
+      "status": "running",
+      "updated_at": "2026-08-22T18:24:09.821Z"
+    }
+  },
+  "agent": "atlas",
+  "ended_at": "2026-08-22T18:25:57.980Z",
+  "elapsed_ms": 86362476
+}

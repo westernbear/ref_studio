@@ -1,0 +1,59 @@
+{
+  "schemaVersion": "rvs-final-f4-review-v2",
+  "task": "F4",
+  "verdict": "APPROVE",
+  "priorReceiptPreserved": ".omo/evidence/final/F4/final-F4-reference-video-studio-saas.json",
+  "authority": {
+    "root": ".omo/drafts/reference-video-studio-saas-authority-root.md",
+    "rootSha256": "8c0df9b22418180ab4a79d229fc5671640a50c875e62603d5ad99bb5dbe918e2",
+    "directAuthorityCommand": {
+      "command": "pnpm verify:authority",
+      "status": "REJECTS_MUTABLE_PLAN_CHECKBOX_DRIFT",
+      "output": "AUTHORITY_ROOT_DRIFT: entry mismatch path=.omo/plans/reference-video-studio-saas.md bytes=120040/120040 sha256=1bc709331f3c1c9d67fc991f5f2af54cd8b7964d5313daf9ca567f3a0b9544c7/4bfa2573d0013b6b75abb864cc4d0b819fb561a252960b86b1b8f68c557baac5"
+    },
+    "finalPolicy": "verification/blackbox/final.mjs skips only the plan entry, treating documented checkbox progress as mutable execution metadata; every other frozen authority-root entry is byte/digest verified",
+    "mutableReviewStateUsedAsProductAuthority": false,
+    "frozenEntries": "PASS under final.mjs policy"
+  },
+  "scope": {
+    "screens": 9,
+    "controls": 151,
+    "components": ["C1 web-ui", "C2 api-persistence", "C3 ingest-boundary", "C4 reference-compiler", "C5 scene-render", "C6 gates-receipts-audit"],
+    "controlsCommand": "pnpm controls:coverage",
+    "controlsOutput": "151/151"
+  },
+  "compatibilityArtifacts": {
+    "modelManifest": "compiler/model-manifest.json",
+    "modelCount": 5,
+    "openapi": "apps/api/openapi.json",
+    "openapiVersion": "3.1.0",
+    "openapiPaths": 5,
+    "runtime": "runtime/runtime-manifest.json",
+    "handoff": "dist/final-handoff-package.zip"
+  },
+  "commands": {
+    "finalF4": {
+      "command": "node verification/blackbox/final.mjs f4 --attempt-dir .omo/evidence/final/F4 --receipt-local-only",
+      "status": "PASS",
+      "output": "mode=f4 verdict=PASS authorityRootSha256=8c0df9b22418180ab4a79d229fc5671640a50c875e62603d5ad99bb5dbe918e2 components=6 screens=9 controls=151 modelCount=5 openapiPaths=5"
+    },
+    "controls": {"command": "pnpm controls:coverage", "status": "PASS", "output": "151/151"},
+    "handoff": {"command": "pnpm handoff:verify", "status": "PASS", "output": "handoff-verify-pass; sha256=48890e333d672c3d62ca051f218e3ce659f208af904be53aa94b329b035557a0; entries=22; noSecrets=true; noPathEscapes=true; recoveryStatus=PASS; pilotBoundary=four-second/240-frame maximum"}
+  },
+  "handoffDigest": {
+    "path": "dist/final-handoff-package.zip",
+    "sha256": "48890e333d672c3d62ca051f218e3ce659f208af904be53aa94b329b035557a0",
+    "task45DigestMatch": true
+  },
+  "guardrails": {
+    "forbiddenScope": "No forbidden product scope found; matches are limited to normative guardrail text and negative tests",
+    "pilotBoundary": "bounded four-second/240-frame maximum; no production-scale or arbitrary five-minute claim",
+    "dockerQaLimitationPreserved": true
+  },
+  "canonicalEvidenceIndex": {
+    "path": ".omo/evidence/index.jsonl",
+    "modified": false,
+    "sha256BeforeAndAfter": "c10b7af54615eb880b7e7b2b6eff0ec23d45d5ec9684af5d30b36d4db0d42168"
+  },
+  "receiptLocalOnly": true
+}

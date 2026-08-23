@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "rvs-task-evidence-v1",
+  "task": 6,
+  "status": "PASS",
+  "commands": {
+    "pnpm --filter contracts test": {"exitCode": 0, "stdout": "1 test file, 34 tests passed"},
+    "pnpm contracts:openapi": {"exitCode": 0, "stdout": "{\"status\":\"generated\",\"operations\":5,\"schemas\":24}"},
+    "pnpm typecheck": {"exitCode": 0, "stdout": "tsc --noEmit"},
+    "openapi shape check": {"exitCode": 0, "stdout": "{\"paths\":5,\"schemas\":24,\"concrete\":24,\"permissive\":0}"},
+    "forbidden-token scan": {"exitCode": 0, "stdout": "No matches found"},
+    "lsp_diagnostics": {"exitCode": 0, "stdout": "No diagnostics found for models.ts"}
+  },
+  "negativeCases": ["INVALID_JOB_TRANSITION", "INTERNAL_ERROR", "OWNER_MISMATCH"]
+}

@@ -1,0 +1,31 @@
+{
+  "task": "25",
+  "label": "semantic DOM/SVG scene and exact frame-indexed preview renderer",
+  "commands": [
+    {
+      "command": "pnpm --filter worker test --run dom-renderer",
+      "exitCode": 0,
+      "stdoutSummary": "Vitest passed 1 file and 14 tests, including golden frames 0, 59, 70, and 119, unified scrub/playback/capture identity, local font path validation, manifest checking, and rejection/read-back/determinism checks.",
+      "stderrSummary": ""
+    },
+    {
+      "command": "pnpm --filter worker build",
+      "exitCode": 0,
+      "stdoutSummary": "tsc --noEmit completed successfully.",
+      "stderrSummary": ""
+    }
+  ],
+  "assertions": [
+    "renderFrame is pure and frame-indexed; repeated frame output is structurally identical.",
+    "DOM/SVG output preserves editable text and owner geometry metadata and rejects flattened image owners.",
+    "Local font readiness is required and remote font URLs are rejected.",
+    "Read-back metadata must equal the requested frame for scrub, playback, and capture.",
+    "Scrub, playback, and PNG capture all delegate to the same pure renderFrame source.",
+    "Local font paths must be non-empty local font files and can be proven with an injected manifest checker; paths are preserved in output metadata.",
+    "Unknown geometry references and forbidden wall-clock/random APIs are rejected/absent."
+  ],
+  "artifacts": [
+    "apps/worker/src/render-app/index.ts",
+    "apps/worker/src/render-app/dom-renderer.test.ts"
+  ]
+}

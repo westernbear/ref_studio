@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "rvs-final-f4-receipt-v1",
+  "task": "F4",
+  "verdict": "REJECT",
+  "authority": {
+    "rootPath": ".omo/drafts/reference-video-studio-saas-authority-root.md",
+    "rootSha256": "8c0df9b22418180ab4a79d229fc5671640a50c875e62603d5ad99bb5dbe918e2",
+    "rootCheck": "REJECT",
+    "rootCheckOutput": "AUTHORITY_ROOT_DRIFT: entry mismatch path=.omo/plans/reference-video-studio-saas.md bytes=120040/120040 sha256=1bc709331f3c1c9d67fc991f5f2af54cd8b7964d5313daf9ca567f3a0b9544c7/4bfa2573d0013b6b75abb864cc4d0b819fb561a252960b86b1b8f68c557baac5",
+    "decisionLedger": ".omo/drafts/reference-video-studio-saas-decisions-frozen.md",
+    "mutableReviewMetadataUsedAsAuthority": false
+  },
+  "scope": {
+    "screens": 9,
+    "controls": "151/151",
+    "components": ["C1 web-ui", "C2 api-persistence", "C3 ingest-boundary", "C4 reference-compiler", "C5 scene-render", "C6 gates-receipts-audit"],
+    "controlsCoverageCommand": "pnpm controls:coverage",
+    "controlsCoverageOutput": "151/151"
+  },
+  "pathMapping": {
+    "openapi": "packages/contracts/generated/openapi.json",
+    "runtime": "runtime/runtime-artifact-manifest.json",
+    "models": "MISSING: compiler/model-manifest.json",
+    "handoff": "dist/reference-video-studio-handoff.zip"
+  },
+  "hardFailures": [
+    {"code": "FINAL_VERIFIER_MISSING", "path": "verification/blackbox/final.mjs", "evidence": "Exact F4 Docker command returned MODULE_NOT_FOUND: /workspace/verification/blackbox/final.mjs"},
+    {"code": "MODEL_MANIFEST_MISSING", "path": "compiler/model-manifest.json", "evidence": "Canonical model manifest path absent; no equivalent compiler model manifest found"},
+    {"code": "AUTHORITY_ROOT_DRIFT", "evidence": "verify-authority-root rejected the current plan digest against the root-bound digest"}
+  ],
+  "canonicalChecks": {
+    "openapiGeneration": {"command": "pnpm contracts:openapi", "status": "PASS", "output": "{\"status\":\"generated\",\"operations\":5,\"schemas\":24}"},
+    "deployVerification": {"command": "node scripts/deploy/verify.mjs", "status": "PASS", "output": "{\"status\":\"deploy-verify-pass\",\"openapiPaths\":5}"},
+    "handoffVerification": {"command": "pnpm handoff:verify", "status": "PASS", "output": "handoff-verify-pass; sha256=48890e333d672c3d62ca051f218e3ce659f208af904be53aa94b329b035557a0; entries=22; noSecrets=true; noPathEscapes=true; recoveryStatus=PASS; pilotBoundary=four-second/240-frame maximum"},
+    "handoffTask45DigestMatch": true,
+    "forbiddenScopeScan": "No forbidden product route/dependency/production-overclaim match found; negative guardrail prose matches are normative documentation. This does not cure the hard failures above."
+  },
+  "supportingEvidence": [
+    ".omo/evidence/wave7/task-41-reference-video-studio-saas.json",
+    ".omo/evidence/wave7/task-42-reference-video-studio-saas.json",
+    ".omo/evidence/wave7/task-43-reference-video-studio-saas.json",
+    ".omo/evidence/wave7/task-44-reference-video-studio-saas.json",
+    ".omo/evidence/wave7/task-45-reference-video-studio-saas.json"
+  ],
+  "receiptLocalOnly": true,
+  "canonicalEvidenceIndexModified": false
+}

@@ -1,0 +1,28 @@
+{
+  "task": 14,
+  "commands": [
+    {
+      "command": "pnpm --filter api test --run gate-receipt-stale-approval",
+      "exitCode": 0,
+      "output": "✓ src/gate-receipt-stale-approval.test.ts (4 tests) 131ms\nTest Files  1 passed (1)\nTests  4 passed (4)"
+    },
+    {
+      "command": "pnpm --filter api test --run",
+      "exitCode": 0,
+      "output": "Test Files  8 passed (8)\nTests  56 passed (56)"
+    },
+    {
+      "command": "pnpm --filter api build",
+      "exitCode": 0,
+      "output": "$ tsc --noEmit"
+    }
+  ],
+  "negativeCaseTokens": [
+    "INVALID_REQUEST",
+    "ROLE_NOT_PERMITTED",
+    "TENANT_HEADER_FORBIDDEN",
+    "STALE_APPROVAL_UNSAFE",
+    "RECEIPT_IMMUTABLE"
+  ],
+  "receiptProperties": ["T1->T6 predecessor DAG", "server-side assignment scope", "append-only sequence", "digest snapshot invalidation", "correctionOf link"]
+}

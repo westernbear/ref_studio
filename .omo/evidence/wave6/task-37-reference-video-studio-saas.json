@@ -1,0 +1,27 @@
+{
+  "task": "37",
+  "title": "Port tenant list/detail with scoped filters, access management, suspension, and quota links",
+  "status": "implemented",
+  "commands": [
+    {
+      "command": "pnpm --filter web test -- --run",
+      "result": "passed: 4 files, 10 tests"
+    },
+    {
+      "command": "pnpm --filter web build",
+      "result": "passed: Next.js production build"
+    },
+    {
+      "command": "pnpm --filter web test:e2e --grep @admin-tenants",
+      "result": "passed: 1 test using supervised production server and system Chrome"
+    }
+  ],
+  "assertions": [
+    "TenantDirectory uses canonical tenant IDs and deterministic scoped data.",
+    "Table and card views, search/state filters, detail drawer, activity links, Jobs/Billing/Audit links, role-safe access UI, and confirmed suspension flow are implemented.",
+    "Viewer mutation controls are disabled with an accessible reason; suspension requires tenant confirmation and a non-empty reason.",
+    "The focused E2E collects source IDs across table, row menu, card, detail, access, and suspension surfaces and asserts exactly the unique set admin_tenants:1 through admin_tenants:23.",
+    "No private media paths, payment data, raw API errors, dead hrefs, or placeholder markers were found in changed tenant files."
+  ],
+  "verification_notes": "The focused E2E covers search, card view, detail drawer/deep links, viewer-disabled access, allowed role assignment messaging, and confirmed suspension messaging. Build emitted the repository's existing autoprefixer warning for flex-end compatibility."
+}

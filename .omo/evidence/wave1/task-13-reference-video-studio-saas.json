@@ -1,0 +1,10 @@
+{
+  "task": "13",
+  "verification": [
+    { "command": "pnpm --filter api test --run admin-mutation", "exitCode": 0, "output": "✓ src/admin-mutation.test.ts (6 tests)\nTest Files  1 passed (1)\nTests  6 passed (6)" },
+    { "command": "pnpm --filter api build", "exitCode": 0, "output": "$ tsc --noEmit" },
+    { "command": "pnpm --filter api test --run", "exitCode": 0, "output": "Test Files  7 passed (7)\nTests  52 passed (52)\nDuration  4.20s" }
+  ],
+  "negativeCaseTokens": ["ADMIN_ACCESS_DENIED", "ROLE_NOT_PERMITTED", "VERSION_CONFLICT", "QUARANTINE_RELEASE_BLOCKED", "JOB_NOT_CANCELLABLE", "JOB_NOT_RETRYABLE", "Prioritize authoritative queue"],
+  "notes": "Initial T13 smoke coverage was hardened into a six-test matrix covering all allowlisted mutation families, audit payloads, replay/hash mismatch, state/version failures, actor/scope denials, and forbidden operations."
+}

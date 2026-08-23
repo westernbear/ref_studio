@@ -1,0 +1,355 @@
+{
+  "schemaVersion": "rvs-final-receipt-v1",
+  "mode": "f3",
+  "verdict": "PASS",
+  "controls": 151,
+  "wcag": {
+    "schemaVersion": "rvs-wcag-aa-v1",
+    "standard": "WCAG 2.2 A/AA",
+    "requiredEvidence": ".omo/evidence/wave7/task-42-reference-video-studio-saas.json",
+    "zeroViolations": true,
+    "requiredChecks": [
+      "axe-wcag2a-aa",
+      "keyboard-focus",
+      "live-region-presence",
+      "reduced-motion",
+      "overflow"
+    ]
+  },
+  "visual": {
+    "schemaVersion": "rvs-visual-structural-v1",
+    "authority": "verification/contract/visual-contract-v2.json",
+    "parentLandmarks": ".omo/drafts/reference-video-studio-saas-visual-landmarks-v1.json",
+    "screens": [
+      "ref_studio_landing",
+      "admin_sign_in",
+      "upload_validation",
+      "scene_review_approval",
+      "job_queue_delivery",
+      "admin_tenants",
+      "admin_receipt_chain",
+      "admin_quarantine",
+      "admin_audit_log"
+    ],
+    "mode": "structural-fallback-when-parent-bound-ssim-assets-absent",
+    "requiredEvidence": ".omo/evidence/wave7/task-42-reference-video-studio-saas.json"
+  },
+  "pilot": {
+    "schemaVersion": "rvs-task-44-evidence-v1",
+    "status": "PASS",
+    "scope": "bounded four-second deterministic local pilot",
+    "admittedFps": [
+      24,
+      25,
+      30,
+      50,
+      60
+    ],
+    "frameCounts": [
+      96,
+      100,
+      120,
+      200,
+      240
+    ],
+    "denseOcr4kBoundary": {
+      "fps": 60,
+      "frames": 240,
+      "dimensions": "3840x2160",
+      "nativeOcrCrops": true
+    },
+    "reports": [
+      "task-44-admission.json",
+      "task-44-pilot-report.json",
+      "task-44-media-manifest.json"
+    ],
+    "historicalWindowsEvidence": "preserved as non-authoritative input",
+    "rawMedia": false,
+    "network": "not used"
+  },
+  "generatedAt": "2026-08-22T18:07:12.818Z"
+}
+{
+  "schemaVersion": "rvs-final-receipt-v1",
+  "mode": "f3",
+  "verdict": "PASS",
+  "controls": 151,
+  "wcag": {
+    "schemaVersion": "rvs-wcag-aa-v1",
+    "standard": "WCAG 2.2 A/AA",
+    "requiredEvidence": ".omo/evidence/wave7/task-42-reference-video-studio-saas.json",
+    "zeroViolations": true,
+    "requiredChecks": [
+      "axe-wcag2a-aa",
+      "keyboard-focus",
+      "live-region-presence",
+      "reduced-motion",
+      "overflow"
+    ]
+  },
+  "visual": {
+    "schemaVersion": "rvs-visual-structural-v1",
+    "authority": "verification/contract/visual-contract-v2.json",
+    "parentLandmarks": ".omo/drafts/reference-video-studio-saas-visual-landmarks-v1.json",
+    "screens": [
+      "ref_studio_landing",
+      "admin_sign_in",
+      "upload_validation",
+      "scene_review_approval",
+      "job_queue_delivery",
+      "admin_tenants",
+      "admin_receipt_chain",
+      "admin_quarantine",
+      "admin_audit_log"
+    ],
+    "mode": "structural-fallback-when-parent-bound-ssim-assets-absent",
+    "requiredEvidence": ".omo/evidence/wave7/task-42-reference-video-studio-saas.json"
+  },
+  "pilot": {
+    "schemaVersion": "rvs-task-44-evidence-v1",
+    "status": "PASS",
+    "scope": "bounded four-second deterministic local pilot",
+    "admittedFps": [
+      24,
+      25,
+      30,
+      50,
+      60
+    ],
+    "frameCounts": [
+      96,
+      100,
+      120,
+      200,
+      240
+    ],
+    "denseOcr4kBoundary": {
+      "fps": 60,
+      "frames": 240,
+      "dimensions": "3840x2160",
+      "nativeOcrCrops": true
+    },
+    "reports": [
+      "task-44-admission.json",
+      "task-44-pilot-report.json",
+      "task-44-media-manifest.json"
+    ],
+    "historicalWindowsEvidence": "preserved as non-authoritative input",
+    "rawMedia": false,
+    "network": "not used"
+  },
+  "generatedAt": "2026-08-22T18:09:22.028Z"
+}
+{
+  "schemaVersion": "rvs-final-receipt-v1",
+  "mode": "f3",
+  "verdict": "PASS",
+  "controls": 151,
+  "wcag": {
+    "schemaVersion": "rvs-wcag-aa-v1",
+    "standard": "WCAG 2.2 A/AA",
+    "requiredEvidence": ".omo/evidence/wave7/task-42-reference-video-studio-saas.json",
+    "zeroViolations": true,
+    "requiredChecks": [
+      "axe-wcag2a-aa",
+      "keyboard-focus",
+      "live-region-presence",
+      "reduced-motion",
+      "overflow"
+    ]
+  },
+  "visual": {
+    "schemaVersion": "rvs-visual-structural-v1",
+    "authority": "verification/contract/visual-contract-v2.json",
+    "parentLandmarks": ".omo/drafts/reference-video-studio-saas-visual-landmarks-v1.json",
+    "screens": [
+      "ref_studio_landing",
+      "admin_sign_in",
+      "upload_validation",
+      "scene_review_approval",
+      "job_queue_delivery",
+      "admin_tenants",
+      "admin_receipt_chain",
+      "admin_quarantine",
+      "admin_audit_log"
+    ],
+    "mode": "structural-fallback-when-parent-bound-ssim-assets-absent",
+    "requiredEvidence": ".omo/evidence/wave7/task-42-reference-video-studio-saas.json"
+  },
+  "pilot": {
+    "schemaVersion": "rvs-task-44-evidence-v1",
+    "status": "PASS",
+    "scope": "bounded four-second deterministic local pilot",
+    "admittedFps": [
+      24,
+      25,
+      30,
+      50,
+      60
+    ],
+    "frameCounts": [
+      96,
+      100,
+      120,
+      200,
+      240
+    ],
+    "denseOcr4kBoundary": {
+      "fps": 60,
+      "frames": 240,
+      "dimensions": "3840x2160",
+      "nativeOcrCrops": true
+    },
+    "reports": [
+      "task-44-admission.json",
+      "task-44-pilot-report.json",
+      "task-44-media-manifest.json"
+    ],
+    "historicalWindowsEvidence": "preserved as non-authoritative input",
+    "rawMedia": false,
+    "network": "not used"
+  },
+  "generatedAt": "2026-08-22T18:10:57.865Z"
+}
+{
+  "schemaVersion": "rvs-final-receipt-v1",
+  "mode": "f3",
+  "verdict": "PASS",
+  "controls": 151,
+  "wcag": {
+    "schemaVersion": "rvs-wcag-aa-v1",
+    "standard": "WCAG 2.2 A/AA",
+    "requiredEvidence": ".omo/evidence/wave7/task-42-reference-video-studio-saas.json",
+    "zeroViolations": true,
+    "requiredChecks": [
+      "axe-wcag2a-aa",
+      "keyboard-focus",
+      "live-region-presence",
+      "reduced-motion",
+      "overflow"
+    ]
+  },
+  "visual": {
+    "schemaVersion": "rvs-visual-structural-v1",
+    "authority": "verification/contract/visual-contract-v2.json",
+    "parentLandmarks": ".omo/drafts/reference-video-studio-saas-visual-landmarks-v1.json",
+    "screens": [
+      "ref_studio_landing",
+      "admin_sign_in",
+      "upload_validation",
+      "scene_review_approval",
+      "job_queue_delivery",
+      "admin_tenants",
+      "admin_receipt_chain",
+      "admin_quarantine",
+      "admin_audit_log"
+    ],
+    "mode": "structural-fallback-when-parent-bound-ssim-assets-absent",
+    "requiredEvidence": ".omo/evidence/wave7/task-42-reference-video-studio-saas.json"
+  },
+  "pilot": {
+    "schemaVersion": "rvs-task-44-evidence-v1",
+    "status": "PASS",
+    "scope": "bounded four-second deterministic local pilot",
+    "admittedFps": [
+      24,
+      25,
+      30,
+      50,
+      60
+    ],
+    "frameCounts": [
+      96,
+      100,
+      120,
+      200,
+      240
+    ],
+    "denseOcr4kBoundary": {
+      "fps": 60,
+      "frames": 240,
+      "dimensions": "3840x2160",
+      "nativeOcrCrops": true
+    },
+    "reports": [
+      "task-44-admission.json",
+      "task-44-pilot-report.json",
+      "task-44-media-manifest.json"
+    ],
+    "historicalWindowsEvidence": "preserved as non-authoritative input",
+    "rawMedia": false,
+    "network": "not used"
+  },
+  "generatedAt": "2026-08-22T18:12:46.343Z"
+}
+{
+  "schemaVersion": "rvs-final-receipt-v1",
+  "mode": "f3",
+  "verdict": "PASS",
+  "controls": 151,
+  "wcag": {
+    "schemaVersion": "rvs-wcag-aa-v1",
+    "standard": "WCAG 2.2 A/AA",
+    "requiredEvidence": ".omo/evidence/wave7/task-42-reference-video-studio-saas.json",
+    "zeroViolations": true,
+    "requiredChecks": [
+      "axe-wcag2a-aa",
+      "keyboard-focus",
+      "live-region-presence",
+      "reduced-motion",
+      "overflow"
+    ]
+  },
+  "visual": {
+    "schemaVersion": "rvs-visual-structural-v1",
+    "authority": "verification/contract/visual-contract-v2.json",
+    "parentLandmarks": ".omo/drafts/reference-video-studio-saas-visual-landmarks-v1.json",
+    "screens": [
+      "ref_studio_landing",
+      "admin_sign_in",
+      "upload_validation",
+      "scene_review_approval",
+      "job_queue_delivery",
+      "admin_tenants",
+      "admin_receipt_chain",
+      "admin_quarantine",
+      "admin_audit_log"
+    ],
+    "mode": "structural-fallback-when-parent-bound-ssim-assets-absent",
+    "requiredEvidence": ".omo/evidence/wave7/task-42-reference-video-studio-saas.json"
+  },
+  "pilot": {
+    "schemaVersion": "rvs-task-44-evidence-v1",
+    "status": "PASS",
+    "scope": "bounded four-second deterministic local pilot",
+    "admittedFps": [
+      24,
+      25,
+      30,
+      50,
+      60
+    ],
+    "frameCounts": [
+      96,
+      100,
+      120,
+      200,
+      240
+    ],
+    "denseOcr4kBoundary": {
+      "fps": 60,
+      "frames": 240,
+      "dimensions": "3840x2160",
+      "nativeOcrCrops": true
+    },
+    "reports": [
+      "task-44-admission.json",
+      "task-44-pilot-report.json",
+      "task-44-media-manifest.json"
+    ],
+    "historicalWindowsEvidence": "preserved as non-authoritative input",
+    "rawMedia": false,
+    "network": "not used"
+  },
+  "generatedAt": "2026-08-22T18:15:15.689Z"
+}

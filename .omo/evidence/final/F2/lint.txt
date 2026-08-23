@@ -1,0 +1,2 @@
+$ node scripts/stub.mjs lint
+{"status":"stub","command":"lint","todo":"later-wave"}

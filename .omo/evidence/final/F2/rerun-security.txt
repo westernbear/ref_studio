@@ -1,0 +1,42 @@
+$ pnpm --filter @rvs/api test --run && pnpm --filter @rvs/worker test --run src/compiler-orchestrator.test.ts src/capture/smoke.test.ts src/render-app/dom-renderer.test.ts src/render-app/webgl.test.ts src/delivery.test.ts
+$ vitest --run
+
+ RUN  v3.2.4 /home/singlerr/ref_studio/apps/api
+
+ ✓ src/admin-mutation.test.ts (6 tests) 335ms
+ ✓ src/creator-api.test.ts (6 tests) 627ms
+   ✓ creator workflow API > creates and reads a tenant-fenced job without exposing reviews  314ms
+ ✓ src/auth.test.ts (8 tests) 2925ms
+   ✓ auth flows > serves creator and admin sign-in with secure idle cookies  656ms
+   ✓ auth flows > derives browser principal and expires idle session  441ms
+   ✓ auth flows > intersects bearer tenant and supports revocation  552ms
+   ✓ auth flows > allows release-scope T6 only without a tenant header  651ms
+ ✓ src/admin-read.test.ts (4 tests) 865ms
+   ✓ admin-read > super-admin exercises every route, masks fields, and audits sensitive reads  691ms
+ ✓ src/gate-receipt-stale-approval.test.ts (4 tests) 274ms
+ ✓ src/upload.test.ts (3 tests) 386ms
+   ✓ sandboxed upload sessions > streams a synthetic MP4 in chunks and creates tenant-local CAS after finalize  349ms
+ ✓ src/media-validation.test.ts (21 tests) 46ms
+ ✓ src/tenant|idempotency|safe-error|auth.test.ts (4 tests) 188ms
+ ✓ src/retention|download|export|deletion-epoch.test.ts (3 tests) 13ms
+
+ Test Files  9 passed (9)
+      Tests  59 passed (59)
+   Start at  18:14:55
+   Duration  9.02s (transform 1.47s, setup 0ms, collect 7.53s, tests 5.66s, environment 15ms, prepare 3.02s)
+
+$ vitest --run src/compiler-orchestrator.test.ts src/capture/smoke.test.ts src/render-app/dom-renderer.test.ts src/render-app/webgl.test.ts src/delivery.test.ts
+
+ RUN  v3.2.4 /home/singlerr/ref_studio/apps/worker
+
+ ✓ src/delivery.test.ts (4 tests) 44ms
+ ✓ src/render-app/dom-renderer.test.ts (14 tests) 36ms
+ ✓ src/compiler-orchestrator.test.ts (5 tests) 185ms
+ ✓ src/render-app/webgl.test.ts (5 tests) 16ms
+ ✓ src/capture/smoke.test.ts (3 tests) 9ms
+
+ Test Files  5 passed (5)
+      Tests  31 passed (31)
+   Start at  18:15:06
+   Duration  1.95s (transform 784ms, setup 0ms, collect 1.24s, tests 290ms, environment 2ms, prepare 1.06s)
+

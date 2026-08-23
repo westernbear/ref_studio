@@ -1,0 +1,20 @@
+{
+  "task": 4,
+  "status": "verified",
+  "commands": [
+    {"command": "pnpm fixtures:generate", "status": 0, "output": "fixtures-verified fixtures=16 passSha256=ea2a41df93f446a126629545da33a2c403236b83bfeb2c7cabf1d05eea45d9b4"},
+    {"command": "pnpm fixtures:verify --lock verification/contract/fixture-manifest.lock.json --no-write-lock", "status": 0, "output": "fixtures-verified fixtures=16 passSha256=ea2a41df93f446a126629545da33a2c403236b83bfeb2c7cabf1d05eea45d9b4"},
+    {"command": "ffprobe ... capacity-dense-ocr-4k-60fps/source.mp4", "status": 0, "output": "3840x2160 avg_frame_rate=60/1 nb_frames=240"},
+    {"command": "sha256sum verification/contract/fixture-manifest.lock.json", "status": 0, "output": "c15f7b7170284f5625732740216d3f79261d54b2b58ca1f112997c0b7d90b2b9"}
+  ],
+  "negativeCases": [
+    {"command": "pnpm fixtures:verify --fixture scripts/fixtures/negative/swapped-pass.json", "status": 1, "token": "WRONG_FRAME_CONTRACT", "output": "Error: WRONG_FRAME_CONTRACT"},
+    {"command": "pnpm fixtures:verify --fixture scripts/fixtures/negative/missing-variant.json", "status": 1, "token": "FIXTURE_VARIANT_MISSING", "output": "Error: FIXTURE_VARIANT_MISSING"},
+    {"command": "pnpm fixtures:verify --fixture scripts/fixtures/negative/removed-bloom.json", "status": 1, "token": "UNBOUND_EFFECT", "output": "Error: UNBOUND_EFFECT"},
+    {"command": "pnpm fixtures:verify --fixture scripts/fixtures/negative/sharp-defocus.json", "status": 1, "token": "DEFOCUS_PROFILE_MISMATCH", "output": "Error: DEFOCUS_PROFILE_MISMATCH"}
+  ],
+  "fixtureCount": 16,
+  "variantFixtures": ["ablation"],
+  "childRootUnchanged": true,
+  "groundTruthImport": "none"
+}

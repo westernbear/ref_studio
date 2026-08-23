@@ -1,0 +1,80 @@
+{
+  "schemaVersion": "rvs-final-receipt-v1",
+  "mode": "f2",
+  "verdict": "PASS",
+  "ruleResult": {
+    "controls": 151,
+    "ruleCount": 5,
+    "composeIsolation": true
+  },
+  "advisory": {
+    "high": 0,
+    "critical": 0,
+    "digest": "bd6d565330997af4eb68464c6bd3259b71a683ecbcd337d420c4f49202810ee6"
+  },
+  "generatedAt": "2026-08-22T18:06:59.662Z"
+}
+{
+  "schemaVersion": "rvs-final-receipt-v1",
+  "mode": "f2",
+  "verdict": "PASS",
+  "ruleResult": {
+    "controls": 151,
+    "ruleCount": 5,
+    "composeIsolation": true
+  },
+  "advisory": {
+    "high": 0,
+    "critical": 0,
+    "digest": "bd6d565330997af4eb68464c6bd3259b71a683ecbcd337d420c4f49202810ee6"
+  },
+  "generatedAt": "2026-08-22T18:09:21.881Z"
+}
+{
+  "schemaVersion": "rvs-final-receipt-v1",
+  "mode": "f2",
+  "verdict": "PASS",
+  "ruleResult": {
+    "controls": 151,
+    "ruleCount": 5,
+    "composeIsolation": true
+  },
+  "advisory": {
+    "high": 0,
+    "critical": 0,
+    "digest": "bd6d565330997af4eb68464c6bd3259b71a683ecbcd337d420c4f49202810ee6"
+  },
+  "generatedAt": "2026-08-22T18:10:58.088Z"
+}
+{
+  "schemaVersion": "rvs-final-receipt-v1",
+  "mode": "f2",
+  "verdict": "PASS",
+  "ruleResult": {
+    "controls": 151,
+    "ruleCount": 5,
+    "composeIsolation": true
+  },
+  "advisory": {
+    "high": 0,
+    "critical": 0,
+    "digest": "bd6d565330997af4eb68464c6bd3259b71a683ecbcd337d420c4f49202810ee6"
+  },
+  "generatedAt": "2026-08-22T18:12:46.182Z"
+}
+{
+  "schemaVersion": "rvs-final-receipt-v1",
+  "mode": "f2",
+  "verdict": "PASS",
+  "ruleResult": {
+    "controls": 151,
+    "ruleCount": 5,
+    "composeIsolation": true
+  },
+  "advisory": {
+    "high": 0,
+    "critical": 0,
+    "digest": "bd6d565330997af4eb68464c6bd3259b71a683ecbcd337d420c4f49202810ee6"
+  },
+  "generatedAt": "2026-08-22T18:14:49.282Z"
+}

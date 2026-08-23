@@ -1,0 +1,79 @@
+{
+  "schemaVersion": "rvs-visual-landmarks-v1",
+  "viewport": {"width": 1440, "height": 900},
+  "source": "Manually precomputed from digest-bound normative Stitch PNGs listed in reference-video-studio-saas-normative-inputs.json; implementation screenshots are forbidden as a source.",
+  "rectRule": "Each rectangle is integer x/y/w/h in 1440x900 CSS pixels. Todo 3 rejects missing, duplicate or implementation-derived landmarks; Todo 42 compares implementation screenshots only against these parent-root-bound rectangles.",
+  "screens": {
+    "ref_studio_landing": {
+      "header": {"x": 32, "y": 22, "w": 1376, "h": 72},
+      "brand": {"x": 48, "y": 36, "w": 182, "h": 36},
+      "hero-heading": {"x": 92, "y": 156, "w": 744, "h": 190},
+      "primary-cta": {"x": 96, "y": 396, "w": 244, "h": 58},
+      "workflow-section": {"x": 64, "y": 520, "w": 1312, "h": 268},
+      "footer": {"x": 54, "y": 824, "w": 1332, "h": 48}
+    },
+    "admin_sign_in": {
+      "brand": {"x": 548, "y": 116, "w": 344, "h": 58},
+      "login-card": {"x": 474, "y": 214, "w": 492, "h": 438},
+      "identifier": {"x": 522, "y": 344, "w": 396, "h": 56},
+      "secret": {"x": 522, "y": 424, "w": 396, "h": 56},
+      "submit": {"x": 522, "y": 510, "w": 396, "h": 58},
+      "legal-footer": {"x": 518, "y": 708, "w": 404, "h": 44}
+    },
+    "upload_validation": {
+      "app-header": {"x": 0, "y": 0, "w": 1440, "h": 72},
+      "dropzone": {"x": 72, "y": 154, "w": 558, "h": 312},
+      "file-row": {"x": 92, "y": 494, "w": 520, "h": 76},
+      "validation-panel": {"x": 704, "y": 154, "w": 664, "h": 348},
+      "interval-control": {"x": 704, "y": 532, "w": 664, "h": 126},
+      "proceed": {"x": 1132, "y": 692, "w": 236, "h": 56}
+    },
+    "scene_review_approval": {
+      "app-header": {"x": 0, "y": 0, "w": 1440, "h": 68},
+      "preview": {"x": 64, "y": 112, "w": 554, "h": 614},
+      "timeline": {"x": 64, "y": 748, "w": 554, "h": 74},
+      "evidence-panel": {"x": 654, "y": 112, "w": 714, "h": 216},
+      "mapping-table": {"x": 654, "y": 360, "w": 714, "h": 284},
+      "gate-action": {"x": 972, "y": 680, "w": 396, "h": 92}
+    },
+    "job_queue_delivery": {
+      "app-header": {"x": 0, "y": 0, "w": 1440, "h": 72},
+      "filters": {"x": 64, "y": 122, "w": 1312, "h": 72},
+      "job-table": {"x": 64, "y": 220, "w": 850, "h": 470},
+      "detail-panel": {"x": 944, "y": 220, "w": 432, "h": 470},
+      "pagination": {"x": 64, "y": 718, "w": 850, "h": 52},
+      "footer": {"x": 64, "y": 814, "w": 1312, "h": 46}
+    },
+    "admin_tenants": {
+      "sidebar": {"x": 0, "y": 0, "w": 248, "h": 900},
+      "scope-header": {"x": 280, "y": 28, "w": 1096, "h": 72},
+      "filters": {"x": 280, "y": 124, "w": 1096, "h": 70},
+      "tenant-table": {"x": 280, "y": 218, "w": 704, "h": 530},
+      "detail-drawer": {"x": 1016, "y": 218, "w": 360, "h": 530},
+      "pagination": {"x": 280, "y": 780, "w": 704, "h": 52}
+    },
+    "admin_receipt_chain": {
+      "sidebar": {"x": 0, "y": 0, "w": 248, "h": 900},
+      "scope-header": {"x": 280, "y": 28, "w": 1096, "h": 72},
+      "timeline": {"x": 280, "y": 140, "w": 412, "h": 610},
+      "receipt-detail": {"x": 724, "y": 140, "w": 652, "h": 610},
+      "export-action": {"x": 1184, "y": 780, "w": 192, "h": 54}
+    },
+    "admin_quarantine": {
+      "sidebar": {"x": 0, "y": 0, "w": 248, "h": 900},
+      "scope-header": {"x": 280, "y": 28, "w": 1096, "h": 72},
+      "filters": {"x": 280, "y": 124, "w": 1096, "h": 70},
+      "quarantine-table": {"x": 280, "y": 218, "w": 748, "h": 530},
+      "evidence-drawer": {"x": 1060, "y": 218, "w": 316, "h": 530},
+      "pagination": {"x": 280, "y": 780, "w": 748, "h": 52}
+    },
+    "admin_audit_log": {
+      "sidebar": {"x": 0, "y": 0, "w": 248, "h": 900},
+      "scope-header": {"x": 280, "y": 28, "w": 1096, "h": 72},
+      "filters": {"x": 280, "y": 124, "w": 1096, "h": 70},
+      "audit-table": {"x": 280, "y": 218, "w": 748, "h": 530},
+      "detail-drawer": {"x": 1060, "y": 218, "w": 316, "h": 530},
+      "export-action": {"x": 1184, "y": 780, "w": 192, "h": 54}
+    }
+  }
+}

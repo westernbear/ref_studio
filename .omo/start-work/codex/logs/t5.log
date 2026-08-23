@@ -1,0 +1,65 @@
+OpenAI Codex v0.148.0
+--------
+workdir: /home/singlerr/ref_studio
+model: gpt-5.5
+provider: openai
+approval: on-request
+sandbox: workspace-write [workdir, /tmp, $TMPDIR]
+reasoning effort: xhigh
+reasoning summaries: none
+session id: 01a02763-2a5b-71d0-88d2-4a8eaf2618c7
+--------
+user
+TASK: Act as an implementation worker for Todo 5 only in /home/singlerr/ref_studio. Do not use OpenCode task/subagents. Do not run git. Do not start Todo 6 or later.
+
+DELIVERABLE: Implement Todo 5 from .omo/plans/reference-video-studio-saas.md lines 215-221: SQLite schema, migrations, seeds, and single-host durability policy.
+
+SCOPE:
+- Read first: .omo/plans/reference-video-studio-saas.md lines 215-221; handoff-extracted/INVENTORY_REPORT.md relevant lines; handoff-extracted/saas-api-spec.md; handoff-extracted/saas-admin-panel-spec.md; handoff-extracted/workflow.md; .omo/drafts/reference-video-studio-saas-execution-contract-v2.json; .omo/drafts/reference-video-studio-saas-audit-registry-v2.json.
+- Modify only apps/api DB-related files and tests, plus package scripts in apps/api/package.json if needed. Avoid root package.json to prevent conflicts with other Wave 1 lanes.
+
+REQUIREMENTS:
+- Implement migrations for tenants, users, credentials, sessions, API tokens, reviewer assignments, uploads, CAS, jobs/attempts/leases, reviews, receipts, audit events, quotas, idempotency, exports/artifacts, authoring_ir_versions, scene_ir_versions, browser_pass_spec_versions.
+- Enforce immutable tenant IDs, cross-tenant FKs, append-only receipt/audit/IR rows, lifecycle checks, monotonic deletion epochs, receipt-decision uniqueness, per-attempt sequence uniqueness.
+- Enable WAL, foreign_keys, busy_timeout, local-disk assertion, database-UTC BEGIN IMMEDIATE claims, and Stitch-aligned seeds.
+- Must not update/delete history, use NFS, or auto-sync schema without migration.
+
+VERIFY:
+- Implement package scripts so these pass: pnpm --filter api db:reset && pnpm --filter api db:migrate && pnpm --filter api db:migrate && pnpm --filter api db:verify
+- Add tests for happy path temp DB and failure cases: receipt update rejected, cross-tenant FK rejected, duplicate claim rejected, decreasing deletion epoch rejected.
+- Write .omo/evidence/wave1/task-5-reference-video-studio-saas.json with command outputs, PRAGMA integrity_check, seeded counts, concurrency claim proof, adversarial classes, and cleanup.
+
+ADVERSARIAL CLASSES:
+- malformed_input: invalid migration/input cases.
+- stale_state: temp DB reset/migration idempotence.
+- misleading_success_output: verify DB invariants directly, not just command exit.
+- generated/stale artifact: migration history and schema version checks.
+- dirty_worktree not applicable: not a git repo. prompt_injection/cancel_resume/repeated_interruptions not applicable unless you identify a trigger. hung/long commands use timeouts.
+
+FINAL RESPONSE: Return DoneClaim JSON with changed_files, tests, manual_qa artifact, cleanup, risks.
+
+warning: Codex's Linux sandbox uses bubblewrap and needs access to create user namespaces.
+warning: Skill descriptions were shortened to fit the skills context budget. Codex can still see every skill, but some descriptions are shorter. Disable unused skills or plugins to leave more room for the rest.
+codex
+I’ll use the `migration` skill because this task is centered on schema migrations and compatibility checks. I’ll first read the required plan/spec context, then inspect the existing `apps/api` DB shape before making scoped edits.
+exec
+/usr/bin/bash -lc "sed -n '1,240p' /home/singlerr/.agents/skills/migration/SKILL.md" in /home/singlerr/ref_studio
+ succeeded in 0ms:
+---
+name: migration
+description: Implement reversible compatibility-safe transitions. Use for schema, data, API, protocol, configuration, or dependency migrations requiring rollback and preservation proof.
+---
+
+# Migration
+
+Map current readers, writers, data shape, compatibility window, and ownership before editing.
+
+- Define forward path and rollback path.
+- Preserve existing data; make destructive steps explicit and separately authorized.
+- Keep mixed-version operation safe where rollout can overlap.
+- Sequence expand, migrate, verify, then contract when applicable.
+- Make retries idempotent and partial failure observable.
+- Verify old and new paths at required transition stages.
+
+Stop after requested stage passes; do not perform later destructive contraction implicitly.
+

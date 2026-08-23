@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "rvs-task-44-evidence-v1",
+  "status": "PASS",
+  "scope": "bounded four-second deterministic local pilot",
+  "admittedFps": [24, 25, 30, 50, 60],
+  "frameCounts": [96, 100, 120, 200, 240],
+  "denseOcr4kBoundary": { "fps": 60, "frames": 240, "dimensions": "3840x2160", "nativeOcrCrops": true },
+  "reports": ["task-44-admission.json", "task-44-pilot-report.json", "task-44-media-manifest.json"],
+  "historicalWindowsEvidence": "preserved as non-authoritative input",
+  "rawMedia": false,
+  "network": "not used"
+}

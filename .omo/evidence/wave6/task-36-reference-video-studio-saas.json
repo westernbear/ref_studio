@@ -1,0 +1,30 @@
+{
+  "task": "36",
+  "title": "shared admin shell, dashboard, and jobs surface",
+  "claims": [
+    {
+      "claim": "Admin dashboard and narrow shell navigation render through the real Next route.",
+      "command": "pnpm --filter web test:e2e --grep \"@admin-dashboard|@admin-jobs|@admin-shell\"",
+      "result": "2 passed using the supervised production server and system Chrome"
+    },
+    {
+      "claim": "The existing Task 35 queue contract remains intact.",
+      "command": "admin E2E queue assertion",
+      "result": "30 unique job_queue_delivery controls observed"
+    },
+    {
+      "claim": "The web application type-checks and produces a production build.",
+      "command": "pnpm --filter web build",
+      "result": "passed"
+    },
+    {
+      "claim": "Admin component contract tests cover shell destinations, scope language, and dialog semantics.",
+      "command": "pnpm --filter web test --run admin-components",
+      "result": "passed"
+    }
+  ],
+  "limitations": [
+    "Dashboard data is deterministic scoped fixture data pending the production admin read client; no caller-controlled tenant scope is accepted.",
+    "The requested route grep is satisfied by the new admin E2E file; no existing admin E2E file was present before this task."
+  ]
+}

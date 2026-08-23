@@ -1,0 +1,2 @@
+$ node scripts/stub.mjs build
+{"status":"stub","command":"build","todo":"later-wave"}

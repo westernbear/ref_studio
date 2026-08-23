@@ -1,0 +1,2 @@
+$ node scripts/runtime/verify-frozen-config.mjs
+{"status":"runtime-config-frozen"}

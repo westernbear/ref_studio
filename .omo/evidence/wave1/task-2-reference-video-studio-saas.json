@@ -1,0 +1,25 @@
+{
+  "task": "2",
+  "title": "Vendor the approved design tokens, fonts, icons, and local asset manifest",
+  "commands": [
+    {"command": "pnpm assets:verify", "exitCode": 0, "stdout": "{\"status\":\"assets-verified\",\"assets\":5}"},
+    {"command": "pnpm --filter web test --run tokens", "exitCode": 0, "stdout": "vitest: test/tokens.test.mjs (2 tests) passed"},
+    {"command": "pnpm assets:verify --fixture missing-font", "exitCode": 1, "stderr": "RUNTIME_PREREQUISITE_MISSING Wanted Sans Variable apps/web/public/fonts/WantedSansVariable.ttf"},
+    {"command": "rg remote runtime visual references", "exitCode": 0, "stdout": "no matches"}
+  ],
+  "assertions": [
+    "Every DESIGN.md color, type, spacing, radius, and component token has a CSS variable mapping.",
+    "All declared font faces use local /fonts URLs and Wanted Sans covers the Korean probe path.",
+    "Manifest entries include sourceUrl, release, localPath, sha256, license, and allowedConsumer.",
+    "Negative fixture fails with stable RUNTIME_PREREQUISITE_MISSING."
+  ],
+  "changedFiles": [
+    "apps/web/src/styles/tokens.css", "apps/web/tailwind.config.ts", "apps/web/src/components/Icon.mjs",
+    "apps/web/public/fonts/Manrope-Variable.ttf", "apps/web/public/fonts/InterVariable.woff2",
+    "apps/web/public/fonts/Geist-Variable.woff2", "apps/web/public/fonts/GeistMono-Variable.woff2",
+    "apps/web/public/fonts/WantedSansVariable.ttf", "runtime/asset-manifest.json", "scripts/assets/verify.mjs",
+    "apps/web/test/tokens.test.mjs", "package.json", "apps/web/package.json",
+    ".omo/notepads/reference-video-studio-saas/learnings.md"
+  ],
+  "status": "verified"
+}

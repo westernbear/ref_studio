@@ -1,0 +1,38 @@
+{
+  "task": "35",
+  "screen": "job_queue_delivery",
+  "route": "/admin/jobs",
+  "controls": 30,
+  "implementation": {
+    "queueFiltersSearchPagination": true,
+    "canonicalCountsAndStaleState": true,
+    "detailAttemptsAndReceipts": true,
+    "cancelRequestedBeforeAcknowledgement": true,
+    "retryAndDisabledPrioritizeReason": true,
+    "approvalSeparateFromFrameProgress": true,
+    "publicationGatedExpiringDownloads": true,
+    "boundedDestinationsNotificationsSettings": true
+  },
+  "verification": {
+    "build": {
+      "command": "pnpm --filter web build",
+      "status": "passed",
+      "result": "Next.js production build completed; /[...slug] generated successfully"
+    },
+    "focusedE2e": {
+      "command": "pnpm --filter web test:e2e --grep @jobs",
+      "status": "passed",
+      "result": "1 passed using supervised production server on port 3100 and /usr/bin/google-chrome; no browser download; E2E asserts 30 unique frozen control IDs"
+    },
+    "diagnostics": {
+      "status": "passed",
+      "files": [
+        "apps/web/src/components/JobQueue.tsx",
+        "apps/web/src/app/[...slug]/page.tsx",
+        "apps/web/test/jobs.e2e.spec.ts"
+      ]
+    },
+    "forbiddenMarkerScan": "passed"
+  },
+  "reference": "stitch-extracted/stitch_design_system_ui_implementation/job_queue_delivery/screen.png"
+}

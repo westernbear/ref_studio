@@ -1,0 +1,31 @@
+{
+  "task": "10",
+  "title": "Validate media and create immutable original plus normalized CFR working input",
+  "status": "PASS",
+  "implementation": {
+    "files": ["apps/api/src/media-validation.ts", "apps/api/src/media-validation.test.ts"],
+    "executionModel": "The API does not execute ffprobe or ffmpeg. Production integration receives an injected sandbox runner; command specs are argument arrays only.",
+    "simulationBoundary": "Tests use deterministic synthetic probe and normalized artifact results. Sandbox policy and command timeout/output constraints are asserted; no real media process was executed by this API test run."
+  },
+  "commands": [
+    {"command": "pnpm --filter api test --run media-validation", "result": "PASS", "summary": "1 test file, 21 tests passed, vitest exit 0"},
+    {"command": "pnpm --filter api test --run upload", "result": "PASS", "summary": "1 test file, 3 tests passed, vitest exit 0"},
+    {"command": "pnpm --filter api test --run", "result": "PASS", "summary": "4 test files, 36 tests passed, vitest exit 0"},
+    {"command": "pnpm --filter api build", "result": "PASS", "summary": "tsc --noEmit exit 0"}
+  ],
+  "accepted": {
+    "fps": [24, 25, 30, 50, 60],
+    "frameCounts": "fps * 4 for the exact 4-second source interval",
+    "interval": "half-open [startFrame, endFrameExclusive), rejects startFrame + fps*4 > frameCount",
+    "rotation": "90-degree probe maps 1920x1080 source to explicit 1080x1920 landscapeFit metadata; no silent crop",
+    "audio": "absent audio returns sampleRateHz 48000, channels 2, synthesizedSilence true",
+    "provenance": "sourceCasObjectId/sourceSha256 remain unchanged and normalizedCasObjectId/normalizedSha256 are separate",
+    "sandbox": "uid 65532; network false; readOnlyRoot true; tenantStagingMounts 1; noNewPrivileges true; seccomp true; pid/cpu/rss/wall/output caps present"
+  },
+  "negativeCaseTokens": ["MEDIA_VFR_UNSUPPORTED", "MEDIA_FPS_UNSUPPORTED", "MEDIA_DURATION_INVALID", "MEDIA_CONTAINER_INVALID", "MEDIA_CODEC_INVALID", "MEDIA_DIMENSIONS_INVALID", "MEDIA_METADATA_INVALID", "MEDIA_SIZE_LIMIT_EXCEEDED", "MEDIA_INTERVAL_INVALID", "MEDIA_SANDBOX_TIMEOUT", "MEDIA_SANDBOX_OUTPUT_LIMIT", "MEDIA_NOT_ACCEPTED"],
+  "audit": {
+    "changedFilesPureLoc": {"apps/api/src/media-validation.ts": 50, "apps/api/src/media-validation.test.ts": 28},
+    "forbiddenPatternScan": "PASS: no TODO/FIXME/HACK, as any, ts-ignore, child_process, shell execution, or process invocation in media module",
+    "lsp": "PASS for media-validation.test.ts; media-validation.ts has only existing Zod deprecated-number hints and no errors"
+  }
+}

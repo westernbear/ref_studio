@@ -1,0 +1,2 @@
+verification/blackbox/final.mjs:82:  const index = value("--canonical-index"); if (!index || !args.includes("--canonical-write")) fail("F1_CANONICAL_WRITE_EXPLICIT")
+verification/contract/architecture-security.json:7:    {"id":"forbidden-source-patterns","type":"source-regex","roots":["apps","packages","compiler"],"patterns":["\\bas any\\b","child_process\\.(exec|execFileSync|spawnSync)\\([^\\n]*\\+","shell\\s*:\\s*true","TODO|FIXME|HACK"]},

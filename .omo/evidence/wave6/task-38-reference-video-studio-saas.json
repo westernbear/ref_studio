@@ -1,0 +1,17 @@
+{
+  "task": "38",
+  "title": "Port immutable receipt-chain timeline, detail, copy, links, and export",
+  "status": "implemented",
+  "commands": [
+    { "command": "pnpm --filter web build", "result": "passed: Next.js production build; existing autoprefixer warning only" },
+    { "command": "pnpm --filter web test:e2e --grep @admin-receipts", "result": "passed: 1 test using supervised production server and system Chrome" }
+  ],
+  "assertions": [
+    "ReceiptChain uses deterministic provenance-rich seed data with current, broken, stale, and unverified states.",
+    "Timeline selection is URL-safe, keyboard traversable, and has an accessible list fallback.",
+    "Copy announcement, related job/predecessor links, and scoped expiring export exclude private paths and tenant identifiers.",
+    "Broken and unverified chains visibly block approval-dependent actions; verification is not inferred from hash alone.",
+    "Exactly 14 unique admin_receipts source controls are projected and no edit/delete surface exists."
+  ],
+  "verification_notes": "Focused E2E exercises all 14 unique controls, list fallback, copy announcement, safe download, URL selection, keyboard traversal, broken/stale/unverified states, and absence of edit/delete controls. Source diagnostics are clean; E2E diagnostics timed out in the environment."
+}

@@ -1,0 +1,13 @@
+{
+  "task": "11",
+  "verification": [
+    {"command": "pnpm --filter api test --run creator-api", "status": "passed", "output": "1 test file, 6 tests passed"},
+    {"command": "pnpm --filter api test --run", "status": "passed", "output": "5 test files, 42 tests passed"},
+    {"command": "pnpm --filter api build", "status": "passed", "output": "tsc --noEmit"},
+    {"command": "pnpm contracts:check-openapi", "status": "unavailable", "output": "Command not found; repository suggests pnpm contracts:openapi"},
+    {"command": "pnpm contracts:openapi", "status": "passed", "output": "{\"status\":\"generated\",\"operations\":5,\"schemas\":24}"}
+  ],
+  "negativeCaseTokens": ["AUTHENTICATION_REQUIRED", "RESOURCE_NOT_FOUND", "UPLOAD_QUARANTINED", "VERSION_CONFLICT", "STALE_APPROVAL_UNSAFE", "ARTIFACT_UNAVAILABLE", "INTERVAL_INVALID", "duplicate replay", "changed-body replay", "missing command headers", "missing If-Match", "cursor over-limit", "reviews route 404"],
+  "diagnostics": "creator-workflow.ts clean; creator-api.test.ts diagnostics timed out, but pnpm --filter api build passed",
+  "forbiddenScan": "No TODO/FIXME/HACK/as any/@ts-ignore/empty catch matches; test-only safe projection assertions mention path/bytes/stack field names"
+}

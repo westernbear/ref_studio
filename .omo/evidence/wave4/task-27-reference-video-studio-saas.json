@@ -1,0 +1,21 @@
+{
+  "task": 27,
+  "status": "implemented",
+  "commands": {
+    "local_smoke": { "command": "pnpm --filter worker render:smoke", "result": "exit 0; status=passed; externalDnsDenied=true externalIpDenied=true; requestedFrame=7 readBackFrame=7 repeatedFrameByteIdentity=true pngSha256=4b52272dd21001bcb1c630ec306cd32d3b6d7ff65e2a4635829f6d1c99f9a528" },
+    "worker_build": { "command": "pnpm --filter worker build", "result": "exit 0; TypeScript 5.9-compatible ignoreDeprecations=5.0 with existing baseUrl/paths" },
+    "docker_smoke": { "command": "docker compose run --rm worker pnpm render:smoke", "result": "exit 0; status=passed requestedFrame=7 readBackFrame=7 repeatedFrameByteIdentity=true pngSha256=4b52272dd21001bcb1c630ec306cd32d3b6d7ff65e2a4635829f6d1c99f9a528 networkMode=none" },
+    "local_test": { "command": "pnpm --filter worker render:smoke", "result": "exit 0; deterministic smoke JSON passed" }
+  },
+  "assertions": [
+    "manifest Chromium 151.0.7922.138 is required; host .169 is rejected",
+    "headless GPU, ANGLE SwiftShader, OpenGL backend, scale 1, sRGB, en-US, UTC, fixed seed, and loopback origin are required",
+    "font, model, WebGL2, shader, context, network-denial, and external-request probes fail closed",
+    "renderFrame and read-back frame identity are checked before capture",
+    "PNG bytes are repeated and compared byte-for-byte; SHA-256 is recorded",
+    "bounded external DNS resolver and direct TEST-NET IP probes are attempted and both must fail",
+    "runtime, font, model, WebGL2, shader, and context probe fields are emitted in smoke evidence",
+    "failed preflight cannot reach the capture callback"
+  ],
+  "environment_limitations": ["No host Chromium, Playwright-bundled Chromium, runtime download, or renderer fallback was accepted."]
+}

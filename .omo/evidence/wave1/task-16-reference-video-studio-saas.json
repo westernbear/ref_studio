@@ -1,0 +1,12 @@
+{
+  "task": "16",
+  "verification": [
+    { "command": "pnpm --filter api test --run retention", "exitCode": 0, "tests": 3, "testFiles": 1, "output": "3 passed" },
+    { "command": "pnpm --filter api test --run", "exitCode": 0, "tests": 59, "testFiles": 9, "output": "59 passed" },
+    { "command": "pnpm --filter api build", "exitCode": 0, "output": "tsc --noEmit" },
+    { "command": "pnpm --filter api test --run 'retention|download|export|deletion-epoch'", "exitCode": 0, "tests": 3, "testFiles": 1, "output": "3 passed" }
+  ],
+  "negativeCaseTokens": ["RESOURCE_NOT_FOUND", "ARTIFACT_EXPIRED", "ARTIFACT_UNAVAILABLE", "DIRECT_PATH_FORBIDDEN", "DELETION_EPOCH_STALE"],
+  "counts": { "retentionTests": 3, "fullApiTests": 59, "fullApiTestFiles": 9, "cleanupExpiredClasses": 8, "preservedHistoryCollections": 2 },
+  "notes": "Retention uses an injectable fake clock, idempotent cleanup, monotonic tenant deletion epochs, and scoped grant authorization. Audit and receipt collections are never traversed or deleted by cleanup. The retention suite filename contains the complete plan filter so the exact Vitest command selects it."
+}
