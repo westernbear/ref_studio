@@ -35,6 +35,8 @@ if (
   throw new Error("COMPOSE_ISOLATION_MISSING");
 if (!serviceBlock("web").includes("target: runtime"))
   throw new Error("COMPOSE_WEB_BUILD_MISSING");
+if (!serviceBlock("web").includes("0.0.0.0:3100:3100"))
+  throw new Error("COMPOSE_WEB_EXTERNAL_BIND_MISSING");
 if (
   !serviceBlock("web").includes("/workspace/.pnpm-store") ||
   !serviceBlock("web").includes("/workspace/node_modules") ||
