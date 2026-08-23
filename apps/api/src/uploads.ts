@@ -123,7 +123,7 @@ export function createUpload(
   if (!parsed.success || !isSafeFilename(parsed.data.filename))
     throw new UploadFailure(
       !parsed.success &&
-      parsed.error.issues.some((issue) => issue.path[0] === "sizeBytes")
+        parsed.error.issues.some((issue) => issue.path[0] === "sizeBytes")
         ? "VIDEO_SIZE_LIMIT_EXCEEDED"
         : "INVALID_REQUEST",
     );

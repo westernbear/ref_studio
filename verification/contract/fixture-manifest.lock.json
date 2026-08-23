@@ -11,10 +11,7 @@
       "id": "identity",
       "fps": 25,
       "frames": 100,
-      "size": [
-        1080,
-        1920
-      ],
+      "size": [1080, 1920],
       "videoFiltergraphSha256": "c4693676c9f337070dc0987b0e45899b3793d50b9aad94b23440b80ca3111b28",
       "audioFiltergraphSha256": "d01fcf635588990c4489ccb528df7a64221fc9584c2d981a79b025b4c75952f5",
       "rawFrameSha256": "b0134572cfa0bb8f07a7acb897a3decc41deb6076449a6ca611012972b8b16c9",
@@ -31,10 +28,7 @@
       "id": "occlusion",
       "fps": 25,
       "frames": 100,
-      "size": [
-        1080,
-        1920
-      ],
+      "size": [1080, 1920],
       "videoFiltergraphSha256": "0d310d180b93f64c1c696a6071979bd130259030ca80de812d01156fafc4e713",
       "audioFiltergraphSha256": "d01fcf635588990c4489ccb528df7a64221fc9584c2d981a79b025b4c75952f5",
       "rawFrameSha256": "ba102b6662f1f29f8910e9515c3867d92e34d81aa3457557b401b57d1eae8584",
@@ -51,10 +45,7 @@
       "id": "ui-text",
       "fps": 25,
       "frames": 100,
-      "size": [
-        1080,
-        1920
-      ],
+      "size": [1080, 1920],
       "videoFiltergraphSha256": "a24be38eefe2f7d32e776c7bfd37b0b6bda02ae42e5d0abeaa76b545b1196e9a",
       "audioFiltergraphSha256": "d01fcf635588990c4489ccb528df7a64221fc9584c2d981a79b025b4c75952f5",
       "rawFrameSha256": "809b70bdb3b55cf5fc78a4f36224c3a6a02c58f44b53560052922335c2857fb3",
@@ -71,10 +62,7 @@
       "id": "camera",
       "fps": 25,
       "frames": 100,
-      "size": [
-        1080,
-        1920
-      ],
+      "size": [1080, 1920],
       "videoFiltergraphSha256": "2c8e4c35bd686449d07294a5b174dc17f7af61bc5ad209951d5813f74ab12a3f",
       "audioFiltergraphSha256": "d01fcf635588990c4489ccb528df7a64221fc9584c2d981a79b025b4c75952f5",
       "rawFrameSha256": "c9d9f6c2d2352e70c8e9f1e5d5387dafe845c1a896e3eeaeb451f6daa4990440",
@@ -91,10 +79,7 @@
       "id": "rhythm",
       "fps": 25,
       "frames": 100,
-      "size": [
-        1080,
-        1920
-      ],
+      "size": [1080, 1920],
       "videoFiltergraphSha256": "5f79dc717deff41952c6bd4e8efe367bc728e1a479481059d4e0f7da83516406",
       "audioFiltergraphSha256": "5470173852b515a4e50c558b6975f3986fa1a0bba62921d569ace4f36181549f",
       "rawFrameSha256": "cbf19b7295dafeb63ba24b88ad670a4d9e2edeb5c41e1b922b07d35c3340b42c",
@@ -111,10 +96,7 @@
       "id": "vfx-ownership",
       "fps": 25,
       "frames": 100,
-      "size": [
-        1080,
-        1920
-      ],
+      "size": [1080, 1920],
       "videoFiltergraphSha256": "2464b9d31a6b37a59f2528b7d541335f58bc6c21dd45cd84f5b375af26c7f542",
       "audioFiltergraphSha256": "d01fcf635588990c4489ccb528df7a64221fc9584c2d981a79b025b4c75952f5",
       "rawFrameSha256": "d0913285e655de6eef7c331318c78dc403133a31d8892d1bd0dcc252ed8625c9",
@@ -131,10 +113,7 @@
       "id": "audio",
       "fps": 25,
       "frames": 100,
-      "size": [
-        1080,
-        1920
-      ],
+      "size": [1080, 1920],
       "videoFiltergraphSha256": "9c862fa676ce95b54b8af1a96dc34f454087ec51f5b0f13e97923cddeaa63c59",
       "audioFiltergraphSha256": "d048eb43707add141bf7ef2458f5ce7457e91314f6a989de077fa8ced1da8acb",
       "rawFrameSha256": "3c2394567889e91105461e827318bf10d71cd2699cafed0a54a0c0103bf3bd3a",
@@ -151,10 +130,7 @@
       "id": "coherent-wrong",
       "fps": 25,
       "frames": 100,
-      "size": [
-        1080,
-        1920
-      ],
+      "size": [1080, 1920],
       "videoFiltergraphSha256": "68ec8b6c742dc124adeb8164497c49f453554e2cfc4797f8a548d023687b1f01",
       "audioFiltergraphSha256": "26a52252985b9dce845754a53e81042a843e18353e070c0c145a1dd6ddcd3404",
       "rawFrameSha256": "7d2fa315c93e833d90ee5c7a152db0bac9c11c00d972925ed119d5e8378e4618",
@@ -171,10 +147,7 @@
       "id": "pass-swapped",
       "fps": 25,
       "frames": 100,
-      "size": [
-        1080,
-        1920
-      ],
+      "size": [1080, 1920],
       "videoFiltergraphSha256": "7d6475ebe2dfe61b8214bbb308fa18bf5e76cad448d363076caafc95c05456fd",
       "audioFiltergraphSha256": "d01fcf635588990c4489ccb528df7a64221fc9584c2d981a79b025b4c75952f5",
       "rawFrameSha256": "da8118e75b611ef92514503c52afe6c608fc0f841dd0e584c93f48b296ef67af",
@@ -191,10 +164,7 @@
       "id": "ablation",
       "fps": 25,
       "frames": 100,
-      "size": [
-        1080,
-        1920
-      ],
+      "size": [1080, 1920],
       "videoFiltergraphSha256": "98b92764b88768ae171250ec0d888c2fdeceffeca35352619acd574fce7313c8",
       "audioFiltergraphSha256": "d01fcf635588990c4489ccb528df7a64221fc9584c2d981a79b025b4c75952f5",
       "rawFrameSha256": "8fc8f557414458c13b6fe4e405af67a9a1022320263019cf6eedb9401ba9cdfc",
@@ -248,10 +218,7 @@
       "id": "frame-contract-trial1",
       "fps": 25,
       "frames": 100,
-      "size": [
-        1080,
-        1920
-      ],
+      "size": [1080, 1920],
       "videoFiltergraphSha256": "3efdb074bed014d485c914cdcbdc71f515e00802dce2dfc90a4eefa6888e5ee6",
       "audioFiltergraphSha256": "d4622219c8cbcdb7712443053006166a13e19c9d3921b1b7f1424e53696092ce",
       "rawFrameSha256": "08d7416960eccc88c6be8e27efeacbc294202aac970845202c630d1e15c2cd75",
@@ -268,10 +235,7 @@
       "id": "frame-contract-trial2-pilot",
       "fps": 25,
       "frames": 100,
-      "size": [
-        1080,
-        1920
-      ],
+      "size": [1080, 1920],
       "videoFiltergraphSha256": "cf93de5ad5d4651a2f363d0660542b05adb82ebe6c7b8a0465beda82150ee30e",
       "audioFiltergraphSha256": "cd450a9d4ee5726c1f0980563464c9bb35375ccb9d889312ccdd2a92bb2ba004",
       "rawFrameSha256": "cabb56a81d11146515aecb3281f91d7558e38d17d7ce040d41405c3919ccb72f",
@@ -288,10 +252,7 @@
       "id": "frame-contract-24fps",
       "fps": 24,
       "frames": 96,
-      "size": [
-        1080,
-        1920
-      ],
+      "size": [1080, 1920],
       "videoFiltergraphSha256": "a2533ef70bb9c88cd01591d5fb303ba8f745228eb2359238f5070fee9a3f7282",
       "audioFiltergraphSha256": "19d6fe9114eaebb4dd630ed25a83b5abb8f2a74b22ead31628b1ccb9d823ffac",
       "rawFrameSha256": "9afbd4d32b5752915a3f56aaa7527b0821997844f82c7f0adcf461df0da49a97",
@@ -308,10 +269,7 @@
       "id": "frame-contract-30fps",
       "fps": 30,
       "frames": 120,
-      "size": [
-        1080,
-        1920
-      ],
+      "size": [1080, 1920],
       "videoFiltergraphSha256": "45dcf001d894d02fae2deceacc1fb0d616b65a08ac02949d7a7c971e1ab29745",
       "audioFiltergraphSha256": "543ea09e59cf55828e517c55f3ccea9cc7c074bee386e21efd8e67861dee6ae9",
       "rawFrameSha256": "0a6db132ee9ed1029a68cba4f534f4aeac7fdf1800f69db4a51c93f6075e7350",
@@ -328,10 +286,7 @@
       "id": "frame-contract-50fps",
       "fps": 50,
       "frames": 200,
-      "size": [
-        1080,
-        1920
-      ],
+      "size": [1080, 1920],
       "videoFiltergraphSha256": "7af4ac869a7d66ffbf2bf7de13c16487dcfdd3ce8af467a23ebc34d399b6b138",
       "audioFiltergraphSha256": "8f0d54806785ef4896d0be5f03e1ebfb95f14e2ca0258fbe7395cd997c3b2f5d",
       "rawFrameSha256": "02ec165cc879760e0680b7e2a4fd3f621a81c74405465571c3a658571bc9e088",
@@ -348,10 +303,7 @@
       "id": "capacity-dense-ocr-4k-60fps",
       "fps": 60,
       "frames": 240,
-      "size": [
-        3840,
-        2160
-      ],
+      "size": [3840, 2160],
       "videoFiltergraphSha256": "741f04275b8e2f154dc3f9d6db5c559ab184bb74eb2af24d603ee0d602a65a92",
       "audioFiltergraphSha256": "5b29061fe8db18b346ea9355a4f16c89919bcb71ae8e089c664f72c2b8295bc8",
       "rawFrameSha256": "40d67fe92c8125fd360288aedf5a9c437f327ed7d38977d67a7f5dd6a70bee72",

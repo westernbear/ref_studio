@@ -18,18 +18,11 @@
           },
           "kind": {
             "type": "string",
-            "enum": [
-              "PLATFORM",
-              "ORGANIZATION"
-            ]
+            "enum": ["PLATFORM", "ORGANIZATION"]
           },
           "status": {
             "type": "string",
-            "enum": [
-              "ACTIVE",
-              "DELETING",
-              "DELETED"
-            ]
+            "enum": ["ACTIVE", "DELETING", "DELETED"]
           },
           "deletionEpoch": {
             "type": "integer",
@@ -69,12 +62,7 @@
             "format": "date-time"
           }
         },
-        "required": [
-          "id",
-          "email",
-          "displayName",
-          "createdAt"
-        ],
+        "required": ["id", "email", "displayName", "createdAt"],
         "additionalProperties": false
       },
       "Credential": {
@@ -90,10 +78,7 @@
           },
           "kind": {
             "type": "string",
-            "enum": [
-              "PASSWORD",
-              "SERVICE"
-            ]
+            "enum": ["PASSWORD", "SERVICE"]
           },
           "secretHash": {
             "type": "string"
@@ -226,12 +211,7 @@
             "format": "date-time"
           }
         },
-        "required": [
-          "tenantId",
-          "userId",
-          "role",
-          "createdAt"
-        ],
+        "required": ["tenantId", "userId", "role", "createdAt"],
         "additionalProperties": false
       },
       "ReviewerAssignment": {
@@ -252,22 +232,11 @@
           },
           "gate": {
             "type": "string",
-            "enum": [
-              "T1",
-              "T2",
-              "T3",
-              "T4",
-              "T5",
-              "T6"
-            ]
+            "enum": ["T1", "T2", "T3", "T4", "T5", "T6"]
           },
           "scope": {
             "type": "string",
-            "enum": [
-              "TENANT",
-              "PLATFORM",
-              "RELEASE"
-            ]
+            "enum": ["TENANT", "PLATFORM", "RELEASE"]
           },
           "createdAt": {
             "type": "string",
@@ -308,12 +277,7 @@
           },
           "state": {
             "type": "string",
-            "enum": [
-              "PENDING",
-              "QUARANTINED",
-              "ACCEPTED",
-              "EXPIRED"
-            ]
+            "enum": ["PENDING", "QUARANTINED", "ACCEPTED", "EXPIRED"]
           },
           "casObjectId": {
             "type": "string",
@@ -470,14 +434,7 @@
             "format": "date-time"
           }
         },
-        "required": [
-          "id",
-          "tenantId",
-          "jobId",
-          "number",
-          "state",
-          "createdAt"
-        ],
+        "required": ["id", "tenantId", "jobId", "number", "state", "createdAt"],
         "additionalProperties": false
       },
       "Lease": {
@@ -548,25 +505,14 @@
           },
           "status": {
             "type": "string",
-            "enum": [
-              "PENDING",
-              "APPROVED",
-              "REJECTED"
-            ]
+            "enum": ["PENDING", "APPROVED", "REJECTED"]
           },
           "createdAt": {
             "type": "string",
             "format": "date-time"
           }
         },
-        "required": [
-          "id",
-          "tenantId",
-          "jobId",
-          "gate",
-          "status",
-          "createdAt"
-        ],
+        "required": ["id", "tenantId", "jobId", "gate", "status", "createdAt"],
         "additionalProperties": false
       },
       "Receipt": {
@@ -773,13 +719,7 @@
             "format": "date-time"
           }
         },
-        "required": [
-          "id",
-          "tenantId",
-          "requestedBy",
-          "state",
-          "createdAt"
-        ],
+        "required": ["id", "tenantId", "requestedBy", "state", "createdAt"],
         "additionalProperties": false
       },
       "Artifact": {
@@ -847,14 +787,7 @@
             "format": "date-time"
           }
         },
-        "required": [
-          "id",
-          "tenantId",
-          "sceneId",
-          "version",
-          "ir",
-          "createdAt"
-        ],
+        "required": ["id", "tenantId", "sceneId", "version", "ir", "createdAt"],
         "additionalProperties": false
       },
       "SceneIRVersion": {
@@ -884,14 +817,7 @@
             "format": "date-time"
           }
         },
-        "required": [
-          "id",
-          "tenantId",
-          "sceneId",
-          "version",
-          "ir",
-          "createdAt"
-        ],
+        "required": ["id", "tenantId", "sceneId", "version", "ir", "createdAt"],
         "additionalProperties": false
       },
       "BrowserPassSpecVersion": {
@@ -993,18 +919,11 @@
                 }
               }
             },
-            "required": [
-              "code",
-              "message",
-              "correlationId",
-              "details"
-            ],
+            "required": ["code", "message", "correlationId", "details"],
             "additionalProperties": false
           }
         },
-        "required": [
-          "error"
-        ],
+        "required": ["error"],
         "additionalProperties": false
       }
     },
