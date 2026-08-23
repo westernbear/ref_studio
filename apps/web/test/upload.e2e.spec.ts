@@ -17,6 +17,34 @@ test.describe("upload validation @upload", () => {
     ).toBeVisible();
   });
 
+  test("returns to sign-in when the upload session has expired", async ({
+    page,
+  }) => {
+    // Given
+    await page.route("**/api/v1/uploads", async (route) => {
+      await route.fulfill({
+        contentType: "application/json",
+        status: 401,
+        body: JSON.stringify({
+          error: { code: "AUTHENTICATION_REQUIRED" },
+        }),
+      });
+    });
+    await page.goto("/projects/new");
+
+    // When
+    await page.setInputFiles("input[type=file]", {
+      name: "clip.mp4",
+      mimeType: "video/mp4",
+      buffer: Buffer.from([
+        0, 0, 0, 16, 102, 116, 121, 112, 105, 115, 111, 109,
+      ]),
+    });
+
+    // Then
+    await expect(page).toHaveURL(/\/sign-in\?returnTo=%2Fprojects%2Fnew$/u);
+  });
+
   test("uploads without crypto.randomUUID and routes to progress", async ({
     page,
   }) => {
@@ -199,8 +227,6 @@ test.describe("upload validation @upload", () => {
     await expect(
       page.getByText("The request could not be completed. Retry."),
     ).toBeVisible();
-    await expect(page.locator("body")).not.toContainText(
-      /safely\s+admitted/u,
-    );
+    await expect(page.locator("body")).not.toContainText(/safely\s+admitted/u);
   });
 });

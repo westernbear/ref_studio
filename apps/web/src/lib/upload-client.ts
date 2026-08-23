@@ -24,12 +24,19 @@ const request = async (
     headers,
   });
   const body = (await response.json()) as Record<string, unknown>;
-  if (!response.ok)
-    throw new Error(
+  if (!response.ok) {
+    const code =
       typeof body.code === "string"
         ? body.code
-        : text(record(body.error).code) || "NETWORK_INTERRUPTED",
-    );
+        : text(record(body.error).code) || "NETWORK_INTERRUPTED";
+    if (code === "AUTHENTICATION_REQUIRED") {
+      const returnTo = `${window.location.pathname}${window.location.search}`;
+      window.location.assign(
+        `/sign-in?returnTo=${encodeURIComponent(returnTo)}`,
+      );
+    }
+    throw new Error(code);
+  }
   return body;
 };
 const record = (value: unknown): Record<string, unknown> =>
