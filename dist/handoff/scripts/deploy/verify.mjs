@@ -21,6 +21,11 @@ const required = [
   "jobAttemptStates",
   "publication",
 ];
+const serviceBlock = (service) =>
+  compose.match(
+    new RegExp(`^  ${service}:\\n([\\s\\S]*?)(?=^  [a-z]|^networks:)`, "m"),
+  )?.[1] ?? "";
+
 if (!required.every((key) => execution[key] !== undefined))
   throw new Error("EXECUTION_CONTRACT_MISSING");
 if (
@@ -28,6 +33,32 @@ if (
   !compose.includes("internal: true")
 )
   throw new Error("COMPOSE_ISOLATION_MISSING");
+if (!serviceBlock("web").includes("target: runtime"))
+  throw new Error("COMPOSE_WEB_BUILD_MISSING");
+if (!serviceBlock("web").includes("0.0.0.0:3100:3100"))
+  throw new Error("COMPOSE_WEB_EXTERNAL_BIND_MISSING");
+if (!serviceBlock("api").includes("target: runtime"))
+  throw new Error("COMPOSE_API_BUILD_MISSING");
+if (!serviceBlock("api").includes("0.0.0.0:3200:3200"))
+  throw new Error("COMPOSE_API_EXTERNAL_BIND_MISSING");
+if (!serviceBlock("api").includes("RVS_WORKER_TOKEN"))
+  throw new Error("COMPOSE_API_WORKER_TOKEN_MISSING");
+if (
+  !serviceBlock("web").includes("/workspace/.pnpm-store") ||
+  !serviceBlock("web").includes("/workspace/node_modules") ||
+  !serviceBlock("web").includes("/workspace/apps/web/node_modules")
+)
+  throw new Error("COMPOSE_WEB_NODE_MODULES_VOLUME_MISSING");
+for (const service of [
+  "runtime",
+  "runtime-preflight",
+  "compiler",
+  "qa",
+  "qa-audit-egress",
+]) {
+  if (!serviceBlock(service).includes("profiles:"))
+    throw new Error(`COMPOSE_DEFAULT_ONE_SHOT ${service}`);
+}
 if (openapi.openapi !== "3.1.0" || Object.keys(openapi.paths).length < 5)
   throw new Error("OPENAPI_NOT_GENERATED");
 if (

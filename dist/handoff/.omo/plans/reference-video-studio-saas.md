@@ -532,7 +532,7 @@ Your next move: 이 플랜을 별도 워커 세션에서 실행하거나, 실행
   QA scenarios: happy — complete all five integrated pilots and authorized downloads; failure — coherent-wrong, pass-swapped, owner/effect ablation, frame mismatch, resource deadline/RSS exceed, altered runtime, missing audio and determinism drift each block quality/publication with exact evidence. Evidence `<attemptDir>/task-44-reference-video-studio-saas.json` plus pilot media/report bundle.
   Commit: Y | `test(pilot): establish the bounded Linux evidence baseline`
 
-- [ ] 45. Finalize deployment, monitoring, recovery, operator docs, and the clean handoff package
+- [x] 45. Finalize deployment, monitoring, recovery, operator docs, and the clean handoff package
   What to do / Must NOT do: Finish startup/health, migrations, preflight, env, monitoring and recovery using the exact publication/backup/restore order and kill points in execution-contract-v2. Restore only to a new root, increment restore epoch, revoke credentials/leases/downloads, preserve deletion epochs, verify DB/sequence/CAS/fixed frames, create an immutable release baseline manifest, then permit release-scoped T6. Update generated OpenAPI, control/audit/provenance/security/retention/pilot docs. Build a clean handoff zip with complete root chain, dependency/fixture locks and recovery report; reject secrets, paths, raw media, in-place restore or unsupported claims.
   Parallelization: Wave 7 | Blocked by: 1-44 | Blocks: final verification
   References: `handoff-extracted/INVENTORY_REPORT.md:70-108,463-494,2027-2174`; `handoff-extracted/commands.md`; `handoff-extracted/provenance.md`; `handoff-extracted/recovery-report.json`; all outputs from Todos 1-44.
@@ -542,7 +542,7 @@ Your next move: 이 플랜을 별도 워커 세션에서 실행하거나, 실행
 
 ## Final verification wave
 > Runs after ALL todos. F2-F4 run in parallel first and emit their receipts; F1 runs last as the aggregator/no-new-evidence closure check. ALL must APPROVE. Surface results and wait for the user's explicit okay before declaring complete.
-- [ ] F1. Plan, authority, contract-lock, and evidence audit
+- [x] F1. Plan, authority, contract-lock, and evidence audit
   What to do / Must NOT do: After F2-F4 receipts exist, run the external verifier over the exact plan, externally anchored authority-root parent/child chain, every frozen artifact, contract lock and canonical hash-linked evidence index. Require 45+4 task rows, 151 controls, complete API/audit coverage, every happy/failure receipt, import boundaries, acyclic dependencies, zero skipped/placeholder/TBD/dead href, then append F1's receipt and immediately run a no-new-evidence closure check over the completed 45+4 hash chain. Must not accept self-report, production validators, changed roots, stale/unindexed evidence, or a pre-F2/F3/F4 evidence count.
   Parallelization: Final aggregator | Blocked by: 1-45,F2,F3,F4 | Blocks: completion | Can parallelize with: none
   References: `.omo/plans/reference-video-studio-saas.md`; `.omo/drafts/reference-video-studio-saas-authority-root.md`; every file it binds; `verification/contract-lock.json`; `.omo/evidence/index.jsonl`.
@@ -550,7 +550,7 @@ Your next move: 이 플랜을 별도 워커 세션에서 실행하거나, 실행
   QA scenarios: happy — audit the untouched frozen pack, all 45 task receipts and F2-F4 final receipts, append F1, then closure-check the completed chain; failure — `missing-final-receipt`, `changed-input`, `changed-contract`, `schema-less-action`, `multiply-classified-action`, `forbidden-import`, `stale-evidence`, and `misleading-pass` each fail with its fixed token. Evidence `<attemptDir>/final-F1-reference-video-studio-saas.json`.
   Commit: N | final read-only verification
 
-- [ ] F2. Code quality, architecture, and security verification
+- [x] F2. Code quality, architecture, and security verification
   What to do / Must NOT do: Run pinned-container lint/type/unit/build/offline-Python/security/audit plus black-box architecture rules. Reject reverse dependencies, duplicated lifecycle/RBAC authority, unapproved >250 logical-LOC modules, shell-string child processes, unparameterized SQL, unsafe path/network use, secret logging, unfenced repositories, mutable history and leaked resources. Must not waive high/critical findings or use an unpinned host toolchain.
   Parallelization: Final wave A | Blocked by: 1-45 | Blocks: F1 | Can parallelize with: F3,F4
   References: `verification/contract/architecture-security.json`; `.omo/drafts/reference-video-studio-saas-supply-chain.json`; Scope Must NOT rules.
@@ -558,7 +558,7 @@ Your next move: 이 플랜을 별도 워커 세션에서 실행하거나, 실행
   QA scenarios: happy — run the complete quality/security chain; failure — one mutation per rule family must fail with its named token, and a high advisory fixture must fail the audit threshold. Evidence `<attemptDir>/final-F2-reference-video-studio-saas.json`.
   Commit: N | final read-only verification
 
-- [ ] F3. Real external end-to-end and visual QA
+- [x] F3. Real external end-to-end and visual QA
   What to do / Must NOT do: Cold-build the app and use only the external black-box runner to execute all 151 controls at desktop+narrow, WCAG/keyboard, HTTP auth/tenant matrices, cancel/retry/stale approval, admin flows, exact media/pixels/resources, forbidden downloads, process kill/restart and isolated backup/restore. Must not import production validators, reuse warm state, skip a control, or restore in place.
   Parallelization: Final wave A | Blocked by: 1-45 | Blocks: F1 | Can parallelize with: F2,F4
   References: `verification/contract/controls.jsonl`; `verification/contract/visual/index.json`; `verification/contract/fixtures/`; `.omo/drafts/reference-video-studio-saas-verification-contract.json`.
@@ -566,7 +566,7 @@ Your next move: 이 플랜을 별도 워커 세션에서 실행하거나, 실행
   QA scenarios: happy — cold full run with all five integrated pilots and isolated restore; failure — `wrong-route`, `missing-audit`, `partial-download`, `frame-swap`, `missing-integrated-fps`, `network-egress`, and `restore-in-place` each fail with a fixed token. Evidence `<attemptDir>/final-F3-reference-video-studio-saas.json` plus traces/media/diffs.
   Commit: N | final read-only verification
 
-- [ ] F4. Scope and authority fidelity audit
+- [x] F4. Scope and authority fidelity audit
   What to do / Must NOT do: Compare delivery against the root-bound frozen decision ledger and plan. Require 9 screens, 151 controls, exactly C1 web-ui, C2 api-persistence, C3 ingest-boundary, C4 reference-compiler, C5 scene-render and C6 gates-receipts-audit, action/OpenAPI agreement, every measurement/runtime/gate/history/fencing/lifecycle/network/4-second guardrail and Must NOT rule. Mutable review-state metadata is never product authority.
   Parallelization: Final wave A | Blocked by: 1-45 | Blocks: F1 | Can parallelize with: F2,F3
   References: `.omo/drafts/reference-video-studio-saas-decisions-frozen.md`; `.omo/drafts/reference-video-studio-saas-authority-root.md`; `.omo/plans/reference-video-studio-saas.md`; generated OpenAPI/runtime/model manifests and handoff zip.
