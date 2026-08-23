@@ -20,21 +20,6 @@ services:
     image: reference-video-studio-compiler:task17
     network_mode: none
     command: ["python3.12", "-m", "compiler.preflight"]
-  worker:
-    image: reference-video-studio-runtime:todo1
-    network_mode: none
-    environment:
-      CI: "true"
-      COREPACK_ENABLE_PROJECT_SPEC: "0"
-      PNPM_MANAGE_PACKAGE_MANAGER_VERSIONS: "false"
-      PNPM_CONFIG_OFFLINE: "true"
-      PNPM_CONFIG_FROZEN_LOCKFILE: "true"
-      PNPM_CONFIG_IGNORE_WORKSPACE: "true"
-    working_dir: /workspace/apps/worker
-    volumes:
-      - .:/workspace
-    entrypoint: ["sh", "/workspace/apps/worker/offline-pnpm.sh"]
-    command: ["pnpm", "compiler:smoke"]
   web:
     image: reference-video-studio-runtime:todo1
     networks: [appnet]
