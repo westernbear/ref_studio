@@ -1,6 +1,46 @@
 import assert from "node:assert/strict";
+import { scryptSync } from "node:crypto";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import Database from "better-sqlite3";
-import { migrate, seed } from "./db.mjs";
+import { loadSeedEnv, migrate, seed } from "./db.mjs";
+
+const matchesPassword = (password, encoded) => {
+  const [, salt, expected] = encoded.split("$");
+  return scryptSync(password, salt, 32).toString("hex") === expected;
+};
+
+const adminDb = new Database(":memory:");
+adminDb.pragma("foreign_keys = ON");
+migrate(adminDb);
+seed(adminDb, {
+  RVS_INITIAL_ADMIN_EMAIL: "admin@example.test",
+  RVS_INITIAL_ADMIN_NAME: "Ops Admin",
+  RVS_INITIAL_ADMIN_PASSWORD: "admin-secret",
+});
+const admin = adminDb
+  .prepare(
+    "SELECT users.email, users.display_name, tenant_memberships.role, credentials.secret_hash FROM users JOIN tenant_memberships ON tenant_memberships.user_id=users.id JOIN credentials ON credentials.user_id=users.id WHERE users.id='usr_platform'",
+  )
+  .get();
+assert.equal(admin.email, "admin@example.test");
+assert.equal(admin.display_name, "Ops Admin");
+assert.equal(admin.role, "SUPER_ADMIN");
+assert.equal(matchesPassword("admin-secret", admin.secret_hash), true);
+adminDb.close();
+
+const envDir = mkdtempSync(join(tmpdir(), "rvs-admin-env-"));
+writeFileSync(
+  join(envDir, ".env"),
+  "RVS_INITIAL_ADMIN_EMAIL=file-admin@example.test\nRVS_INITIAL_ADMIN_PASSWORD=file-secret\n",
+);
+const loadedEnv = loadSeedEnv(join(envDir, ".env"), {
+  RVS_INITIAL_ADMIN_PASSWORD: "process-secret",
+});
+assert.equal(loadedEnv.RVS_INITIAL_ADMIN_EMAIL, "file-admin@example.test");
+assert.equal(loadedEnv.RVS_INITIAL_ADMIN_PASSWORD, "process-secret");
+rmSync(envDir, { recursive: true, force: true });
 
 const db = new Database(":memory:");
 db.pragma("foreign_keys = ON");

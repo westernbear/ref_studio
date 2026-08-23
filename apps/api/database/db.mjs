@@ -1,6 +1,39 @@
 import fs from "node:fs";
+import { randomBytes, scryptSync } from "node:crypto";
 import path from "node:path";
 import Database from "better-sqlite3";
+
+const ADMIN_EMAIL = "RVS_INITIAL_ADMIN_EMAIL";
+const ADMIN_NAME = "RVS_INITIAL_ADMIN_NAME";
+const ADMIN_PASSWORD = "RVS_INITIAL_ADMIN_PASSWORD";
+const ROOT_ENV = new URL("../../../.env", import.meta.url);
+
+const envValue = (env, name) => {
+  const value = env[name]?.trim();
+  return value && value.length > 0 ? value : undefined;
+};
+
+const hashPassword = (password, salt = randomBytes(16).toString("hex")) =>
+  `scrypt$${salt}$${scryptSync(password, salt, 32).toString("hex")}`;
+
+const unquote = (value) =>
+  (value.startsWith('"') && value.endsWith('"')) ||
+  (value.startsWith("'") && value.endsWith("'"))
+    ? value.slice(1, -1)
+    : value;
+
+export function loadSeedEnv(file = ROOT_ENV, base = process.env) {
+  const env = {};
+  if (fs.existsSync(file)) {
+    for (const line of fs.readFileSync(file, "utf8").split(/\r?\n/u)) {
+      const match = line.match(
+        /^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/u,
+      );
+      if (match) env[match[1]] = unquote(match[2].trim());
+    }
+  }
+  return { ...env, ...base };
+}
 
 export function openDatabase(
   file = process.env.DATABASE_PATH ?? path.resolve("apps/api/data/app.sqlite"),
@@ -39,6 +72,21 @@ export function migrate(db) {
   }
 }
 
-export function seed(db) {
+const seedInitialAdmin = (db, env) => {
+  const email = envValue(env, ADMIN_EMAIL);
+  const name = envValue(env, ADMIN_NAME);
+  const password = envValue(env, ADMIN_PASSWORD);
+  if (!email && !name && !password) return;
+  if (!email || !password) throw new Error("RVS_INITIAL_ADMIN_ENV_INCOMPLETE");
+  db.prepare(
+    "UPDATE users SET email=?, display_name=? WHERE id='usr_platform'",
+  ).run(email, name ?? "Platform Operator");
+  db.prepare(
+    "UPDATE credentials SET secret_hash=?, revoked_at=NULL WHERE id='cred_platform_password'",
+  ).run(hashPassword(password));
+};
+
+export function seed(db, env = {}) {
   db.exec(fs.readFileSync(new URL("./seed.sql", import.meta.url), "utf8"));
+  seedInitialAdmin(db, env);
 }

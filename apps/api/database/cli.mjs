@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { migrate, openDatabase, seed } from "./db.mjs";
+import { loadSeedEnv, migrate, openDatabase, seed } from "./db.mjs";
 const command = process.argv[2];
 const file = path.resolve(
   process.env.DATABASE_PATH ?? "apps/api/data/app.sqlite",
@@ -11,11 +11,12 @@ if (command === "reset") {
   fs.rmSync(`${file}-shm`, { force: true });
 }
 const db = openDatabase(file);
+const seedEnv = loadSeedEnv();
 if (command === "migrate" || command === "reset") migrate(db);
-if (command === "reset") seed(db);
+if (command === "reset") seed(db, seedEnv);
 if (command === "verify") {
   migrate(db);
-  seed(db);
+  seed(db, seedEnv);
   const integrity = db.pragma("integrity_check", { simple: true });
   if (integrity !== "ok") throw new Error(`INTEGRITY_CHECK_${integrity}`);
   for (const [table, expected] of [
