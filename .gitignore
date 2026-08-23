@@ -1,11 +1,16 @@
 node_modules/
 .codegraph
 .codegraph/
+__pycache__/
+*.py[cod]
 .pnpm-store/
 .rvs-cache/
 compiler/.venv/
 apps/*/.next/
+apps/*/.next-e2e.lock/
 apps/*/dist/
+apps/*/test-results/
+apps/*/apps/*/data/*.sqlite
 packages/*/dist/
 verification/contract/fixtures/
 verification/contract/fonts/
