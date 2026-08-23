@@ -22,13 +22,13 @@ services:
     command: ["python3.12", "-m", "compiler.preflight"]
   web:
     image: reference-video-studio-runtime:todo1
-    networks: [appnet]
+    networks: [appnet, default]
     working_dir: /workspace/apps/web
     volumes:
       - .:/workspace
     ports:
       - "127.0.0.1:3100:3100"
-    command: ["sh", "-lc", "node ../../node_modules/.pnpm/next@*/node_modules/next/dist/bin/next start --hostname 0.0.0.0 --port 3100"]
+    command: ["sh", "-lc", "pnpm install --frozen-lockfile && pnpm --filter @rvs/web build && pnpm --filter @rvs/web exec next start --hostname 0.0.0.0 --port 3100"]
   api:
     image: reference-video-studio-runtime:todo1
     networks: [appnet]
