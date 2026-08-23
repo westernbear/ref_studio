@@ -7,8 +7,9 @@ import { registerAdminRead, type AdminReadStore } from "./admin-read.js"
 import { registerAdminMutation, type AdminMutationStore } from "./admin-mutation.js"
 import { registerReviews, type ReviewStore } from "./reviews.js"
 import { advanceDeletionEpoch, cleanupRetention, type RetentionStore } from "./retention.js"
+import { registerWorkers, type WorkerStore } from "./workers.js"
 
-export type AppOptions = { readonly store: AuthStore; readonly expectedOrigin: string; readonly introspectSecret: string; readonly now?: () => number; readonly idempotency?: IdempotencyStore; readonly onTenantAction?: () => Record<string, unknown>; readonly uploads?: UploadStore; readonly creatorWorkflow?: CreatorWorkflowStore; readonly adminReads?: AdminReadStore; readonly adminMutations?: AdminMutationStore; readonly reviews?: ReviewStore; readonly retention?: RetentionStore }
+export type AppOptions = { readonly store: AuthStore; readonly expectedOrigin: string; readonly introspectSecret: string; readonly now?: () => number; readonly idempotency?: IdempotencyStore; readonly onTenantAction?: () => Record<string, unknown>; readonly uploads?: UploadStore; readonly creatorWorkflow?: CreatorWorkflowStore; readonly adminReads?: AdminReadStore; readonly adminMutations?: AdminMutationStore; readonly reviews?: ReviewStore; readonly retention?: RetentionStore; readonly workers?: WorkerStore }
 const header = (request: FastifyRequest, name: string): string | undefined => { const value = request.headers[name]; return typeof value === "string" ? value : undefined }
 const cookie = (request: FastifyRequest, name: string): string | undefined => header(request, "cookie")?.split(";").map((part) => part.trim()).find((part) => part.startsWith(`${name}=`))?.slice(name.length + 1)
 const failure = (reply: FastifyReply, result: AuthFailure | UploadFailure | { readonly code: "TENANT_BOUNDARY_BYPASS" | "RESOURCE_NOT_FOUND" | "DELETION_EPOCH_STALE" | "ROLE_NOT_PERMITTED" }): FastifyReply => { const correlation = reply.getHeader("x-correlation-id"); const id = typeof correlation === "string" ? correlation : correlationId(); const status = result.code === "AUTHENTICATION_REQUIRED" ? 401 : result.code === "RESOURCE_NOT_FOUND" ? 404 : result.code === "VIDEO_TYPE_INVALID" || result.code === "VIDEO_SIZE_LIMIT_EXCEEDED" || result.code === "INVALID_REQUEST" || result.code === "UPLOAD_QUARANTINED" ? 422 : 403; return reply.code(status).send(safeEnvelope(new Error(result.code), id)) }
@@ -21,7 +22,7 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
   app.addHook("onRequest", async (request, reply) => {
     const correlation = correlationId()
     reply.header("x-correlation-id", correlation)
-    if (request.url.startsWith("/v1/") && !(request.method === "POST" && request.url === "/v1/release-reviews")) {
+    if (request.url.startsWith("/v1/") && !request.url.startsWith("/v1/workers/") && !(request.method === "POST" && request.url === "/v1/release-reviews")) {
       const tenant = header(request, "x-tenant-id")
       const authorization = header(request, "authorization")
       const bearer = authorization?.startsWith("Bearer ") ? authorization.slice(7) : ""
@@ -105,6 +106,7 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
     const gate = authorizeReleaseReview(options.store, principal, header(request, "x-tenant-id")); if (gate) { failure(reply, gate); return }
     reply.send({ ok: true })
   })
+  if (options.workers) registerWorkers(app, options.workers, now)
   return app
 }
 
