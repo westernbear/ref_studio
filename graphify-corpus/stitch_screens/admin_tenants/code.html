@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Tenant List - Creator Studio</title>
+<script type="text/javascript" nonce="a8fa8df892b144ccaa86c8a1abe" src="//local.adguard.org?ts=1787307061815&amp;type=content-script&amp;dmn=contribution.usercontent.google.com&amp;url=https%3A%2F%2Fcontribution.usercontent.google.com%2Fdownload%3Fc%3DCgthaWRhX2NvZGVmeBJ6Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpZCiVodG1sXzAwMDY1OThiZTYxOTNiOWYwMzkyY2IwZDYwMzU3NDc0EgsSBxCS7-G91AQYAZIBIgoKcHJvamVjdF9pZBIUQhIxOTQ3MjU1NTQ2MzA3NjAwNzM%26filename%3D%26opi%3D89354086&amp;app=firefox.exe&amp;css=3&amp;js=1&amp;rel=1&amp;rji=1&amp;sbe=1&amp;stealth=1&amp;st-loc&amp;st-dnt"></script><script type="text/javascript" nonce="a8fa8df892b144ccaa86c8a1abe" src="//local.adguard.org?ts=1787307061815&amp;name=AdGuard%20Extra&amp;type=user-script"></script><script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400&amp;family=Inter:wght@400&amp;family=Manrope:wght@400;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "tertiary-fixed-dim": "#c6c6c7",
+                      "on-tertiary-fixed-variant": "#454747",
+                      "primary-fixed-dim": "#c6c6c7",
+                      "surface-container": "#201f1f",
+                      "ink": "#ffffff",
+                      "on-primary": "#2f3131",
+                      "on-tertiary-container": "#636565",
+                      "canvas": "#0a0a0a",
+                      "on-error-container": "#ffdad6",
+                      "secondary": "#c3c7cd",
+                      "tertiary-container": "#e2e2e2",
+                      "secondary-fixed": "#dfe3e9",
+                      "surface-bright": "#3a3939",
+                      "secondary-container": "#43474d",
+                      "surface": "#141313",
+                      "canvas-soft": "#1a1c20",
+                      "primary-container": "#e2e2e2",
+                      "breeze": "#a0c3ec",
+                      "error-container": "#93000a",
+                      "inverse-on-surface": "#313030",
+                      "surface-container-highest": "#353434",
+                      "on-error": "#690005",
+                      "on-tertiary-fixed": "#1a1c1c",
+                      "on-secondary": "#2c3136",
+                      "outline-variant": "#444748",
+                      "primary": "#ffffff",
+                      "hairline": "#212327",
+                      "on-primary-fixed": "#1a1c1c",
+                      "primary-fixed": "#e2e2e2",
+                      "on-surface": "#e5e2e1",
+                      "on-primary-fixed-variant": "#454747",
+                      "dusk": "#7c3aed",
+                      "on-background": "#e5e2e1",
+                      "secondary-fixed-dim": "#c3c7cd",
+                      "on-tertiary": "#2f3131",
+                      "inverse-primary": "#5d5f5f",
+                      "surface-container-high": "#2a2a2a",
+                      "surface-container-low": "#1c1b1b",
+                      "on-surface-variant": "#c4c7c8",
+                      "on-secondary-fixed": "#181c21",
+                      "error": "#ffb4ab",
+                      "canvas-card": "#191919",
+                      "outline": "#8e9192",
+                      "on-secondary-fixed-variant": "#43474d",
+                      "background": "#141313",
+                      "on-primary-container": "#636565",
+                      "tertiary-fixed": "#e2e2e2",
+                      "inverse-surface": "#e5e2e1",
+                      "on-secondary-container": "#b2b5bc",
+                      "surface-tint": "#c6c6c7",
+                      "body": "#dadbdf",
+                      "sunset": "#ff7a17",
+                      "tertiary": "#ffffff",
+                      "surface-dim": "#141313",
+                      "surface-container-lowest": "#0e0e0e",
+                      "surface-variant": "#353434"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "md": "12px",
+                      "lg": "16px",
+                      "sm": "8px",
+                      "xs": "4px",
+                      "4xl": "64px",
+                      "3xl": "48px",
+                      "2xl": "32px",
+                      "xxs": "2px",
+                      "xl": "24px"
+              },
+              "fontFamily": {
+                      "body-lg": ["Inter", "sans-serif"],
+                      "display-md": ["Manrope", "sans-serif"],
+                      "headline-lg-mobile": ["Manrope", "sans-serif"],
+                      "caption-mono": ["Geist", "monospace"],
+                      "body-md": ["Inter", "sans-serif"],
+                      "button": ["Inter", "sans-serif"],
+                      "display-lg": ["Manrope", "sans-serif"],
+                      "body-sm": ["Inter", "sans-serif"],
+                      "display-xl": ["Manrope", "sans-serif"],
+                      "display-sm": ["Manrope", "sans-serif"],
+                      "caption-mono-sm": ["Geist", "monospace"]
+              },
+              "fontSize": {
+                      "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                      "display-md": ["48px", {"lineHeight": "48px", "letterSpacing": "-1.2px", "fontWeight": "400"}],
+                      "headline-lg-mobile": ["40px", {"lineHeight": "44px", "letterSpacing": "-1px", "fontWeight": "400"}],
+                      "caption-mono": ["14px", {"lineHeight": "20px", "letterSpacing": "1.4px", "fontWeight": "400"}],
+                      "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                      "button": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                      "display-lg": ["72px", {"lineHeight": "72px", "letterSpacing": "-1.8px", "fontWeight": "400"}],
+                      "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                      "display-xl": ["96px", {"lineHeight": "96px", "letterSpacing": "-2.4px", "fontWeight": "400"}],
+                      "display-sm": ["32px", {"lineHeight": "36px", "letterSpacing": "-0.6px", "fontWeight": "900"}],
+                      "caption-mono-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "1.2px", "fontWeight": "400"}]
+              }
+            }
+          }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+          font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.fill {
+            font-variation-settings: 'FILL' 1;
+        }
+        body {
+            background-color: theme('colors.canvas');
+            color: theme('colors.on-surface');
+        }
+        /* Hide scrollbar for clean look but allow scroll */
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: theme('colors.hairline');
+            border-radius: theme('borderRadius.full');
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: theme('colors.outline-variant');
+        }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden font-body-md text-body-md">
+<!-- SideNavBar -->
+<nav class="fixed left-0 top-0 h-full w-64 bg-canvas dark:bg-canvas border-r border-hairline flex flex-col py-xl z-50">
+<!-- Header -->
+<div class="px-xl mb-2xl flex items-center gap-md">
+<div class="w-10 h-10 rounded-full bg-canvas-card border border-hairline overflow-hidden flex-shrink-0">
+<img alt="System Node" class="w-full h-full object-cover" data-alt="A highly detailed profile avatar for a system node. Abstract, high-tech geometric shapes in pure white on a deep black canvas. Evokes a sense of artificial intelligence and cosmic computing. Minimalist, precise, corporate." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDg4mD2Hv9XWA-ZdK0elQ2Uv28Mb9-2xgTuPcBN09nLF0iZH2o1wS3nQUtpUilTBB8yqsHNdVSoWsSbX_C6d59YgClvR8JE-SZIfhVSgMkCoRSzImXDjELgcS_AlDPW-cqXbNbmB95citTvaaKhAHEvSMjr5Jl0fUr33YPFZh4-OkOcpJvokHZImXQ-Kio_LEnY42zF2Vik7eXLZftwfSw54oDkq4yKWC9oE3j4fesCsSgIAH2OscQ"/>
+</div>
+<div class="flex flex-col">
+<span class="font-display-sm text-display-sm text-primary tracking-tighter leading-none">Admin Ops</span>
+<span class="font-caption-mono-sm text-caption-mono-sm text-on-surface-variant mt-xs">v2.4.0-stable</span>
+</div>
+</div>
+<!-- CTA -->
+<div class="px-xl mb-2xl">
+<button class="w-full bg-primary text-canvas font-button text-button rounded-full py-md px-lg hover:bg-tertiary-fixed-dim transition-all duration-100 ease-linear flex justify-center items-center gap-sm">
+<span class="material-symbols-outlined text-[18px]">add</span>
+                New Project
+            </button>
+</div>
+<!-- Main Tabs -->
+<div class="flex-1 overflow-y-auto px-md flex flex-col gap-xs">
+<a class="flex items-center gap-md px-lg py-md rounded-DEFAULT text-on-surface-variant hover:bg-canvas-soft hover:text-primary transition-colors duration-100 ease-linear font-caption-mono text-caption-mono tracking-widest" href="#">
+<span class="material-symbols-outlined text-[20px]">dashboard</span>
+                Dashboard
+            </a>
+<a class="flex items-center gap-md px-lg py-md rounded-DEFAULT bg-canvas-soft text-primary border-r-2 border-primary transition-colors duration-100 ease-linear font-caption-mono text-caption-mono tracking-widest" href="#">
+<span class="material-symbols-outlined text-[20px]">groups</span>
+                Tenants
+            </a>
+<a class="flex items-center gap-md px-lg py-md rounded-DEFAULT text-on-surface-variant hover:bg-canvas-soft hover:text-primary transition-colors duration-100 ease-linear font-caption-mono text-caption-mono tracking-widest" href="#">
+<span class="material-symbols-outlined text-[20px]">terminal</span>
+                Jobs
+            </a>
+<a class="flex items-center gap-md px-lg py-md rounded-DEFAULT text-on-surface-variant hover:bg-canvas-soft hover:text-primary transition-colors duration-100 ease-linear font-caption-mono text-caption-mono tracking-widest" href="#">
+<span class="material-symbols-outlined text-[20px]">receipt_long</span>
+                Receipts
+            </a>
+<a class="flex items-center gap-md px-lg py-md rounded-DEFAULT text-on-surface-variant hover:bg-canvas-soft hover:text-primary transition-colors duration-100 ease-linear font-caption-mono text-caption-mono tracking-widest" href="#">
+<span class="material-symbols-outlined text-[20px]">emergency_home</span>
+                Quarantine
+            </a>
+<a class="flex items-center gap-md px-lg py-md rounded-DEFAULT text-on-surface-variant hover:bg-canvas-soft hover:text-primary transition-colors duration-100 ease-linear font-caption-mono text-caption-mono tracking-widest" href="#">
+<span class="material-symbols-outlined text-[20px]">security</span>
+                Audit
+            </a>
+</div>
+<!-- Footer Tabs -->
+<div class="px-md mt-auto pt-lg border-t border-hairline flex flex-col gap-xs">
+<a class="flex items-center gap-md px-lg py-md rounded-DEFAULT text-on-surface-variant hover:bg-canvas-soft hover:text-primary transition-colors duration-100 ease-linear font-caption-mono text-caption-mono tracking-widest" href="#">
+<span class="material-symbols-outlined text-[20px]">description</span>
+                Docs
+            </a>
+<a class="flex items-center gap-md px-lg py-md rounded-DEFAULT text-on-surface-variant hover:bg-canvas-soft hover:text-primary transition-colors duration-100 ease-linear font-caption-mono text-caption-mono tracking-widest" href="#">
+<span class="material-symbols-outlined text-[20px]">contact_support</span>
+                Support
+            </a>
+</div>
+</nav>
+<!-- Main Content Canvas -->
+<main class="ml-64 flex-1 flex flex-col h-full bg-canvas relative">
+<!-- Header -->
+<header class="px-4xl py-2xl border-b border-hairline flex justify-between items-end flex-shrink-0">
+<div>
+<h1 class="font-display-md text-display-md text-primary m-0 p-0">Tenants</h1>
+<p class="font-body-md text-body-md text-on-surface-variant mt-sm">Manage active environments and resource allocations.</p>
+</div>
+<div class="flex gap-lg items-center">
+<!-- Search -->
+<div class="relative w-64">
+<span class="material-symbols-outlined absolute left-md top-1/2 -translate-y-1/2 text-on-surface-variant text-[20px]">search</span>
+<input class="w-full bg-canvas-soft border border-hairline text-primary rounded-DEFAULT py-sm pl-2xl pr-md font-body-sm text-body-sm focus:outline-none focus:border-outline-variant transition-colors" placeholder="Search tenants..." type="text"/>
+</div>
+<!-- Filter -->
+<button class="bg-canvas-soft border border-hairline text-primary rounded-DEFAULT py-sm px-lg flex items-center gap-sm hover:border-outline-variant transition-colors font-button text-button">
+<span class="material-symbols-outlined text-[18px]">filter_list</span>
+                    Filter
+                </button>
+</div>
+</header>
+<!-- Content Area -->
+<div class="flex-1 overflow-hidden flex relative">
+<!-- List View -->
+<div class="flex-1 overflow-y-auto p-4xl" id="main-list-area">
+<div class="bg-canvas-card border border-hairline rounded-lg overflow-hidden">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="border-b border-hairline bg-surface-container-low">
+<th class="py-md px-xl font-caption-mono text-caption-mono text-on-surface-variant font-normal">Tenant Name</th>
+<th class="py-md px-xl font-caption-mono text-caption-mono text-on-surface-variant font-normal">Status</th>
+<th class="py-md px-xl font-caption-mono text-caption-mono text-on-surface-variant font-normal text-right">Members</th>
+<th class="py-md px-xl font-caption-mono text-caption-mono text-on-surface-variant font-normal text-right">Active Jobs</th>
+<th class="py-md px-xl font-caption-mono text-caption-mono text-on-surface-variant font-normal text-right">Quota Usage</th>
+<th class="py-md px-xl font-caption-mono text-caption-mono text-on-surface-variant font-normal text-right">Action</th>
+</tr>
+</thead>
+<tbody>
+<!-- Row 1 (Active/Selected) -->
+<tr class="border-b border-hairline bg-canvas-soft hover:bg-surface-container transition-colors cursor-pointer" onclick="toggleDetails(true)">
+<td class="py-lg px-xl font-body-md text-body-md text-primary font-medium flex items-center gap-md">
+<div class="w-8 h-8 rounded-DEFAULT bg-dusk/20 border border-dusk/50 flex items-center justify-center text-dusk">
+<span class="material-symbols-outlined text-[16px]">domain</span>
+</div>
+                                    Aegis Corporation
+                                </td>
+<td class="py-lg px-xl">
+<span class="inline-flex items-center gap-xs px-sm py-xs rounded-full bg-surface-bright border border-hairline font-caption-mono-sm text-caption-mono-sm text-primary">
+<div class="w-2 h-2 rounded-full bg-tertiary"></div>
+                                        ACTIVE
+                                    </span>
+</td>
+<td class="py-lg px-xl font-caption-mono text-caption-mono text-on-surface-variant text-right">142</td>
+<td class="py-lg px-xl font-caption-mono text-caption-mono text-on-surface-variant text-right">8</td>
+<td class="py-lg px-xl text-right">
+<div class="flex items-center justify-end gap-sm">
+<span class="font-caption-mono text-caption-mono text-on-surface-variant">78%</span>
+<div class="w-16 h-1 bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-primary w-[78%]"></div>
+</div>
+</div>
+</td>
+<td class="py-lg px-xl text-right">
+<button class="text-on-surface-variant hover:text-primary transition-colors p-sm rounded-DEFAULT hover:bg-surface-container">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="border-b border-hairline hover:bg-canvas-soft transition-colors cursor-pointer" onclick="toggleDetails(true)">
+<td class="py-lg px-xl font-body-md text-body-md text-primary font-medium flex items-center gap-md">
+<div class="w-8 h-8 rounded-DEFAULT bg-surface-container border border-hairline flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px]">biotech</span>
+</div>
+                                    Vanguard Labs
+                                </td>
+<td class="py-lg px-xl">
+<span class="inline-flex items-center gap-xs px-sm py-xs rounded-full bg-surface-bright border border-hairline font-caption-mono-sm text-caption-mono-sm text-primary">
+<div class="w-2 h-2 rounded-full bg-tertiary"></div>
+                                        ACTIVE
+                                    </span>
+</td>
+<td class="py-lg px-xl font-caption-mono text-caption-mono text-on-surface-variant text-right">56</td>
+<td class="py-lg px-xl font-caption-mono text-caption-mono text-on-surface-variant text-right">2</td>
+<td class="py-lg px-xl text-right">
+<div class="flex items-center justify-end gap-sm">
+<span class="font-caption-mono text-caption-mono text-on-surface-variant">32%</span>
+<div class="w-16 h-1 bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-primary w-[32%]"></div>
+</div>
+</div>
+</td>
+<td class="py-lg px-xl text-right">
+<button class="text-on-surface-variant hover:text-primary transition-colors p-sm rounded-DEFAULT hover:bg-surface-container">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="border-b border-hairline hover:bg-canvas-soft transition-colors cursor-pointer" onclick="toggleDetails(true)">
+<td class="py-lg px-xl font-body-md text-body-md text-on-surface-variant font-medium flex items-center gap-md">
+<div class="w-8 h-8 rounded-DEFAULT bg-surface-container border border-hairline flex items-center justify-center text-on-surface-variant opacity-50">
+<span class="material-symbols-outlined text-[16px]">public_off</span>
+</div>
+                                    Helios Network
+                                </td>
+<td class="py-lg px-xl">
+<span class="inline-flex items-center gap-xs px-sm py-xs rounded-full bg-surface border border-hairline font-caption-mono-sm text-caption-mono-sm text-on-surface-variant">
+<div class="w-2 h-2 rounded-full bg-sunset"></div>
+                                        SUSPENDED
+                                    </span>
+</td>
+<td class="py-lg px-xl font-caption-mono text-caption-mono text-on-surface-variant text-right opacity-50">12</td>
+<td class="py-lg px-xl font-caption-mono text-caption-mono text-on-surface-variant text-right opacity-50">0</td>
+<td class="py-lg px-xl text-right opacity-50">
+<div class="flex items-center justify-end gap-sm">
+<span class="font-caption-mono text-caption-mono text-on-surface-variant">0%</span>
+<div class="w-16 h-1 bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-primary w-0"></div>
+</div>
+</div>
+</td>
+<td class="py-lg px-xl text-right">
+<button class="text-on-surface-variant hover:text-primary transition-colors p-sm rounded-DEFAULT hover:bg-surface-container">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Side Drawer (Details) -->
+<div class="w-96 border-l border-hairline bg-canvas-card flex flex-col transform transition-transform duration-300 ease-in-out translate-x-0 overflow-y-auto" id="details-drawer">
+<!-- Drawer Header -->
+<div class="p-xl border-b border-hairline flex justify-between items-start sticky top-0 bg-canvas-card/95 backdrop-blur z-10">
+<div>
+<h2 class="font-display-sm text-display-sm text-primary leading-tight">Aegis Corporation</h2>
+<span class="inline-flex items-center gap-xs mt-sm px-sm py-xs rounded-full bg-surface-bright border border-hairline font-caption-mono-sm text-caption-mono-sm text-primary">
+<div class="w-2 h-2 rounded-full bg-tertiary"></div>
+                            ACTIVE
+                        </span>
+</div>
+<button class="text-on-surface-variant hover:text-primary p-xs rounded-DEFAULT hover:bg-surface-container transition-colors" onclick="toggleDetails(false)">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<!-- Drawer Content -->
+<div class="p-xl flex flex-col gap-2xl">
+<!-- Quota Summary Bento -->
+<div class="flex flex-col gap-sm">
+<h3 class="font-caption-mono text-caption-mono tracking-widest text-on-surface-variant uppercase">Quota Summary</h3>
+<div class="grid grid-cols-2 gap-sm">
+<div class="bg-surface p-lg rounded-DEFAULT border border-hairline">
+<span class="font-caption-mono-sm text-caption-mono-sm text-on-surface-variant block mb-xs">Compute Hours</span>
+<span class="font-body-lg text-body-lg text-primary block">1,240 / 2,000</span>
+<div class="w-full h-1 bg-surface-container-high rounded-full mt-md overflow-hidden">
+<div class="h-full bg-primary w-[62%]"></div>
+</div>
+</div>
+<div class="bg-surface p-lg rounded-DEFAULT border border-hairline">
+<span class="font-caption-mono-sm text-caption-mono-sm text-on-surface-variant block mb-xs">Storage (TB)</span>
+<span class="font-body-lg text-body-lg text-primary block">45.2 / 50.0</span>
+<div class="w-full h-1 bg-surface-container-high rounded-full mt-md overflow-hidden">
+<div class="h-full bg-sunset w-[90%]"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Recent Activity -->
+<div class="flex flex-col gap-sm">
+<h3 class="font-caption-mono text-caption-mono tracking-widest text-on-surface-variant uppercase">Recent Activity</h3>
+<div class="border border-hairline rounded-lg bg-surface overflow-hidden">
+<div class="p-md border-b border-hairline flex gap-md items-start hover:bg-surface-container transition-colors">
+<div class="w-8 h-8 rounded-full bg-surface-container-high flex items-center justify-center flex-shrink-0 text-primary mt-xs">
+<span class="material-symbols-outlined text-[16px]">terminal</span>
+</div>
+<div>
+<p class="font-body-sm text-body-sm text-primary m-0">Batch job <span class="font-caption-mono bg-surface-container px-1 rounded">seq_align_99</span> completed.</p>
+<p class="font-caption-mono-sm text-caption-mono-sm text-on-surface-variant mt-xs">2 hours ago</p>
+</div>
+</div>
+<div class="p-md border-b border-hairline flex gap-md items-start hover:bg-surface-container transition-colors">
+<div class="w-8 h-8 rounded-full bg-surface-container-high flex items-center justify-center flex-shrink-0 text-primary mt-xs">
+<span class="material-symbols-outlined text-[16px]">group_add</span>
+</div>
+<div>
+<p class="font-body-sm text-body-sm text-primary m-0">User <span class="font-caption-mono bg-surface-container px-1 rounded">j.doe</span> added to group Operators.</p>
+<p class="font-caption-mono-sm text-caption-mono-sm text-on-surface-variant mt-xs">5 hours ago</p>
+</div>
+</div>
+<div class="p-md flex gap-md items-start hover:bg-surface-container transition-colors">
+<div class="w-8 h-8 rounded-full bg-surface-container-high flex items-center justify-center flex-shrink-0 text-sunset mt-xs">
+<span class="material-symbols-outlined text-[16px]">warning</span>
+</div>
+<div>
+<p class="font-body-sm text-body-sm text-primary m-0">Storage quota warning threshold reached (90%).</p>
+<p class="font-caption-mono-sm text-caption-mono-sm text-on-surface-variant mt-xs">1 day ago</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Actions -->
+<div class="mt-auto pt-xl border-t border-hairline flex gap-md">
+<button class="flex-1 bg-surface-container border border-hairline text-primary font-button text-button rounded-full py-sm px-md hover:bg-surface-bright transition-colors">Manage Access</button>
+<button class="flex-1 bg-surface-container border border-hairline text-sunset font-button text-button rounded-full py-sm px-md hover:bg-surface-bright transition-colors">Suspend</button>
+</div>
+</div>
+</div>
+</div>
+</main>
+<script>
+        function toggleDetails(show) {
+            const drawer = document.getElementById('details-drawer');
+            if (show) {
+                drawer.classList.remove('translate-x-full', 'hidden');
+                drawer.classList.add('translate-x-0');
+            } else {
+                drawer.classList.remove('translate-x-0');
+                drawer.classList.add('translate-x-full');
+                // Optional: delay hiding display until animation finishes if needed for layout flow, 
+                // but since it's flex, just translating usually works fine. 
+                // Adding hidden class after transition can prevent tab-focus issues.
+            }
+        }
+        
+        // Initialize drawer state on load (start hidden for demonstration, or shown if hardcoded active row)
+        // Currently hardcoded to show based on markup, but here's how to hide it initially if desired:
+        // toggleDetails(false); 
+    </script>
+</body></html>

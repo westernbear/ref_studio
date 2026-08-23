@@ -1,0 +1,68 @@
+{
+  "schemaVersion": "rvs-execution-contract-v2",
+  "uploadStates": {
+    "CREATED": ["UPLOADING", "ABORTED", "EXPIRED"],
+    "UPLOADING": ["VALIDATING", "ABORTED", "EXPIRED"],
+    "VALIDATING": ["ACCEPTED", "QUARANTINED", "INPUT_INVALID"],
+    "ACCEPTED": [], "QUARANTINED": [], "INPUT_INVALID": [], "ABORTED": [], "EXPIRED": []
+  },
+  "jobAttemptStates": {
+    "PREPARING": ["READY", "CANCEL_REQUESTED", "FAILED"],
+    "READY": ["QUEUED", "STALE_APPROVAL", "FAILED"],
+    "STALE_APPROVAL": ["READY", "FAILED"],
+    "QUEUED": ["RENDERING", "CANCEL_REQUESTED", "FAILED"],
+    "RENDERING": ["ASSEMBLING", "CANCEL_REQUESTED", "RETRYABLE_ERROR", "FAILED"],
+    "ASSEMBLING": ["AWAITING_T5", "RETRYABLE_ERROR", "FAILED"],
+    "AWAITING_T5": ["COMPLETED", "FAILED", "STALE_APPROVAL"],
+    "CANCEL_REQUESTED": ["CANCELLED", "FAILED"],
+    "RETRYABLE_ERROR": ["PREPARING", "QUEUED", "FAILED"],
+    "COMPLETED": [], "CANCELLED": [], "FAILED": []
+  },
+  "projection": {"PREPARING":"PREPARING","READY":"PREPARING","STALE_APPROVAL":"PREPARING","QUEUED":"QUEUED","RENDERING":"RENDERING","ASSEMBLING":"RENDERING","AWAITING_T5":"RENDERING","CANCEL_REQUESTED":"priorVisiblePhase","RETRYABLE_ERROR":"priorVisiblePhaseWithSafeError","COMPLETED":"COMPLETED","CANCELLED":"CANCELLED","FAILED":"FAILED"},
+  "retry": {
+    "automaticTransientRun": "Automatic transient retries are append-only run records inside the same jobAttemptId and same approval subject. They never create a new jobAttemptId, never change receiptSubjectKey, never skip a gate, and never carry an approval across changed evidence/IR/runtime/output digests.",
+    "recoveryByFailedStage": {"PREPARING":"PREPARING","RENDERING":"QUEUED","ASSEMBLING":"QUEUED"},
+    "retryableErrorEntryRule": "Only RENDERING or ASSEMBLING may enter RETRYABLE_ERROR as a visible persisted state; PREPARING retries loop within PREPARING run records and cannot jump to QUEUED before READY and current gates exist.",
+    "manualRetry": "Manual retry after terminal FAILED or T5_REJECTED creates a new jobAttemptId in PREPARING, links previousAttemptId and retryReason, and requires fresh T1-T5 decisions for that new subject. No T1-T5 receipt from the old attempt is valid for the new attempt.",
+    "t5Rejection": "T5 rejection terminalizes the attempt as FAILED/T5_REJECTED; any follow-up is manualRetry with full reapproval unless a new immutable T4 predecessor for the new attempt is produced. Renderer success and media QC never create or carry approval."
+  },
+  "t5": {"assemblyResult":"private staged CAS objects only","approve":"in one BEGIN IMMEDIATE append receipt, recheck lease/version/authz/deletion epochs, promote staged refs, set COMPLETED","reject":"append reject receipt; set FAILED with safe code T5_REJECTED; a new render attempt requires current T4","cancelPolicy":"ASSEMBLING and AWAITING_T5 are not cancellable; cancellation is accepted only in PREPARING, QUEUED, or RENDERING and acknowledged at the next safe boundary"},
+  "gateDecision": {
+    "receiptSubjectKey": ["scope", "subjectId", "gate", "predecessorId", "decisionVersion"],
+    "jobScopeSubject": "jobAttemptId", "releaseScopeSubject": "releaseId",
+    "reject":"append immutable reject receipt; retain evidence; return to the state immediately before the rejected boundary except T5, which follows t5.reject",
+    "correction":"new immutable evidence/IR version and decisionVersion; never mutate a receipt",
+    "invalidation":"an invalidator at gate N transitively marks N and every approved successor through T5 stale; earliest stale gate blocks progress",
+    "assignments":"only super-admin may create or revoke reviewer assignments. Job-scope assignments require tenantId and gate T1-T5. Release-scope assignments require releaseId, gate T6 and tenantId=null. The assignee cannot assign itself, and one assignment cannot authorize both scopes.",
+    "t6":"release-scoped only; subjectId is releaseId, reviewer authorization comes from a release-scope T6 assignment with tenantId=null and no X-Tenant-Id request header, predecessorId is the immutable release baseline manifest digest, and evidence must reference at least one T5-approved pilot receipt chain without treating tenant T5 receipts as release-scope predecessors"
+  },
+  "quarantineRelease": {
+    "terminalRecordRule": "QUARANTINED remains terminal and immutable. A release command never mutates that upload into ACCEPTED and never returns an accepted artifact reference.",
+    "linkedRevalidationAttempt": "Authorized release creates a new uploadSessionId linkedReleasedFromItemId, state VALIDATING, same tenant, same source bytes copied into sandbox-only staging, and a new validationAttemptNo. It must rerun magic-byte, size, ffprobe, duration/fps/rotation, disk-admission and normalization checks before it can independently become ACCEPTED.",
+    "outcomes": {"acceptedAfterRevalidation":"new linked upload reaches ACCEPTED and emits UPLOAD_FINALIZED plus QUARANTINE_RELEASE_REVIEWED", "failedAfterRevalidation":"linked upload reaches INPUT_INVALID or QUARANTINED and emits QUARANTINE_RELEASE_REVIEWED with outcome=blocked", "reject":"original quarantine remains retained/rejected and emits QUARANTINE_RETAINED"},
+    "forbidden": ["return acceptedArtifactRef directly from POST /admin/quarantine/{itemId}/release", "read quarantined/raw bytes outside the media sandbox", "reuse old quarantine validation as acceptance"]
+  },
+  "authz": {
+    "bff":"BFF service credential is audience-bound to session:introspect only; each forwarded call carries opaque sessionId; API resolves user, selected tenant, capabilities and epochs server-side",
+    "sessionIdleSeconds":1800,"assertionMaxAgeSeconds":60,
+    "epochs":["userAuthzEpoch","tenantAuthzEpoch","membershipAuthzEpoch","deletionEpoch","restoreEpoch"],
+    "requestRule":"re-read active tenant, membership and all epochs on every request; stale epoch is AUTHZ_EPOCH_STALE",
+    "memberRemoval":"increment membership epoch, revoke member sessions and bearer tokens, deny new downloads and claims",
+    "tenantSuspension":"increment tenant epoch, revoke tenant sessions/tokens, pause queued claims, stop active work at next stage boundary, deny download issue and serve; preserve immutable history"
+  },
+  "irPatch": {
+    "allowedOps":["replace"],
+    "paths":{"/copy/*":"UTF-8 0..500 chars","/geometry/*":"finite canvas coordinates x 0..1080 y 0..1920 w 1..1080 h 1..1920","/owners/*":"existing ownerId or one current choice polygon <=64 vertices","/passOrder":"permutation of existing allowlisted pass IDs","/effects/*":"within measured min/max in evidence","/assets/*":"tenant-owned current asset-manifest ID only"},
+    "saga":"validate If-Match -> create candidate AuthoringIR -> transitively stale affected gates -> compile linked SceneIR and BrowserPassSpec -> render preview -> atomically set candidate current and return ETag; on any failure retain prior current chain and return EDIT_COMPILE_FAILED"
+  },
+  "publication": {
+    "order":["write tenant staging file","fsync file","verify SHA-256","same-filesystem rename into immutable CAS","fsync CAS parent","BEGIN IMMEDIATE and recheck lease/version/authz/deletion/restore epochs","insert staged or published DB reference","COMMIT","orphan sweep after grace"],
+    "killPoints":["before fsync","after fsync before rename","after rename before DB commit","after DB commit"],
+    "recovery":"discard staging; sweep unreferenced CAS after grace; any DB reference without a matching object is fatal CAS_INTEGRITY_ERROR",
+    "backup":"drain claims -> safe boundary -> WAL checkpoint TRUNCATE -> snapshot DB -> record and snapshot CAS manifest -> write backup manifest",
+    "restore":"new isolated root only -> verify all digests -> increment restore epoch -> revoke sessions/tokens/leases/downloads -> preserve deletion epochs -> fixed-frame verification -> T6"
+  },
+  "evidenceIndex": {"path":".omo/evidence/index.jsonl","appendOnly":true,"hashChain":true,"singleWriter":"verification/blackbox/evidence-writer.mjs obtains an exclusive lock and rejects parallel writes with EVIDENCE_WRITER_BUSY","rowFields":["taskId","scenario","evidencePath","evidenceSha256","command","exitCode","assertions","outputArtifactDigests","browserIdentity","runtimeManifestSha256","openapiSha256","modelManifestSha256","handoffZipSha256","releaseManifestSha256","verifierRootSha256","previousRowSha256","rowSha256"],"rule":"attempt-local evidence is indexed here; F1-F4 consume this canonical index and verify every referenced digest, output artifact digest, and Chrome/Playwright browser identity"},
+  "authorityExtensions": {"todo3VerifierRoot":"After Todo 3 freezes verification/contract-lock.json, it emits an externally anchored verifier root that records parentRootSha256, contract-lock SHA, black-box verifier script digests and forbidden-import scan digest. F1 requires it.","releaseManifest":"Todo 45 emits a T6-bound immutable release manifest enumerating final OpenAPI, runtime manifest, model manifest, handoff zip, recovery report, final media/report digests, Playwright browser identity and evidence index tail SHA. T6/F1 require it.","rule":"No child/root extension may rewrite parent entries; extensions append child manifests that preserve parentRootSha256 and are consumed by final verification."},
+  "composeIsolation": {"compiler":"network_mode:none","worker":"network_mode:none","runtime-preflight":"network_mode:none","appnet":"internal:true for web/api/qa","qaAuditEgress":"separate one-shot verifier with no appnet/database/CAS mounts; outbound HTTPS only to registry.npmjs.org; writes hash-bound advisory JSON to .omo/evidence for offline qa verification","rule":"no docker compose run --network flag; qa may reach only appnet services; compiler/worker/preflight external DNS and IP probes must fail; live dependency audit never runs inside isolated qa"}
+}

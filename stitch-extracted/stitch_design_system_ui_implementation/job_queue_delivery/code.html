@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Job Queue &amp; Delivery - REF_STUDIO</title>
+<!-- Material Symbols -->
+<script type="text/javascript" nonce="a8fa8df892b144ccaa86c8a1abe" src="//local.adguard.org?ts=1787306192554&amp;type=content-script&amp;dmn=contribution.usercontent.google.com&amp;url=https%3A%2F%2Fcontribution.usercontent.google.com%2Fdownload%3Fc%3DCgthaWRhX2NvZGVmeBJ6Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpZCiVodG1sXzAwMDY1OThiYjU1YzE3ZjUwMzgzOWE3OWVlM2JlOTUzEgsSBxCS7-G91AQYAZIBIgoKcHJvamVjdF9pZBIUQhIxOTQ3MjU1NTQ2MzA3NjAwNzM%26filename%3D%26opi%3D89354086&amp;app=firefox.exe&amp;css=3&amp;js=1&amp;rel=1&amp;rji=1&amp;sbe=1&amp;stealth=1&amp;st-loc&amp;st-dnt"></script><script type="text/javascript" nonce="a8fa8df892b144ccaa86c8a1abe" src="//local.adguard.org?ts=1787306192554&amp;name=AdGuard%20Extra&amp;type=user-script"></script><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400&amp;family=Inter:wght@400&amp;family=Manrope:wght@400;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Theme Configuration -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-container-lowest": "#0e0e0e",
+                    "primary-container": "#e2e2e2",
+                    "surface": "#141313",
+                    "on-surface-variant": "#c4c7c8",
+                    "canvas-soft": "#1a1c20",
+                    "on-tertiary-fixed": "#1a1c1c",
+                    "on-primary": "#2f3131",
+                    "surface-tint": "#c6c6c7",
+                    "on-primary-fixed-variant": "#454747",
+                    "primary": "#ffffff",
+                    "inverse-surface": "#e5e2e1",
+                    "tertiary-fixed-dim": "#c6c6c7",
+                    "sunset": "#ff7a17",
+                    "primary-fixed": "#e2e2e2",
+                    "on-tertiary-fixed-variant": "#454747",
+                    "outline-variant": "#444748",
+                    "outline": "#8e9192",
+                    "surface-container-high": "#2a2a2a",
+                    "on-surface": "#e5e2e1",
+                    "hairline": "#212327",
+                    "on-background": "#e5e2e1",
+                    "canvas": "#0a0a0a",
+                    "on-primary-fixed": "#1a1c1c",
+                    "secondary": "#c3c7cd",
+                    "tertiary-container": "#e2e2e2",
+                    "error-container": "#93000a",
+                    "canvas-card": "#191919",
+                    "surface-bright": "#3a3939",
+                    "on-tertiary": "#2f3131",
+                    "on-error": "#690005",
+                    "on-secondary-fixed": "#181c21",
+                    "breeze": "#a0c3ec",
+                    "surface-container-low": "#1c1b1b",
+                    "on-secondary-container": "#b2b5bc",
+                    "on-error-container": "#ffdad6",
+                    "error": "#ffb4ab",
+                    "body": "#dadbdf",
+                    "surface-dim": "#141313",
+                    "dusk": "#7c3aed",
+                    "primary-fixed-dim": "#c6c6c7",
+                    "inverse-on-surface": "#313030",
+                    "on-secondary": "#2c3136",
+                    "surface-variant": "#353434",
+                    "surface-container-highest": "#353434",
+                    "secondary-fixed-dim": "#c3c7cd",
+                    "ink": "#ffffff",
+                    "background": "#141313",
+                    "secondary-container": "#43474d",
+                    "inverse-primary": "#5d5f5f",
+                    "secondary-fixed": "#dfe3e9",
+                    "surface-container": "#201f1f",
+                    "on-primary-container": "#636565",
+                    "on-secondary-fixed-variant": "#43474d",
+                    "tertiary-fixed": "#e2e2e2",
+                    "on-tertiary-container": "#636565",
+                    "tertiary": "#ffffff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "md": "12px",
+                    "2xl": "32px",
+                    "xxs": "2px",
+                    "lg": "16px",
+                    "4xl": "64px",
+                    "xl": "24px",
+                    "sm": "8px",
+                    "3xl": "48px",
+                    "xs": "4px"
+            },
+            "fontFamily": {
+                    "caption-mono-sm": ["Geist", "monospace"],
+                    "display-sm": ["Manrope", "sans-serif"],
+                    "headline-lg-mobile": ["Manrope", "sans-serif"],
+                    "caption-mono": ["Geist", "monospace"],
+                    "body-sm": ["Inter", "sans-serif"],
+                    "display-lg": ["Manrope", "sans-serif"],
+                    "body-lg": ["Inter", "sans-serif"],
+                    "body-md": ["Inter", "sans-serif"],
+                    "display-md": ["Manrope", "sans-serif"],
+                    "button": ["Inter", "sans-serif"],
+                    "display-xl": ["Manrope", "sans-serif"]
+            },
+            "fontSize": {
+                    "caption-mono-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "1.2px", "fontWeight": "400"}],
+                    "display-sm": ["32px", {"lineHeight": "36px", "letterSpacing": "-0.6px", "fontWeight": "400"}],
+                    "headline-lg-mobile": ["40px", {"lineHeight": "44px", "letterSpacing": "-1px", "fontWeight": "400"}],
+                    "caption-mono": ["14px", {"lineHeight": "20px", "letterSpacing": "1.4px", "fontWeight": "400"}],
+                    "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "display-lg": ["72px", {"lineHeight": "72px", "letterSpacing": "-1.8px", "fontWeight": "400"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "display-md": ["48px", {"lineHeight": "48px", "letterSpacing": "-1.2px", "fontWeight": "400"}],
+                    "button": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "display-xl": ["96px", {"lineHeight": "96px", "letterSpacing": "-2.4px", "fontWeight": "400"}]
+            }
+          }
+        },
+      }
+    </script>
+<style>
+        body { background-color: theme('colors.canvas'); color: theme('colors.primary'); }
+        /* Custom scrollbar for an engineered feel */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: theme('colors.surface'); }
+        ::-webkit-scrollbar-thumb { background: theme('colors.hairline'); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: theme('colors.outline'); }
+    </style>
+</head>
+<body class="antialiased font-body-md flex min-h-screen">
+<!-- SideNavBar (Shared Component) -->
+<nav class="hidden md:flex bg-surface dark:bg-surface h-screen w-64 left-0 sticky border-r border-hairline flex flex-col h-full gap-md p-lg transition-all duration-200 ease-in-out z-20">
+<div class="mb-2xl px-sm">
+<h2 class="font-display-sm text-display-sm text-primary">Admin Panel</h2>
+<p class="font-caption-mono text-caption-mono text-on-surface-variant uppercase tracking-widest mt-sm">System Control</p>
+</div>
+<ul class="flex flex-col gap-xs flex-1">
+<li>
+<a class="flex items-center gap-md text-on-surface-variant hover:text-primary px-4 py-2 hover:bg-canvas-soft rounded-DEFAULT transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined text-[20px]">dashboard</span>
+<span class="font-button text-button">Dashboard</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-md text-on-surface-variant hover:text-primary px-4 py-2 hover:bg-canvas-soft rounded-DEFAULT transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined text-[20px]">groups</span>
+<span class="font-button text-button">Tenants</span>
+</a>
+</li>
+<!-- Active Tab: Jobs -->
+<li>
+<a class="flex items-center gap-md bg-primary text-on-primary rounded-full px-4 py-2 transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined text-[20px]">qr_code_2</span>
+<span class="font-button text-button">Jobs</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-md text-on-surface-variant hover:text-primary px-4 py-2 hover:bg-canvas-soft rounded-DEFAULT transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined text-[20px]">history_edu</span>
+<span class="font-button text-button">Receipts</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-md text-on-surface-variant hover:text-primary px-4 py-2 hover:bg-canvas-soft rounded-DEFAULT transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined text-[20px]">emergency_home</span>
+<span class="font-button text-button">Quarantine</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-md text-on-surface-variant hover:text-primary px-4 py-2 hover:bg-canvas-soft rounded-DEFAULT transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined text-[20px]">gavel</span>
+<span class="font-button text-button">Audit</span>
+</a>
+</li>
+</ul>
+<div class="mt-auto flex flex-col gap-md pt-xl border-t border-hairline">
+<button class="w-full border border-hairline rounded-full px-4 py-2 font-button text-button text-primary hover:bg-canvas-soft transition-all duration-200">
+                Export Logs
+            </button>
+<ul class="flex flex-col gap-xs">
+<li>
+<a class="flex items-center gap-md text-on-surface-variant hover:text-primary px-4 py-2 hover:bg-canvas-soft rounded-DEFAULT transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined text-[18px]">help</span>
+<span class="font-button text-button">Support</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-md text-on-surface-variant hover:text-primary px-4 py-2 hover:bg-canvas-soft rounded-DEFAULT transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined text-[18px]">sensors</span>
+<span class="font-button text-button">Status</span>
+</a>
+</li>
+</ul>
+</div>
+</nav>
+<!-- Main Content Area -->
+<main class="flex-1 flex flex-col min-w-0 bg-canvas relative">
+<!-- TopNavBar (Shared Component) -->
+<header class="bg-canvas dark:bg-canvas docked full-width top-0 sticky z-10 border-b border-hairline">
+<div class="flex justify-between items-center w-full px-lg py-md max-w-[1280px] mx-auto">
+<div class="flex items-center gap-2xl">
+<span class="font-display-sm text-display-sm font-bold text-primary tracking-tighter">REF_STUDIO</span>
+<nav class="hidden lg:flex gap-xl font-body-sm text-body-sm tracking-tight">
+<!-- Active: Workflow (as it relates to jobs/queue) -->
+<a class="text-primary border-b border-primary pb-1 hover:bg-canvas-soft transition-all duration-150 Active: scale-95 duration-100" href="#">Workflow</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors hover:bg-canvas-soft transition-all duration-150 Active: scale-95 duration-100 pb-1" href="#">Admin</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors hover:bg-canvas-soft transition-all duration-150 Active: scale-95 duration-100 pb-1" href="#">Docs</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors hover:bg-canvas-soft transition-all duration-150 Active: scale-95 duration-100 pb-1" href="#">Support</a>
+</nav>
+</div>
+<div class="flex items-center gap-lg">
+<!-- Search Bar Placeholders (on_right) -->
+<div class="hidden md:flex items-center bg-canvas-soft border border-hairline rounded-full px-md py-xs">
+<span class="material-symbols-outlined text-on-surface-variant text-[18px]">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-body-sm text-primary placeholder-on-surface-variant w-48" placeholder="Search resources..." type="text"/>
+</div>
+<div class="flex items-center gap-sm">
+<button class="p-xs text-on-surface-variant hover:text-primary hover:bg-canvas-soft transition-all duration-150 rounded-DEFAULT">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="p-xs text-on-surface-variant hover:text-primary hover:bg-canvas-soft transition-all duration-150 rounded-DEFAULT">
+<span class="material-symbols-outlined">settings</span>
+</button>
+<button class="ml-sm bg-primary text-on-primary font-button text-button px-lg py-sm rounded-full hover:bg-primary-container transition-all duration-150">
+                            New Project
+                        </button>
+</div>
+</div>
+</div>
+</header>
+<!-- Page Canvas -->
+<div class="p-lg md:p-4xl flex-1 flex flex-col gap-2xl max-w-[1440px] mx-auto w-full">
+<!-- Header Section -->
+<div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-md">
+<div>
+<h1 class="font-display-md text-display-md text-primary tracking-tight">Queue &amp; Delivery</h1>
+<p class="font-caption-mono text-caption-mono text-on-surface-variant mt-sm uppercase">Active Engine Tasks &amp; Asset Retrieval</p>
+</div>
+<div class="flex gap-md">
+<button class="border border-hairline rounded-full px-lg py-sm font-button text-button text-primary hover:bg-canvas-soft flex items-center gap-xs transition-all duration-150">
+<span class="material-symbols-outlined text-[18px]">filter_list</span>
+                        Filter View
+                    </button>
+</div>
+</div>
+<!-- Data Table Card -->
+<div class="bg-canvas-card border border-hairline rounded-xl overflow-hidden flex-1 shadow-sm">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse whitespace-nowrap">
+<thead>
+<tr class="bg-surface-container-low border-b border-hairline">
+<th class="py-md px-xl font-caption-mono-sm text-caption-mono-sm text-on-surface-variant uppercase tracking-widest font-normal w-48">JOB_ID</th>
+<th class="py-md px-xl font-caption-mono-sm text-caption-mono-sm text-on-surface-variant uppercase tracking-widest font-normal w-64">TENANT</th>
+<th class="py-md px-xl font-caption-mono-sm text-caption-mono-sm text-on-surface-variant uppercase tracking-widest font-normal w-64">STATE</th>
+<th class="py-md px-xl font-caption-mono-sm text-caption-mono-sm text-on-surface-variant uppercase tracking-widest font-normal w-48">DELIVERY</th>
+<th class="py-md px-xl font-caption-mono-sm text-caption-mono-sm text-on-surface-variant uppercase tracking-widest font-normal text-right">ACTIONS</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-hairline">
+<!-- Row: Rendering -->
+<tr class="hover:bg-canvas-soft transition-colors duration-150 group">
+<td class="py-xl px-xl font-caption-mono text-caption-mono text-primary">#RND-8991-X</td>
+<td class="py-xl px-xl font-body-md text-body-md text-primary">Aethelgard Dynamics</td>
+<td class="py-xl px-xl">
+<div class="flex items-center gap-md">
+<span class="border border-outline-variant px-sm py-xs rounded-sm font-caption-mono-sm text-caption-mono-sm text-sunset bg-sunset/10 inline-flex items-center gap-xs w-fit">
+<span class="material-symbols-outlined text-[14px] animate-spin">sync</span>
+                                            [RENDERING 50%]
+                                        </span>
+<div class="w-24 h-1 bg-surface-container-high rounded-full overflow-hidden">
+<div class="bg-sunset h-full w-1/2"></div>
+</div>
+</div>
+</td>
+<td class="py-xl px-xl font-caption-mono text-caption-mono text-on-surface-variant opacity-50">TBD</td>
+<td class="py-xl px-xl text-right">
+<div class="flex justify-end gap-md opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+<button class="border border-hairline rounded-full px-lg py-sm font-button text-button text-error hover:bg-error/10 transition-all">Abort Task</button>
+</div>
+</td>
+</tr>
+<!-- Row: Completed -->
+<tr class="hover:bg-canvas-soft transition-colors duration-150 group">
+<td class="py-xl px-xl font-caption-mono text-caption-mono text-on-surface-variant">#RND-8990-W</td>
+<td class="py-xl px-xl font-body-md text-body-md text-primary">Omni Consumer Corp</td>
+<td class="py-xl px-xl">
+<span class="border border-hairline px-sm py-xs rounded-sm font-caption-mono-sm text-caption-mono-sm text-primary inline-flex items-center gap-xs w-fit">
+<span class="material-symbols-outlined text-[14px]">check</span>
+                                        [COMPLETED]
+                                    </span>
+</td>
+<td class="py-xl px-xl font-caption-mono text-caption-mono text-on-surface-variant">14:02:44 UTC</td>
+<td class="py-xl px-xl text-right">
+<div class="flex justify-end gap-sm">
+<button class="border border-hairline rounded-full px-lg py-sm font-button text-button text-primary hover:bg-surface-container-high transition-all">
+                                            Download Render Report
+                                        </button>
+<button class="border border-hairline rounded-full px-lg py-sm font-button text-button text-primary hover:bg-surface-container-high transition-all flex items-center gap-xs">
+<span class="material-symbols-outlined text-[16px]">download</span>
+                                            Download Video
+                                        </button>
+</div>
+</td>
+</tr>
+<!-- Row: Queued -->
+<tr class="hover:bg-canvas-soft transition-colors duration-150 group">
+<td class="py-xl px-xl font-caption-mono text-caption-mono text-on-surface-variant">#RND-8992-Y</td>
+<td class="py-xl px-xl font-body-md text-body-md text-primary">Tyrell Corporation</td>
+<td class="py-xl px-xl">
+<span class="border border-hairline px-sm py-xs rounded-sm font-caption-mono-sm text-caption-mono-sm text-on-surface-variant inline-flex items-center gap-xs w-fit opacity-70">
+<span class="material-symbols-outlined text-[14px]">hourglass_empty</span>
+                                        [QUEUED]
+                                    </span>
+</td>
+<td class="py-xl px-xl font-caption-mono text-caption-mono text-on-surface-variant opacity-50">PENDING</td>
+<td class="py-xl px-xl text-right">
+<div class="flex justify-end gap-md opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+<button class="border border-hairline rounded-full px-lg py-sm font-button text-button text-on-surface-variant hover:text-primary hover:bg-surface-container-high transition-all">Prioritize</button>
+</div>
+</td>
+</tr>
+<!-- Row: Completed (Older) -->
+<tr class="hover:bg-canvas-soft transition-colors duration-150 group">
+<td class="py-xl px-xl font-caption-mono text-caption-mono text-on-surface-variant">#RND-8985-V</td>
+<td class="py-xl px-xl font-body-md text-body-md text-primary">Cyberdyne Systems</td>
+<td class="py-xl px-xl">
+<span class="border border-hairline px-sm py-xs rounded-sm font-caption-mono-sm text-caption-mono-sm text-primary inline-flex items-center gap-xs w-fit">
+<span class="material-symbols-outlined text-[14px]">check</span>
+                                        [COMPLETED]
+                                    </span>
+</td>
+<td class="py-xl px-xl font-caption-mono text-caption-mono text-on-surface-variant">Yesterday</td>
+<td class="py-xl px-xl text-right">
+<div class="flex justify-end gap-sm">
+<button class="border border-hairline rounded-full px-lg py-sm font-button text-button text-primary hover:bg-surface-container-high transition-all">
+                                            Download Render Report
+                                        </button>
+<button class="border border-hairline rounded-full px-lg py-sm font-button text-button text-primary hover:bg-surface-container-high transition-all flex items-center gap-xs">
+<span class="material-symbols-outlined text-[16px]">download</span>
+                                            Download Video
+                                        </button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination / Footer of table -->
+<div class="border-t border-hairline bg-surface-container-lowest py-md px-xl flex justify-between items-center">
+<span class="font-caption-mono-sm text-caption-mono-sm text-on-surface-variant">SHOWING 1-4 OF 128 JOBS</span>
+<div class="flex gap-xs">
+<button class="p-xs border border-hairline rounded text-on-surface-variant hover:text-primary hover:bg-canvas-soft"><span class="material-symbols-outlined text-[18px]">chevron_left</span></button>
+<button class="p-xs border border-hairline rounded text-on-surface-variant hover:text-primary hover:bg-canvas-soft"><span class="material-symbols-outlined text-[18px]">chevron_right</span></button>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer (Shared Component) -->
+<footer class="bg-canvas dark:bg-canvas w-full py-2xl mt-4xl border-t border-hairline mt-auto">
+<div class="max-w-[1280px] mx-auto flex flex-col md:flex-row justify-between items-center px-lg gap-lg">
+<div class="font-caption-mono text-caption-mono text-primary">
+<span class="material-symbols-outlined align-middle mr-xs text-[18px]">terminal</span>REF_STUDIO
+                </div>
+<div class="font-caption-mono-sm text-caption-mono-sm text-on-surface-variant uppercase flex gap-xl">
+<a class="hover:text-primary transition-opacity duration-300" href="#">API</a>
+<a class="hover:text-primary transition-opacity duration-300" href="#">Legal</a>
+<a class="hover:text-primary transition-opacity duration-300" href="#">Privacy</a>
+<a class="hover:text-primary transition-opacity duration-300" href="#">GitHub</a>
+</div>
+<div class="font-caption-mono-sm text-caption-mono-sm text-on-surface-variant uppercase">
+                    © 2024 REF_STUDIO ENGINE. ALL RIGHTS RESERVED.
+                </div>
+</div>
+</footer>
+</main>
+</body></html>

@@ -1,0 +1,149 @@
+{
+  "schemaVersion": "rvs-handoff-manifest-v1",
+  "allowlist": [
+    ".omo/plans/reference-video-studio-saas.md",
+    ".omo/drafts/reference-video-studio-saas-authority-root.md",
+    ".omo/drafts/reference-video-studio-saas-execution-contract-v2.json",
+    ".omo/drafts/reference-video-studio-saas-dependency-pins-v2.json",
+    "verification/contract/execution-contract-v2.json",
+    "verification/contract/fixture-contract-v2.json",
+    "packages/contracts/generated/openapi.json",
+    "runtime/runtime-artifact-manifest.json",
+    "runtime/supply-closure-manifest.json",
+    "runtime/npm-artifact-manifest.json",
+    "docs/OPERATIONS.md",
+    "docs/RECOVERY.md",
+    "docs/HANDOFF.md",
+    ".omo/evidence/wave7/task-43-reference-video-studio-saas.json",
+    ".omo/evidence/wave7/task-44-reference-video-studio-saas.json",
+    ".omo/evidence/wave7/task-44-pilot-report.json",
+    ".omo/evidence/wave7/task-41-reference-video-studio-saas.json",
+    ".omo/evidence/wave7/task-42-reference-video-studio-saas.json",
+    "scripts/deploy/verify.mjs",
+    "scripts/recovery/test.mjs",
+    "scripts/handoff/build.mjs",
+    "scripts/handoff/verify.mjs"
+  ],
+  "excludes": [
+    "secrets",
+    "raw-media",
+    "databases",
+    "node_modules",
+    ".next",
+    "model-weights",
+    "private-runtime-data",
+    "path-escapes"
+  ],
+  "entries": [
+    {
+      "path": ".omo/plans/reference-video-studio-saas.md",
+      "sha256": "b9350783fbc8c689b8e874c8c7b631a209ab9b6aa71705bc6daafd641cb63609",
+      "bytes": 120040
+    },
+    {
+      "path": ".omo/drafts/reference-video-studio-saas-authority-root.md",
+      "sha256": "8c0df9b22418180ab4a79d229fc5671640a50c875e62603d5ad99bb5dbe918e2",
+      "bytes": 4890
+    },
+    {
+      "path": ".omo/drafts/reference-video-studio-saas-execution-contract-v2.json",
+      "sha256": "5e1f89acb46d86e6cb5add7a3f060e8dd064a1b41d212b434398538bbd779c76",
+      "bytes": 9853
+    },
+    {
+      "path": ".omo/drafts/reference-video-studio-saas-dependency-pins-v2.json",
+      "sha256": "aea5fe99a25d9dc4a34f5d9eb4a1229b445963e51dc6ee43943ca42e26636b7d",
+      "bytes": 1327
+    },
+    {
+      "path": "verification/contract/execution-contract-v2.json",
+      "sha256": "5e1f89acb46d86e6cb5add7a3f060e8dd064a1b41d212b434398538bbd779c76",
+      "bytes": 9853
+    },
+    {
+      "path": "verification/contract/fixture-contract-v2.json",
+      "sha256": "a2a3f6c7688396690ebf61a458f355739855d2d8920a04eedb4ed2c3c0a2300c",
+      "bytes": 18858
+    },
+    {
+      "path": "packages/contracts/generated/openapi.json",
+      "sha256": "fb5a619132599ecc4b4c61b533b1fbe2c6a90ef33e7e20316b16df7fc2a47871",
+      "bytes": 27725
+    },
+    {
+      "path": "runtime/runtime-artifact-manifest.json",
+      "sha256": "c1eb107ddeaaf6c45b226012a5e98b73c9d68e5ea96b709b2d07ea9747f1cefa",
+      "bytes": 2155
+    },
+    {
+      "path": "runtime/supply-closure-manifest.json",
+      "sha256": "2491fa669cf7acacc9de7c042c8c7e03bdfd7f8f234c4bcaa816e190be7bd9a2",
+      "bytes": 13481
+    },
+    {
+      "path": "runtime/npm-artifact-manifest.json",
+      "sha256": "d293e64ea60fde4ad7564cbb54c6a76946b005f86d6548900845c3a02df4a04f",
+      "bytes": 108071
+    },
+    {
+      "path": "docs/OPERATIONS.md",
+      "sha256": "48200f193b9eda35f7900e2a09efdd0bb2d61fb4df976f07c1530d8f5e330e41",
+      "bytes": 1059
+    },
+    {
+      "path": "docs/RECOVERY.md",
+      "sha256": "29f44f7d331d9dd6bf5019e7f4eac3c37116c748f78ae948f0cc9e8bd6aae296",
+      "bytes": 804
+    },
+    {
+      "path": "docs/HANDOFF.md",
+      "sha256": "d02bf7f09729231bae7a09e10d6f285779dc5b5db3deb6f0aebd65fe521abb1e",
+      "bytes": 767
+    },
+    {
+      "path": ".omo/evidence/wave7/task-43-reference-video-studio-saas.json",
+      "sha256": "4cddb17e1d1ddccae9d1eb617fe9c256e36bec636a002f44b83351d18ef3ee3f",
+      "bytes": 3119
+    },
+    {
+      "path": ".omo/evidence/wave7/task-44-reference-video-studio-saas.json",
+      "sha256": "1da4f64dfdfd73a5f66cee4cebab613f01724866947cfa781f21127360d5a87a",
+      "bytes": 534
+    },
+    {
+      "path": ".omo/evidence/wave7/task-44-pilot-report.json",
+      "sha256": "e1c3930395036325dba816ab71c6f61b96ae824f15918ec99c8dda0bb0f7c4a4",
+      "bytes": 23964
+    },
+    {
+      "path": ".omo/evidence/wave7/task-41-reference-video-studio-saas.json",
+      "sha256": "f2be1dee4b6de71f14c7b1f9f2d25e43c168af3bdc08829f2e4408c9de431732",
+      "bytes": 4291
+    },
+    {
+      "path": ".omo/evidence/wave7/task-42-reference-video-studio-saas.json",
+      "sha256": "6876ffaccc5d880d990274f0514f22f2e7f1c9a1666d7ba0b01629c472887ea7",
+      "bytes": 962
+    },
+    {
+      "path": "scripts/deploy/verify.mjs",
+      "sha256": "daeb87c031cf4bb4f46bf7ad39368e1c13583770119d576a678e8c0f25c77367",
+      "bytes": 1375
+    },
+    {
+      "path": "scripts/recovery/test.mjs",
+      "sha256": "0155780c1f3d0c5afb288f1dd148b46dd445dd3d5edaed39d9a91fb3db5a959a",
+      "bytes": 2807
+    },
+    {
+      "path": "scripts/handoff/build.mjs",
+      "sha256": "81d5f21c4da3afbd54f20a31aa6f8b4bad41b0b524366188bfb8fd896ad895c5",
+      "bytes": 3388
+    },
+    {
+      "path": "scripts/handoff/verify.mjs",
+      "sha256": "9f446ec71f3529d61ee26e43a3b5531a0854d26b00f42d533904e9e7386289c8",
+      "bytes": 2060
+    }
+  ]
+}

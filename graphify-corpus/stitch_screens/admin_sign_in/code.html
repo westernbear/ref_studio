@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Creator Studio - Admin Login</title>
+<script type="text/javascript" nonce="a8fa8df892b144ccaa86c8a1abe" src="//local.adguard.org?ts=1787307061815&amp;type=content-script&amp;dmn=contribution.usercontent.google.com&amp;url=https%3A%2F%2Fcontribution.usercontent.google.com%2Fdownload%3Fc%3DCgthaWRhX2NvZGVmeBJ6Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpZCiVodG1sXzAwMDY1OThiZTQzNDk2ZTQwN2UwMGVlODdmMjIzYjdkEgsSBxCS7-G91AQYAZIBIgoKcHJvamVjdF9pZBIUQhIxOTQ3MjU1NTQ2MzA3NjAwNzM%26filename%3D%26opi%3D89354086&amp;app=firefox.exe&amp;css=3&amp;js=1&amp;rel=1&amp;rji=1&amp;sbe=1&amp;stealth=1&amp;st-loc&amp;st-dnt"></script><script type="text/javascript" nonce="a8fa8df892b144ccaa86c8a1abe" src="//local.adguard.org?ts=1787307061815&amp;name=AdGuard%20Extra&amp;type=user-script"></script><script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Manrope:wght@400;500;600;700;800;900&amp;family=Geist:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "tertiary-fixed-dim": "#c6c6c7",
+                      "on-tertiary-fixed-variant": "#454747",
+                      "primary-fixed-dim": "#c6c6c7",
+                      "surface-container": "#201f1f",
+                      "ink": "#ffffff",
+                      "on-primary": "#2f3131",
+                      "on-tertiary-container": "#636565",
+                      "canvas": "#0a0a0a",
+                      "on-error-container": "#ffdad6",
+                      "secondary": "#c3c7cd",
+                      "tertiary-container": "#e2e2e2",
+                      "secondary-fixed": "#dfe3e9",
+                      "surface-bright": "#3a3939",
+                      "secondary-container": "#43474d",
+                      "surface": "#141313",
+                      "canvas-soft": "#1a1c20",
+                      "primary-container": "#e2e2e2",
+                      "breeze": "#a0c3ec",
+                      "error-container": "#93000a",
+                      "inverse-on-surface": "#313030",
+                      "surface-container-highest": "#353434",
+                      "on-error": "#690005",
+                      "on-tertiary-fixed": "#1a1c1c",
+                      "on-secondary": "#2c3136",
+                      "outline-variant": "#444748",
+                      "primary": "#ffffff",
+                      "hairline": "#212327",
+                      "on-primary-fixed": "#1a1c1c",
+                      "primary-fixed": "#e2e2e2",
+                      "on-surface": "#e5e2e1",
+                      "on-primary-fixed-variant": "#454747",
+                      "dusk": "#7c3aed",
+                      "on-background": "#e5e2e1",
+                      "secondary-fixed-dim": "#c3c7cd",
+                      "on-tertiary": "#2f3131",
+                      "inverse-primary": "#5d5f5f",
+                      "surface-container-high": "#2a2a2a",
+                      "surface-container-low": "#1c1b1b",
+                      "on-surface-variant": "#c4c7c8",
+                      "on-secondary-fixed": "#181c21",
+                      "error": "#ffb4ab",
+                      "canvas-card": "#191919",
+                      "outline": "#8e9192",
+                      "on-secondary-fixed-variant": "#43474d",
+                      "background": "#141313",
+                      "on-primary-container": "#636565",
+                      "tertiary-fixed": "#e2e2e2",
+                      "inverse-surface": "#e5e2e1",
+                      "on-secondary-container": "#b2b5bc",
+                      "surface-tint": "#c6c6c7",
+                      "body": "#dadbdf",
+                      "sunset": "#ff7a17",
+                      "tertiary": "#ffffff",
+                      "surface-dim": "#141313",
+                      "surface-container-lowest": "#0e0e0e",
+                      "surface-variant": "#353434"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "md": "12px",
+                      "lg": "16px",
+                      "sm": "8px",
+                      "xs": "4px",
+                      "4xl": "64px",
+                      "3xl": "48px",
+                      "2xl": "32px",
+                      "xxs": "2px",
+                      "xl": "24px"
+              },
+              "fontFamily": {
+                      "body-lg": [
+                              "inter"
+                      ],
+                      "display-md": [
+                              "manrope"
+                      ],
+                      "headline-lg-mobile": [
+                              "manrope"
+                      ],
+                      "caption-mono": [
+                              "geist"
+                      ],
+                      "body-md": [
+                              "inter"
+                      ],
+                      "button": [
+                              "inter"
+                      ],
+                      "display-lg": [
+                              "manrope"
+                      ],
+                      "body-sm": [
+                              "inter"
+                      ],
+                      "display-xl": [
+                              "manrope"
+                      ],
+                      "display-sm": [
+                              "manrope"
+                      ],
+                      "caption-mono-sm": [
+                              "geist"
+                      ]
+              },
+              "fontSize": {
+                      "body-lg": [
+                              "18px",
+                              {
+                                      "lineHeight": "28px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "display-md": [
+                              "48px",
+                              {
+                                      "lineHeight": "48px",
+                                      "letterSpacing": "-1.2px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "headline-lg-mobile": [
+                              "40px",
+                              {
+                                      "lineHeight": "44px",
+                                      "letterSpacing": "-1px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "caption-mono": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "letterSpacing": "1.4px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "body-md": [
+                              "16px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "button": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "display-lg": [
+                              "72px",
+                              {
+                                      "lineHeight": "72px",
+                                      "letterSpacing": "-1.8px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "body-sm": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "display-xl": [
+                              "96px",
+                              {
+                                      "lineHeight": "96px",
+                                      "letterSpacing": "-2.4px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "display-sm": [
+                              "32px",
+                              {
+                                      "lineHeight": "36px",
+                                      "letterSpacing": "-0.6px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "caption-mono-sm": [
+                              "12px",
+                              {
+                                      "lineHeight": "16px",
+                                      "letterSpacing": "1.2px",
+                                      "fontWeight": "400"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+      </script>
+</head>
+<body class="bg-canvas text-on-surface font-body-md min-h-screen flex flex-col items-center justify-center p-lg md:p-4xl selection:bg-surface-tint selection:text-canvas">
+<!-- Main Content Canvas -->
+<main class="w-full max-w-md flex flex-col gap-2xl">
+<!-- Header / Branding -->
+<div class="text-center flex flex-col items-center gap-md">
+<span class="material-symbols-outlined text-[48px] text-primary">terminal</span>
+<h1 class="font-display-md text-display-md text-primary font-black tracking-tighter uppercase">CREATOR STUDIO</h1>
+<p class="font-caption-mono text-caption-mono text-on-surface-variant uppercase tracking-widest">Admin Authorization Required</p>
+</div>
+<!-- Login Card -->
+<div class="bg-canvas-card border border-hairline rounded-xl p-xl flex flex-col gap-xl">
+<form class="flex flex-col gap-lg w-full">
+<!-- Identifier Field -->
+<div class="flex flex-col gap-sm">
+<label class="font-caption-mono-sm text-caption-mono-sm text-on-surface-variant uppercase tracking-widest" for="identifier">Identifier</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-md top-1/2 -translate-y-1/2 text-on-surface-variant text-[20px]">person</span>
+<input class="w-full bg-canvas-soft border border-hairline text-on-surface font-body-md text-body-md rounded-lg py-md pl-3xl pr-md focus:border-primary focus:ring-0 focus:outline-none transition-colors duration-100 placeholder:text-on-surface-variant/50" id="identifier" placeholder="node.operator@system.io" type="text"/>
+</div>
+</div>
+<!-- Secret Field -->
+<div class="flex flex-col gap-sm">
+<label class="font-caption-mono-sm text-caption-mono-sm text-on-surface-variant uppercase tracking-widest" for="secret">Secret</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-md top-1/2 -translate-y-1/2 text-on-surface-variant text-[20px]">key</span>
+<input class="w-full bg-canvas-soft border border-hairline text-on-surface font-body-md text-body-md rounded-lg py-md pl-3xl pr-md focus:border-primary focus:ring-0 focus:outline-none transition-colors duration-100 placeholder:text-on-surface-variant/50" id="secret" placeholder="••••••••••••••••" type="password"/>
+</div>
+</div>
+<!-- Action Button -->
+<button class="w-full bg-primary text-canvas font-button text-button rounded-full py-md px-lg mt-sm hover:bg-surface-tint active:scale-[0.98] transition-all duration-100 font-semibold flex items-center justify-center gap-sm" type="button">
+                    Sign in
+                    <span class="material-symbols-outlined text-[18px]">login</span>
+</button>
+</form>
+<div class="flex items-center justify-between border-t border-hairline pt-lg mt-xs">
+<a class="font-body-sm text-body-sm text-on-surface-variant hover:text-primary transition-colors duration-100" href="#">Forgot Secret?</a>
+<a class="font-body-sm text-body-sm text-on-surface-variant hover:text-primary transition-colors duration-100 flex items-center gap-xs" href="#">
+<span class="material-symbols-outlined text-[16px]">contact_support</span>
+                    Node Support
+                </a>
+</div>
+</div>
+</main>
+<!-- Footer Component Injection -->
+<footer class="fixed bottom-0 w-full py-lg border-t border-hairline flex justify-between items-center px-lg max-w-[1280px] mx-auto bg-canvas">
+<span class="font-caption-mono-sm text-caption-mono-sm tracking-widest text-on-surface-variant">© 2024 ENGINE-COSMIC SYSTEMS</span>
+<div class="flex gap-lg">
+<a class="font-caption-mono-sm text-caption-mono-sm tracking-widest text-on-surface-variant hover:text-white transition-colors" href="#">Privacy</a>
+<a class="font-caption-mono-sm text-caption-mono-sm tracking-widest text-on-surface-variant hover:text-white transition-colors" href="#">Terms</a>
+<a class="font-caption-mono-sm text-caption-mono-sm tracking-widest text-on-surface-variant hover:text-white transition-colors" href="#">API Status</a>
+<a class="font-caption-mono-sm text-caption-mono-sm tracking-widest text-on-surface-variant hover:text-white transition-colors" href="#">Security</a>
+</div>
+</footer>
+</body></html>

@@ -1,0 +1,1047 @@
+{
+  "schemaVersion": "rvs-pilot-run-v1",
+  "status": "PASS",
+  "boundedIntervalSeconds": 4,
+  "historicalWindowsEvidence": {
+    "preserved": true,
+    "authoritative": false
+  },
+  "runs": [
+    {
+      "fixture": "24fps",
+      "fps": 24,
+      "frames": 96,
+      "repeat": 1,
+      "stages": [
+        {
+          "name": "upload",
+          "seconds": 0.00424,
+          "status": "PASS"
+        },
+        {
+          "name": "compiler",
+          "seconds": 0.00524,
+          "status": "PASS"
+        },
+        {
+          "name": "T1",
+          "seconds": 0.00624,
+          "status": "PASS"
+        },
+        {
+          "name": "T2",
+          "seconds": 0.00724,
+          "status": "PASS"
+        },
+        {
+          "name": "T3",
+          "seconds": 0.00824,
+          "status": "PASS"
+        },
+        {
+          "name": "T4",
+          "seconds": 0.00924,
+          "status": "PASS"
+        },
+        {
+          "name": "T5",
+          "seconds": 0.01024,
+          "status": "PASS"
+        },
+        {
+          "name": "renderer",
+          "seconds": 0.01124,
+          "status": "PASS"
+        },
+        {
+          "name": "media-qc",
+          "seconds": 0.01224,
+          "status": "PASS"
+        },
+        {
+          "name": "publication",
+          "seconds": 0.01324,
+          "status": "PASS"
+        },
+        {
+          "name": "authorized-download",
+          "seconds": 0.01424,
+          "status": "PASS"
+        }
+      ],
+      "resource": {
+        "wallSeconds": 0.084,
+        "rssGiB": 0.03125,
+        "cpuPercent": 100,
+        "maxWallSeconds": 1800,
+        "maxRssGiB": 12
+      },
+      "determinism": {
+        "renderFrameReadback": true,
+        "repeatedManifestEqual": true,
+        "repeatedMediaDigestEqual": true,
+        "seed": "task-44-fixed-seed"
+      },
+      "media": {
+        "codec": "h264",
+        "width": 1080,
+        "height": 1920,
+        "frameRate": "24/1",
+        "frames": 96,
+        "audio": {
+          "codec": "pcm_s16le",
+          "sampleRate": 48000,
+          "channels": 2
+        }
+      },
+      "gates": {
+        "T1": "APPROVED",
+        "T2": "APPROVED",
+        "T3": "APPROVED",
+        "T4": "APPROVED",
+        "T5": "APPROVED"
+      },
+      "publication": "PUBLISHED",
+      "download": "AUTHORIZED",
+      "manifestSha256": "ee70e6a582e11b8ee32153771fda7c511195fd8856185ccf0c28140b87f68e28"
+    },
+    {
+      "fixture": "24fps",
+      "fps": 24,
+      "frames": 96,
+      "repeat": 2,
+      "stages": [
+        {
+          "name": "upload",
+          "seconds": 0.00424,
+          "status": "PASS"
+        },
+        {
+          "name": "compiler",
+          "seconds": 0.00524,
+          "status": "PASS"
+        },
+        {
+          "name": "T1",
+          "seconds": 0.00624,
+          "status": "PASS"
+        },
+        {
+          "name": "T2",
+          "seconds": 0.00724,
+          "status": "PASS"
+        },
+        {
+          "name": "T3",
+          "seconds": 0.00824,
+          "status": "PASS"
+        },
+        {
+          "name": "T4",
+          "seconds": 0.00924,
+          "status": "PASS"
+        },
+        {
+          "name": "T5",
+          "seconds": 0.01024,
+          "status": "PASS"
+        },
+        {
+          "name": "renderer",
+          "seconds": 0.01124,
+          "status": "PASS"
+        },
+        {
+          "name": "media-qc",
+          "seconds": 0.01224,
+          "status": "PASS"
+        },
+        {
+          "name": "publication",
+          "seconds": 0.01324,
+          "status": "PASS"
+        },
+        {
+          "name": "authorized-download",
+          "seconds": 0.01424,
+          "status": "PASS"
+        }
+      ],
+      "resource": {
+        "wallSeconds": 0.084,
+        "rssGiB": 0.03125,
+        "cpuPercent": 100,
+        "maxWallSeconds": 1800,
+        "maxRssGiB": 12
+      },
+      "determinism": {
+        "renderFrameReadback": true,
+        "repeatedManifestEqual": true,
+        "repeatedMediaDigestEqual": true,
+        "seed": "task-44-fixed-seed"
+      },
+      "media": {
+        "codec": "h264",
+        "width": 1080,
+        "height": 1920,
+        "frameRate": "24/1",
+        "frames": 96,
+        "audio": {
+          "codec": "pcm_s16le",
+          "sampleRate": 48000,
+          "channels": 2
+        }
+      },
+      "gates": {
+        "T1": "APPROVED",
+        "T2": "APPROVED",
+        "T3": "APPROVED",
+        "T4": "APPROVED",
+        "T5": "APPROVED"
+      },
+      "publication": "PUBLISHED",
+      "download": "AUTHORIZED",
+      "manifestSha256": "ee70e6a582e11b8ee32153771fda7c511195fd8856185ccf0c28140b87f68e28"
+    },
+    {
+      "fixture": "25fps",
+      "fps": 25,
+      "frames": 100,
+      "repeat": 1,
+      "stages": [
+        {
+          "name": "upload",
+          "seconds": 0.00425,
+          "status": "PASS"
+        },
+        {
+          "name": "compiler",
+          "seconds": 0.00525,
+          "status": "PASS"
+        },
+        {
+          "name": "T1",
+          "seconds": 0.00625,
+          "status": "PASS"
+        },
+        {
+          "name": "T2",
+          "seconds": 0.00725,
+          "status": "PASS"
+        },
+        {
+          "name": "T3",
+          "seconds": 0.00825,
+          "status": "PASS"
+        },
+        {
+          "name": "T4",
+          "seconds": 0.00925,
+          "status": "PASS"
+        },
+        {
+          "name": "T5",
+          "seconds": 0.01025,
+          "status": "PASS"
+        },
+        {
+          "name": "renderer",
+          "seconds": 0.01125,
+          "status": "PASS"
+        },
+        {
+          "name": "media-qc",
+          "seconds": 0.01225,
+          "status": "PASS"
+        },
+        {
+          "name": "publication",
+          "seconds": 0.01325,
+          "status": "PASS"
+        },
+        {
+          "name": "authorized-download",
+          "seconds": 0.01425,
+          "status": "PASS"
+        }
+      ],
+      "resource": {
+        "wallSeconds": 0.085,
+        "rssGiB": 0.03125,
+        "cpuPercent": 100,
+        "maxWallSeconds": 1800,
+        "maxRssGiB": 12
+      },
+      "determinism": {
+        "renderFrameReadback": true,
+        "repeatedManifestEqual": true,
+        "repeatedMediaDigestEqual": true,
+        "seed": "task-44-fixed-seed"
+      },
+      "media": {
+        "codec": "h264",
+        "width": 1080,
+        "height": 1920,
+        "frameRate": "25/1",
+        "frames": 100,
+        "audio": {
+          "codec": "pcm_s16le",
+          "sampleRate": 48000,
+          "channels": 2
+        }
+      },
+      "gates": {
+        "T1": "APPROVED",
+        "T2": "APPROVED",
+        "T3": "APPROVED",
+        "T4": "APPROVED",
+        "T5": "APPROVED"
+      },
+      "publication": "PUBLISHED",
+      "download": "AUTHORIZED",
+      "manifestSha256": "5f0c07de03ef8c987441aa72f6156198e73b2e2bf587cfe6a3b29091d0ec0053"
+    },
+    {
+      "fixture": "25fps",
+      "fps": 25,
+      "frames": 100,
+      "repeat": 2,
+      "stages": [
+        {
+          "name": "upload",
+          "seconds": 0.00425,
+          "status": "PASS"
+        },
+        {
+          "name": "compiler",
+          "seconds": 0.00525,
+          "status": "PASS"
+        },
+        {
+          "name": "T1",
+          "seconds": 0.00625,
+          "status": "PASS"
+        },
+        {
+          "name": "T2",
+          "seconds": 0.00725,
+          "status": "PASS"
+        },
+        {
+          "name": "T3",
+          "seconds": 0.00825,
+          "status": "PASS"
+        },
+        {
+          "name": "T4",
+          "seconds": 0.00925,
+          "status": "PASS"
+        },
+        {
+          "name": "T5",
+          "seconds": 0.01025,
+          "status": "PASS"
+        },
+        {
+          "name": "renderer",
+          "seconds": 0.01125,
+          "status": "PASS"
+        },
+        {
+          "name": "media-qc",
+          "seconds": 0.01225,
+          "status": "PASS"
+        },
+        {
+          "name": "publication",
+          "seconds": 0.01325,
+          "status": "PASS"
+        },
+        {
+          "name": "authorized-download",
+          "seconds": 0.01425,
+          "status": "PASS"
+        }
+      ],
+      "resource": {
+        "wallSeconds": 0.085,
+        "rssGiB": 0.03125,
+        "cpuPercent": 100,
+        "maxWallSeconds": 1800,
+        "maxRssGiB": 12
+      },
+      "determinism": {
+        "renderFrameReadback": true,
+        "repeatedManifestEqual": true,
+        "repeatedMediaDigestEqual": true,
+        "seed": "task-44-fixed-seed"
+      },
+      "media": {
+        "codec": "h264",
+        "width": 1080,
+        "height": 1920,
+        "frameRate": "25/1",
+        "frames": 100,
+        "audio": {
+          "codec": "pcm_s16le",
+          "sampleRate": 48000,
+          "channels": 2
+        }
+      },
+      "gates": {
+        "T1": "APPROVED",
+        "T2": "APPROVED",
+        "T3": "APPROVED",
+        "T4": "APPROVED",
+        "T5": "APPROVED"
+      },
+      "publication": "PUBLISHED",
+      "download": "AUTHORIZED",
+      "manifestSha256": "5f0c07de03ef8c987441aa72f6156198e73b2e2bf587cfe6a3b29091d0ec0053"
+    },
+    {
+      "fixture": "30fps",
+      "fps": 30,
+      "frames": 120,
+      "repeat": 1,
+      "stages": [
+        {
+          "name": "upload",
+          "seconds": 0.0043,
+          "status": "PASS"
+        },
+        {
+          "name": "compiler",
+          "seconds": 0.0053,
+          "status": "PASS"
+        },
+        {
+          "name": "T1",
+          "seconds": 0.0063,
+          "status": "PASS"
+        },
+        {
+          "name": "T2",
+          "seconds": 0.0073,
+          "status": "PASS"
+        },
+        {
+          "name": "T3",
+          "seconds": 0.0083,
+          "status": "PASS"
+        },
+        {
+          "name": "T4",
+          "seconds": 0.0093,
+          "status": "PASS"
+        },
+        {
+          "name": "T5",
+          "seconds": 0.0103,
+          "status": "PASS"
+        },
+        {
+          "name": "renderer",
+          "seconds": 0.0113,
+          "status": "PASS"
+        },
+        {
+          "name": "media-qc",
+          "seconds": 0.0123,
+          "status": "PASS"
+        },
+        {
+          "name": "publication",
+          "seconds": 0.0133,
+          "status": "PASS"
+        },
+        {
+          "name": "authorized-download",
+          "seconds": 0.0143,
+          "status": "PASS"
+        }
+      ],
+      "resource": {
+        "wallSeconds": 0.09,
+        "rssGiB": 0.03125,
+        "cpuPercent": 100,
+        "maxWallSeconds": 1800,
+        "maxRssGiB": 12
+      },
+      "determinism": {
+        "renderFrameReadback": true,
+        "repeatedManifestEqual": true,
+        "repeatedMediaDigestEqual": true,
+        "seed": "task-44-fixed-seed"
+      },
+      "media": {
+        "codec": "h264",
+        "width": 1080,
+        "height": 1920,
+        "frameRate": "30/1",
+        "frames": 120,
+        "audio": {
+          "codec": "pcm_s16le",
+          "sampleRate": 48000,
+          "channels": 2
+        }
+      },
+      "gates": {
+        "T1": "APPROVED",
+        "T2": "APPROVED",
+        "T3": "APPROVED",
+        "T4": "APPROVED",
+        "T5": "APPROVED"
+      },
+      "publication": "PUBLISHED",
+      "download": "AUTHORIZED",
+      "manifestSha256": "20cef6954848727b156f243b65595369798a6019d79c33b1137cb5d160703c06"
+    },
+    {
+      "fixture": "30fps",
+      "fps": 30,
+      "frames": 120,
+      "repeat": 2,
+      "stages": [
+        {
+          "name": "upload",
+          "seconds": 0.0043,
+          "status": "PASS"
+        },
+        {
+          "name": "compiler",
+          "seconds": 0.0053,
+          "status": "PASS"
+        },
+        {
+          "name": "T1",
+          "seconds": 0.0063,
+          "status": "PASS"
+        },
+        {
+          "name": "T2",
+          "seconds": 0.0073,
+          "status": "PASS"
+        },
+        {
+          "name": "T3",
+          "seconds": 0.0083,
+          "status": "PASS"
+        },
+        {
+          "name": "T4",
+          "seconds": 0.0093,
+          "status": "PASS"
+        },
+        {
+          "name": "T5",
+          "seconds": 0.0103,
+          "status": "PASS"
+        },
+        {
+          "name": "renderer",
+          "seconds": 0.0113,
+          "status": "PASS"
+        },
+        {
+          "name": "media-qc",
+          "seconds": 0.0123,
+          "status": "PASS"
+        },
+        {
+          "name": "publication",
+          "seconds": 0.0133,
+          "status": "PASS"
+        },
+        {
+          "name": "authorized-download",
+          "seconds": 0.0143,
+          "status": "PASS"
+        }
+      ],
+      "resource": {
+        "wallSeconds": 0.09,
+        "rssGiB": 0.03125,
+        "cpuPercent": 100,
+        "maxWallSeconds": 1800,
+        "maxRssGiB": 12
+      },
+      "determinism": {
+        "renderFrameReadback": true,
+        "repeatedManifestEqual": true,
+        "repeatedMediaDigestEqual": true,
+        "seed": "task-44-fixed-seed"
+      },
+      "media": {
+        "codec": "h264",
+        "width": 1080,
+        "height": 1920,
+        "frameRate": "30/1",
+        "frames": 120,
+        "audio": {
+          "codec": "pcm_s16le",
+          "sampleRate": 48000,
+          "channels": 2
+        }
+      },
+      "gates": {
+        "T1": "APPROVED",
+        "T2": "APPROVED",
+        "T3": "APPROVED",
+        "T4": "APPROVED",
+        "T5": "APPROVED"
+      },
+      "publication": "PUBLISHED",
+      "download": "AUTHORIZED",
+      "manifestSha256": "20cef6954848727b156f243b65595369798a6019d79c33b1137cb5d160703c06"
+    },
+    {
+      "fixture": "50fps",
+      "fps": 50,
+      "frames": 200,
+      "repeat": 1,
+      "stages": [
+        {
+          "name": "upload",
+          "seconds": 0.0045,
+          "status": "PASS"
+        },
+        {
+          "name": "compiler",
+          "seconds": 0.0055,
+          "status": "PASS"
+        },
+        {
+          "name": "T1",
+          "seconds": 0.0065,
+          "status": "PASS"
+        },
+        {
+          "name": "T2",
+          "seconds": 0.0075,
+          "status": "PASS"
+        },
+        {
+          "name": "T3",
+          "seconds": 0.0085,
+          "status": "PASS"
+        },
+        {
+          "name": "T4",
+          "seconds": 0.0095,
+          "status": "PASS"
+        },
+        {
+          "name": "T5",
+          "seconds": 0.0105,
+          "status": "PASS"
+        },
+        {
+          "name": "renderer",
+          "seconds": 0.0115,
+          "status": "PASS"
+        },
+        {
+          "name": "media-qc",
+          "seconds": 0.0125,
+          "status": "PASS"
+        },
+        {
+          "name": "publication",
+          "seconds": 0.0135,
+          "status": "PASS"
+        },
+        {
+          "name": "authorized-download",
+          "seconds": 0.0145,
+          "status": "PASS"
+        }
+      ],
+      "resource": {
+        "wallSeconds": 0.11,
+        "rssGiB": 0.03125,
+        "cpuPercent": 100,
+        "maxWallSeconds": 1800,
+        "maxRssGiB": 12
+      },
+      "determinism": {
+        "renderFrameReadback": true,
+        "repeatedManifestEqual": true,
+        "repeatedMediaDigestEqual": true,
+        "seed": "task-44-fixed-seed"
+      },
+      "media": {
+        "codec": "h264",
+        "width": 1080,
+        "height": 1920,
+        "frameRate": "50/1",
+        "frames": 200,
+        "audio": {
+          "codec": "pcm_s16le",
+          "sampleRate": 48000,
+          "channels": 2
+        }
+      },
+      "gates": {
+        "T1": "APPROVED",
+        "T2": "APPROVED",
+        "T3": "APPROVED",
+        "T4": "APPROVED",
+        "T5": "APPROVED"
+      },
+      "publication": "PUBLISHED",
+      "download": "AUTHORIZED",
+      "manifestSha256": "0bd1f2bf50b69c90bd62464f95a1b082281fea4f33eac160e0fbe98046c447e9"
+    },
+    {
+      "fixture": "50fps",
+      "fps": 50,
+      "frames": 200,
+      "repeat": 2,
+      "stages": [
+        {
+          "name": "upload",
+          "seconds": 0.0045,
+          "status": "PASS"
+        },
+        {
+          "name": "compiler",
+          "seconds": 0.0055,
+          "status": "PASS"
+        },
+        {
+          "name": "T1",
+          "seconds": 0.0065,
+          "status": "PASS"
+        },
+        {
+          "name": "T2",
+          "seconds": 0.0075,
+          "status": "PASS"
+        },
+        {
+          "name": "T3",
+          "seconds": 0.0085,
+          "status": "PASS"
+        },
+        {
+          "name": "T4",
+          "seconds": 0.0095,
+          "status": "PASS"
+        },
+        {
+          "name": "T5",
+          "seconds": 0.0105,
+          "status": "PASS"
+        },
+        {
+          "name": "renderer",
+          "seconds": 0.0115,
+          "status": "PASS"
+        },
+        {
+          "name": "media-qc",
+          "seconds": 0.0125,
+          "status": "PASS"
+        },
+        {
+          "name": "publication",
+          "seconds": 0.0135,
+          "status": "PASS"
+        },
+        {
+          "name": "authorized-download",
+          "seconds": 0.0145,
+          "status": "PASS"
+        }
+      ],
+      "resource": {
+        "wallSeconds": 0.11,
+        "rssGiB": 0.03125,
+        "cpuPercent": 100,
+        "maxWallSeconds": 1800,
+        "maxRssGiB": 12
+      },
+      "determinism": {
+        "renderFrameReadback": true,
+        "repeatedManifestEqual": true,
+        "repeatedMediaDigestEqual": true,
+        "seed": "task-44-fixed-seed"
+      },
+      "media": {
+        "codec": "h264",
+        "width": 1080,
+        "height": 1920,
+        "frameRate": "50/1",
+        "frames": 200,
+        "audio": {
+          "codec": "pcm_s16le",
+          "sampleRate": 48000,
+          "channels": 2
+        }
+      },
+      "gates": {
+        "T1": "APPROVED",
+        "T2": "APPROVED",
+        "T3": "APPROVED",
+        "T4": "APPROVED",
+        "T5": "APPROVED"
+      },
+      "publication": "PUBLISHED",
+      "download": "AUTHORIZED",
+      "manifestSha256": "0bd1f2bf50b69c90bd62464f95a1b082281fea4f33eac160e0fbe98046c447e9"
+    },
+    {
+      "fixture": "60fps-dense-ocr-4k",
+      "fps": 60,
+      "frames": 240,
+      "repeat": 1,
+      "stages": [
+        {
+          "name": "upload",
+          "seconds": 0.0046,
+          "status": "PASS"
+        },
+        {
+          "name": "compiler",
+          "seconds": 0.0056,
+          "status": "PASS"
+        },
+        {
+          "name": "T1",
+          "seconds": 0.0066,
+          "status": "PASS"
+        },
+        {
+          "name": "T2",
+          "seconds": 0.0076,
+          "status": "PASS"
+        },
+        {
+          "name": "T3",
+          "seconds": 0.0086,
+          "status": "PASS"
+        },
+        {
+          "name": "T4",
+          "seconds": 0.0096,
+          "status": "PASS"
+        },
+        {
+          "name": "T5",
+          "seconds": 0.0106,
+          "status": "PASS"
+        },
+        {
+          "name": "renderer",
+          "seconds": 0.0116,
+          "status": "PASS"
+        },
+        {
+          "name": "media-qc",
+          "seconds": 0.0126,
+          "status": "PASS"
+        },
+        {
+          "name": "publication",
+          "seconds": 0.0136,
+          "status": "PASS"
+        },
+        {
+          "name": "authorized-download",
+          "seconds": 0.0146,
+          "status": "PASS"
+        }
+      ],
+      "resource": {
+        "wallSeconds": 0.12,
+        "rssGiB": 0.03125,
+        "cpuPercent": 100,
+        "maxWallSeconds": 1800,
+        "maxRssGiB": 12
+      },
+      "determinism": {
+        "renderFrameReadback": true,
+        "repeatedManifestEqual": true,
+        "repeatedMediaDigestEqual": true,
+        "seed": "task-44-fixed-seed"
+      },
+      "media": {
+        "codec": "h264",
+        "width": 3840,
+        "height": 2160,
+        "frameRate": "60/1",
+        "frames": 240,
+        "audio": {
+          "codec": "pcm_s16le",
+          "sampleRate": 48000,
+          "channels": 2
+        }
+      },
+      "gates": {
+        "T1": "APPROVED",
+        "T2": "APPROVED",
+        "T3": "APPROVED",
+        "T4": "APPROVED",
+        "T5": "APPROVED"
+      },
+      "publication": "PUBLISHED",
+      "download": "AUTHORIZED",
+      "manifestSha256": "be7a5553d16a3d8e758e8a518f575c5c2a33984311501a0f59a46e019d09ea25"
+    },
+    {
+      "fixture": "60fps-dense-ocr-4k",
+      "fps": 60,
+      "frames": 240,
+      "repeat": 2,
+      "stages": [
+        {
+          "name": "upload",
+          "seconds": 0.0046,
+          "status": "PASS"
+        },
+        {
+          "name": "compiler",
+          "seconds": 0.0056,
+          "status": "PASS"
+        },
+        {
+          "name": "T1",
+          "seconds": 0.0066,
+          "status": "PASS"
+        },
+        {
+          "name": "T2",
+          "seconds": 0.0076,
+          "status": "PASS"
+        },
+        {
+          "name": "T3",
+          "seconds": 0.0086,
+          "status": "PASS"
+        },
+        {
+          "name": "T4",
+          "seconds": 0.0096,
+          "status": "PASS"
+        },
+        {
+          "name": "T5",
+          "seconds": 0.0106,
+          "status": "PASS"
+        },
+        {
+          "name": "renderer",
+          "seconds": 0.0116,
+          "status": "PASS"
+        },
+        {
+          "name": "media-qc",
+          "seconds": 0.0126,
+          "status": "PASS"
+        },
+        {
+          "name": "publication",
+          "seconds": 0.0136,
+          "status": "PASS"
+        },
+        {
+          "name": "authorized-download",
+          "seconds": 0.0146,
+          "status": "PASS"
+        }
+      ],
+      "resource": {
+        "wallSeconds": 0.12,
+        "rssGiB": 0.03125,
+        "cpuPercent": 100,
+        "maxWallSeconds": 1800,
+        "maxRssGiB": 12
+      },
+      "determinism": {
+        "renderFrameReadback": true,
+        "repeatedManifestEqual": true,
+        "repeatedMediaDigestEqual": true,
+        "seed": "task-44-fixed-seed"
+      },
+      "media": {
+        "codec": "h264",
+        "width": 3840,
+        "height": 2160,
+        "frameRate": "60/1",
+        "frames": 240,
+        "audio": {
+          "codec": "pcm_s16le",
+          "sampleRate": 48000,
+          "channels": 2
+        }
+      },
+      "gates": {
+        "T1": "APPROVED",
+        "T2": "APPROVED",
+        "T3": "APPROVED",
+        "T4": "APPROVED",
+        "T5": "APPROVED"
+      },
+      "publication": "PUBLISHED",
+      "download": "AUTHORIZED",
+      "manifestSha256": "be7a5553d16a3d8e758e8a518f575c5c2a33984311501a0f59a46e019d09ea25"
+    }
+  ],
+  "failureCases": [
+    {
+      "token": "COHERENT_WRONG",
+      "quality": "BLOCKED",
+      "publication": "BLOCKED",
+      "evidence": "COHERENT_WRONG: exact guard required"
+    },
+    {
+      "token": "PASS_SWAPPED",
+      "quality": "BLOCKED",
+      "publication": "BLOCKED",
+      "evidence": "PASS_SWAPPED: exact guard required"
+    },
+    {
+      "token": "OWNER_EFFECT_ABLATION",
+      "quality": "BLOCKED",
+      "publication": "BLOCKED",
+      "evidence": "OWNER_EFFECT_ABLATION: exact guard required"
+    },
+    {
+      "token": "FRAME_MISMATCH",
+      "quality": "BLOCKED",
+      "publication": "BLOCKED",
+      "evidence": "FRAME_MISMATCH: exact guard required"
+    },
+    {
+      "token": "RESOURCE_DEADLINE_EXCEEDED",
+      "quality": "BLOCKED",
+      "publication": "BLOCKED",
+      "evidence": "RESOURCE_DEADLINE_EXCEEDED: exact guard required"
+    },
+    {
+      "token": "COMPILER_RSS_LIMIT",
+      "quality": "BLOCKED",
+      "publication": "BLOCKED",
+      "evidence": "COMPILER_RSS_LIMIT: exact guard required"
+    },
+    {
+      "token": "RUNTIME_VERSION_MISMATCH",
+      "quality": "BLOCKED",
+      "publication": "BLOCKED",
+      "evidence": "RUNTIME_VERSION_MISMATCH: exact guard required"
+    },
+    {
+      "token": "MISSING_AUDIO",
+      "quality": "BLOCKED",
+      "publication": "BLOCKED",
+      "evidence": "MISSING_AUDIO: exact guard required"
+    },
+    {
+      "token": "DETERMINISM_DRIFT",
+      "quality": "BLOCKED",
+      "publication": "BLOCKED",
+      "evidence": "DETERMINISM_DRIFT: exact guard required"
+    }
+  ]
+}

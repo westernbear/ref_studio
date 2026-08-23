@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>REF_STUDIO - Frontier Reference Video Engineering</title>
+<script type="text/javascript" nonce="a8fa8df892b144ccaa86c8a1abe" src="//local.adguard.org?ts=1787306192554&amp;type=content-script&amp;dmn=contribution.usercontent.google.com&amp;url=https%3A%2F%2Fcontribution.usercontent.google.com%2Fdownload%3Fc%3DCgthaWRhX2NvZGVmeBJ6Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpZCiVodG1sXzAwMDY1OThiYjM1MjkyMzkwMmQzZmVmMjczMWYwMGRiEgsSBxCS7-G91AQYAZIBIgoKcHJvamVjdF9pZBIUQhIxOTQ3MjU1NTQ2MzA3NjAwNzM%26filename%3D%26opi%3D89354086&amp;app=firefox.exe&amp;css=3&amp;js=1&amp;rel=1&amp;rji=1&amp;sbe=1&amp;stealth=1&amp;st-loc&amp;st-dnt"></script><script type="text/javascript" nonce="a8fa8df892b144ccaa86c8a1abe" src="//local.adguard.org?ts=1787306192554&amp;name=AdGuard%20Extra&amp;type=user-script"></script><script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;700&amp;family=Inter:wght@400;500;600&amp;family=Manrope:wght@400;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-lowest": "#0e0e0e",
+                        "primary-container": "#e2e2e2",
+                        "surface": "#141313",
+                        "on-surface-variant": "#c4c7c8",
+                        "canvas-soft": "#1a1c20",
+                        "on-tertiary-fixed": "#1a1c1c",
+                        "on-primary": "#2f3131",
+                        "surface-tint": "#c6c6c7",
+                        "on-primary-fixed-variant": "#454747",
+                        "primary": "#ffffff",
+                        "inverse-surface": "#e5e2e1",
+                        "tertiary-fixed-dim": "#c6c6c7",
+                        "sunset": "#ff7a17",
+                        "primary-fixed": "#e2e2e2",
+                        "on-tertiary-fixed-variant": "#454747",
+                        "outline-variant": "#444748",
+                        "outline": "#8e9192",
+                        "surface-container-high": "#2a2a2a",
+                        "on-surface": "#e5e2e1",
+                        "hairline": "#212327",
+                        "on-background": "#e5e2e1",
+                        "canvas": "#0a0a0a",
+                        "on-primary-fixed": "#1a1c1c",
+                        "secondary": "#c3c7cd",
+                        "tertiary-container": "#e2e2e2",
+                        "error-container": "#93000a",
+                        "canvas-card": "#191919",
+                        "surface-bright": "#3a3939",
+                        "on-tertiary": "#2f3131",
+                        "on-error": "#690005",
+                        "on-secondary-fixed": "#181c21",
+                        "breeze": "#a0c3ec",
+                        "surface-container-low": "#1c1b1b",
+                        "on-secondary-container": "#b2b5bc",
+                        "on-error-container": "#ffdad6",
+                        "error": "#ffb4ab",
+                        "body": "#dadbdf",
+                        "surface-dim": "#141313",
+                        "dusk": "#7c3aed",
+                        "primary-fixed-dim": "#c6c6c7",
+                        "inverse-on-surface": "#313030",
+                        "on-secondary": "#2c3136",
+                        "surface-variant": "#353434",
+                        "surface-container-highest": "#353434",
+                        "secondary-fixed-dim": "#c3c7cd",
+                        "ink": "#ffffff",
+                        "background": "#141313",
+                        "secondary-container": "#43474d",
+                        "inverse-primary": "#5d5f5f",
+                        "secondary-fixed": "#dfe3e9",
+                        "surface-container": "#201f1f",
+                        "on-primary-container": "#636565",
+                        "on-secondary-fixed-variant": "#43474d",
+                        "tertiary-fixed": "#e2e2e2",
+                        "on-tertiary-container": "#636565",
+                        "tertiary": "#ffffff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "md": "12px",
+                        "2xl": "32px",
+                        "xxs": "2px",
+                        "lg": "16px",
+                        "4xl": "64px",
+                        "xl": "24px",
+                        "sm": "8px",
+                        "3xl": "48px",
+                        "xs": "4px"
+                    },
+                    "fontFamily": {
+                        "caption-mono-sm": ["Geist Mono", "monospace"],
+                        "display-sm": ["Manrope", "sans-serif"],
+                        "headline-lg-mobile": ["Manrope", "sans-serif"],
+                        "caption-mono": ["Geist Mono", "monospace"],
+                        "body-sm": ["Inter", "sans-serif"],
+                        "display-lg": ["Manrope", "sans-serif"],
+                        "body-lg": ["Inter", "sans-serif"],
+                        "body-md": ["Inter", "sans-serif"],
+                        "display-md": ["Manrope", "sans-serif"],
+                        "button": ["Inter", "sans-serif"],
+                        "display-xl": ["Manrope", "sans-serif"]
+                    },
+                    "fontSize": {
+                        "caption-mono-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "1.2px", "fontWeight": "400" }],
+                        "display-sm": ["32px", { "lineHeight": "36px", "letterSpacing": "-0.6px", "fontWeight": "400" }],
+                        "headline-lg-mobile": ["40px", { "lineHeight": "44px", "letterSpacing": "-1px", "fontWeight": "400" }],
+                        "caption-mono": ["14px", { "lineHeight": "20px", "letterSpacing": "1.4px", "fontWeight": "400" }],
+                        "body-sm": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "display-lg": ["72px", { "lineHeight": "72px", "letterSpacing": "-1.8px", "fontWeight": "400" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "display-md": ["48px", { "lineHeight": "48px", "letterSpacing": "-1.2px", "fontWeight": "400" }],
+                        "button": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "display-xl": ["96px", { "lineHeight": "96px", "letterSpacing": "-2.4px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-canvas text-primary min-h-screen flex flex-col antialiased">
+<!-- TopNavBar -->
+<nav class="bg-canvas border-b border-hairline w-full top-0 sticky z-50">
+<div class="flex justify-between items-center w-full px-lg py-md max-w-[1280px] mx-auto">
+<div class="flex items-center gap-xl">
+<a class="font-display-sm text-display-sm font-bold text-primary tracking-tighter" href="#">REF_STUDIO</a>
+<div class="hidden md:flex items-center gap-lg font-body-sm text-body-sm tracking-tight">
+<a class="text-on-surface-variant hover:text-primary transition-colors hover:bg-canvas-soft px-sm py-xs rounded" href="#">Workflow</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors hover:bg-canvas-soft px-sm py-xs rounded" href="#">Admin</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors hover:bg-canvas-soft px-sm py-xs rounded" href="#">Docs</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors hover:bg-canvas-soft px-sm py-xs rounded" href="#">Support</a>
+</div>
+</div>
+<div class="flex items-center gap-md">
+<button class="hidden md:block font-body-sm text-body-sm tracking-tight text-on-surface-variant hover:text-primary transition-colors">
+                    New Project
+                </button>
+<button class="text-on-surface-variant hover:text-primary transition-all duration-150 active:scale-95 flex items-center justify-center p-sm rounded hover:bg-canvas-soft">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<button class="text-on-surface-variant hover:text-primary transition-all duration-150 active:scale-95 flex items-center justify-center p-sm rounded hover:bg-canvas-soft">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+</button>
+</div>
+</div>
+</nav>
+<!-- Main Content Canvas -->
+<main class="flex-grow flex flex-col justify-center max-w-[1280px] w-full mx-auto px-lg py-4xl mt-4xl gap-4xl">
+<!-- Hero Section -->
+<section class="flex flex-col items-start max-w-4xl">
+<h1 class="font-display-xl text-display-xl tracking-tighter leading-none mb-xl break-words">
+                REF_STUDIO
+            </h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant mb-3xl max-w-2xl">
+                Frontier Reference Video Engineering.
+            </p>
+<a class="inline-flex items-center justify-center font-button text-button border border-hairline rounded-full px-2xl py-md text-primary hover:bg-primary hover:text-on-primary transition-colors duration-100 ease-in-out" href="#">
+                Start Creating
+            </a>
+</section>
+<!-- Features Grid -->
+<section class="grid grid-cols-1 md:grid-cols-3 gap-xl w-full mt-4xl">
+<!-- Feature 1 -->
+<div class="bg-canvas-card border border-hairline rounded p-xl flex flex-col gap-md">
+<span class="font-caption-mono text-caption-mono text-on-surface-variant uppercase">
+                    EYE-01
+                </span>
+<h3 class="font-display-sm text-display-sm text-primary tracking-tight leading-tight mt-md">
+                    Temporal Evidence Extraction
+                </h3>
+</div>
+<!-- Feature 2 -->
+<div class="bg-canvas-card border border-hairline rounded p-xl flex flex-col gap-md">
+<span class="font-caption-mono text-caption-mono text-on-surface-variant uppercase">
+                    EYE-02
+                </span>
+<h3 class="font-display-sm text-display-sm text-primary tracking-tight leading-tight mt-md">
+                    Deterministic Browser Render
+                </h3>
+</div>
+<!-- Feature 3 -->
+<div class="bg-canvas-card border border-hairline rounded p-xl flex flex-col gap-md">
+<span class="font-caption-mono text-caption-mono text-on-surface-variant uppercase">
+                    EYE-03
+                </span>
+<h3 class="font-display-sm text-display-sm text-primary tracking-tight leading-tight mt-md">
+                    Semantic UI Portability
+                </h3>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="bg-canvas border-t border-hairline w-full py-2xl mt-4xl">
+<div class="max-w-[1280px] mx-auto flex flex-col md:flex-row justify-between items-center px-lg gap-xl md:gap-0">
+<div class="font-caption-mono text-caption-mono text-primary">
+                REF_STUDIO
+            </div>
+<div class="flex flex-wrap justify-center gap-xl font-caption-mono-sm text-caption-mono-sm uppercase text-on-surface-variant">
+<a class="hover:text-primary transition-opacity duration-300" href="#">API</a>
+<a class="hover:text-primary transition-opacity duration-300" href="#">Legal</a>
+<a class="hover:text-primary transition-opacity duration-300" href="#">Privacy</a>
+<a class="hover:text-primary transition-opacity duration-300" href="#">GitHub</a>
+</div>
+<div class="font-caption-mono-sm text-caption-mono-sm uppercase text-on-surface-variant">
+                © 2024 REF_STUDIO ENGINE. ALL RIGHTS RESERVED.
+            </div>
+</div>
+</footer>
+</body></html>

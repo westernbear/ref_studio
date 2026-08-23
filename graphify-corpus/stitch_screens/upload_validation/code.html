@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Upload &amp; Validation - REF_STUDIO</title>
+<script type="text/javascript" nonce="a8fa8df892b144ccaa86c8a1abe" src="//local.adguard.org?ts=1787306192554&amp;type=content-script&amp;dmn=contribution.usercontent.google.com&amp;url=https%3A%2F%2Fcontribution.usercontent.google.com%2Fdownload%3Fc%3DCgthaWRhX2NvZGVmeBJ6Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpZCiVodG1sXzAwMDY1OThiYjJjMWY2OTUwN2M0Y2YwZDA3MmZhZjhmEgsSBxCS7-G91AQYAZIBIgoKcHJvamVjdF9pZBIUQhIxOTQ3MjU1NTQ2MzA3NjAwNzM%26filename%3D%26opi%3D89354086&amp;app=firefox.exe&amp;css=3&amp;js=1&amp;rel=1&amp;rji=1&amp;sbe=1&amp;stealth=1&amp;st-loc&amp;st-dnt"></script><script type="text/javascript" nonce="a8fa8df892b144ccaa86c8a1abe" src="//local.adguard.org?ts=1787306192554&amp;name=AdGuard%20Extra&amp;type=user-script"></script><script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;700&amp;family=Inter:wght@400;500;600&amp;family=Manrope:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "surface-container-lowest": "#0e0e0e",
+                      "primary-container": "#e2e2e2",
+                      "surface": "#141313",
+                      "on-surface-variant": "#c4c7c8",
+                      "canvas-soft": "#1a1c20",
+                      "on-tertiary-fixed": "#1a1c1c",
+                      "on-primary": "#2f3131",
+                      "surface-tint": "#c6c6c7",
+                      "on-primary-fixed-variant": "#454747",
+                      "primary": "#ffffff",
+                      "inverse-surface": "#e5e2e1",
+                      "tertiary-fixed-dim": "#c6c6c7",
+                      "sunset": "#ff7a17",
+                      "primary-fixed": "#e2e2e2",
+                      "on-tertiary-fixed-variant": "#454747",
+                      "outline-variant": "#444748",
+                      "outline": "#8e9192",
+                      "surface-container-high": "#2a2a2a",
+                      "on-surface": "#e5e2e1",
+                      "hairline": "#212327",
+                      "on-background": "#e5e2e1",
+                      "canvas": "#0a0a0a",
+                      "on-primary-fixed": "#1a1c1c",
+                      "secondary": "#c3c7cd",
+                      "tertiary-container": "#e2e2e2",
+                      "error-container": "#93000a",
+                      "canvas-card": "#191919",
+                      "surface-bright": "#3a3939",
+                      "on-tertiary": "#2f3131",
+                      "on-error": "#690005",
+                      "on-secondary-fixed": "#181c21",
+                      "breeze": "#a0c3ec",
+                      "surface-container-low": "#1c1b1b",
+                      "on-secondary-container": "#b2b5bc",
+                      "on-error-container": "#ffdad6",
+                      "error": "#ffb4ab",
+                      "body": "#dadbdf",
+                      "surface-dim": "#141313",
+                      "dusk": "#7c3aed",
+                      "primary-fixed-dim": "#c6c6c7",
+                      "inverse-on-surface": "#313030",
+                      "on-secondary": "#2c3136",
+                      "surface-variant": "#353434",
+                      "surface-container-highest": "#353434",
+                      "secondary-fixed-dim": "#c3c7cd",
+                      "ink": "#ffffff",
+                      "background": "#141313",
+                      "secondary-container": "#43474d",
+                      "inverse-primary": "#5d5f5f",
+                      "secondary-fixed": "#dfe3e9",
+                      "surface-container": "#201f1f",
+                      "on-primary-container": "#636565",
+                      "on-secondary-fixed-variant": "#43474d",
+                      "tertiary-fixed": "#e2e2e2",
+                      "on-tertiary-container": "#636565",
+                      "tertiary": "#ffffff"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "md": "12px",
+                      "2xl": "32px",
+                      "xxs": "2px",
+                      "lg": "16px",
+                      "4xl": "64px",
+                      "xl": "24px",
+                      "sm": "8px",
+                      "3xl": "48px",
+                      "xs": "4px"
+              },
+              "fontFamily": {
+                      "caption-mono-sm": [
+                              "Geist"
+                      ],
+                      "display-sm": [
+                              "Manrope"
+                      ],
+                      "headline-lg-mobile": [
+                              "Manrope"
+                      ],
+                      "caption-mono": [
+                              "Geist"
+                      ],
+                      "body-sm": [
+                              "Inter"
+                      ],
+                      "display-lg": [
+                              "Manrope"
+                      ],
+                      "body-lg": [
+                              "Inter"
+                      ],
+                      "body-md": [
+                              "Inter"
+                      ],
+                      "display-md": [
+                              "Manrope"
+                      ],
+                      "button": [
+                              "Inter"
+                      ],
+                      "display-xl": [
+                              "Manrope"
+                      ]
+              },
+              "fontSize": {
+                      "caption-mono-sm": [
+                              "12px",
+                              {
+                                      "lineHeight": "16px",
+                                      "letterSpacing": "1.2px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "display-sm": [
+                              "32px",
+                              {
+                                      "lineHeight": "36px",
+                                      "letterSpacing": "-0.6px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "headline-lg-mobile": [
+                              "40px",
+                              {
+                                      "lineHeight": "44px",
+                                      "letterSpacing": "-1px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "caption-mono": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "letterSpacing": "1.4px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "body-sm": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "display-lg": [
+                              "72px",
+                              {
+                                      "lineHeight": "72px",
+                                      "letterSpacing": "-1.8px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "body-lg": [
+                              "18px",
+                              {
+                                      "lineHeight": "28px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "body-md": [
+                              "16px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "display-md": [
+                              "48px",
+                              {
+                                      "lineHeight": "48px",
+                                      "letterSpacing": "-1.2px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "button": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "display-xl": [
+                              "96px",
+                              {
+                                      "lineHeight": "96px",
+                                      "letterSpacing": "-2.4px",
+                                      "fontWeight": "400"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+      </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-canvas text-body font-body-md h-screen flex flex-col">
+<!-- Top Navigation (Shared Component) -->
+<nav class="bg-canvas dark:bg-canvas text-primary dark:text-primary docked full-width top-0 sticky border-b border-hairline w-full px-lg py-md max-w-[1280px] mx-auto flex justify-between items-center z-50">
+<div class="flex items-center gap-xl">
+<span class="font-display-sm text-display-sm font-bold text-primary tracking-tighter">REF_STUDIO</span>
+<div class="hidden md:flex gap-lg">
+<a class="font-body-sm text-body-sm tracking-tight text-on-surface-variant hover:text-primary transition-colors hover:bg-canvas-soft transition-all duration-150 px-md py-sm rounded-md" href="#">Workflow</a>
+<a class="font-body-sm text-body-sm tracking-tight text-on-surface-variant hover:text-primary transition-colors hover:bg-canvas-soft transition-all duration-150 px-md py-sm rounded-md" href="#">Admin</a>
+<a class="font-body-sm text-body-sm tracking-tight text-on-surface-variant hover:text-primary transition-colors hover:bg-canvas-soft transition-all duration-150 px-md py-sm rounded-md" href="#">Docs</a>
+<a class="font-body-sm text-body-sm tracking-tight text-on-surface-variant hover:text-primary transition-colors hover:bg-canvas-soft transition-all duration-150 px-md py-sm rounded-md" href="#">Support</a>
+</div>
+</div>
+<div class="flex items-center gap-md">
+<button class="font-body-sm text-body-sm tracking-tight text-canvas bg-primary px-lg py-sm rounded-full hover:bg-primary-container transition-colors">New Project</button>
+<div class="flex gap-sm">
+<button class="p-sm text-on-surface-variant hover:text-primary hover:bg-canvas-soft rounded-full transition-all duration-150 flex items-center justify-center">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<button class="p-sm text-on-surface-variant hover:text-primary hover:bg-canvas-soft rounded-full transition-all duration-150 flex items-center justify-center">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+</button>
+</div>
+</div>
+</nav>
+<!-- Main Content Area -->
+<main class="flex-1 overflow-y-auto w-full max-w-[1280px] mx-auto px-lg py-4xl flex flex-col items-center justify-center gap-2xl">
+<!-- Header -->
+<div class="text-center mb-xl">
+<h1 class="font-display-md text-display-md text-primary mb-sm">Video Source Validation</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant">Drop a reference video file to begin compiling the project.</p>
+</div>
+<!-- Bento Grid Layout -->
+<div class="w-full max-w-4xl grid grid-cols-1 md:grid-cols-3 gap-xl">
+<!-- Dropzone Area (Spans 2 columns on desktop) -->
+<div class="md:col-span-2 bg-canvas-card border border-hairline rounded-lg p-2xl flex flex-col items-center justify-center min-h-[400px] hover:border-outline-variant transition-colors group cursor-pointer relative overflow-hidden">
+<div class="absolute inset-0 bg-canvas-soft opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
+<div class="flex flex-col items-center text-center z-10">
+<span class="material-symbols-outlined text-4xl text-on-surface-variant mb-lg group-hover:text-primary transition-colors" data-icon="cloud_upload">cloud_upload</span>
+<span class="font-caption-mono text-caption-mono text-primary mb-md">UPLOAD_INPUT.MP4</span>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Drag and drop video file here or click to browse.</p>
+<p class="font-caption-mono-sm text-caption-mono-sm text-outline mt-sm">MAX_SIZE: 2GB | FORMATS: .MP4, .MOV, .WEBM</p>
+</div>
+</div>
+<!-- Validation Status List -->
+<div class="bg-surface-container border border-hairline rounded-lg flex flex-col">
+<div class="p-lg border-b border-hairline">
+<h3 class="font-caption-mono text-caption-mono text-primary">Pre-flight Checks</h3>
+</div>
+<div class="flex-1 overflow-y-auto">
+<!-- Status Item 1: Pending -->
+<div class="flex items-center justify-between p-lg border-b border-hairline">
+<div class="flex items-center gap-md">
+<span class="material-symbols-outlined text-outline text-sm" data-icon="pending">pending</span>
+<span class="font-caption-mono-sm text-caption-mono-sm text-on-surface-variant">CODEC_CHECK</span>
+</div>
+<span class="font-caption-mono-sm text-caption-mono-sm text-outline">WAITING</span>
+</div>
+<!-- Status Item 2: Pending -->
+<div class="flex items-center justify-between p-lg border-b border-hairline">
+<div class="flex items-center gap-md">
+<span class="material-symbols-outlined text-outline text-sm" data-icon="pending">pending</span>
+<span class="font-caption-mono-sm text-caption-mono-sm text-on-surface-variant">FPS_STABILITY</span>
+</div>
+<span class="font-caption-mono-sm text-caption-mono-sm text-outline">WAITING</span>
+</div>
+<!-- Status Item 3: Pending -->
+<div class="flex items-center justify-between p-lg border-b border-hairline">
+<div class="flex items-center gap-md">
+<span class="material-symbols-outlined text-outline text-sm" data-icon="pending">pending</span>
+<span class="font-caption-mono-sm text-caption-mono-sm text-on-surface-variant">DURATION</span>
+</div>
+<span class="font-caption-mono-sm text-caption-mono-sm text-outline">WAITING</span>
+</div>
+<!-- Status Item 4: Pending -->
+<div class="flex items-center justify-between p-lg">
+<div class="flex items-center gap-md">
+<span class="material-symbols-outlined text-outline text-sm" data-icon="pending">pending</span>
+<span class="font-caption-mono-sm text-caption-mono-sm text-on-surface-variant">AUDIO_TRACK</span>
+</div>
+<span class="font-caption-mono-sm text-caption-mono-sm text-outline">WAITING</span>
+</div>
+</div>
+<div class="p-lg bg-surface-container-low border-t border-hairline flex justify-end">
+<button class="font-button text-button text-primary border border-hairline rounded-full px-lg py-sm hover:bg-canvas-soft hover:text-primary transition-all duration-100 flex items-center gap-sm opacity-50 cursor-not-allowed">
+                        Proceed to Compiler
+                        <span class="material-symbols-outlined text-sm" data-icon="arrow_forward">arrow_forward</span>
+</button>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer (Shared Component) -->
+<footer class="bg-canvas dark:bg-canvas w-full py-2xl mt-4xl border-t border-hairline">
+<div class="max-w-[1280px] mx-auto flex flex-col md:flex-row justify-between items-center px-lg gap-lg">
+<div class="font-caption-mono text-caption-mono text-primary">
+                © 2024 REF_STUDIO ENGINE. ALL RIGHTS RESERVED.
+            </div>
+<div class="flex gap-lg">
+<a class="font-caption-mono-sm text-caption-mono-sm uppercase text-on-surface-variant hover:text-primary transition-opacity duration-300" href="#">API</a>
+<a class="font-caption-mono-sm text-caption-mono-sm uppercase text-on-surface-variant hover:text-primary transition-opacity duration-300" href="#">Legal</a>
+<a class="font-caption-mono-sm text-caption-mono-sm uppercase text-on-surface-variant hover:text-primary transition-opacity duration-300" href="#">Privacy</a>
+<a class="font-caption-mono-sm text-caption-mono-sm uppercase text-on-surface-variant hover:text-primary transition-opacity duration-300" href="#">GitHub</a>
+</div>
+</div>
+</footer>
+</body></html>

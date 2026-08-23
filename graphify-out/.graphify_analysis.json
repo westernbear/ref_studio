@@ -1,0 +1,341 @@
+{
+  "communities": {
+    "0": [
+      "saas_admin_panel_audit_export_workflow",
+      "saas_admin_uiux_audit_log_spec",
+      "saas_admin_uiux_job_queue_spec",
+      "saas_admin_uiux_login_screen_spec",
+      "saas_admin_uiux_quarantine_spec",
+      "saas_admin_uiux_receipt_chain_spec",
+      "saas_admin_uiux_shared_components",
+      "saas_admin_uiux_tenant_list_spec",
+      "stitch_screens_admin_audit_log_code_audit_filters",
+      "stitch_screens_admin_audit_log_code_audit_log_screen",
+      "stitch_screens_admin_audit_log_code_event_table",
+      "stitch_screens_admin_quarantine_code_quarantine_screen",
+      "stitch_screens_admin_quarantine_code_quarantine_table",
+      "stitch_screens_admin_receipt_chain_code_gate_timeline",
+      "stitch_screens_admin_receipt_chain_code_receipt_chain_screen",
+      "stitch_screens_admin_sign_in_code_admin_sign_in_screen",
+      "stitch_screens_admin_sign_in_code_identifier_secret_form",
+      "stitch_screens_admin_tenants_code_tenant_list_screen",
+      "stitch_screens_admin_tenants_code_tenant_table",
+      "stitch_screens_cosmic_engineering_design_component_tokens",
+      "stitch_screens_cosmic_engineering_design_cosmic_engineering",
+      "stitch_screens_cosmic_engineering_design_near_black_canvas",
+      "stitch_screens_cosmic_engineering_design_typography_system",
+      "stitch_screens_shared_admin_sidebar",
+      "stitch_screens_shared_dark_data_tables"
+    ],
+    "1": [
+      "saas_admin_panel_job_cancellation_workflow",
+      "saas_api_job_endpoint",
+      "saas_api_reviews_endpoint",
+      "stitch_screens_job_queue_delivery_code_queue_delivery_screen",
+      "stitch_screens_job_queue_delivery_code_queued_row",
+      "stitch_screens_job_queue_delivery_code_rendering_row",
+      "stitch_screens_shared_ref_studio_topnav",
+      "stitch_screens_upload_validation_code_audio_track_check",
+      "stitch_screens_upload_validation_code_codec_check",
+      "stitch_screens_upload_validation_code_duration_check",
+      "stitch_screens_upload_validation_code_fps_stability",
+      "stitch_screens_upload_validation_code_preflight_checks",
+      "stitch_screens_upload_validation_code_upload_validation_screen",
+      "workflow_artifact_lifecycle",
+      "workflow_bounded_video_input",
+      "workflow_browser_worker_render",
+      "workflow_creator_ingest_to_delivery",
+      "workflow_editable_webgl_preview",
+      "workflow_retry_cancellation",
+      "workflow_stale_approval_recovery"
+    ],
+    "2": [
+      "readme_webgl2_browser_incumbent",
+      "renderer_bakeoff_blender_partial",
+      "renderer_bakeoff_browser_passed",
+      "renderer_bakeoff_report",
+      "renderer_bakeoff_unavailable_renderers",
+      "saas_admin_panel_forbidden_admin_actions",
+      "saas_api_receipts_endpoint",
+      "saas_architecture_append_only_receipts",
+      "saas_architecture_authoringir_sceneir_browserpassspec",
+      "saas_architecture_chromium_swiftshader_webgl2",
+      "saas_architecture_ffmpeg_delivery",
+      "saas_architecture_human_review",
+      "saas_architecture_reference_compiler",
+      "saas_architecture_render_worker",
+      "saas_architecture_tenant_scoped_cas",
+      "saas_operations_monitoring",
+      "stitch_screens_job_queue_delivery_code_completed_downloads",
+      "stitch_screens_ref_studio_landing_code_browser_render_feature",
+      "stitch_screens_scene_review_approval_code_approve_render_actions"
+    ],
+    "3": [
+      "authority_ledger_t1_t6_receipts",
+      "plan_deterministic_execution_contract",
+      "plan_momus_oracle_review",
+      "plan_must_not_have_guardrails",
+      "plan_t1_t6_gate_plan",
+      "plan_ulw_plan",
+      "provenance_path_based_provenance",
+      "readme_recovery_report_json",
+      "readme_reference_video_studio_final_handoff",
+      "readme_trial_1_compiler_v1_9_authority",
+      "readme_trial_2_compiler_v1_13_authority",
+      "stale_history_rejected_history",
+      "stale_history_v1_8_rejected",
+      "stitch_screens_admin_receipt_chain_code_predecessor_chain"
+    ],
+    "4": [
+      "authority_ledger_research_decisions",
+      "editable_scene_owner_integrity",
+      "editable_scene_residual_canvas",
+      "reference_interpretation_ocr_ui_bounds",
+      "reference_interpretation_owner_effect_association",
+      "reference_interpretation_segmentation_matting",
+      "reference_interpretation_temporal_volume",
+      "saas_admin_uiux_evidence_first_ui",
+      "saas_architecture_evidence_first_pipeline",
+      "stitch_screens_ref_studio_landing_code_temporal_evidence_feature"
+    ],
+    "5": [
+      "pilot_evidence_fixed_frame_checks",
+      "pilot_evidence_media_contract",
+      "pilot_evidence_pass",
+      "reference_fixtures_adversarial_cases",
+      "reference_fixtures_frame_contracts",
+      "reference_fixtures_manifest",
+      "reference_interpretation_fail_closed_states",
+      "reference_interpretation_vlm_label_only",
+      "saas_api_error_schema",
+      "saas_architecture_safe_errors"
+    ],
+    "6": [
+      "editable_scene_audio_anchors",
+      "reference_interpretation_camera_motion",
+      "reference_interpretation_rhythm_audio",
+      "stitch_screens_scene_review_approval_code_camera_motion_card",
+      "stitch_screens_scene_review_approval_code_light_fields_card",
+      "stitch_screens_scene_review_approval_code_observed_measurements_panel",
+      "stitch_screens_scene_review_approval_code_ocr_card",
+      "stitch_screens_scene_review_approval_code_scene_review_screen",
+      "stitch_screens_scene_review_approval_code_source_feed_preview"
+    ],
+    "7": [
+      "saas_admin_panel_ops_admin",
+      "saas_admin_panel_quota_change_workflow",
+      "saas_admin_panel_rbac_matrix",
+      "saas_admin_panel_super_admin",
+      "saas_admin_panel_viewer",
+      "saas_api_admin_api",
+      "saas_architecture_admin_panel_system",
+      "saas_operations_admin_runbook",
+      "stitch_screens_admin_tenants_code_quota_drawer"
+    ],
+    "8": [
+      "editable_scene_authoringir",
+      "editable_scene_browserpassspec",
+      "editable_scene_contract",
+      "editable_scene_sceneir",
+      "stitch_screens_cosmic_engineering_design_engineered_cosmic_aesthetic",
+      "stitch_screens_ref_studio_landing_code_landing_screen",
+      "stitch_screens_ref_studio_landing_code_semantic_ui_feature",
+      "stitch_screens_scene_review_approval_code_render_mapping_panel"
+    ],
+    "9": [
+      "saas_api_tenant_fenced_api",
+      "saas_api_upload_endpoint",
+      "saas_architecture_multitenant_product_boundary",
+      "saas_architecture_quarantine",
+      "saas_architecture_tenant_fencing",
+      "stitch_screens_admin_quarantine_code_safe_mode_notice",
+      "stitch_screens_upload_validation_code_dropzone"
+    ],
+    "10": [
+      "commands_failure_qa_runner",
+      "commands_handoff_qa_commands",
+      "commands_happy_qa_validator",
+      "plan_final_verification_wave",
+      "plan_plan_qa_harness"
+    ],
+    "11": [
+      "recovery_report_isolation",
+      "recovery_report_pass",
+      "saas_operations_backup_recovery"
+    ],
+    "12": [
+      "authority_ledger_runtime_pin",
+      "saas_operations_runtime_preflight"
+    ],
+    "13": [
+      "saas_api_data_models",
+      "saas_architecture_deletion_epoch"
+    ],
+    "14": [
+      "saas_operations_deployment_runbook"
+    ]
+  },
+  "cohesion": {
+    "0": 0.1,
+    "1": 0.10526315789473684,
+    "2": 0.1111111111111111,
+    "3": 0.15384615384615385,
+    "4": 0.2,
+    "5": 0.2,
+    "6": 0.2222222222222222,
+    "7": 0.2222222222222222,
+    "8": 0.25,
+    "9": 0.2857142857142857,
+    "10": 0.4,
+    "11": 1.0,
+    "12": 1.0,
+    "13": 1.0,
+    "14": 1.0
+  },
+  "gods": [
+    {
+      "id": "saas_admin_uiux_shared_components",
+      "label": "Admin Shared Components",
+      "degree": 6
+    },
+    {
+      "id": "stitch_screens_upload_validation_code_preflight_checks",
+      "label": "Pre Flight Checks UI",
+      "degree": 6
+    },
+    {
+      "id": "stitch_screens_job_queue_delivery_code_queue_delivery_screen",
+      "label": "Queue Delivery Screen",
+      "degree": 6
+    },
+    {
+      "id": "authority_ledger_t1_t6_receipts",
+      "label": "T1-T6 Receipt Ledger",
+      "degree": 5
+    },
+    {
+      "id": "stitch_screens_ref_studio_landing_code_landing_screen",
+      "label": "REF_STUDIO Landing Screen",
+      "degree": 5
+    },
+    {
+      "id": "stitch_screens_scene_review_approval_code_scene_review_screen",
+      "label": "Scene Review Approval Screen",
+      "degree": 5
+    },
+    {
+      "id": "stitch_screens_scene_review_approval_code_observed_measurements_panel",
+      "label": "Observed Measurements Panel",
+      "degree": 5
+    },
+    {
+      "id": "stitch_screens_shared_dark_data_tables",
+      "label": "Dark Data Table Pattern",
+      "degree": 5
+    },
+    {
+      "id": "readme_reference_video_studio_final_handoff",
+      "label": "Reference Video Studio Final Handoff",
+      "degree": 4
+    },
+    {
+      "id": "plan_ulw_plan",
+      "label": "Reference Video Studio SaaS ULW Plan",
+      "degree": 4
+    }
+  ],
+  "surprises": [
+    {
+      "source": "Observed Measurements Panel",
+      "target": "OCR UI Bounds",
+      "source_files": [
+        "stitch_screens/scene_review_approval/code.html",
+        "reference-interpretation-contract.json"
+      ],
+      "confidence": "INFERRED",
+      "relation": "semantically_similar_to",
+      "why": "inferred connection - not explicitly stated in source; crosses file types (code ↔ doc); connects across different repos/directories; bridges separate communities; semantically similar concepts with no structural link"
+    },
+    {
+      "source": "Runtime Preflight",
+      "target": "Runtime Pin Contract",
+      "source_files": [
+        "saas-operations.md",
+        "authority-ledger.json"
+      ],
+      "confidence": "INFERRED",
+      "relation": "semantically_similar_to",
+      "why": "inferred connection - not explicitly stated in source; crosses file types (doc ↔ code); connects across different repos/directories; semantically similar concepts with no structural link"
+    },
+    {
+      "source": "Recovery Isolation",
+      "target": "Backup And Recovery",
+      "source_files": [
+        "recovery-report.json",
+        "saas-operations.md"
+      ],
+      "confidence": "INFERRED",
+      "relation": "semantically_similar_to",
+      "why": "inferred connection - not explicitly stated in source; crosses file types (doc ↔ code); connects across different repos/directories; semantically similar concepts with no structural link"
+    },
+    {
+      "source": "Temporal Evidence Feature Card",
+      "target": "Temporal Volume Contract",
+      "source_files": [
+        "stitch_screens/ref_studio_landing/code.html",
+        "reference-interpretation-contract.json"
+      ],
+      "confidence": "INFERRED",
+      "relation": "semantically_similar_to",
+      "why": "inferred connection - not explicitly stated in source; crosses file types (code ↔ doc); connects across different repos/directories; semantically similar concepts with no structural link"
+    },
+    {
+      "source": "Camera Motion Card",
+      "target": "Camera Motion Separation",
+      "source_files": [
+        "stitch_screens/scene_review_approval/code.html",
+        "reference-interpretation-contract.json"
+      ],
+      "confidence": "INFERRED",
+      "relation": "semantically_similar_to",
+      "why": "inferred connection - not explicitly stated in source; crosses file types (code ↔ doc); connects across different repos/directories; semantically similar concepts with no structural link"
+    }
+  ],
+  "questions": [
+    {
+      "type": "bridge_node",
+      "question": "Why does `Queue Delivery Screen` connect `Community 1` to `Community 0`, `Community 2`?",
+      "why": "High betweenness centrality (0.302) - this node is a cross-community bridge."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `Shared REF_STUDIO Top Nav` connect `Community 1` to `Community 8`, `Community 6`?",
+      "why": "High betweenness centrality (0.260) - this node is a cross-community bridge."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `Dark Data Table Pattern` connect `Community 0` to `Community 1`?",
+      "why": "High betweenness centrality (0.252) - this node is a cross-community bridge."
+    },
+    {
+      "type": "verify_inferred",
+      "question": "Are the 3 inferred relationships involving `Queue Delivery Screen` (e.g. with `Dark Data Table Pattern` and `Shared REF_STUDIO Top Nav`) actually correct?",
+      "why": "`Queue Delivery Screen` has 3 INFERRED edges - model-reasoned connections that need verification."
+    },
+    {
+      "type": "verify_inferred",
+      "question": "Are the 2 inferred relationships involving `T1-T6 Receipt Ledger` (e.g. with `Path Based Provenance` and `Predecessor Chain Panel`) actually correct?",
+      "why": "`T1-T6 Receipt Ledger` has 2 INFERRED edges - model-reasoned connections that need verification."
+    },
+    {
+      "type": "verify_inferred",
+      "question": "Are the 2 inferred relationships involving `REF_STUDIO Landing Screen` (e.g. with `Engineered Cosmic Aesthetic` and `Shared REF_STUDIO Top Nav`) actually correct?",
+      "why": "`REF_STUDIO Landing Screen` has 2 INFERRED edges - model-reasoned connections that need verification."
+    },
+    {
+      "type": "isolated_nodes",
+      "question": "What connects `Canonical Recovery Report JSON`, `Momus And Oracle Review Gate`, `Deterministic Execution Contract` to the rest of the system?",
+      "why": "46 weakly-connected nodes found - possible documentation gaps or missing edges."
+    }
+  ]
+}

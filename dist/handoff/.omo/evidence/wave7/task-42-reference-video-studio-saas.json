@@ -1,0 +1,11 @@
+{
+  "task": 42,
+  "status": "passed",
+  "commands": [
+    "pnpm --filter web test:a11y -- --rules verification/contract/wcag-aa.json",
+    "pnpm --filter web test:visual -- --contract verification/contract/visual/index.json"
+  ],
+  "accessibility": {"tests": 11, "passed": 11, "violations": 0, "viewports": [1440, 320, 390, 768], "coverage": ["axe-wcag2a-aa", "keyboard-focus", "live-region-presence", "reduced-motion", "overflow"]},
+  "visual": {"tests": 1, "passed": 1, "screens": 9, "desktopViewport": "1440x900", "narrowViewport": "390x844", "overflowOnlyWidths": [320, 768], "screenshots": ".omo/evidence/wave7/task-42-visual", "pixelComparison": "not-run: verification/contract/visual/index.json and parent-bound landmark asset are absent"},
+  "authority": {"source": "verification/contract/visual-contract-v2.json", "normativeInputsAggregateSha256": "ebd2c7b53d8e3adf4b582bb0604b67e1b02dbfa3dd2dbefadbe3c037a4e10f11", "generatedNormativeAssets": false}
+}

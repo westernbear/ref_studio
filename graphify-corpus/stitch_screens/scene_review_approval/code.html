@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Scene Review | REF_STUDIO</title>
+<!-- Material Symbols -->
+<script type="text/javascript" nonce="a8fa8df892b144ccaa86c8a1abe" src="//local.adguard.org?ts=1787306192554&amp;type=content-script&amp;dmn=contribution.usercontent.google.com&amp;url=https%3A%2F%2Fcontribution.usercontent.google.com%2Fdownload%3Fc%3DCgthaWRhX2NvZGVmeBJ6Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpZCiVodG1sXzAwMDY1OThiYjUyYjhhNzQwMWVlNGUxOTU5MjEzOGI0EgsSBxCS7-G91AQYAZIBIgoKcHJvamVjdF9pZBIUQhIxOTQ3MjU1NTQ2MzA3NjAwNzM%26filename%3D%26opi%3D89354086&amp;app=firefox.exe&amp;css=3&amp;js=1&amp;rel=1&amp;rji=1&amp;sbe=1&amp;stealth=1&amp;st-loc&amp;st-dnt"></script><script type="text/javascript" nonce="a8fa8df892b144ccaa86c8a1abe" src="//local.adguard.org?ts=1787306192554&amp;name=AdGuard%20Extra&amp;type=user-script"></script><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Fonts (Assuming standard Google Fonts for the requested families if not locally served) -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&amp;family=Manrope:wght@400;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Note: Mapping 'geist' to 'JetBrains Mono' for this standard web environment if actual Geist isn't loaded, though classes will remain strictly as configured -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-lowest": "#0e0e0e",
+                        "primary-container": "#e2e2e2",
+                        "surface": "#141313",
+                        "on-surface-variant": "#c4c7c8",
+                        "canvas-soft": "#1a1c20",
+                        "on-tertiary-fixed": "#1a1c1c",
+                        "on-primary": "#2f3131",
+                        "surface-tint": "#c6c6c7",
+                        "on-primary-fixed-variant": "#454747",
+                        "primary": "#ffffff",
+                        "inverse-surface": "#e5e2e1",
+                        "tertiary-fixed-dim": "#c6c6c7",
+                        "sunset": "#ff7a17",
+                        "primary-fixed": "#e2e2e2",
+                        "on-tertiary-fixed-variant": "#454747",
+                        "outline-variant": "#444748",
+                        "outline": "#8e9192",
+                        "surface-container-high": "#2a2a2a",
+                        "on-surface": "#e5e2e1",
+                        "hairline": "#212327",
+                        "on-background": "#e5e2e1",
+                        "canvas": "#0a0a0a",
+                        "on-primary-fixed": "#1a1c1c",
+                        "secondary": "#c3c7cd",
+                        "tertiary-container": "#e2e2e2",
+                        "error-container": "#93000a",
+                        "canvas-card": "#191919",
+                        "surface-bright": "#3a3939",
+                        "on-tertiary": "#2f3131",
+                        "on-error": "#690005",
+                        "on-secondary-fixed": "#181c21",
+                        "breeze": "#a0c3ec",
+                        "surface-container-low": "#1c1b1b",
+                        "on-secondary-container": "#b2b5bc",
+                        "on-error-container": "#ffdad6",
+                        "error": "#ffb4ab",
+                        "body": "#dadbdf",
+                        "surface-dim": "#141313",
+                        "dusk": "#7c3aed",
+                        "primary-fixed-dim": "#c6c6c7",
+                        "inverse-on-surface": "#313030",
+                        "on-secondary": "#2c3136",
+                        "surface-variant": "#353434",
+                        "surface-container-highest": "#353434",
+                        "secondary-fixed-dim": "#c3c7cd",
+                        "ink": "#ffffff",
+                        "background": "#141313",
+                        "secondary-container": "#43474d",
+                        "inverse-primary": "#5d5f5f",
+                        "secondary-fixed": "#dfe3e9",
+                        "surface-container": "#201f1f",
+                        "on-primary-container": "#636565",
+                        "on-secondary-fixed-variant": "#43474d",
+                        "tertiary-fixed": "#e2e2e2",
+                        "on-tertiary-container": "#636565",
+                        "tertiary": "#ffffff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "md": "12px",
+                        "2xl": "32px",
+                        "xxs": "2px",
+                        "lg": "16px",
+                        "4xl": "64px",
+                        "xl": "24px",
+                        "sm": "8px",
+                        "3xl": "48px",
+                        "xs": "4px"
+                    },
+                    "fontFamily": {
+                        "caption-mono-sm": ["JetBrains Mono", "monospace"], // Fallback mappings for rendering
+                        "display-sm": ["Manrope", "sans-serif"],
+                        "headline-lg-mobile": ["Manrope", "sans-serif"],
+                        "caption-mono": ["JetBrains Mono", "monospace"],
+                        "body-sm": ["Inter", "sans-serif"],
+                        "display-lg": ["Manrope", "sans-serif"],
+                        "body-lg": ["Inter", "sans-serif"],
+                        "body-md": ["Inter", "sans-serif"],
+                        "display-md": ["Manrope", "sans-serif"],
+                        "button": ["Inter", "sans-serif"],
+                        "display-xl": ["Manrope", "sans-serif"]
+                    },
+                    "fontSize": {
+                        "caption-mono-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "1.2px", "fontWeight": "400" }],
+                        "display-sm": ["32px", { "lineHeight": "36px", "letterSpacing": "-0.6px", "fontWeight": "400" }],
+                        "headline-lg-mobile": ["40px", { "lineHeight": "44px", "letterSpacing": "-1px", "fontWeight": "400" }],
+                        "caption-mono": ["14px", { "lineHeight": "20px", "letterSpacing": "1.4px", "fontWeight": "400" }],
+                        "body-sm": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "display-lg": ["72px", { "lineHeight": "72px", "letterSpacing": "-1.8px", "fontWeight": "400" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "display-md": ["48px", { "lineHeight": "48px", "letterSpacing": "-1.2px", "fontWeight": "400" }],
+                        "button": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "display-xl": ["96px", { "lineHeight": "96px", "letterSpacing": "-2.4px", "fontWeight": "400" }]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        /* Essential base styles to ensure dark mode text defaults are legible if utility classes are missed */
+        body {
+            background-color: theme('colors.canvas');
+            color: theme('colors.body');
+        }
+        /* Custom scrollbar for an engineered feel */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: theme('colors.surface-variant');
+            border-radius: theme('borderRadius.full');
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: theme('colors.outline-variant');
+        }
+    </style>
+</head>
+<body class="bg-canvas text-body font-body-md min-h-screen flex flex-col">
+<!-- TopNavBar (Shared Component) -->
+<header class="bg-canvas dark:bg-canvas font-body-sm text-body-sm tracking-tight docked full-width top-0 sticky border-b border-hairline z-50">
+<div class="flex justify-between items-center w-full px-lg py-md max-w-[1280px] mx-auto">
+<!-- Brand -->
+<div class="flex items-center gap-xl">
+<span class="font-display-sm text-display-sm font-bold text-primary tracking-tighter">REF_STUDIO</span>
+<!-- Navigation Links -->
+<nav class="hidden md:flex items-center gap-lg ml-xl">
+<a class="text-primary border-b border-primary pb-1 scale-95 duration-100 transition-all" href="#">Workflow</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors hover:bg-canvas-soft transition-all duration-150 px-2 py-1 rounded-DEFAULT" href="#">Admin</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors hover:bg-canvas-soft transition-all duration-150 px-2 py-1 rounded-DEFAULT" href="#">Docs</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors hover:bg-canvas-soft transition-all duration-150 px-2 py-1 rounded-DEFAULT" href="#">Support</a>
+</nav>
+</div>
+<!-- Actions & Search -->
+<div class="flex items-center gap-md">
+<!-- Search (on_right) -->
+<div class="hidden md:flex items-center bg-canvas-soft border border-hairline rounded-full px-sm py-xs">
+<span class="material-symbols-outlined text-on-surface-variant text-[18px]">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-body-sm font-body-sm w-48 text-primary placeholder:text-on-surface-variant py-xs" placeholder="Search projects..." type="text"/>
+</div>
+<button class="bg-primary text-on-primary font-button text-button px-lg py-sm rounded-full hover:bg-primary-container transition-colors">New Project</button>
+<button class="text-on-surface-variant hover:text-primary p-xs rounded-full hover:bg-canvas-soft transition-colors flex items-center justify-center">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="text-on-surface-variant hover:text-primary p-xs rounded-full hover:bg-canvas-soft transition-colors flex items-center justify-center">
+<span class="material-symbols-outlined">settings</span>
+</button>
+</div>
+</div>
+</header>
+<!-- Main Workspace -->
+<main class="flex-1 w-full max-w-[1280px] mx-auto p-lg py-xl flex flex-col lg:flex-row gap-xl">
+<!-- Left Column: Video Preview (9:16) -->
+<div class="w-full lg:w-[400px] shrink-0 flex flex-col gap-sm">
+<div class="flex items-center justify-between px-xs">
+<span class="font-caption-mono text-caption-mono text-on-surface-variant uppercase">Source Feed // 01</span>
+<span class="font-caption-mono-sm text-caption-mono-sm text-sunset bg-sunset/10 px-sm py-xxs rounded-full border border-sunset/20">LIVE-SYNC</span>
+</div>
+<div class="relative w-full aspect-[9/16] bg-canvas-card border border-hairline rounded-lg overflow-hidden group">
+<!-- Background Image Placeholder simulating raw footage -->
+<div class="absolute inset-0 bg-cover bg-center opacity-60 mix-blend-luminosity group-hover:opacity-100 transition-opacity duration-500" data-alt="A raw, unedited vertical video frame capturing a gritty, high-contrast urban alleyway at night. The scene is illuminated by harsh, cold blue security lights and a single flickering neon sign in the distance. The visual style is cinematic but clinical, focusing on raw architectural geometry and deep black shadows typical of a technical scouting shot." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuC2WIX5rECPYakWbEmpiKWQAyYPxzB1LMI18uCUJuUBoW-MDEaXdruHSR5qfE5hfJQSOUkfziAPbMnW45N0haEsieGN4tSmWMLpOBofRK4zI9WwHILg5S8NdEis29uKNUI8Hy7rY4anj6cNgrxRW04l6SCgUcztFZmgwmLMVjBeSLS0Yp75acaoWE0dNEPCka33T6JCv8lP88TuSP16YkSAMkm8sh35xHMfUXx_I5kpmISiZotAPOs')">
+</div>
+<!-- Technical Overlay Grid -->
+<div class="absolute inset-0 border-[0.5px] border-on-surface-variant/10 pointer-events-none" style="background-image: linear-gradient(to right, rgba(196, 199, 200, 0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(196, 199, 200, 0.05) 1px, transparent 1px); background-size: 10% 5.625%;"></div>
+<!-- DRAFT Watermark -->
+<div class="absolute inset-0 flex items-center justify-center pointer-events-none z-10 overflow-hidden">
+<span class="font-caption-mono text-on-surface-variant opacity-20 rotate-[-45deg] tracking-[0.5em] select-none text-[6rem] sm:text-[8rem] font-bold">
+                        DRAFT
+                    </span>
+</div>
+<!-- HUD Overlays -->
+<div class="absolute top-sm left-sm font-caption-mono-sm text-caption-mono-sm text-primary bg-canvas/80 backdrop-blur-sm px-xs py-xxs rounded-DEFAULT border border-hairline">
+                    REC <span class="text-error animate-pulse">●</span>
+</div>
+<div class="absolute bottom-sm right-sm font-caption-mono-sm text-caption-mono-sm text-primary bg-canvas/80 backdrop-blur-sm px-xs py-xxs rounded-DEFAULT border border-hairline">
+                    23.976 FPS / 4K
+                </div>
+<!-- Center Reticle -->
+<div class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-30">
+<div class="w-8 h-8 border border-primary relative">
+<div class="absolute top-1/2 left-[-8px] right-[-8px] h-[1px] bg-primary"></div>
+<div class="absolute left-1/2 top-[-8px] bottom-[-8px] w-[1px] bg-primary"></div>
+</div>
+</div>
+</div>
+<!-- Playback Controls (Minimal) -->
+<div class="flex items-center gap-md mt-sm border border-hairline bg-canvas-card px-md py-sm rounded-full">
+<button class="text-primary hover:text-breeze transition-colors"><span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">play_arrow</span></button>
+<div class="h-1 flex-1 bg-surface-variant rounded-full relative overflow-hidden">
+<div class="absolute top-0 left-0 h-full bg-primary w-[34%]"></div>
+</div>
+<span class="font-caption-mono-sm text-caption-mono-sm text-on-surface-variant">00:01:24:12</span>
+</div>
+</div>
+<!-- Right Column: Review Panel -->
+<div class="flex-1 flex flex-col gap-2xl">
+<!-- Header -->
+<div class="border-b border-hairline pb-md">
+<h1 class="font-display-sm text-display-sm text-primary tracking-tight">Scene Review <span class="text-on-surface-variant font-caption-mono text-lg align-middle ml-sm">#SC-994A</span></h1>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-xs">Analysis complete. Awaiting final spatial mapping approval before render queue insertion.</p>
+</div>
+<!-- OBSERVED MEASUREMENTS -->
+<section class="flex flex-col gap-lg">
+<h2 class="font-caption-mono text-caption-mono text-on-surface-variant uppercase tracking-widest flex items-center gap-sm">
+<span class="w-2 h-2 bg-breeze rounded-full"></span>
+                    Observed Measurements
+                </h2>
+<!-- Bento Grid for Data -->
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-md">
+<!-- OCR Card -->
+<div class="bg-canvas-card border border-hairline rounded-lg p-md flex flex-col gap-sm hover:border-outline-variant transition-colors group">
+<div class="flex items-center justify-between">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors">document_scanner</span>
+<span class="font-caption-mono-sm text-caption-mono-sm text-breeze bg-breeze/10 px-xs py-xxs rounded-DEFAULT border border-breeze/20">ACTIVE</span>
+</div>
+<div>
+<h3 class="font-body-sm text-body-sm text-primary font-medium">Text Extraction (OCR)</h3>
+<div class="mt-xs flex flex-col gap-xxs">
+<div class="flex justify-between font-caption-mono-sm text-caption-mono-sm">
+<span class="text-on-surface-variant">Entities Found</span>
+<span class="text-primary">14</span>
+</div>
+<div class="flex justify-between font-caption-mono-sm text-caption-mono-sm">
+<span class="text-on-surface-variant">Confidence Avg</span>
+<span class="text-primary">98.2%</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Camera Motion Card -->
+<div class="bg-canvas-card border border-hairline rounded-lg p-md flex flex-col gap-sm hover:border-outline-variant transition-colors group">
+<div class="flex items-center justify-between">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors">videocam</span>
+<span class="font-caption-mono-sm text-caption-mono-sm text-on-surface-variant bg-surface-variant px-xs py-xxs rounded-DEFAULT">LOCKED</span>
+</div>
+<div>
+<h3 class="font-body-sm text-body-sm text-primary font-medium">Camera Motion</h3>
+<div class="mt-xs flex flex-col gap-xxs">
+<div class="flex justify-between font-caption-mono-sm text-caption-mono-sm">
+<span class="text-on-surface-variant">Track Type</span>
+<span class="text-primary">3D Point Cloud</span>
+</div>
+<div class="flex justify-between font-caption-mono-sm text-caption-mono-sm">
+<span class="text-on-surface-variant">Solver Error</span>
+<span class="text-primary">0.42 px</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Light Fields Card -->
+<div class="bg-canvas-card border border-hairline rounded-lg p-md flex flex-col gap-sm hover:border-outline-variant transition-colors group">
+<div class="flex items-center justify-between">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors">highlight</span>
+<span class="font-caption-mono-sm text-caption-mono-sm text-on-surface-variant bg-surface-variant px-xs py-xxs rounded-DEFAULT">ESTIMATED</span>
+</div>
+<div>
+<h3 class="font-body-sm text-body-sm text-primary font-medium">Light Fields</h3>
+<div class="mt-xs flex flex-col gap-xxs">
+<div class="flex justify-between font-caption-mono-sm text-caption-mono-sm">
+<span class="text-on-surface-variant">Primary Source</span>
+<span class="text-primary">Key (Top Left)</span>
+</div>
+<div class="flex justify-between font-caption-mono-sm text-caption-mono-sm">
+<span class="text-on-surface-variant">Color Temp</span>
+<span class="text-primary">5600K</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- RENDER MAPPING -->
+<section class="flex flex-col gap-lg flex-1">
+<div class="flex items-center justify-between">
+<h2 class="font-caption-mono text-caption-mono text-on-surface-variant uppercase tracking-widest flex items-center gap-sm">
+<span class="w-2 h-2 bg-on-surface-variant rounded-full"></span>
+                        Render Mapping
+                    </h2>
+<button class="font-caption-mono-sm text-caption-mono-sm text-primary hover:text-breeze transition-colors underline decoration-hairline underline-offset-4">EDIT TOPOLOGY</button>
+</div>
+<div class="bg-canvas-card border border-hairline rounded-lg overflow-hidden flex flex-col">
+<!-- List Header -->
+<div class="grid grid-cols-12 gap-sm px-md py-sm border-b border-hairline bg-surface-container-low font-caption-mono-sm text-caption-mono-sm text-on-surface-variant uppercase">
+<div class="col-span-1">ID</div>
+<div class="col-span-4">Target Geometry</div>
+<div class="col-span-4">Material Bind</div>
+<div class="col-span-3 text-right">Status</div>
+</div>
+<!-- List Items -->
+<div class="divide-y divide-hairline">
+<!-- Item 1 -->
+<div class="grid grid-cols-12 gap-sm px-md py-md items-center hover:bg-canvas-soft transition-colors cursor-pointer">
+<div class="col-span-1 font-caption-mono text-caption-mono text-on-surface-variant">T1</div>
+<div class="col-span-4 font-body-sm text-body-sm text-primary flex items-center gap-xs">
+<span class="material-symbols-outlined text-[16px] text-on-surface-variant">category</span>
+                                Main_Facade_Wall
+                            </div>
+<div class="col-span-4 font-caption-mono text-caption-mono text-on-surface-variant">MAT_CONCRETE_ROUGH</div>
+<div class="col-span-3 flex justify-end">
+<span class="flex items-center gap-xs font-caption-mono-sm text-caption-mono-sm text-primary">
+<span class="material-symbols-outlined text-[14px] text-breeze">check_circle</span> Mapped
+                                </span>
+</div>
+</div>
+<!-- Item 2 -->
+<div class="grid grid-cols-12 gap-sm px-md py-md items-center hover:bg-canvas-soft transition-colors cursor-pointer">
+<div class="col-span-1 font-caption-mono text-caption-mono text-on-surface-variant">T2</div>
+<div class="col-span-4 font-body-sm text-body-sm text-primary flex items-center gap-xs">
+<span class="material-symbols-outlined text-[16px] text-on-surface-variant">category</span>
+                                Signage_Board_01
+                            </div>
+<div class="col-span-4 font-caption-mono text-caption-mono text-on-surface-variant">MAT_EMISSIVE_NEON</div>
+<div class="col-span-3 flex justify-end">
+<span class="flex items-center gap-xs font-caption-mono-sm text-caption-mono-sm text-primary">
+<span class="material-symbols-outlined text-[14px] text-breeze">check_circle</span> Mapped
+                                </span>
+</div>
+</div>
+<!-- Item 3 -->
+<div class="grid grid-cols-12 gap-sm px-md py-md items-center hover:bg-canvas-soft transition-colors cursor-pointer">
+<div class="col-span-1 font-caption-mono text-caption-mono text-on-surface-variant">T3</div>
+<div class="col-span-4 font-body-sm text-body-sm text-primary flex items-center gap-xs">
+<span class="material-symbols-outlined text-[16px] text-on-surface-variant">category</span>
+                                Street_Debris_Scatter
+                            </div>
+<div class="col-span-4 font-caption-mono text-caption-mono text-on-surface-variant opacity-50">UNASSIGNED</div>
+<div class="col-span-3 flex justify-end">
+<span class="flex items-center gap-xs font-caption-mono-sm text-caption-mono-sm text-sunset">
+<span class="material-symbols-outlined text-[14px]">warning</span> Pending
+                                </span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Bottom Actions -->
+<div class="pt-lg border-t border-hairline flex flex-wrap justify-end gap-md items-center mt-auto">
+<span class="font-caption-mono-sm text-caption-mono-sm text-on-surface-variant mr-auto">EST RENDER TIME: <span class="text-primary">02h 14m</span></span>
+<button class="border border-hairline text-primary font-button text-button rounded-full px-xl py-sm hover:bg-canvas-soft transition-colors flex items-center gap-sm">
+<span class="material-symbols-outlined text-[18px]">verified</span>
+                    Approve T1-T3
+                </button>
+<button class="border border-primary text-primary font-button text-button rounded-full px-xl py-sm hover:bg-primary hover:text-on-primary transition-all duration-100 flex items-center gap-sm group">
+<span class="material-symbols-outlined text-[18px] group-hover:text-on-primary">rocket_launch</span>
+                    Render Final
+                </button>
+</div>
+</div>
+</main>
+</body></html>
