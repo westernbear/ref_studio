@@ -34,6 +34,7 @@ services:
     environment:
       CI: "true"
       PNPM_CONFIG_CONFIRM_MODULES_PURGE: "false"
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
     working_dir: /workspace/apps/web
     volumes:
       - .:/workspace
@@ -49,10 +50,37 @@ services:
         "pnpm --filter @rvs/web install --frozen-lockfile && pnpm --filter @rvs/web build && pnpm --filter @rvs/web exec next start --hostname 0.0.0.0 --port 3100",
       ]
   api:
-    profiles: ["verify"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+      provenance: false
     image: reference-video-studio-runtime:todo1
-    networks: [appnet]
-    command: ["node", "--version"]
+    networks: [appnet, default]
+    environment:
+      CI: "true"
+      PNPM_CONFIG_CONFIRM_MODULES_PURGE: "false"
+      DATABASE_PATH: ${DATABASE_PATH:-/workspace/apps/api/data/app.sqlite}
+      HOST: "0.0.0.0"
+      PORT: "3200"
+      RVS_EXPECTED_ORIGIN: ${RVS_EXPECTED_ORIGIN:-http://localhost:3100}
+      RVS_SESSION_INTROSPECT_SECRET: ${RVS_SESSION_INTROSPECT_SECRET:-dev-introspect-secret}
+      RVS_WORKER_TOKEN: ${RVS_WORKER_TOKEN:-dev-worker-token}
+    working_dir: /workspace/apps/api
+    volumes:
+      - .:/workspace
+      - api_pnpm_store:/workspace/.pnpm-store
+      - api_root_node_modules:/workspace/node_modules
+      - api_node_modules:/workspace/apps/api/node_modules
+      - api_contracts_node_modules:/workspace/packages/contracts/node_modules
+    ports:
+      - "0.0.0.0:3200:3200"
+    command:
+      [
+        "sh",
+        "-lc",
+        "pnpm install --frozen-lockfile && pnpm --filter @rvs/api db:verify && pnpm --filter @rvs/api build && pnpm --filter @rvs/api start",
+      ]
   qa:
     profiles: ["qa"]
     image: reference-video-studio-runtime:todo1
@@ -82,6 +110,10 @@ networks:
     internal: true
 
 volumes:
+  api_contracts_node_modules:
+  api_node_modules:
+  api_pnpm_store:
+  api_root_node_modules:
   web_node_modules:
   web_pnpm_store:
   web_root_node_modules:

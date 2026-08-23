@@ -10,6 +10,7 @@ __pycache__/
 compiler/.venv/
 apps/*/.next/
 apps/*/.next-e2e.lock/
+apps/*/data/
 apps/*/dist/
 apps/*/test-results/
 apps/*/apps/*/data/*.sqlite

@@ -1,12 +1,14 @@
 import fs from "node:fs";
 import { randomBytes, scryptSync } from "node:crypto";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import Database from "better-sqlite3";
 
 const ADMIN_EMAIL = "RVS_INITIAL_ADMIN_EMAIL";
 const ADMIN_NAME = "RVS_INITIAL_ADMIN_NAME";
 const ADMIN_PASSWORD = "RVS_INITIAL_ADMIN_PASSWORD";
 const ROOT_ENV = new URL("../../../.env", import.meta.url);
+const DEFAULT_DATABASE = new URL("../data/app.sqlite", import.meta.url);
 
 const envValue = (env, name) => {
   const value = env[name]?.trim();
@@ -15,6 +17,8 @@ const envValue = (env, name) => {
 
 const hashPassword = (password, salt = randomBytes(16).toString("hex")) =>
   `scrypt$${salt}$${scryptSync(password, salt, 32).toString("hex")}`;
+
+export const defaultDatabasePath = () => fileURLToPath(DEFAULT_DATABASE);
 
 const unquote = (value) =>
   (value.startsWith('"') && value.endsWith('"')) ||
@@ -36,7 +40,7 @@ export function loadSeedEnv(file = ROOT_ENV, base = process.env) {
 }
 
 export function openDatabase(
-  file = process.env.DATABASE_PATH ?? path.resolve("apps/api/data/app.sqlite"),
+  file = process.env.DATABASE_PATH ?? defaultDatabasePath(),
 ) {
   if (file.includes("/") && !file.startsWith(":memory:"))
     fs.mkdirSync(path.dirname(file), { recursive: true });

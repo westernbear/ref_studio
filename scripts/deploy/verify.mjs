@@ -37,6 +37,12 @@ if (!serviceBlock("web").includes("target: runtime"))
   throw new Error("COMPOSE_WEB_BUILD_MISSING");
 if (!serviceBlock("web").includes("0.0.0.0:3100:3100"))
   throw new Error("COMPOSE_WEB_EXTERNAL_BIND_MISSING");
+if (!serviceBlock("api").includes("target: runtime"))
+  throw new Error("COMPOSE_API_BUILD_MISSING");
+if (!serviceBlock("api").includes("0.0.0.0:3200:3200"))
+  throw new Error("COMPOSE_API_EXTERNAL_BIND_MISSING");
+if (!serviceBlock("api").includes("RVS_WORKER_TOKEN"))
+  throw new Error("COMPOSE_API_WORKER_TOKEN_MISSING");
 if (
   !serviceBlock("web").includes("/workspace/.pnpm-store") ||
   !serviceBlock("web").includes("/workspace/node_modules") ||
@@ -47,7 +53,6 @@ for (const service of [
   "runtime",
   "runtime-preflight",
   "compiler",
-  "api",
   "qa",
   "qa-audit-egress",
 ]) {

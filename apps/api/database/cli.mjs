@@ -1,10 +1,14 @@
 import fs from "node:fs";
 import path from "node:path";
-import { loadSeedEnv, migrate, openDatabase, seed } from "./db.mjs";
+import {
+  defaultDatabasePath,
+  loadSeedEnv,
+  migrate,
+  openDatabase,
+  seed,
+} from "./db.mjs";
 const command = process.argv[2];
-const file = path.resolve(
-  process.env.DATABASE_PATH ?? "apps/api/data/app.sqlite",
-);
+const file = path.resolve(process.env.DATABASE_PATH ?? defaultDatabasePath());
 if (command === "reset") {
   fs.rmSync(file, { force: true });
   fs.rmSync(`${file}-wal`, { force: true });

@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import Database from "better-sqlite3";
-import { loadSeedEnv, migrate, seed } from "./db.mjs";
+import { defaultDatabasePath, loadSeedEnv, migrate, seed } from "./db.mjs";
 
 const matchesPassword = (password, encoded) => {
   const [, salt, expected] = encoded.split("$");
@@ -41,6 +41,17 @@ const loadedEnv = loadSeedEnv(join(envDir, ".env"), {
 assert.equal(loadedEnv.RVS_INITIAL_ADMIN_EMAIL, "file-admin@example.test");
 assert.equal(loadedEnv.RVS_INITIAL_ADMIN_PASSWORD, "process-secret");
 rmSync(envDir, { recursive: true, force: true });
+
+const originalCwd = process.cwd();
+try {
+  process.chdir(tmpdir());
+  assert.equal(
+    defaultDatabasePath().endsWith("apps/api/data/app.sqlite"),
+    true,
+  );
+} finally {
+  process.chdir(originalCwd);
+}
 
 const db = new Database(":memory:");
 db.pragma("foreign_keys = ON");
