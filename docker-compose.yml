@@ -35,6 +35,8 @@ services:
       CI: "true"
       PNPM_CONFIG_CONFIRM_MODULES_PURGE: "false"
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
+      RVS_INTERNAL_API_URL: ${RVS_INTERNAL_API_URL:-http://api:3200}
+      RVS_INSECURE_COOKIES: ${RVS_INSECURE_COOKIES:-true}
     working_dir: /workspace/apps/web
     volumes:
       - .:/workspace

@@ -9,7 +9,7 @@ type FormSubmitEvent = Parameters<
 >[0];
 
 const SAFE_ERROR = "The identifier or secret could not be verified.";
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
+const API_PREFIX = process.env.NEXT_PUBLIC_API_URL || "/api";
 
 const isSafeReturnUrl = (value: string | null): value is string =>
   value !== null &&
@@ -53,7 +53,7 @@ export function SignInForm({ mode }: { readonly mode: SignInMode }) {
     setBusy(true);
     try {
       const response = await fetch(
-        `${API_BASE}${isAdmin ? "/admin/sign-in" : "/sign-in"}`,
+        `${API_PREFIX}${isAdmin ? "/admin/sign-in" : "/sign-in"}`,
         {
           method: "POST",
           credentials: "include",
