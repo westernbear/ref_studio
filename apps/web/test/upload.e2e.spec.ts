@@ -11,7 +11,7 @@ test.describe("upload validation @upload", () => {
     ).toBeDisabled();
     await expect(
       page.locator('[data-control-id^="upload_validation:"]'),
-    ).toHaveCount(13);
+    ).toHaveCount(11);
     await expect(
       page.getByText("Select an MP4 source to begin."),
     ).toBeVisible();

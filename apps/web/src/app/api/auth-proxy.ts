@@ -2,13 +2,17 @@ type SignInPath = "/admin/sign-in" | "/sign-in";
 
 const DEFAULT_INTERNAL_API_URL = "http://127.0.0.1:3200";
 
-export function signInProxyUrl(path: SignInPath): string {
+export function internalApiUrl(path: string, search = ""): string {
   return new URL(
-    path,
+    `${path}${search}`,
     process.env.RVS_INTERNAL_API_URL ||
       process.env.NEXT_PUBLIC_API_URL ||
       DEFAULT_INTERNAL_API_URL,
   ).toString();
+}
+
+export function signInProxyUrl(path: SignInPath): string {
+  return internalApiUrl(path);
 }
 
 export function forwardedSetCookie(cookie: string | null): string | null {
@@ -37,5 +41,62 @@ export async function proxySignIn(
   return new Response(await response.text(), {
     status: response.status,
     headers,
+  });
+}
+
+const requestBody = async (
+  request: Request,
+): Promise<ArrayBuffer | undefined> =>
+  request.method === "GET" || request.method === "HEAD"
+    ? undefined
+    : request.arrayBuffer();
+
+export async function proxyV1(
+  request: Request,
+  path: readonly string[],
+): Promise<Response> {
+  const headers = new Headers();
+  for (const name of [
+    "content-type",
+    "cookie",
+    "idempotency-key",
+    "if-match",
+  ]) {
+    const value = request.headers.get(name);
+    if (value) headers.set(name, value);
+  }
+  headers.set(
+    "origin",
+    process.env.RVS_EXPECTED_ORIGIN || "http://localhost:3100",
+  );
+  headers.set("x-csrf-token", "web-proxy");
+
+  const body = await requestBody(request);
+  const response = await fetch(
+    internalApiUrl(
+      `/v1/${path.map(encodeURIComponent).join("/")}`,
+      new URL(request.url).search,
+    ),
+    body
+      ? {
+          method: request.method,
+          headers,
+          body,
+          redirect: "manual",
+        }
+      : {
+          method: request.method,
+          headers,
+          redirect: "manual",
+        },
+  );
+  const responseHeaders = new Headers();
+  const contentType = response.headers.get("content-type");
+  const cookie = forwardedSetCookie(response.headers.get("set-cookie"));
+  if (contentType) responseHeaders.set("content-type", contentType);
+  if (cookie) responseHeaders.set("set-cookie", cookie);
+  return new Response(await response.arrayBuffer(), {
+    status: response.status,
+    headers: responseHeaders,
   });
 }

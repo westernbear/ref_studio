@@ -1,53 +1,15 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("queue and delivery @jobs", () => {
-  test("covers controls, filters, detail history, safe actions, and downloads", async ({
-    page,
-  }) => {
+  test("renders no static job rows", async ({ page }) => {
     await page.goto("/admin/jobs");
     await expect(
       page.getByRole("heading", { name: "Queue & Delivery" }),
     ).toBeVisible();
-    const controls = page.locator('[data-control-id^="job_queue_delivery:"]');
-    await expect(controls).toHaveCount(30);
-    expect(
-      await controls.evaluateAll(
-        (nodes) =>
-          new Set(nodes.map((node) => node.getAttribute("data-control-id")))
-            .size,
-      ),
-    ).toBe(30);
-    await page.getByLabel("Search jobs").fill("Omni");
-    await expect(page.getByText("Omni Consumer Corp").first()).toBeVisible();
-    await page.getByLabel("Filter state").selectOption("COMPLETED");
-    await page.getByRole("button", { name: /RND-8990-W/ }).click();
     await expect(
-      page.getByRole("heading", { name: "#RND-8990-W" }),
+      page.getByText("No live records are connected for this page."),
     ).toBeVisible();
-    await expect(page.getByText("Attempt 1")).toBeVisible();
-    await page.getByRole("button", { name: "Download video" }).click();
-    await expect(page.getByRole("status")).toContainText("expires in 24 hours");
-    await page.getByRole("button", { name: "Close" }).click();
-    await page.getByLabel("Search jobs").fill("");
-    await page.getByLabel("Filter state").selectOption("RENDERING");
-    await page.getByRole("button", { name: /RND-8991-X/ }).click();
-    await page.locator('[data-job-action="cancel"]').first().click();
-    await expect(page.getByRole("dialog")).toContainText("CANCEL_REQUESTED");
-    await page
-      .getByRole("dialog")
-      .getByRole("button", { name: "Request cancel" })
-      .click();
-    await expect(page.getByRole("status")).toContainText(
-      "waiting for worker acknowledgement",
-    );
-    await page.getByRole("button", { name: "Close" }).click();
-    await page.getByLabel("Filter state").selectOption("FAILED");
-    await page.getByRole("button", { name: /RND-8970-T/ }).click();
-    await expect(
-      page.getByRole("button", { name: "Retry", exact: true }),
-    ).toBeDisabled();
-    await expect(
-      page.getByRole("button", { name: "Download report" }),
-    ).toBeDisabled();
+    await expect(page.locator("[data-control-id]")).toHaveCount(0);
+    await expect(page.locator("body")).not.toContainText(/RND-|Omni/u);
   });
 });

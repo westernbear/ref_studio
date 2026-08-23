@@ -4,6 +4,8 @@ import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import { buildAuthApp } from "./app.js";
 import type { AuthStore } from "./auth.js";
+import { createCreatorWorkflowStore } from "./creator-workflow.js";
+import type { UploadStore } from "./uploads.js";
 import { createWorkerStore, hashWorkerToken } from "./workers.js";
 
 const APP_PATH_MARKER = `${path.sep}apps${path.sep}api${path.sep}`;
@@ -168,10 +170,18 @@ export function loadAuthStore(
 }
 
 export function createApiServer(config: ApiServerConfig) {
+  const uploads: UploadStore = {
+    uploads: new Map(),
+    cas: new Map(),
+    casByTenantDigest: new Map(),
+    now: Date.now,
+  };
   const app = buildAuthApp({
     store: loadAuthStore(config.databasePath),
     expectedOrigin: config.expectedOrigin,
     introspectSecret: config.introspectSecret,
+    uploads,
+    creatorWorkflow: createCreatorWorkflowStore(),
     workers: createWorkerStore(hashWorkerToken(config.workerToken)),
   });
   app.get("/health", async () => ({ ok: true }));

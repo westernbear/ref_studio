@@ -2,6 +2,7 @@ import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
 import {
   ApiServerConfigError,
+  createApiServer,
   defaultApiDatabasePath,
   loadServerConfig,
 } from "./server.js";
@@ -21,5 +22,20 @@ describe("api server config", () => {
 
   it("requires a worker token for the live worker API", () => {
     expect(() => loadServerConfig({})).toThrow(ApiServerConfigError);
+  });
+
+  it("registers live upload and creator workflow routes", async () => {
+    const app = createApiServer({
+      host: "127.0.0.1",
+      port: 3_200,
+      databasePath: defaultApiDatabasePath(),
+      expectedOrigin: "http://localhost:3100",
+      introspectSecret: "secret",
+      workerToken: "worker-secret",
+    });
+
+    expect(app.hasRoute({ method: "POST", url: "/v1/uploads" })).toBe(true);
+    expect(app.hasRoute({ method: "POST", url: "/v1/jobs" })).toBe(true);
+    await app.close();
   });
 });

@@ -15,22 +15,29 @@ const request = async (
   init: RequestInit,
   signal: AbortSignal,
 ): Promise<Record<string, unknown>> => {
+  const headers = new Headers(init.headers);
+  if (typeof init.body === "string" && !headers.has("content-type"))
+    headers.set("content-type", "application/json");
   const response = await fetch(path, {
     ...init,
     signal,
-    headers: {
-      "content-type": "application/json",
-      "x-tenant-id": "ten_a",
-      ...(init.headers ?? {}),
-    },
+    headers,
   });
   const body = (await response.json()) as Record<string, unknown>;
   if (!response.ok)
     throw new Error(
-      typeof body.code === "string" ? body.code : "NETWORK_INTERRUPTED",
+      typeof body.code === "string"
+        ? body.code
+        : text(record(body.error).code) || "NETWORK_INTERRUPTED",
     );
   return body;
 };
+const record = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+const text = (value: unknown): string =>
+  typeof value === "string" ? value : "";
 
 export async function uploadMp4(
   file: File,
@@ -38,7 +45,7 @@ export async function uploadMp4(
   signal: AbortSignal,
 ): Promise<AcceptedMedia> {
   const created = await request(
-    "/v1/uploads",
+    "/api/v1/uploads",
     {
       method: "POST",
       body: JSON.stringify({
@@ -50,7 +57,8 @@ export async function uploadMp4(
     },
     signal,
   );
-  const uploadId = String(created.id);
+  const uploadId = text(record(created.upload).id);
+  if (!uploadId) throw new Error("NETWORK_INTERRUPTED");
   const chunkSize = 8 * 1024 * 1024;
   for (
     let offset = 0, index = 0;
@@ -61,9 +69,9 @@ export async function uploadMp4(
       .slice(offset, Math.min(offset + chunkSize, file.size))
       .arrayBuffer();
     await request(
-      `/v1/uploads/${encodeURIComponent(uploadId)}/chunks/${index}`,
+      `/api/v1/uploads/${encodeURIComponent(uploadId)}/chunks`,
       {
-        method: "PUT",
+        method: "POST",
         body: chunk,
         headers: { "content-type": "application/octet-stream" },
       },
@@ -77,10 +85,11 @@ export async function uploadMp4(
     });
   }
   const finalized = await request(
-    `/v1/uploads/${encodeURIComponent(uploadId)}/finalize`,
+    `/api/v1/uploads/${encodeURIComponent(uploadId)}/finalize`,
     { method: "POST", headers: { "idempotency-key": crypto.randomUUID() } },
     signal,
   );
+  const upload = record(finalized.upload);
   onProgress({ uploadPercent: 100, validationPercent: 100 });
   return {
     uploadId,
@@ -88,7 +97,7 @@ export async function uploadMp4(
     frameCount: Number(finalized.frameCount ?? 0),
     durationSeconds: Number(finalized.durationSeconds ?? 0),
     normalizedDigest: String(
-      finalized.normalizedDigest ?? finalized.casObjectId ?? "",
+      finalized.normalizedDigest ?? upload.casObjectId ?? uploadId,
     ),
   };
 }
@@ -99,7 +108,7 @@ export async function createCompilerJob(
   signal: AbortSignal,
 ): Promise<string> {
   const body = await request(
-    "/v1/jobs",
+    "/api/v1/jobs",
     {
       method: "POST",
       body: JSON.stringify({

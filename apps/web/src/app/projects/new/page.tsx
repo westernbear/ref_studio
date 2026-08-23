@@ -57,9 +57,6 @@ export default function NewProjectPage() {
   const [reason, setReason] = useState("Select an MP4 source to begin.");
   const [startFrame, setStartFrame] = useState(0);
   const [jobId, setJobId] = useState<string | null>(null);
-  const [drawer, setDrawer] = useState<"notifications" | "settings" | null>(
-    null,
-  );
 
   const acceptFile = async (candidate: File | undefined) => {
     if (!candidate) return;
@@ -209,33 +206,8 @@ export default function NewProjectPage() {
           >
             New Project
           </a>
-          <button
-            data-control-id="upload_validation:6"
-            type="button"
-            aria-expanded={drawer === "notifications"}
-            onClick={() =>
-              setDrawer(drawer === "notifications" ? null : "notifications")
-            }
-          >
-            Notifications
-          </button>
-          <button
-            data-control-id="upload_validation:7"
-            type="button"
-            aria-expanded={drawer === "settings"}
-            onClick={() => setDrawer(drawer === "settings" ? null : "settings")}
-          >
-            Settings
-          </button>
         </div>
       </header>
-      {drawer && (
-        <aside className="drawer" role="status">
-          {drawer === "notifications"
-            ? "No new notifications."
-            : "Session settings are managed by your workspace administrator."}
-        </aside>
-      )}
       <main className="upload-main">
         <p className="eyebrow">SOURCE / VALIDATION</p>
         <h1>
@@ -377,16 +349,20 @@ export default function NewProjectPage() {
         </section>
       </main>
       <footer>
-        <a data-control-id="upload_validation:10" href="/docs/api">
+        <a data-control-id="upload_validation:10" href="/api">
           API
         </a>
-        <a data-control-id="upload_validation:11" href="/terms">
+        <a data-control-id="upload_validation:11" href="/legal">
           Legal
         </a>
         <a data-control-id="upload_validation:12" href="/privacy">
           Privacy
         </a>
-        <a data-control-id="upload_validation:13" href="https://github.com">
+        <a
+          data-control-id="upload_validation:13"
+          href="https://github.com/singlerr/ref_studio"
+          rel="noreferrer"
+        >
           GitHub
         </a>
       </footer>

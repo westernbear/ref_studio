@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   forwardedSetCookie,
+  internalApiUrl,
   signInProxyUrl,
 } from "../src/app/api/auth-proxy";
 
@@ -60,6 +61,9 @@ describe("shared sign-in contract", () => {
     process.env.RVS_INTERNAL_API_URL = "";
     process.env.NEXT_PUBLIC_API_URL = "";
     expect(signInProxyUrl("/sign-in")).toBe("http://127.0.0.1:3200/sign-in");
+    expect(internalApiUrl("/v1/uploads", "?limit=1")).toBe(
+      "http://127.0.0.1:3200/v1/uploads?limit=1",
+    );
   });
 
   it("can forward session cookies over local HTTP when explicitly enabled", () => {

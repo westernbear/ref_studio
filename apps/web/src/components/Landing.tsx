@@ -1,9 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { ActionButton, Panel } from "./Primitives";
-
-type Drawer = "notifications" | "settings" | null;
+import { ActionButton } from "./Primitives";
 
 const nav = [
   ["Workflow", "/workflow", "landing_nav_workflow"],
@@ -12,22 +9,13 @@ const nav = [
   ["Support", "/support", "landing_nav_support"],
 ] as const;
 
-const features = [
-  ["EYE-01", "Temporal Evidence Extraction"],
-  ["EYE-02", "Deterministic Browser Render"],
-  ["EYE-03", "Semantic UI Portability"],
-] as const;
-
 export function Landing() {
-  const [drawer, setDrawer] = useState<Drawer>(null);
   const startCreating = () => {
     const authenticated = document.cookie
       .split(";")
       .some((cookie) => cookie.trim().startsWith("rvs_session="));
     window.location.assign(
-      authenticated
-        ? "/projects/new/upload"
-        : "/sign-in?returnTo=%2Fprojects%2Fnew",
+      authenticated ? "/projects/new" : "/sign-in?returnTo=%2Fprojects%2Fnew",
     );
   };
   return (
@@ -63,26 +51,6 @@ export function Landing() {
             >
               New Project
             </ActionButton>
-            <ActionButton
-              sourceId="ref_studio_landing:7"
-              operationId={null}
-              state="enabled"
-              className="icon-button"
-              aria-label="Open notifications"
-              onClick={() => setDrawer("notifications")}
-            >
-              ◌
-            </ActionButton>
-            <ActionButton
-              sourceId="ref_studio_landing:8"
-              operationId={null}
-              state="enabled"
-              className="icon-button"
-              aria-label="Open settings"
-              onClick={() => setDrawer("settings")}
-            >
-              ⌘
-            </ActionButton>
           </div>
         </div>
       </nav>
@@ -92,7 +60,7 @@ export function Landing() {
           <h1 id="landing-title">REF_STUDIO</h1>
           <p className="tagline">Frontier Reference Video Engineering.</p>
           <ActionButton
-            sourceId="ref_studio_landing:9"
+            sourceId="ref_studio_landing:7"
             operationId={null}
             state="enabled"
             className="start-button"
@@ -101,35 +69,21 @@ export function Landing() {
             Start Creating <span aria-hidden="true">↗</span>
           </ActionButton>
         </section>
-        <section className="feature-grid" aria-label="Studio capabilities">
-          {features.map(([code, title]) => (
-            <Panel key={code} className="feature-card">
-              <span className="feature-code">{code}</span>
-              <h2>{title}</h2>
-              <span className="feature-mark" aria-hidden="true">
-                +
-              </span>
-            </Panel>
-          ))}
-        </section>
-        <p className="pilot-note">
-          A bounded 4-second pilot for every reference.
-        </p>
       </main>
       <footer className="landing-footer">
         <span>REF_STUDIO</span>
         <div>
-          <a data-control-id="ref_studio_landing:10" href="/api">
+          <a data-control-id="ref_studio_landing:8" href="/api">
             API
           </a>
-          <a data-control-id="ref_studio_landing:11" href="/legal">
+          <a data-control-id="ref_studio_landing:9" href="/legal">
             Legal
           </a>
-          <a data-control-id="ref_studio_landing:12" href="/privacy">
+          <a data-control-id="ref_studio_landing:10" href="/privacy">
             Privacy
           </a>
           <a
-            data-control-id="ref_studio_landing:13"
+            data-control-id="ref_studio_landing:11"
             href="https://github.com/singlerr/ref_studio"
             rel="noreferrer"
           >
@@ -138,50 +92,6 @@ export function Landing() {
         </div>
         <span>© 2024 REF_STUDIO ENGINE. ALL RIGHTS RESERVED.</span>
       </footer>
-      {drawer && (
-        <div
-          className="drawer-backdrop"
-          role="presentation"
-          onClick={() => setDrawer(null)}
-        >
-          <aside
-            className="drawer"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="drawer-title"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <button
-              className="drawer-close"
-              aria-label="Close drawer"
-              onClick={() => setDrawer(null)}
-            >
-              ×
-            </button>
-            <p className="eyebrow">CONTROL SURFACE</p>
-            <h2 id="drawer-title">
-              {drawer === "notifications" ? "Notifications" : "Settings"}
-            </h2>
-            {drawer === "notifications" ? (
-              <p>
-                No new notifications. Your studio is ready for the next
-                reference.
-              </p>
-            ) : (
-              <p>
-                Session preferences are managed locally. Sign in to change
-                workspace settings.
-              </p>
-            )}
-            <a
-              className="drawer-link"
-              href={drawer === "notifications" ? "/workflow" : "/settings"}
-            >
-              Open {drawer === "notifications" ? "workflow" : "settings"}
-            </a>
-          </aside>
-        </div>
-      )}
     </div>
   );
 }

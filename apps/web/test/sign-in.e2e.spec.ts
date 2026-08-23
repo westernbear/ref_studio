@@ -49,7 +49,7 @@ test.describe("shared sign-in", () => {
     await expect(page.getByText("Admin Authorization Required")).toBeVisible();
     await expect(page.getByRole("link", { name: "Security" })).toHaveAttribute(
       "href",
-      "/security",
+      "/support",
     );
   });
 });

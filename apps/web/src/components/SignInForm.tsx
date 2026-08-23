@@ -171,13 +171,13 @@ export function SignInForm({ mode }: { readonly mode: SignInMode }) {
           <a data-control-id="admin_sign_in:7" href="/privacy">
             Privacy
           </a>
-          <a data-control-id="admin_sign_in:8" href="/terms">
-            Terms
+          <a data-control-id="admin_sign_in:8" href="/legal">
+            Legal
           </a>
-          <a data-control-id="admin_sign_in:9" href="/status">
+          <a data-control-id="admin_sign_in:9" href="/api">
             API Status
           </a>
-          <a data-control-id="admin_sign_in:10" href="/security">
+          <a data-control-id="admin_sign_in:10" href="/support">
             Security
           </a>
         </nav>

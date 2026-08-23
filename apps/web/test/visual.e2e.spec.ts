@@ -8,12 +8,12 @@ const screens = [
   ["ref_studio_landing", "/"],
   ["admin_sign_in", "/admin/sign-in"],
   ["upload_validation", "/projects/new"],
-  ["scene_review_approval", "/scene-review"],
-  ["job_queue_delivery", "/admin/jobs"],
+  ["scene_review", "/scene-review"],
+  ["admin_jobs", "/admin/jobs"],
   ["admin_tenants", "/admin/tenants"],
-  ["admin_receipt_chain", "/admin/receipts"],
+  ["admin_receipts", "/admin/receipts"],
   ["admin_quarantine", "/admin/quarantine"],
-  ["admin_audit_log", "/admin/audit"],
+  ["admin_audit", "/admin/audit"],
 ] as const;
 
 test("frozen visual contract structure and screenshots", async ({ page }) => {

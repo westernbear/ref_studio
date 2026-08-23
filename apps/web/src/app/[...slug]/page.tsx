@@ -1,53 +1,30 @@
 import {
+  AdminShell,
   CreatorShell,
   EmptySurface,
-  AdminShell,
 } from "../../components/Shells";
-import { JobQueue } from "../../components/JobQueue";
-import { AdminDashboard } from "../../components/AdminDashboard";
-import { TenantDirectory } from "../../components/TenantDirectory";
-import { ReceiptChain } from "../../components/ReceiptChain";
-import { QuarantineReview } from "../../components/QuarantineReview";
-import { AuditLog } from "../../components/AuditLog";
 
 const publicPages: Record<string, readonly [string, string]> = {
-  workflow: [
-    "Workflow",
-    "Build a reference from temporal evidence and deterministic browser renders.",
-  ],
-  docs: [
-    "Docs",
-    "Generated OpenAPI: /docs/openapi.json and /docs/openapi.yaml.",
-  ],
-  support: [
-    "Support",
-    "For bounded pilot support, review the workflow guide or contact your workspace administrator.",
-  ],
-  api: [
-    "API",
-    "API status is available at /health. OpenAPI links: /docs/openapi.json and /docs/openapi.yaml.",
-  ],
-  legal: [
-    "Legal",
-    "REF_STUDIO is a bounded reference-video engineering pilot.",
-  ],
-  privacy: [
-    "Privacy",
-    "Upload processing is scoped to your authenticated workspace and retained according to the project policy.",
-  ],
-  settings: [
-    "Settings",
-    "Workspace settings require an authenticated session.",
-  ],
-  "projects/new": ["New Project", "Sign in to upload a reference video."],
-  "projects/new/upload": [
-    "Upload Project",
-    "Authenticated upload intake is ready.",
-  ],
+  workflow: ["Workflow", "No live workflow is connected yet."],
+  docs: ["Docs", "No live documentation page is connected yet."],
+  support: ["Support", "No live support content is connected yet."],
+  api: ["API", "No public API page is connected yet."],
+  legal: ["Legal", "No legal content is connected yet."],
+  privacy: ["Privacy", "No privacy content is connected yet."],
+  settings: ["Settings", "No workspace settings page is connected yet."],
   "sign-in": [
     "Sign In",
     "Sign in to continue to your requested workspace destination.",
   ],
+};
+const adminPages: Record<string, string> = {
+  admin: "Admin dashboard",
+  "admin/audit": "Audit log",
+  "admin/billing": "Billing",
+  "admin/jobs": "Queue & Delivery",
+  "admin/quarantine": "Quarantine",
+  "admin/receipts": "Receipt chain",
+  "admin/tenants": "Tenants",
 };
 
 export default async function StaticDestination({
@@ -57,35 +34,16 @@ export default async function StaticDestination({
 }) {
   const { slug } = await params;
   const key = slug.join("/");
-  if (key === "admin/jobs") return <JobQueue />;
-  if (key === "admin/tenants")
+  const adminTitle = adminPages[key];
+  if (adminTitle)
     return (
       <AdminShell>
-        <TenantDirectory />
-      </AdminShell>
-    );
-  if (key === "admin/receipts")
-    return (
-      <AdminShell>
-        <ReceiptChain />
-      </AdminShell>
-    );
-  if (key === "admin/quarantine")
-    return (
-      <AdminShell>
-        <QuarantineReview />
-      </AdminShell>
-    );
-  if (key === "admin/audit")
-    return (
-      <AdminShell>
-        <AuditLog />
-      </AdminShell>
-    );
-  if (key === "admin")
-    return (
-      <AdminShell>
-        <AdminDashboard />
+        <div className="admin-page">
+          <EmptySurface
+            title={adminTitle}
+            description="No live records are connected for this page."
+          />
+        </div>
       </AdminShell>
     );
   const [title, description] = publicPages[key] ?? [

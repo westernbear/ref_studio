@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("REF_STUDIO landing @landing", () => {
-  test("renders primary controls, opens and closes drawers, and reports health", async ({
+  test("renders primary controls and reports health", async ({
     page,
     request,
   }) => {
@@ -21,12 +21,7 @@ test.describe("REF_STUDIO landing @landing", () => {
       "href",
       "/docs",
     );
-    await page.getByRole("button", { name: "Open notifications" }).click();
-    await expect(page.getByRole("dialog")).toContainText("Notifications");
-    await page.getByRole("button", { name: "Close drawer" }).click();
     await expect(page.getByRole("dialog")).toHaveCount(0);
-    await page.getByRole("button", { name: "Open settings" }).click();
-    await expect(page.getByRole("dialog")).toContainText("Settings");
     const health = await request.get("/health");
     expect(health.ok()).toBeTruthy();
     expect((await health.json()).status).toBe("ok");
@@ -56,10 +51,15 @@ test.describe("REF_STUDIO landing @landing", () => {
     await page.getByRole("button", { name: "Start Creating" }).click();
     await expect(page).toHaveURL(/\/sign-in\?returnTo=%2Fprojects%2Fnew$/);
     await context.addCookies([
-      { name: "rvs_session", value: "fixture", domain: "127.0.0.1", path: "/" },
+      {
+        name: "rvs_session",
+        value: "session-token",
+        domain: "127.0.0.1",
+        path: "/",
+      },
     ]);
     await page.goto("/");
     await page.getByRole("button", { name: "New Project" }).click();
-    await expect(page).toHaveURL(/\/projects\/new\/upload$/);
+    await expect(page).toHaveURL(/\/projects\/new$/);
   });
 });

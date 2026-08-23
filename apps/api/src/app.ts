@@ -31,6 +31,7 @@ import {
   cleanupExpiredUploads,
   createUpload,
   finalizeUpload,
+  MAX_CHUNK_BYTES,
   UploadFailure,
   visibleUpload,
   type UploadStore,
@@ -121,7 +122,7 @@ const principalResult = (
   );
 
 export function buildAuthApp(options: AppOptions): FastifyInstance {
-  const app = Fastify({ logger: false });
+  const app = Fastify({ logger: false, bodyLimit: MAX_CHUNK_BYTES });
   app.addContentTypeParser(
     "application/octet-stream",
     { parseAs: "buffer" },
@@ -143,6 +144,30 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
       const bearer = authorization?.startsWith("Bearer ")
         ? authorization.slice(7)
         : "";
+      if (!bearer) {
+        const principal = principalResult(
+          options.store,
+          request,
+          options.expectedOrigin,
+          now(),
+        );
+        if ("code" in principal) {
+          failure(reply, principal);
+          return;
+        }
+        if (tenant && tenant !== principal.tenantId) {
+          recordDenied(
+            options.store.audit,
+            "V1_SESSION_TENANT_DENIED",
+            principal,
+            tenant,
+          );
+          failure(reply, { code: "TENANT_BOUNDARY_BYPASS" });
+          return;
+        }
+        request.headers["x-tenant-id"] = principal.tenantId;
+        return;
+      }
       const principal = authenticateBearer(
         options.store,
         bearer,

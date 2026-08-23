@@ -4,6 +4,7 @@ import { hashBearer, type AuthStore } from "./auth.js";
 import {
   cleanupExpiredUploads,
   createUpload,
+  MAX_CHUNK_BYTES,
   type UploadStore,
 } from "./uploads.js";
 
@@ -119,6 +120,79 @@ describe("sandboxed upload sessions", () => {
     expect(finalized.json().upload.state).toBe("ACCEPTED");
     expect(state.uploads.cas.size).toBe(1);
     expect(finalized.json()).not.toHaveProperty("path");
+    await app.close();
+  });
+  it("allows same-origin session uploads without a bearer token", async () => {
+    const state = fixture();
+    state.auth.sessions.push({
+      id: "session-a",
+      userId: "usr_a",
+      tenantId: "ten_a",
+      expiresAt: 9_000,
+      revokedAt: null,
+    });
+    const app = buildAuthApp({
+      store: state.auth,
+      expectedOrigin: "https://studio.invalid",
+      introspectSecret: "secret",
+      uploads: state.uploads,
+      now: state.uploads.now,
+    });
+    const created = await app.inject({
+      method: "POST",
+      url: "/v1/uploads",
+      headers: {
+        cookie: "rvs_session=session-a",
+        origin: "https://studio.invalid",
+        "x-csrf-token": "csrf",
+      },
+      payload: {
+        filename: "session.mp4",
+        contentType: "video/mp4",
+        sizeBytes: 16,
+      },
+    });
+
+    expect(created.statusCode).toBe(201);
+    expect(created.json().upload.tenantId).toBe("ten_a");
+    await app.close();
+  });
+  it("accepts the documented maximum chunk size", async () => {
+    const state = fixture();
+    const app = buildAuthApp({
+      store: state.auth,
+      expectedOrigin: "https://studio.invalid",
+      introspectSecret: "secret",
+      uploads: state.uploads,
+      now: state.uploads.now,
+    });
+    const created = await app.inject({
+      method: "POST",
+      url: "/v1/uploads",
+      headers: headers("secret-a", "ten_a"),
+      payload: {
+        filename: "max-chunk.mp4",
+        contentType: "video/mp4",
+        sizeBytes: MAX_CHUNK_BYTES,
+      },
+    });
+    const uploadId = created.json().upload.id;
+    const chunk = mp4(MAX_CHUNK_BYTES);
+    const appended = await app.inject({
+      method: "POST",
+      url: `/v1/uploads/${uploadId}/chunks`,
+      headers: {
+        ...headers("secret-a", "ten_a"),
+        "content-type": "application/octet-stream",
+      },
+      payload: chunk,
+    });
+
+    expect(appended.statusCode).toBe(200);
+    expect(appended.json().upload.actualBytes).toBeUndefined();
+    expect(state.uploads.uploads.get(uploadId)?.actualBytes).toBe(
+      MAX_CHUNK_BYTES,
+    );
     await app.close();
   });
   it("quarantines wrong magic, rejects unsafe metadata and exact size overflow", async () => {
