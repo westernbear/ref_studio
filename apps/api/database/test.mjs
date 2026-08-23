@@ -53,6 +53,17 @@ try {
   process.chdir(originalCwd);
 }
 
+const legacyDb = new Database(":memory:");
+legacyDb.pragma("foreign_keys = ON");
+legacyDb.exec(
+  "CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL); INSERT INTO schema_migrations VALUES (1, datetime('now')); CREATE TABLE tenants (id TEXT PRIMARY KEY); INSERT INTO tenants VALUES ('ten_legacy'); CREATE TABLE cas_objects (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, sha256 TEXT NOT NULL, content_type TEXT NOT NULL, size_bytes INTEGER NOT NULL CHECK (size_bytes >= 0), purpose TEXT NOT NULL, retention_until TEXT NOT NULL, UNIQUE (tenant_id,sha256), UNIQUE (tenant_id,id), FOREIGN KEY (tenant_id) REFERENCES tenants(id))",
+);
+migrate(legacyDb);
+legacyDb.exec(
+  "INSERT INTO cas_objects VALUES ('cas_legacy_a','ten_legacy','same-digest','video/mp4',1,'source','2026-08-23T00:00:00Z'); INSERT INTO cas_objects VALUES ('cas_legacy_b','ten_legacy','same-digest','video/mp4',1,'source','2026-08-23T00:00:00Z')",
+);
+legacyDb.close();
+
 const db = new Database(":memory:");
 db.pragma("foreign_keys = ON");
 migrate(db);

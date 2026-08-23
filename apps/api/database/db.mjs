@@ -57,21 +57,31 @@ export function migrate(db) {
   db.exec(
     "CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)",
   );
-  const migration = fs.readFileSync(
-    new URL("./migrations/001_initial.sql", import.meta.url),
-    "utf8",
-  );
-  if (!db.prepare("SELECT 1 FROM schema_migrations WHERE version = 1").get()) {
+  const migrations = [
+    [1, "./migrations/001_initial.sql", false],
+    [2, "./migrations/002_allow_duplicate_cas.sql", true],
+  ];
+  for (const [version, file, disableForeignKeys] of migrations) {
+    if (
+      db.prepare("SELECT 1 FROM schema_migrations WHERE version = ?").get(
+        version,
+      )
+    )
+      continue;
+    const migration = fs.readFileSync(new URL(file, import.meta.url), "utf8");
+    if (disableForeignKeys) db.pragma("foreign_keys = OFF");
     db.exec("BEGIN IMMEDIATE");
     try {
       db.exec(migration);
       db.prepare(
-        "INSERT INTO schema_migrations VALUES (1, datetime('now'))",
-      ).run();
+        "INSERT INTO schema_migrations VALUES (?, datetime('now'))",
+      ).run(version);
       db.exec("COMMIT");
     } catch (error) {
       db.exec("ROLLBACK");
       throw error;
+    } finally {
+      if (disableForeignKeys) db.pragma("foreign_keys = ON");
     }
   }
 }
