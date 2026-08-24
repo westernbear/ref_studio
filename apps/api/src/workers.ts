@@ -557,6 +557,7 @@ const failWorkflowJob = (
   if (!terminalFailure(token) && job.automaticRetries < 3) {
     job.automaticRetries += 1;
     job.eligibleAt = now() + 1_000 * 2 ** (job.automaticRetries - 1);
+    job.progress = null;
     if (lease.phase === "render") {
       transition(job, "RETRYABLE_ERROR", now);
       transition(job, "QUEUED", now);

@@ -629,6 +629,56 @@ describe("worker registration API", () => {
     await fixture.app.close();
   });
 
+  it("accepts fresh progress when retrying a failed worker job", async () => {
+    const workflow = createCreatorWorkflowStore();
+    const job = addJob(workflow, "PREPARING");
+    let currentTime = 1_000;
+    const fixture = appFixture(workflow, uploadFixture(), {
+      now: () => currentTime,
+    });
+    await registerWorker(fixture, ["compiler"]);
+    await claimWorker(fixture);
+
+    const completedProgress = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${job.id}/progress`,
+      headers: fixture.headers,
+      payload: {
+        phase: "prepare",
+        stage: "evidence",
+        fraction: 1,
+        framesProcessed: 120,
+        framesTotal: 120,
+      },
+    });
+    const failed = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${job.id}/fail`,
+      headers: fixture.headers,
+      payload: { message: "INVALID_REQUEST" },
+    });
+    currentTime = 2_000;
+    await claimWorker(fixture);
+    const retryProgress = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${job.id}/progress`,
+      headers: fixture.headers,
+      payload: {
+        phase: "prepare",
+        stage: "download",
+        fraction: 0.05,
+        framesProcessed: null,
+        framesTotal: null,
+      },
+    });
+
+    expect(completedProgress.statusCode).toBe(200);
+    expect(failed.statusCode).toBe(200);
+    expect(retryProgress.statusCode).toBe(200);
+    expect(job.progress?.fraction).toBe(0.05);
+    await fixture.app.close();
+  });
+
   it("Given a preview MP4, when the worker uploads it, then stores a file-backed artifact with its digest and size", async () => {
     const workflow = createCreatorWorkflowStore();
     const job = addJob(workflow, "PREPARING");
