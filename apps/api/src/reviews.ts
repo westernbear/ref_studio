@@ -5,7 +5,6 @@ import {
   authenticateBearer,
   authenticateReleaseBearer,
   authorizeReleaseReview,
-  type Assignment,
   type AuthStore,
   type Principal,
 } from "./auth.js";
@@ -130,22 +129,6 @@ const auth = (
       );
   return "code" in principal ? null : principal;
 };
-const assignment = (
-  store: AuthStore,
-  principal: Principal,
-  gate: Gate,
-  tenantId: string | null,
-  scope: Assignment["scope"],
-  releaseId: string | null,
-): boolean =>
-  store.assignments.some(
-    (item) =>
-      item.reviewerId === principal.userId &&
-      item.gate === gate &&
-      item.scope === scope &&
-      item.tenantId === tenantId &&
-      (scope !== "RELEASE" || item.releaseId === releaseId),
-  );
 const required = (
   body: Body,
   release: boolean,
@@ -200,33 +183,10 @@ function decide(
     throw new Error("RESOURCE_NOT_FOUND");
   if (!release && body.attempt !== job?.attempt)
     throw new Error("STALE_APPROVAL_UNSAFE");
-  const tenantSuperAdminT1 =
-    !release &&
-    gate === "T1" &&
-    principal.roles.some((role) => role.toUpperCase() === "SUPER_ADMIN");
   const terminalJob =
     job !== undefined &&
     ["COMPLETED", "CANCELLED", "FAILED"].includes(job.state);
   if (release && authorizeReleaseReview(authStore, principal, undefined))
-    throw new Error("ROLE_NOT_PERMITTED");
-  if (
-    !tenantSuperAdminT1 &&
-    !principal.roles.some(
-      (role) => role.toUpperCase() === "DESIGNATED_REVIEWER",
-    )
-  )
-    throw new Error("ROLE_NOT_PERMITTED");
-  if (
-    !tenantSuperAdminT1 &&
-    !assignment(
-      authStore,
-      principal,
-      gate,
-      tenantId,
-      release ? "RELEASE" : "TENANT",
-      release ? (body.releaseId ?? null) : null,
-    )
-  )
     throw new Error("ROLE_NOT_PERMITTED");
   if (release && gate !== "T6") throw new Error("ROLE_NOT_PERMITTED");
   const predecessor = GATE_DAG[gate];

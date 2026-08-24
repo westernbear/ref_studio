@@ -306,7 +306,7 @@ describe("designated gate receipts", () => {
     expect(report.json()).toEqual({ status: "PASS" });
     await state.app.close();
   });
-  it("allows a tenant SUPER_ADMIN to approve T1 but not T2 without reviewer assignment", async () => {
+  it("allows a tenant SUPER_ADMIN to approve T1 and T2 without reviewer assignment", async () => {
     const state = setup();
     const t1 = await state.app.inject({
       method: "POST",
@@ -323,9 +323,9 @@ describe("designated gate receipts", () => {
       headers: { authorization: "Bearer super", "x-tenant-id": "ten_a" },
       payload: body("T2", String(t1.json().receipt.id)),
     });
-    expect(t2.statusCode, t2.body).toBe(403);
-    expect(t2.json().error.code).toBe("ROLE_NOT_PERMITTED");
+    expect(t2.statusCode, t2.body).toBe(201);
     expect(state.reviews.receipts.map((receipt) => receipt.actorId)).toEqual([
+      "usr_super",
       "usr_super",
     ]);
     await state.app.close();
@@ -424,52 +424,36 @@ describe("designated gate receipts", () => {
     expect(stale.json().error.code).toBe("STALE_APPROVAL_UNSAFE");
     await state.app.close();
   });
-  it("denies an unassigned tenant member and preserves correction links and immutable history", async () => {
+  it("allows tenant members without reviewer assignment and preserves correction links and immutable history", async () => {
     const state = setup();
-    const denied = await state.app.inject({
-      method: "POST",
-      url: "/v1/reviews",
-      headers: { authorization: "Bearer unassigned", "x-tenant-id": "ten_a" },
-      payload: body("T1"),
-    });
-    expect(denied.json().error.code).toBe("ROLE_NOT_PERMITTED");
-    const assignedOwner = await state.app.inject({
-      method: "POST",
-      url: "/v1/reviews",
-      headers: {
-        authorization: "Bearer assigned-owner",
-        "x-tenant-id": "ten_a",
-      },
-      payload: body("T1"),
-    });
-    expect(assignedOwner.json().error.code).toBe("ROLE_NOT_PERMITTED");
-    const headers = {
-      authorization: "Bearer reviewer",
-      "x-tenant-id": "ten_a",
-    };
     const rejected = await state.app.inject({
       method: "POST",
       url: "/v1/reviews",
-      headers,
+      headers: { authorization: "Bearer unassigned", "x-tenant-id": "ten_a" },
       payload: { ...body("T1"), decision: "REJECTED" },
     });
     const original = rejected.json().receipt;
     const corrected = await state.app.inject({
       method: "POST",
       url: "/v1/reviews",
-      headers,
+      headers: {
+        authorization: "Bearer assigned-owner",
+        "x-tenant-id": "ten_a",
+      },
       payload: { ...body("T1"), correctionOf: original.id },
     });
+    expect(rejected.statusCode).toBe(201);
     expect(corrected.statusCode).toBe(201);
     expect(corrected.json().receipt.correctionOf).toBe(original.id);
     expect(state.reviews.receipts[0]).toMatchObject({
       id: original.id,
       decision: "REJECTED",
+      actorId: "usr_unassigned",
     });
     const mutation = await state.app.inject({
       method: "DELETE",
       url: "/v1/reviews",
-      headers,
+      headers: { authorization: "Bearer reviewer", "x-tenant-id": "ten_a" },
     });
     expect(mutation.statusCode).toBe(404);
     await state.app.close();

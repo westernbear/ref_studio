@@ -48,7 +48,7 @@ export function ReviewGateControls(props: Props) {
         const code = errorCode(body);
         setError(
           code === "ROLE_NOT_PERMITTED"
-            ? "This gate requires its designated reviewer."
+            ? "This account cannot review this job."
             : code === "STALE_APPROVAL_UNSAFE"
               ? "The evidence changed. Refresh before reviewing again."
               : `Review decision failed: ${code || `HTTP_${response.status}`}.`,
