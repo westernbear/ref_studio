@@ -31,6 +31,8 @@ const serviceBlock = (compose, service) =>
   )?.[1] ?? "";
 const relay = serviceBlock(workerCompose, "api-relay");
 const worker = serviceBlock(workerCompose, "worker");
+const rootRelay = serviceBlock(rootCompose, "api-relay");
+const rootWorker = serviceBlock(rootCompose, "worker");
 
 if (!required.every((key) => execution[key] !== undefined))
   throw new Error("EXECUTION_CONTRACT_MISSING");
@@ -49,6 +51,22 @@ if (!serviceBlock(rootCompose, "api").includes("0.0.0.0:3200:3200"))
   throw new Error("COMPOSE_API_EXTERNAL_BIND_MISSING");
 if (!serviceBlock(rootCompose, "api").includes("RVS_WORKER_TOKEN"))
   throw new Error("COMPOSE_API_WORKER_TOKEN_MISSING");
+if (
+  !rootRelay.includes("reference-video-studio-worker:1.0.0") ||
+  !rootRelay.includes("context: ./apps/worker") ||
+  !rootRelay.includes("RVS_API_BASE_URL: http://api:3200") ||
+  !rootRelay.includes("- worker-internal")
+)
+  throw new Error("COMPOSE_WORKER_RELAY_DEFAULT_MISSING");
+if (
+  !rootWorker.includes("reference-video-studio-worker:1.0.0") ||
+  !rootWorker.includes("context: ./apps/worker") ||
+  !rootWorker.includes("RVS_API_BASE_URL: http://api-relay:8787") ||
+  !rootWorker.includes("RVS_WORKER_TOKEN") ||
+  !rootWorker.includes("- worker-internal") ||
+  rootWorker.includes("- default")
+)
+  throw new Error("COMPOSE_WORKER_DEFAULT_MISSING");
 if (
   !serviceBlock(rootCompose, "web").includes("/workspace/.pnpm-store") ||
   !serviceBlock(rootCompose, "web").includes("/workspace/node_modules") ||
@@ -77,11 +95,14 @@ for (const service of ["api-relay", "worker"])
   if (!serviceBlock(workerCompose, service).includes("restart: always"))
     throw new Error(`WORKER_COMPOSE_RESTART_POLICY ${service}`);
 if (
-  !worker.includes(
-    "RVS_WORKER_TOKEN: ${RVS_WORKER_TOKEN:?RVS_WORKER_TOKEN must be set}",
-  )
+  !workerCompose.includes("x-worker-env-files: &worker-env-files") ||
+  !workerCompose.includes("path: ../../.env") ||
+  !workerCompose.includes("path: .env") ||
+  !relay.includes("env_file: *worker-env-files") ||
+  !worker.includes("env_file: *worker-env-files") ||
+  worker.includes("RVS_WORKER_TOKEN: ${RVS_WORKER_TOKEN")
 )
-  throw new Error("WORKER_COMPOSE_TOKEN_NOT_REQUIRED");
+  throw new Error("WORKER_COMPOSE_ENV_FILE_CONTRACT_MISSING");
 if (
   !relay.includes(
     "RVS_API_BASE_URL: ${RVS_API_BASE_URL:-http://host.docker.internal:3200}",
@@ -110,8 +131,9 @@ process.stdout.write(
     preflight: "runtime-preflight",
     composeIsolation: "verified",
     workerComposeIsolation: "verified",
+    rootWorkerServices: ["api-relay", "worker"],
     workerRestartAlways: ["api-relay", "worker"],
-    workerToken: "required",
+    workerToken: "root-env-or-worker-env",
     workerRelay: "verified",
     workerApiTimeoutMs: 30_000,
     workerMediaTimeoutMs: 1_800_000,

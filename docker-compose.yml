@@ -89,6 +89,57 @@ services:
         "-c",
         "pnpm install --frozen-lockfile && pnpm --filter @rvs/api db:verify && pnpm --filter @rvs/api build && pnpm --filter @rvs/api start",
       ]
+  api-relay:
+    image: reference-video-studio-worker:1.0.0
+    restart: always
+    init: true
+    build:
+      context: ./apps/worker
+      dockerfile: Dockerfile
+    depends_on:
+      - api
+    environment:
+      RVS_API_BASE_URL: http://api:3200
+      RVS_RELAY_REQUEST_TIMEOUT_MS: ${RVS_RELAY_REQUEST_TIMEOUT_MS:-1800000}
+    command: ["node", "dist/api-relay.js"]
+    networks:
+      - appnet
+      - worker-internal
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - >-
+          require("node:http").get("http://127.0.0.1:8787/_relay/healthz",response=>process.exit(response.statusCode===204?0:1)).on("error",()=>process.exit(1))
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+  worker:
+    image: reference-video-studio-worker:1.0.0
+    restart: always
+    init: true
+    stop_grace_period: 30s
+    cpus: 4.0
+    mem_limit: 12g
+    pids_limit: 512
+    build:
+      context: ./apps/worker
+      dockerfile: Dockerfile
+    depends_on:
+      api-relay:
+        condition: service_healthy
+    environment:
+      RVS_API_BASE_URL: http://api-relay:8787
+      RVS_WORKER_TOKEN: ${RVS_WORKER_TOKEN:?RVS_WORKER_TOKEN must be set}
+      RVS_WORKER_CAPABILITIES: ${RVS_WORKER_CAPABILITIES:-compiler,renderer}
+      RVS_API_REQUEST_TIMEOUT_MS: ${RVS_API_REQUEST_TIMEOUT_MS:-30000}
+      RVS_MEDIA_REQUEST_TIMEOUT_MS: ${RVS_MEDIA_REQUEST_TIMEOUT_MS:-1800000}
+      RVS_HEARTBEAT_INTERVAL_MS: ${RVS_HEARTBEAT_INTERVAL_MS:-30000}
+      RVS_POLL_INTERVAL_MS: ${RVS_POLL_INTERVAL_MS:-5000}
+    networks:
+      - worker-internal
   qa:
     profiles: ["qa"]
     image: reference-video-studio-runtime:1.0.0
@@ -115,6 +166,8 @@ services:
 
 networks:
   appnet:
+    internal: true
+  worker-internal:
     internal: true
 
 volumes:
