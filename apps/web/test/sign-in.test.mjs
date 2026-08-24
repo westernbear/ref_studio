@@ -134,6 +134,34 @@ describe("shared sign-in contract", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it("accepts browser same-origin sign-in when the backend origin default differs", async () => {
+    delete process.env.RVS_EXPECTED_ORIGIN;
+    const fetchMock = vi.fn(async (_url, init) => {
+      expect(init.headers.origin).toBe("http://localhost:3100");
+      return Response.json({ ok: true });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await proxySignIn(
+      new Request("http://localhost:3101/api/admin/sign-in", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          host: "127.0.0.1:3101",
+          origin: "http://127.0.0.1:3101",
+        },
+        body: JSON.stringify({
+          email: "admin@example.test",
+          password: "secret",
+        }),
+      }),
+      "/admin/sign-in",
+    );
+
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("forwards 204 responses without constructing a forbidden body", async () => {
     process.env.RVS_EXPECTED_ORIGIN = "http://localhost:3100";
     vi.stubGlobal(

@@ -16,8 +16,28 @@ const originFailure = (): Response =>
     { status: 403 },
   );
 
-const hasTrustedOrigin = (request: Request): boolean =>
-  request.headers.get("origin") === expectedOrigin();
+const firstHeaderValue = (value: string | null): string | null =>
+  value?.split(",")[0]?.trim() || null;
+
+const requestOrigin = (request: Request): string => {
+  const url = new URL(request.url);
+  const host =
+    firstHeaderValue(request.headers.get("x-forwarded-host")) ??
+    firstHeaderValue(request.headers.get("host"));
+  const protocol =
+    firstHeaderValue(request.headers.get("x-forwarded-proto")) ??
+    url.protocol.slice(0, -1);
+  return host ? `${protocol}://${host}` : url.origin;
+};
+
+const hasTrustedOrigin = (request: Request): boolean => {
+  const origin = request.headers.get("origin");
+  return (
+    origin === expectedOrigin() ||
+    origin === new URL(request.url).origin ||
+    origin === requestOrigin(request)
+  );
+};
 
 export function internalApiUrl(path: string, search = ""): string {
   return new URL(
