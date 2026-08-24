@@ -698,6 +698,7 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
     registerWorkers(app, options.workers, {
       now,
       workflow: options.creatorWorkflow,
+      reviews: options.reviews,
       uploads: options.uploads,
       artifactRoot: options.artifactRoot,
       persist: options.persist,

@@ -113,7 +113,6 @@ export const nextApprovalGate = (
 ): ApprovalGate | null => {
   if (job.state === "AWAITING_T5") return "T5";
   const byStage: Readonly<Record<string, ApprovalGate>> = {
-    AWAITING_T1: "T1",
     AWAITING_T2: "T2",
     AWAITING_T3: "T3",
     AWAITING_T4: "T4",
@@ -135,7 +134,7 @@ export const jobStatusCopy = (job: JobProgress): string => {
   if (state === "PREPARING" || state === "STALE_APPROVAL") {
     if (job.progressStage) return `Compiler active: ${job.progressStage}.`;
     const stageCopy: Readonly<Record<string, string>> = {
-      AWAITING_T1: "Awaiting T1 input and runtime approval.",
+      AWAITING_T1: "Waiting for worker runtime preflight.",
       ANALYSIS_QUEUED: "Reference analysis is queued.",
       ANALYSIS_RUNNING: "Reference analysis is running.",
       AWAITING_T2: "Measured evidence is awaiting T2 review.",

@@ -22,7 +22,12 @@ import type {
   PreparationStage,
   RuntimePreflightEvidence,
 } from "./creator-workflow.js";
-import { CompilationSchema, EvidenceBundleSchema } from "./creator-workflow.js";
+import {
+  autoApproveT1,
+  CompilationSchema,
+  EvidenceBundleSchema,
+} from "./creator-workflow.js";
+import type { ReviewStore } from "./reviews.js";
 import { uploadSourcePath, type UploadStore } from "./uploads.js";
 
 const MAX_ARTIFACT_BYTES = 512 * 1024 * 1024;
@@ -701,6 +706,7 @@ const finishWorkflowJob = (
 type WorkerRouteOptions = Readonly<{
   now: () => number;
   workflow: CreatorWorkflowStore | undefined;
+  reviews: ReviewStore | undefined;
   uploads: UploadStore | undefined;
   artifactRoot: string | undefined;
   persist: (() => void) | undefined;
@@ -711,7 +717,7 @@ export function registerWorkers(
   store: WorkerStore,
   options: WorkerRouteOptions,
 ): void {
-  const { now, workflow, uploads, artifactRoot, persist } = options;
+  const { now, workflow, reviews, uploads, artifactRoot, persist } = options;
   const auth = (
     request: FastifyRequest,
     reply: FastifyReply,
@@ -755,8 +761,10 @@ export function registerWorkers(
             job.state === "PREPARING" &&
             job.preparationStage === "AWAITING_T1" &&
             !job.runtimePreflight
-          )
+          ) {
             job.runtimePreflight = parsed.data.preflight;
+            autoApproveT1(reviews, job, job.creatorId, timestamp);
+          }
       }
       store.sessions.set(parsed.data.workerId, {
         workerId: parsed.data.workerId,

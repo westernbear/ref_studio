@@ -67,7 +67,7 @@ describe("compiler progress projection", () => {
     expect(progressStages.map((stage) => stage.state)).toContain("READY");
   });
 
-  it("surfaces the next approval gate while progress is blocked", () => {
+  it("does not surface a manual T1 approval action", () => {
     const job = parseJobProgress({
       id: "job_123",
       state: "PREPARING",
@@ -76,8 +76,8 @@ describe("compiler progress projection", () => {
     });
     expect(job).not.toBeNull();
     if (!job) throw new Error("job fixture did not parse");
-    expect(nextApprovalGate(job)).toBe("T1");
-    expect(jobStatusCopy(job)).toBe("Awaiting T1 input and runtime approval.");
+    expect(nextApprovalGate(job)).toBeNull();
+    expect(jobStatusCopy(job)).toBe("Waiting for worker runtime preflight.");
   });
 
   it("shows live status API error codes instead of a generic failure", () => {

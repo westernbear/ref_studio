@@ -19,6 +19,7 @@ import {
   type CreatorWorkflowStore,
   type Job,
 } from "./creator-workflow.js";
+import { createReviewStore, type ReviewStore } from "./reviews.js";
 import type { UploadStore } from "./uploads.js";
 import { createRetentionStore, type RetentionStore } from "./retention.js";
 
@@ -286,6 +287,7 @@ type FixtureOptions = Readonly<{
   now?: () => number;
   persist?: () => void;
   retention?: RetentionStore;
+  reviews?: ReviewStore;
 }>;
 const appFixture = (
   workflow?: CreatorWorkflowStore,
@@ -321,6 +323,7 @@ const appFixture = (
     workers,
     creatorWorkflow: workflow,
     uploads,
+    reviews: options.reviews,
     artifactRoot,
     now: options.now ?? (() => 1_000),
     persist: options.persist,
@@ -441,6 +444,24 @@ describe("worker registration API", () => {
       status: "ONLINE",
       preflight: { status: "PASS", runtimeDigest: RUNTIME_DIGEST },
     });
+    await fixture.app.close();
+  });
+
+  it("auto-approves T1 when worker preflight arrives after job creation", async () => {
+    const reviews = createReviewStore();
+    const workflow = createCreatorWorkflowStore();
+    const job = addJob(workflow, "PREPARING");
+    job.preparationStage = "AWAITING_T1";
+    job.runtimePreflight = null;
+    const fixture = appFixture(workflow, uploadFixture(), { reviews });
+
+    const registered = await registerWorker(fixture, ["compiler"]);
+
+    expect(registered.statusCode).toBe(200);
+    expect(job.preparationStage).toBe("ANALYSIS_QUEUED");
+    expect(reviews.receipts).toMatchObject([
+      { jobId: job.id, gate: "T1", decision: "APPROVED" },
+    ]);
     await fixture.app.close();
   });
 

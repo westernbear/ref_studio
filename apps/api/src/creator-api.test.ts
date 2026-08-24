@@ -179,7 +179,7 @@ const assertSafe = (value: unknown): void => {
 };
 
 describe("creator workflow API", () => {
-  it("creates and reads a tenant-fenced job without exposing private fields", async () => {
+  it("creates a tenant-fenced job with T1 auto-approved", async () => {
     const state = fixture();
     const uploadId = [...state.uploads.uploads.keys()][0];
     const created = await state.app.inject({
@@ -200,12 +200,23 @@ describe("creator workflow API", () => {
       url: `/v1/receipts?jobId=${encodeURIComponent(jobId)}`,
       headers,
     });
-    expect(detail.json().state).toBe("PREPARING");
+    expect(created.json()).toMatchObject({
+      state: "PREPARING",
+      preparationStage: "ANALYSIS_QUEUED",
+      approvedGates: ["T1"],
+    });
+    expect(detail.json()).toMatchObject({
+      state: "PREPARING",
+      preparationStage: "ANALYSIS_QUEUED",
+      approvedGates: ["T1"],
+    });
     expect(state.workflow.jobs.get(jobId)?.creatorId).toBe("usr_a");
     assertSafe(created.json());
     assertSafe(detail.json());
     expect(receipts.statusCode).toBe(200);
-    expect(receipts.json().items).toEqual([]);
+    expect(receipts.json().items).toMatchObject([
+      { jobId, gate: "T1", decision: "APPROVED", actorId: "usr_a" },
+    ]);
     await state.app.close();
   });
   it("streams a file-backed reference video", async () => {
@@ -293,7 +304,12 @@ describe("creator workflow API", () => {
     const job = state.workflow.jobs.get(created.json().id);
     expect(job).toBeDefined();
     if (!job) throw new Error("test job was not created");
-    const t1 = await approveGate(state, job, "T1", null);
+    const t1Receipt = state.reviews.receipts.find(
+      (receipt) => receipt.jobId === job.id && receipt.gate === "T1",
+    );
+    expect(t1Receipt).toBeDefined();
+    if (!t1Receipt) throw new Error("T1 receipt was not auto-approved");
+    const t1 = t1Receipt.id;
     job.evidence = {
       state: "NEEDS_CHOICE",
       needsChoice: [

@@ -8,7 +8,7 @@ import {
 } from "../../../packages/contracts/src/lifecycle.js";
 import { IdempotencyStore, requestHash, safeEnvelope } from "./boundary.js";
 import type { Principal } from "./auth.js";
-import type { ReviewStore } from "./reviews.js";
+import type { ReviewReceipt, ReviewStore } from "./reviews.js";
 import { uploadSourcePath, type UploadStore } from "./uploads.js";
 import type { WorkerStore } from "./workers.js";
 
@@ -492,6 +492,64 @@ const projection = (
     ),
   ],
 });
+export function autoApproveT1(
+  reviews: ReviewStore | undefined,
+  job: Job,
+  actorId: string,
+  now: number,
+): string | null {
+  if (
+    !reviews ||
+    job.state !== "PREPARING" ||
+    job.preparationStage !== "AWAITING_T1" ||
+    !job.runtimePreflight
+  )
+    return null;
+  const existing = reviews.receipts.find(
+    (receipt) =>
+      receipt.jobId === job.id &&
+      receipt.attempt === job.attempt &&
+      receipt.gate === "T1",
+  );
+  if (existing) {
+    if (existing.decision === "APPROVED") {
+      job.preparationStage = "ANALYSIS_QUEUED";
+      job.eligibleAt = now;
+    }
+    return existing.id;
+  }
+  const snapshot = {
+    evidenceDigest: job.evidenceDigest,
+    irDigest: job.irDigest,
+    runtimeDigest: job.runtimePreflight.runtimeDigest,
+    releaseBaselineDigest: RELEASE_BASELINE_DIGEST,
+  };
+  reviews.current.set(`${job.id}:T1:${job.attempt}`, snapshot);
+  const receipt: ReviewReceipt = {
+    id: id("rcpt"),
+    releaseId: null,
+    jobId: job.id,
+    tenantId: job.tenantId,
+    attempt: job.attempt,
+    gate: "T1",
+    decision: "APPROVED",
+    actorId,
+    predecessorReceiptId: null,
+    ...snapshot,
+    reason: "Initial source gate auto-approved during job creation.",
+    artifactRefs: [],
+    correctionOf: null,
+    sequence: ++reviews.sequence.value,
+    createdAt: new Date(now).toISOString(),
+  };
+  reviews.receipts.push(receipt);
+  job.preparationStage = "ANALYSIS_QUEUED";
+  job.eligibleAt = now;
+  job.failureCode = null;
+  job.updatedAt = receipt.createdAt;
+  job.etag = `\"${id("etag")}\"`;
+  return receipt.id;
+}
 const fail = (reply: FastifyReply, code: string, status = 400): void => {
   reply
     .code(status)
@@ -675,6 +733,7 @@ export function registerCreatorWorkflow(
             };
             store.jobs.set(job.id, job);
             store.attempts.set(job.id, [attempt]);
+            autoApproveT1(reviews, job, principal.userId, store.now());
             return [201, projection(store, job, reviews)];
           },
         );
@@ -869,6 +928,7 @@ export function registerCreatorWorkflow(
               immutable: true,
             };
             store.attempts.get(job.id)?.push(attempt);
+            autoApproveT1(reviews, job, job.creatorId, store.now());
             return [201, projection(store, job, reviews)];
           },
         );
