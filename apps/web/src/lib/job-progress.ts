@@ -52,6 +52,7 @@ export const progressStages = [
 ] as const;
 
 export const approvalGates = ["T1", "T2", "T3", "T4", "T5"] as const;
+export type ApprovalGate = (typeof approvalGates)[number];
 
 const terminalStates = ["COMPLETED", "CANCELLED", "FAILED"] as const;
 
@@ -106,6 +107,19 @@ export const jobActivityPercent = (job: JobProgress): number =>
 
 export const isTerminalJobState = (state: string): boolean =>
   terminalStates.some((candidate) => candidate === state);
+
+export const nextApprovalGate = (
+  job: Pick<JobProgress, "state" | "preparationStage">,
+): ApprovalGate | null => {
+  if (job.state === "AWAITING_T5") return "T5";
+  const byStage: Readonly<Record<string, ApprovalGate>> = {
+    AWAITING_T1: "T1",
+    AWAITING_T2: "T2",
+    AWAITING_T3: "T3",
+    AWAITING_T4: "T4",
+  };
+  return byStage[job.preparationStage] ?? null;
+};
 
 export const jobStatusCopy = (job: JobProgress): string => {
   const state = job.state;

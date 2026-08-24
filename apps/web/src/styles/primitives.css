@@ -1203,6 +1203,35 @@ progress {
   letter-spacing: 0;
   text-transform: uppercase;
 }
+.progress-next-action {
+  display: grid;
+  gap: var(--space-md);
+  width: min(100%, 520px);
+  margin-top: var(--space-2xl);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-xl);
+  background: var(--color-canvas-card);
+  padding: var(--space-xl);
+  text-align: left;
+}
+.progress-next-action span {
+  color: var(--color-sunset);
+  font: var(--type-caption-mono-sm);
+  text-transform: uppercase;
+}
+.progress-next-action strong {
+  color: var(--color-ink);
+  font: var(--type-body-lg);
+}
+.progress-next-action p {
+  margin: 0;
+  color: var(--color-body);
+  font: var(--type-body-sm);
+  text-transform: none;
+}
+.progress-next-action .button {
+  justify-self: start;
+}
 .progress-meter {
   width: min(100%, 480px);
   height: 4px;

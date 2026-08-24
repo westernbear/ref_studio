@@ -9,6 +9,7 @@ import {
   jobActivityPercent,
   jobProgressPercent,
   jobStatusCopy,
+  nextApprovalGate,
   liveJobStatusError,
   parseJobProgress,
   progressStages,
@@ -40,6 +41,8 @@ export function ProgressTracker({ initialJob }: Props) {
   const percent = jobProgressPercent(job);
   const activityPercent = jobActivityPercent(job);
   const shouldPoll = !isTerminalJobState(job.state);
+  const nextGate = nextApprovalGate(job);
+  const sceneReviewHref = `/scene-review?jobId=${encodeURIComponent(job.id)}`;
   const approvedGateCount = approvalGates.filter((gate) =>
     job.approvedGates.includes(gate),
   ).length;
@@ -113,11 +116,8 @@ export function ProgressTracker({ initialJob }: Props) {
           <a className="button" href="/workflow">
             Run in Background
           </a>
-          <a
-            className="button button-primary"
-            href={`/scene-review?jobId=${encodeURIComponent(job.id)}`}
-          >
-            Scene Review
+          <a className="button button-primary" href={sceneReviewHref}>
+            {nextGate ? `Review and approve ${nextGate}` : "Scene Review"}
           </a>
         </nav>
       </header>
@@ -136,6 +136,21 @@ export function ProgressTracker({ initialJob }: Props) {
             <span style={{ inlineSize: `${percent}%` }} />
           </div>
           <p>{jobStatusCopy(job)}</p>
+          {nextGate ? (
+            <div className="progress-next-action">
+              <span>Action required</span>
+              <strong>
+                Review and approve {nextGate} before worker progress continues.
+              </strong>
+              <p>
+                Open Scene Review to inspect the current evidence, then approve
+                or reject this gate.
+              </p>
+              <a className="button button-primary" href={sceneReviewHref}>
+                Review and approve {nextGate}
+              </a>
+            </div>
+          ) : null}
           <div className="progress-activity">
             <div>
               <span>Worker activity</span>

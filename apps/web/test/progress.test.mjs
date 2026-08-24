@@ -6,6 +6,7 @@ import {
   jobActivityPercent,
   jobProgressPercent,
   jobStatusCopy,
+  nextApprovalGate,
   parseJobProgress,
   progressStages,
 } from "../src/lib/job-progress.ts";
@@ -64,6 +65,19 @@ describe("compiler progress projection", () => {
       "2026-08-23 07:00:00",
     );
     expect(progressStages.map((stage) => stage.state)).toContain("READY");
+  });
+
+  it("surfaces the next approval gate while progress is blocked", () => {
+    const job = parseJobProgress({
+      id: "job_123",
+      state: "PREPARING",
+      preparationStage: "AWAITING_T1",
+      approvedGates: [],
+    });
+    expect(job).not.toBeNull();
+    if (!job) throw new Error("job fixture did not parse");
+    expect(nextApprovalGate(job)).toBe("T1");
+    expect(jobStatusCopy(job)).toBe("Awaiting T1 input and runtime approval.");
   });
 
   it("shows live status API error codes instead of a generic failure", () => {

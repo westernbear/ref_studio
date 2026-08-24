@@ -1,6 +1,11 @@
 import { CreatorShell } from "../../components/Shells";
 import { Panel } from "../../components/Primitives";
 import {
+  approvalGates,
+  nextApprovalGate,
+  type ApprovalGate,
+} from "../../lib/job-progress";
+import {
   field,
   isAuthProblem,
   items,
@@ -12,8 +17,8 @@ import { RenderJobButton } from "./RenderJobButton";
 import { ReviewGateControls } from "./ReviewGateControls";
 import { ChoiceResolver } from "./ChoiceResolver";
 
-const gates = ["T1", "T2", "T3", "T4", "T5"] as const;
-type Gate = (typeof gates)[number];
+const gates = approvalGates;
+type Gate = ApprovalGate;
 
 const list = (value: unknown): readonly unknown[] =>
   Array.isArray(value) ? value : [];
@@ -148,18 +153,7 @@ export default async function SceneReviewPage({
   const ownerIds = owners
     .map((owner) => text(field(owner, "ownerId"), ""))
     .filter(Boolean);
-  const nextGate: Gate | null =
-    state === "AWAITING_T5"
-      ? "T5"
-      : preparationStage === "AWAITING_T1"
-        ? "T1"
-        : preparationStage === "AWAITING_T2"
-          ? "T2"
-          : preparationStage === "AWAITING_T3"
-            ? "T3"
-            : preparationStage === "AWAITING_T4"
-              ? "T4"
-              : null;
+  const nextGate = nextApprovalGate({ state, preparationStage });
   const predecessorGate = nextGate
     ? gates[gates.indexOf(nextGate) - 1]
     : undefined;
