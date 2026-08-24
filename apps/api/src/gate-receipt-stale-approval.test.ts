@@ -306,24 +306,28 @@ describe("designated gate receipts", () => {
     expect(report.json()).toEqual({ status: "PASS" });
     await state.app.close();
   });
-  it("allows a tenant SUPER_ADMIN to approve T1 through T5 without reviewer assignment", async () => {
+  it("allows a tenant SUPER_ADMIN to approve T1 but not T2 without reviewer assignment", async () => {
     const state = setup();
-    let predecessor: string | null = null;
-    for (const gate of ["T1", "T2", "T3", "T4", "T5"]) {
-      if (gate === "T5") stageT5(state);
-      const response = await state.app.inject({
-        method: "POST",
-        url: "/v1/reviews",
-        headers: { authorization: "Bearer super", "x-tenant-id": "ten_a" },
-        payload: body(gate, predecessor),
-      });
-      expect(response.statusCode, response.body).toBe(201);
-      predecessor = String(response.json().receipt.id);
-      advanceAfterGate(state, gate);
-    }
-    expect(state.reviews.receipts.map((receipt) => receipt.actorId)).toEqual(
-      Array<string>(5).fill("usr_super"),
-    );
+    const t1 = await state.app.inject({
+      method: "POST",
+      url: "/v1/reviews",
+      headers: { authorization: "Bearer super", "x-tenant-id": "ten_a" },
+      payload: body("T1"),
+    });
+    expect(t1.statusCode, t1.body).toBe(201);
+    advanceAfterGate(state, "T1");
+
+    const t2 = await state.app.inject({
+      method: "POST",
+      url: "/v1/reviews",
+      headers: { authorization: "Bearer super", "x-tenant-id": "ten_a" },
+      payload: body("T2", String(t1.json().receipt.id)),
+    });
+    expect(t2.statusCode, t2.body).toBe(403);
+    expect(t2.json().error.code).toBe("ROLE_NOT_PERMITTED");
+    expect(state.reviews.receipts.map((receipt) => receipt.actorId)).toEqual([
+      "usr_super",
+    ]);
     await state.app.close();
   });
   it("resets preparation progress when T3 approval queues preview", async () => {

@@ -200,9 +200,9 @@ function decide(
     throw new Error("RESOURCE_NOT_FOUND");
   if (!release && body.attempt !== job?.attempt)
     throw new Error("STALE_APPROVAL_UNSAFE");
-  const tenantSuperAdmin =
+  const tenantSuperAdminT1 =
     !release &&
-    gate !== "T6" &&
+    gate === "T1" &&
     principal.roles.some((role) => role.toUpperCase() === "SUPER_ADMIN");
   const terminalJob =
     job !== undefined &&
@@ -210,14 +210,14 @@ function decide(
   if (release && authorizeReleaseReview(authStore, principal, undefined))
     throw new Error("ROLE_NOT_PERMITTED");
   if (
-    !tenantSuperAdmin &&
+    !tenantSuperAdminT1 &&
     !principal.roles.some(
       (role) => role.toUpperCase() === "DESIGNATED_REVIEWER",
     )
   )
     throw new Error("ROLE_NOT_PERMITTED");
   if (
-    !tenantSuperAdmin &&
+    !tenantSuperAdminT1 &&
     !assignment(
       authStore,
       principal,
