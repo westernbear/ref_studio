@@ -1,13 +1,30 @@
 import { describe, expect, it } from "vitest";
 import { buildAuthApp } from "./app.js";
-import { hashBearer, type AuthStore } from "./auth.js";
+import { hashBearer, hashPassword, type AuthStore } from "./auth.js";
 import { createAdminMutationStore } from "./admin-mutation.js";
+import type { AdminReadStore } from "./admin-read.js";
+
+const adminReads: AdminReadStore = {
+  tenants: [],
+  jobs: [],
+  receipts: [],
+  audit: [],
+  quarantine: [],
+  billing: [],
+};
 
 const fixture = () => {
   const users = ["super", "ops", "assigned-viewer", "unassigned", "creator"];
   const auth: AuthStore = {
-    users: [],
-    credentials: [],
+    users: [{ id: "super", email: "admin@example.invalid" }],
+    credentials: [
+      {
+        userId: "super",
+        kind: "PASSWORD",
+        secretHash: hashPassword("correct", "fixed-salt"),
+        revokedAt: null,
+      },
+    ],
     memberships: [
       { userId: "super", tenantId: "platform", role: "SUPER_ADMIN" },
       { userId: "ops", tenantId: "tenant-a", role: "OPS_ADMIN" },
@@ -72,12 +89,17 @@ const fixture = () => {
     });
   return { auth, mutations };
 };
-const appFor = (data: ReturnType<typeof fixture>) =>
+const appFor = (
+  data: ReturnType<typeof fixture>,
+  now: () => number = Date.now,
+) =>
   buildAuthApp({
     store: data.auth,
     expectedOrigin: "https://admin.test",
     introspectSecret: "secret",
+    adminReads,
     adminMutations: data.mutations,
+    now,
   });
 const headers = (userId: string, key: string, version = 1) => ({
   authorization: `Bearer ${userId}-token`,
@@ -88,6 +110,46 @@ const headers = (userId: string, key: string, version = 1) => ({
 const body = (reason = "operator reason") => ({ reason });
 
 describe("admin-mutation", () => {
+  it("does not intercept the admin sign-in route", async () => {
+    const response = await appFor(fixture()).inject({
+      method: "POST",
+      url: "/admin/sign-in",
+      headers: { origin: "https://admin.test" },
+      payload: { email: "admin@example.invalid", password: "correct" },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.headers["set-cookie"]).toContain("rvs_session=");
+  });
+
+  it("evaluates session expiry for each admin mutation request", async () => {
+    let now = 1_000;
+    const data = fixture();
+    data.auth.sessions.push({
+      id: "expiring-admin",
+      userId: "super",
+      tenantId: "platform",
+      expiresAt: 1_500,
+      revokedAt: null,
+    });
+    const app = appFor(data, () => now);
+    now = 1_501;
+    const expired = await app.inject({
+      method: "POST",
+      url: "/admin/audit-exports",
+      headers: {
+        cookie: "rvs_session=expiring-admin",
+        origin: "https://admin.test",
+        "x-csrf-token": "web-proxy",
+        "idempotency-key": "after-expiry",
+      },
+      payload: { format: "jsonl", reason: "expiry regression" },
+    });
+
+    expect(expired.statusCode).toBe(401);
+    expect(expired.json().error.code).toBe("AUTHENTICATION_REQUIRED");
+  });
+
   it("allows an origin-checked admin session to create an export", async () => {
     const data = fixture();
     data.auth.sessions.push({
@@ -125,6 +187,38 @@ describe("admin-mutation", () => {
     });
     expect(foreign.statusCode).toBe(403);
     expect(foreign.json().error.code).toBe("CSRF_ORIGIN_INVALID");
+  });
+
+  it("audits a denied non-admin mutation when both admin stores are registered", async () => {
+    const data = fixture();
+    data.auth.sessions.push({
+      id: "session-member",
+      userId: "creator",
+      tenantId: "tenant-a",
+      expiresAt: Date.now() + 10000,
+      revokedAt: null,
+    });
+    const response = await appFor(data).inject({
+      method: "POST",
+      url: "/admin/jobs/job-a/cancel",
+      headers: {
+        cookie: "rvs_session=session-member",
+        origin: "https://admin.test",
+        "x-csrf-token": "web-proxy",
+        "idempotency-key": "member-cancel",
+      },
+      payload: body(),
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json().error.code).toBe("INTERNAL_ERROR");
+    expect(data.mutations.auditEvents).toMatchObject([
+      {
+        actorId: "creator",
+        action: "ADMIN_MUTATION_DENIED",
+        outcome: "DENIED",
+      },
+    ]);
   });
 
   it("covers job cancel and retry for assigned ops with exact audited replay", async () => {

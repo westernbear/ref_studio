@@ -1,12 +1,20 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
-import { createReadStream } from "node:fs";
+import { createReadStream, createWriteStream } from "node:fs";
+import { mkdir, rename, rm } from "node:fs/promises";
+import path from "node:path";
+import { Readable, Transform } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
   assertLegalTransition,
   type JobState,
 } from "../../../packages/contracts/src/lifecycle.js";
 import { z } from "zod";
-import { safeEnvelope } from "./boundary.js";
+import {
+  type PersistenceRequest,
+  requestPersistence,
+  safeEnvelope,
+} from "./boundary.js";
 import type {
   Compilation,
   CreatorWorkflowStore,
@@ -20,6 +28,13 @@ import { uploadSourcePath, type UploadStore } from "./uploads.js";
 const MAX_ARTIFACT_BYTES = 512 * 1024 * 1024;
 const LEASE_MS = 90_000;
 const WORKER_SESSION_MS = 5 * 60_000;
+const ArtifactContentLength = z
+  .string()
+  .regex(/^\d+$/u)
+  .transform(Number)
+  .pipe(z.number().int().positive().max(MAX_ARTIFACT_BYTES));
+
+const ARTIFACT_LENGTH_MISMATCH = new Error("ARTIFACT_LENGTH_MISMATCH");
 
 export type WorkerStatus = "ONLINE" | "OFFLINE";
 export type Worker = {
@@ -298,6 +313,61 @@ const transition = (job: Job, next: JobState, now: () => number): void => {
   job.updatedAt = new Date(now()).toISOString();
   job.etag = `\"${digest(job.updatedAt)}\"`;
 };
+type TenantDeletionFence = Readonly<{
+  tenantId: string;
+  deletionEpoch: number;
+  now: () => number;
+}>;
+export function fenceTenantJobs(
+  store: WorkerStore,
+  workflow: CreatorWorkflowStore,
+  fence: TenantDeletionFence,
+): void {
+  for (const job of workflow.jobs.values()) {
+    if (job.tenantId !== fence.tenantId) continue;
+    job.deletionEpoch = Math.max(job.deletionEpoch + 1, fence.deletionEpoch);
+    const lease = store.leases.get(job.id);
+    store.leases.delete(job.id);
+    switch (job.state) {
+      case "PREPARING":
+      case "QUEUED":
+      case "RENDERING":
+        transition(job, "CANCEL_REQUESTED", fence.now);
+        transition(job, "CANCELLED", fence.now);
+        break;
+      case "CANCEL_REQUESTED":
+        transition(job, "CANCELLED", fence.now);
+        break;
+      case "READY":
+      case "ASSEMBLING":
+      case "AWAITING_T5":
+      case "STALE_APPROVAL":
+      case "RETRYABLE_ERROR":
+        transition(job, "FAILED", fence.now);
+        break;
+      case "COMPLETED":
+      case "CANCELLED":
+      case "FAILED":
+        break;
+      default: {
+        const unreachable: never = job.state;
+        throw new Error(`UNHANDLED_JOB_STATE:${unreachable}`);
+      }
+    }
+    const attempt = lease
+      ? workflow.attempts
+          .get(job.id)
+          ?.find((item) => item.id === lease.attemptId)
+      : workflow.attempts.get(job.id)?.at(-1);
+    if (
+      attempt &&
+      attempt.state !== "COMPLETED" &&
+      attempt.state !== "FAILED" &&
+      attempt.state !== "CANCELLED"
+    )
+      attempt.state = job.state === "CANCELLED" ? "CANCELLED" : "FAILED";
+  }
+}
 type ClaimPhase = ClaimedJob["phase"];
 type FinishOutcome = "QUEUED" | "FAILED";
 const queuedPhase = (job: Job): ClaimPhase | null => {
@@ -444,7 +514,7 @@ const claimWorkflowJob = (
 };
 const failureToken = (value: unknown): string => {
   const message = typeof value === "string" ? value : "WORKER_JOB_FAILED";
-  return message.match(/[A-Z][A-Z0-9_:-]{2,}/u)?.[0] ?? "WORKER_JOB_FAILED";
+  return message.match(/\b[A-Z][A-Z0-9_]{2,}\b/u)?.[0] ?? "WORKER_JOB_FAILED";
 };
 const terminalFailure = (token: string): boolean =>
   [
@@ -467,6 +537,10 @@ const failWorkflowJob = (
   if (!job) return "FAILED";
   const token = failureToken(message);
   job.failureCode = token;
+  if (job.state === "CANCEL_REQUESTED") {
+    transition(job, "FAILED", now);
+    return "FAILED";
+  }
   if (!terminalFailure(token) && job.automaticRetries < 3) {
     job.automaticRetries += 1;
     job.eligibleAt = now() + 1_000 * 2 ** (job.automaticRetries - 1);
@@ -560,6 +634,8 @@ const finishWorkflowJob = (
       !job.compilation ||
       !preview ||
       preview.id !== parsed.data.previewArtifactId ||
+      parsed.data.report.outputSha256 !== preview.sha256 ||
+      parsed.data.report.outputBytes !== preview.sizeBytes ||
       !compilationMatchesReport(job.compilation, parsed.data.report)
     )
       return null;
@@ -614,13 +690,20 @@ const finishWorkflowJob = (
   return "QUEUED";
 };
 
+type WorkerRouteOptions = Readonly<{
+  now: () => number;
+  workflow: CreatorWorkflowStore | undefined;
+  uploads: UploadStore | undefined;
+  artifactRoot: string | undefined;
+  persist: (() => void) | undefined;
+}>;
+
 export function registerWorkers(
   app: FastifyInstance,
   store: WorkerStore,
-  now: () => number,
-  workflow?: CreatorWorkflowStore,
-  uploads?: UploadStore,
+  options: WorkerRouteOptions,
 ): void {
+  const { now, workflow, uploads, artifactRoot, persist } = options;
   const auth = (
     request: FastifyRequest,
     reply: FastifyReply,
@@ -739,11 +822,19 @@ export function registerWorkers(
       });
     },
   );
-  const claimedJob = (
+  type LiveClaim =
+    | { readonly job: Job; readonly lease: ClaimedJob }
+    | {
+        readonly code:
+          | "AUTHENTICATION_REQUIRED"
+          | "RESOURCE_NOT_FOUND"
+          | "INVALID_REQUEST";
+      };
+  const liveClaim = (
     request: FastifyRequest<{ Params: { workerId: string; jobId: string } }>,
-    reply: FastifyReply,
-  ): { job: Job; lease: ClaimedJob } | null => {
-    if (!auth(request, reply, request.params.workerId)) return null;
+  ): LiveClaim => {
+    if (!sessionAuthorized(request, store, request.params.workerId, now()))
+      return { code: "AUTHENTICATION_REQUIRED" };
     const claimed = store.leases.get(request.params.jobId);
     const job = workflow?.jobs.get(request.params.jobId);
     if (claimed && claimed.expiresAt <= now())
@@ -757,22 +848,27 @@ export function registerWorkers(
           ? request.headers["x-worker-lease"]
           : "",
       ) !== claimed.tokenHash
-    ) {
-      error(reply, "AUTHENTICATION_REQUIRED");
-      return null;
-    }
-    if (!job || !worker(store, request.params.workerId)) {
-      error(reply, "RESOURCE_NOT_FOUND");
-      return null;
-    }
+    )
+      return { code: "AUTHENTICATION_REQUIRED" };
+    if (!job || !worker(store, request.params.workerId))
+      return { code: "RESOURCE_NOT_FOUND" };
     if (
       claimed.deletionEpoch !== job.deletionEpoch ||
       claimed.restoreEpoch !== job.restoreEpoch
-    ) {
-      error(reply, "INVALID_REQUEST");
+    )
+      return { code: "INVALID_REQUEST" };
+    return { job, lease: claimed };
+  };
+  const claimedJob = (
+    request: FastifyRequest<{ Params: { workerId: string; jobId: string } }>,
+    reply: FastifyReply,
+  ): { readonly job: Job; readonly lease: ClaimedJob } | null => {
+    const claimed = liveClaim(request);
+    if ("code" in claimed) {
+      error(reply, claimed.code);
       return null;
     }
-    return { job, lease: claimed };
+    return claimed;
   };
   app.get<{ Params: { workerId: string; jobId: string } }>(
     "/v1/workers/:workerId/jobs/:jobId/source",
@@ -794,12 +890,6 @@ export function registerWorkers(
         return;
       }
       const sourcePath = uploadSourcePath(upload);
-      const memorySource = sourcePath ? null : Buffer.alloc(upload.actualBytes);
-      let offset = 0;
-      for (const chunk of upload.chunks) {
-        memorySource?.set(chunk, offset);
-        offset += chunk.byteLength;
-      }
       return reply
         .header("content-type", upload.contentType)
         .header("content-length", upload.actualBytes)
@@ -807,7 +897,7 @@ export function registerWorkers(
         .send(
           sourcePath
             ? createReadStream(sourcePath)
-            : (memorySource ?? Buffer.alloc(0)),
+            : Buffer.concat(upload.chunks),
         );
     },
   );
@@ -837,87 +927,171 @@ export function registerWorkers(
     job.updatedAt = new Date(now()).toISOString();
     reply.send({ ok: true });
   });
-  app.post<{
-    Params: { workerId: string; jobId: string };
-    Body: unknown;
-  }>(
-    "/v1/workers/:workerId/jobs/:jobId/preview-artifact",
-    { bodyLimit: MAX_ARTIFACT_BYTES },
-    async (request, reply) => {
-      const claimed = claimedJob(request, reply);
-      if (!claimed) return;
-      const { job, lease } = claimed;
-      const bytes = request.body instanceof Uint8Array ? request.body : null;
+  const uploadArtifact = async (
+    request: FastifyRequest<{
+      Params: { workerId: string; jobId: string };
+      Body: unknown;
+    }>,
+    reply: FastifyReply,
+    kind: "preview" | "delivery",
+  ): Promise<void> => {
+    const claimed = claimedJob(request, reply);
+    if (!claimed) return;
+    const { job, lease } = claimed;
+    const contentLength = ArtifactContentLength.safeParse(
+      request.headers["content-length"],
+    );
+    const isPreview = kind === "preview";
+    const artifacts = isPreview
+      ? workflow?.previews
+      : workflow?.stagedArtifacts;
+    const stateValid = isPreview
+      ? lease.phase === "preview" &&
+        job.preparationStage === "PREVIEW_RUNNING" &&
+        (job.state === "PREPARING" || job.state === "STALE_APPROVAL")
+      : lease.phase === "render" && job.state === "RENDERING";
+    if (
+      !stateValid ||
+      !contentLength.success ||
+      !(request.body instanceof Readable) ||
+      !artifactRoot ||
+      !artifacts
+    ) {
+      error(reply, "INVALID_REQUEST");
+      return;
+    }
+
+    const directory = path.join(
+      artifactRoot,
+      createHash("sha256").update(job.tenantId).digest("hex"),
+    );
+    const temporary = path.join(
+      directory,
+      `.upload-${randomBytes(12).toString("hex")}.tmp`,
+    );
+    const hash = createHash("sha256");
+    let sizeBytes = 0;
+    const meter = new Transform({
+      transform(chunk, _encoding, callback) {
+        sizeBytes += chunk.byteLength;
+        if (sizeBytes > contentLength.data) {
+          callback(ARTIFACT_LENGTH_MISMATCH);
+          return;
+        }
+        hash.update(chunk);
+        callback(null, chunk);
+      },
+    });
+
+    try {
+      await mkdir(directory, { recursive: true, mode: 0o700 });
+      await pipeline(
+        request.body,
+        meter,
+        createWriteStream(temporary, {
+          flags: "wx",
+          mode: 0o600,
+          flush: true,
+        }),
+      );
+      if (sizeBytes !== contentLength.data) throw ARTIFACT_LENGTH_MISMATCH;
+      const liveJob = workflow?.jobs.get(job.id);
+      if (liveJob === job && liveJob.state === "CANCEL_REQUESTED") {
+        await rm(temporary, { force: true });
+        error(reply, "CANCEL_REQUESTED");
+        return;
+      }
+      const revalidated = liveClaim(request);
+      if ("code" in revalidated) {
+        await rm(temporary, { force: true });
+        error(reply, revalidated.code);
+        return;
+      }
+      const liveStateValid = isPreview
+        ? revalidated.lease.phase === "preview" &&
+          revalidated.job.preparationStage === "PREVIEW_RUNNING" &&
+          (revalidated.job.state === "PREPARING" ||
+            revalidated.job.state === "STALE_APPROVAL")
+        : revalidated.lease.phase === "render" &&
+          revalidated.job.state === "RENDERING";
       if (
-        lease.phase !== "preview" ||
-        job.preparationStage !== "PREVIEW_RUNNING" ||
-        (job.state !== "PREPARING" && job.state !== "STALE_APPROVAL") ||
-        !bytes ||
-        bytes.byteLength === 0 ||
-        bytes.byteLength > MAX_ARTIFACT_BYTES
+        revalidated.job !== job ||
+        revalidated.lease !== lease ||
+        !liveStateValid
       ) {
+        await rm(temporary, { force: true });
         error(reply, "INVALID_REQUEST");
         return;
       }
-      const sha256 = createHash("sha256").update(bytes).digest("hex");
-      const artifactId = `preview_${digest({ jobId: job.id, sha256 }).slice(0, 16)}`;
-      workflow?.previews.set(job.id, {
+      const sha256 = hash.digest("hex");
+      const artifactId = `${isPreview ? "preview" : "artifact"}_${digest({ jobId: job.id, sha256 }).slice(0, 16)}`;
+      const storagePath = path.join(directory, `${artifactId}.mp4`);
+      const timestamp = now();
+      const artifact = {
         id: artifactId,
         jobId: job.id,
         tenantId: job.tenantId,
-        kind: "preview",
-        filename: `${job.id}-preview.mp4`,
+        kind,
+        filename: `${job.id}-${kind}.mp4`,
         contentType: "video/mp4",
-        bytes: Uint8Array.from(bytes),
+        bytes: new Uint8Array(),
+        storagePath,
         sha256,
-        sizeBytes: bytes.byteLength,
-        createdAt: new Date(now()).toISOString(),
-        expiresAt: new Date(now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        sizeBytes,
+        createdAt: new Date(timestamp).toISOString(),
+        expiresAt: new Date(
+          timestamp +
+            (isPreview ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000),
+        ).toISOString(),
         report: null,
-      });
-      reply.code(201).send({ artifactId, sha256, sizeBytes: bytes.byteLength });
-    },
-  );
-  app.post<{
-    Params: { workerId: string; jobId: string };
-    Body: unknown;
-  }>(
-    "/v1/workers/:workerId/jobs/:jobId/artifact",
-    { bodyLimit: MAX_ARTIFACT_BYTES },
-    async (request, reply) => {
-      const claimed = claimedJob(request, reply);
-      if (!claimed) return;
-      const { job, lease } = claimed;
-      const bytes = request.body instanceof Uint8Array ? request.body : null;
-      if (
-        lease.phase !== "render" ||
-        job.state !== "RENDERING" ||
-        !bytes ||
-        bytes.byteLength === 0 ||
-        bytes.byteLength > MAX_ARTIFACT_BYTES
-      ) {
+      } as const;
+      const previous = artifacts.get(job.id);
+      await rename(temporary, storagePath);
+      artifacts.set(job.id, artifact);
+      (request as FastifyRequest & PersistenceRequest)[requestPersistence] =
+        true;
+      try {
+        persist?.();
+      } catch (cause) {
+        if (previous) artifacts.set(job.id, previous);
+        else artifacts.delete(job.id);
+        if (previous?.storagePath !== storagePath)
+          await rm(storagePath, { force: true });
+        throw cause;
+      }
+      if (previous?.storagePath && previous.storagePath !== storagePath)
+        await rm(previous.storagePath, { force: true });
+      reply.code(201).send({ artifactId, sha256, sizeBytes });
+    } catch (cause) {
+      await rm(temporary, { force: true });
+      if (cause === ARTIFACT_LENGTH_MISMATCH) {
         error(reply, "INVALID_REQUEST");
         return;
       }
-      const sha256 = createHash("sha256").update(bytes).digest("hex");
-      const artifactId = `artifact_${digest({ jobId: job.id, sha256 }).slice(0, 16)}`;
-      workflow?.stagedArtifacts.set(job.id, {
-        id: artifactId,
-        jobId: job.id,
-        tenantId: job.tenantId,
-        kind: "delivery",
-        filename: `${job.id}-delivery.mp4`,
-        contentType: "video/mp4",
-        bytes: Uint8Array.from(bytes),
-        sha256,
-        sizeBytes: bytes.byteLength,
-        createdAt: new Date(now()).toISOString(),
-        expiresAt: new Date(now() + 24 * 60 * 60 * 1000).toISOString(),
-        report: null,
-      });
-      reply.code(201).send({ artifactId, sha256, sizeBytes: bytes.byteLength });
-    },
-  );
+      throw cause;
+    }
+  };
+  const requireMp4 = async (
+    request: FastifyRequest,
+    reply: FastifyReply,
+  ): Promise<void> => {
+    const contentType = request.headers["content-type"];
+    if (
+      typeof contentType !== "string" ||
+      contentType.split(";", 1)[0]?.trim().toLowerCase() !== "video/mp4"
+    )
+      error(reply, "INVALID_REQUEST");
+  };
+  for (const [url, kind] of [
+    ["/v1/workers/:workerId/jobs/:jobId/preview-artifact", "preview"],
+    ["/v1/workers/:workerId/jobs/:jobId/artifact", "delivery"],
+  ] as const)
+    app.post<{
+      Params: { workerId: string; jobId: string };
+      Body: unknown;
+    }>(url, { onRequest: requireMp4 }, async (request, reply) => {
+      await uploadArtifact(request, reply, kind);
+    });
   const finish = async (
     request: FastifyRequest<{
       Params: { workerId: string; jobId: string };

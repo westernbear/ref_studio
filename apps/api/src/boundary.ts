@@ -31,6 +31,10 @@ export type RestrictedAudit = {
   readonly tenantId: string | null;
   readonly decision: "DENIED";
 };
+export const requestPersistence = Symbol("requestPersistence");
+export type PersistenceRequest = {
+  [requestPersistence]?: true;
+};
 
 export const correlationId = (): string =>
   `cor_${randomBytes(12).toString("base64url")}`;

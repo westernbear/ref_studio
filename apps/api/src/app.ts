@@ -22,10 +22,13 @@ import {
   correlationId,
   fenceResource,
   IdempotencyStore,
+  type PersistenceRequest,
   recordDenied,
+  requestPersistence,
   requestHash,
   safeEnvelope,
 } from "./boundary.js";
+import { decodeCookieValue } from "./admin-auth.js";
 import {
   abortUpload,
   cleanupExpiredUploads,
@@ -55,7 +58,15 @@ import {
   cleanupRetention,
   type RetentionStore,
 } from "./retention.js";
-import { registerWorkers, type WorkerStore } from "./workers.js";
+import {
+  fenceTenantJobs,
+  registerWorkers,
+  type WorkerStore,
+} from "./workers.js";
+
+type WorkerAppOptions =
+  | { readonly workers?: undefined; readonly artifactRoot?: undefined }
+  | { readonly workers: WorkerStore; readonly artifactRoot: string };
 
 export type AppOptions = {
   readonly store: AuthStore;
@@ -74,9 +85,8 @@ export type AppOptions = {
   readonly adminMutations?: AdminMutationStore;
   readonly reviews?: ReviewStore;
   readonly retention?: RetentionStore;
-  readonly workers?: WorkerStore;
   readonly persist?: () => void;
-};
+} & WorkerAppOptions;
 const header = (request: FastifyRequest, name: string): string | undefined => {
   const value = request.headers[name];
   return typeof value === "string" ? value : undefined;
@@ -129,7 +139,7 @@ const principalResult = (
 ) =>
   authenticateSession(
     store,
-    decodeURIComponent(cookie(request, "rvs_session") ?? ""),
+    decodeCookieValue(cookie(request, "rvs_session")),
     header(request, "x-csrf-token"),
     header(request, "origin"),
     origin,
@@ -145,10 +155,17 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
       done(null, body);
     },
   );
+  app.addContentTypeParser("video/mp4", (_request, body, done) => {
+    done(null, body);
+  });
   const now = (): number => options.now?.() ?? Date.now();
   const idempotency = options.idempotency ?? new IdempotencyStore();
-  app.addHook("onSend", async (_request, _reply, payload) => {
-    options.persist?.();
+  app.addHook("onSend", async (request, _reply, payload) => {
+    const persistenceRequest = request as FastifyRequest & PersistenceRequest;
+    if (!persistenceRequest[requestPersistence]) {
+      persistenceRequest[requestPersistence] = true;
+      options.persist?.();
+    }
     return payload;
   });
   app.addHook("onRequest", async (request, reply) => {
@@ -246,7 +263,7 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
   app.post("/admin/sign-in", signInRoute);
   app.post("/logout", async (request, reply) => {
     const id = cookie(request, "rvs_session");
-    if (id) revokeSession(options.store, decodeURIComponent(id), now());
+    if (id) revokeSession(options.store, decodeCookieValue(id), now());
     reply.header("set-cookie", clearSessionCookie()).send({ ok: true });
   });
   app.post(
@@ -608,9 +625,17 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
           failure(reply, { code: "TENANT_BOUNDARY_BYPASS" });
           return;
         }
-        reply.send({
-          deletionEpoch: advanceDeletionEpoch(retention, principal.tenantId),
-        });
+        const deletionEpoch = advanceDeletionEpoch(
+          retention,
+          principal.tenantId,
+        );
+        if (options.workers && options.creatorWorkflow)
+          fenceTenantJobs(options.workers, options.creatorWorkflow, {
+            tenantId: principal.tenantId,
+            deletionEpoch,
+            now,
+          });
+        reply.send({ deletionEpoch });
       },
     );
   }
@@ -626,7 +651,7 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
       app,
       options.store,
       options.adminReads,
-      now(),
+      now,
       options.expectedOrigin,
     );
   if (options.adminMutations)
@@ -634,7 +659,7 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
       app,
       options.store,
       options.adminMutations,
-      now(),
+      now,
       options.expectedOrigin,
     );
   if (options.reviews)
@@ -668,13 +693,13 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
       reply.send({ ok: true });
     });
   if (options.workers)
-    registerWorkers(
-      app,
-      options.workers,
+    registerWorkers(app, options.workers, {
       now,
-      options.creatorWorkflow,
-      options.uploads,
-    );
+      workflow: options.creatorWorkflow,
+      uploads: options.uploads,
+      artifactRoot: options.artifactRoot,
+      persist: options.persist,
+    });
   return app;
 }
 

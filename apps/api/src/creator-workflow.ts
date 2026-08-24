@@ -873,14 +873,7 @@ export function registerCreatorWorkflow(
         )
           throw new Error("ARTIFACT_UNAVAILABLE");
         const sourcePath = uploadSourcePath(upload);
-        const memorySource = sourcePath
-          ? null
-          : Buffer.alloc(upload.actualBytes);
-        let offset = 0;
-        for (const chunk of upload.chunks) {
-          memorySource?.set(chunk, offset);
-          offset += chunk.byteLength;
-        }
+        const memorySource = sourcePath ? null : Buffer.concat(upload.chunks);
         return reply
           .header("content-type", upload.contentType)
           .header("content-length", upload.actualBytes)

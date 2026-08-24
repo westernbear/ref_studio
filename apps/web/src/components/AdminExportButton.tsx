@@ -1,19 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { errorCode } from "../lib/api-error";
 import { requestId } from "../lib/upload-client";
 
 type Props = {
   readonly kind: "audit" | "receipt";
   readonly tenantId?: string | undefined;
-};
-
-const errorCode = (value: unknown): string => {
-  if (!value || typeof value !== "object") return "";
-  const error = Reflect.get(value, "error");
-  if (!error || typeof error !== "object") return "";
-  const code = Reflect.get(error, "code");
-  return typeof code === "string" ? code : "";
 };
 
 export function AdminExportButton({ kind, tenantId }: Props) {

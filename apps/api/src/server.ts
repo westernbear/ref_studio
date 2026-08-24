@@ -439,6 +439,7 @@ export function loadAdminReadStore(
 export function createApiServer(config: ApiServerConfig) {
   const db = openApiDatabase(config.databasePath);
   const dataRoot = path.join(path.dirname(config.databasePath), "objects");
+  const artifactRoot = path.join(dataRoot, "artifacts");
   const uploads: UploadStore = {
     uploads: new Map(),
     cas: new Map(),
@@ -463,7 +464,7 @@ export function createApiServer(config: ApiServerConfig) {
       workers,
       idempotency,
     },
-    path.join(dataRoot, "artifacts"),
+    artifactRoot,
   );
   durable.hydrate();
   const app = buildAuthApp({
@@ -499,6 +500,7 @@ export function createApiServer(config: ApiServerConfig) {
     adminMutations,
     reviews,
     workers,
+    artifactRoot,
     persist: durable.persist,
   });
   app.addHook("onClose", async () => db.close());

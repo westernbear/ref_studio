@@ -17,6 +17,11 @@ test.describe("admin shell and dashboard @admin-dashboard @admin-shell", () => {
     ).toHaveCount(0);
     await expect(page.locator("body")).not.toContainText(legacyText);
     await page.setViewportSize({ width: 520, height: 800 });
+    await expect(
+      page
+        .locator(".admin-mobile-header")
+        .getByRole("link", { name: "Reference Video Studio admin home" }),
+    ).toBeVisible();
     await page.getByRole("button", { name: "Menu" }).click();
     await expect(
       page.getByRole("link", { name: "Jobs", exact: true }),

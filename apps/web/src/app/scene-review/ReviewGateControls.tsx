@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { errorCode } from "../../lib/api-error";
 
 type Decision = "APPROVED" | "REJECTED";
 
@@ -14,14 +15,6 @@ type Props = {
   readonly runtimeDigest: string;
   readonly releaseBaselineDigest: string;
   readonly artifactRefs: readonly string[];
-};
-
-const errorCode = (value: unknown): string => {
-  if (!value || typeof value !== "object") return "";
-  const error = Reflect.get(value, "error");
-  if (!error || typeof error !== "object") return "";
-  const code = Reflect.get(error, "code");
-  return typeof code === "string" ? code : "";
 };
 
 export function ReviewGateControls(props: Props) {

@@ -41,4 +41,9 @@ describe("shared control contract projection", () => {
       /@media \(max-width: 720px\)[\s\S]*\.live-table \{[^}]*table-layout: fixed;/u,
     );
   });
+  it("hides only the direct admin navigation aside on narrow screens", () => {
+    expect(styles).not.toContain(".shell-admin aside");
+    expect(styles).toContain(".shell-admin > aside");
+    expect(styles).toContain(".shell-admin > aside.admin-navigation-open");
+  });
 });

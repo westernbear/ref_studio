@@ -8,7 +8,8 @@ import Database from "better-sqlite3";
 const ADMIN_EMAIL = "RVS_INITIAL_ADMIN_EMAIL";
 const ADMIN_NAME = "RVS_INITIAL_ADMIN_NAME";
 const ADMIN_PASSWORD = "RVS_INITIAL_ADMIN_PASSWORD";
-const ROOT_ENV = new URL("../../../.env", import.meta.url);
+const WORKSPACE_MARKER = "pnpm-workspace.yaml";
+const MODULE_DIRECTORY = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_DATABASE = new URL("../data/app.sqlite", import.meta.url);
 
 const envValue = (env, name) => {
@@ -21,7 +22,18 @@ const hashPassword = (password, salt = randomBytes(16).toString("hex")) =>
 
 export const defaultDatabasePath = () => fileURLToPath(DEFAULT_DATABASE);
 
-export function loadSeedEnv(file = ROOT_ENV, base = process.env) {
+export function findRootEnv(start = MODULE_DIRECTORY) {
+  let directory = path.resolve(start);
+  while (true) {
+    if (fs.existsSync(path.join(directory, WORKSPACE_MARKER)))
+      return path.join(directory, ".env");
+    const parent = path.dirname(directory);
+    if (parent === directory) throw new Error("WORKSPACE_ROOT_NOT_FOUND");
+    directory = parent;
+  }
+}
+
+export function loadSeedEnv(file = findRootEnv(), base = process.env) {
   const env = fs.existsSync(file)
     ? parseEnv(fs.readFileSync(file, "utf8"))
     : {};
@@ -31,14 +43,14 @@ export function loadSeedEnv(file = ROOT_ENV, base = process.env) {
 export function openDatabase(
   file = process.env.DATABASE_PATH ?? defaultDatabasePath(),
 ) {
-  if (file.includes("/") && !file.startsWith(":memory:"))
+  if (file !== ":memory:" && !path.isAbsolute(file))
+    throw new Error("LOCAL_DISK_PATH_REQUIRED");
+  if (file !== ":memory:")
     fs.mkdirSync(path.dirname(file), { recursive: true });
   const db = new Database(file, { timeout: 5000 });
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");
   db.pragma("busy_timeout = 5000");
-  if (file !== ":memory:" && !path.isAbsolute(file))
-    throw new Error("LOCAL_DISK_PATH_REQUIRED");
   return db;
 }
 
@@ -84,12 +96,15 @@ const seedInitialAdmin = (db, env) => {
   const password = envValue(env, ADMIN_PASSWORD);
   if (!email && !name && !password) return;
   if (!email || !password) throw new Error("RVS_INITIAL_ADMIN_ENV_INCOMPLETE");
-  db.prepare(
-    "UPDATE users SET email=?, display_name=? WHERE id='usr_platform'",
-  ).run(email, name ?? "Platform Operator");
-  db.prepare(
-    "UPDATE credentials SET secret_hash=?, revoked_at=NULL WHERE id='cred_platform_password'",
-  ).run(hashPassword(password));
+  const reconcile = db.transaction(() => {
+    db.prepare(
+      "UPDATE users SET email=?, display_name=? WHERE id='usr_platform'",
+    ).run(email, name ?? "Platform Operator");
+    db.prepare(
+      "UPDATE credentials SET secret_hash=?, revoked_at=NULL WHERE id='cred_platform_password'",
+    ).run(hashPassword(password));
+  });
+  reconcile.immediate();
 };
 
 export function seed(db, env = {}) {

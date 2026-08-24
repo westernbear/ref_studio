@@ -71,38 +71,51 @@ describe("SQLite runtime durability", () => {
   it("reconciles configured admin credentials in an existing database", () => {
     const root = mkdtempSync(join(tmpdir(), "rvs-admin-"));
     const databasePath = join(root, "app.sqlite");
-    const previousEmail = process.env.RVS_INITIAL_ADMIN_EMAIL;
-    const previousPassword = process.env.RVS_INITIAL_ADMIN_PASSWORD;
+    const previousEmail = process.env["RVS_INITIAL_ADMIN_EMAIL"];
+    const previousName = process.env["RVS_INITIAL_ADMIN_NAME"];
+    const previousPassword = process.env["RVS_INITIAL_ADMIN_PASSWORD"];
     try {
-      process.env.RVS_INITIAL_ADMIN_EMAIL = "first@example.test";
-      process.env.RVS_INITIAL_ADMIN_PASSWORD = "first-password";
+      process.env["RVS_INITIAL_ADMIN_EMAIL"] = "first@example.test";
+      process.env["RVS_INITIAL_ADMIN_NAME"] = "First Admin";
+      process.env["RVS_INITIAL_ADMIN_PASSWORD"] = "first-password";
       openApiDatabase(databasePath).close();
 
-      process.env.RVS_INITIAL_ADMIN_EMAIL = "second@example.test";
-      process.env.RVS_INITIAL_ADMIN_PASSWORD = "second-password";
+      process.env["RVS_INITIAL_ADMIN_EMAIL"] = "second@example.test";
+      process.env["RVS_INITIAL_ADMIN_NAME"] = "Second Admin";
+      process.env["RVS_INITIAL_ADMIN_PASSWORD"] = "second-password";
       const db = openApiDatabase(databasePath);
-      const row = z.object({ email: z.string(), secretHash: z.string() }).parse(
-        db
-          .prepare(
-            `SELECT u.email, c.secret_hash AS secretHash
+      const row = z
+        .object({
+          email: z.string(),
+          displayName: z.string(),
+          secretHash: z.string(),
+        })
+        .parse(
+          db
+            .prepare(
+              `SELECT u.email, u.display_name AS displayName, c.secret_hash AS secretHash
                  FROM users u
                  JOIN credentials c ON c.user_id = u.id
                 WHERE u.id = 'usr_platform'`,
-          )
-          .get(),
-      );
+            )
+            .get(),
+        );
       db.close();
 
       expect(row.email).toBe("second@example.test");
+      expect(row.displayName).toBe("Second Admin");
       expect(verifyPassword("second-password", row.secretHash)).toBe(true);
       expect(verifyPassword("first-password", row.secretHash)).toBe(false);
     } finally {
       if (previousEmail === undefined)
-        delete process.env.RVS_INITIAL_ADMIN_EMAIL;
-      else process.env.RVS_INITIAL_ADMIN_EMAIL = previousEmail;
+        delete process.env["RVS_INITIAL_ADMIN_EMAIL"];
+      else process.env["RVS_INITIAL_ADMIN_EMAIL"] = previousEmail;
+      if (previousName === undefined)
+        delete process.env["RVS_INITIAL_ADMIN_NAME"];
+      else process.env["RVS_INITIAL_ADMIN_NAME"] = previousName;
       if (previousPassword === undefined)
-        delete process.env.RVS_INITIAL_ADMIN_PASSWORD;
-      else process.env.RVS_INITIAL_ADMIN_PASSWORD = previousPassword;
+        delete process.env["RVS_INITIAL_ADMIN_PASSWORD"];
+      else process.env["RVS_INITIAL_ADMIN_PASSWORD"] = previousPassword;
       rmSync(root, { recursive: true, force: true });
     }
   });

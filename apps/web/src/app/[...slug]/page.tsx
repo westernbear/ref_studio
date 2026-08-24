@@ -19,10 +19,6 @@ type Column = {
   readonly label: string;
   readonly value: (row: unknown) => ReactNode;
 };
-type DetailField = {
-  readonly label: string;
-  readonly value: (row: unknown) => ReactNode;
-};
 
 const PAGE_SIZE = 20;
 const jobStates = [
@@ -186,7 +182,7 @@ function DetailPanel({
 }: {
   readonly title: string;
   readonly row: unknown;
-  readonly fields: readonly DetailField[];
+  readonly fields: readonly Column[];
   readonly landmark?: string | undefined;
   readonly actions?: ReactNode;
 }) {
@@ -365,7 +361,7 @@ function RecordSurface({
   readonly search: SearchState;
   readonly rows: readonly unknown[];
   readonly columns: readonly Column[];
-  readonly details: readonly DetailField[];
+  readonly details: readonly Column[];
   readonly empty: string;
   readonly tableTitle: string;
   readonly tableLandmark: string;
@@ -477,6 +473,26 @@ function AdminProblem({
   );
 }
 
+const formatQuota = (row: unknown): string =>
+  `${text(field(field(row, "quota"), "used"), "0")} / ${text(
+    field(field(row, "quota"), "limit"),
+    "0",
+  )}`;
+
+function jobDetailActions(row: unknown): ReactNode {
+  const jobId = encodeURIComponent(text(field(row, "id")));
+  return (
+    <>
+      <a className="button button-primary" href={`/progress?jobId=${jobId}`}>
+        Progress
+      </a>
+      <a className="button" href={`/jobs/${jobId}/review`}>
+        Review
+      </a>
+    </>
+  );
+}
+
 const tenantColumns: readonly Column[] = [
   { label: "Tenant", value: (row) => <IdCell row={row} label="name" /> },
   { label: "Status", value: (row) => text(field(row, "status")) },
@@ -484,14 +500,10 @@ const tenantColumns: readonly Column[] = [
   { label: "Active jobs", value: (row) => text(field(row, "activeJobs"), "0") },
   {
     label: "Quota",
-    value: (row) =>
-      `${text(field(field(row, "quota"), "used"), "0")} / ${text(
-        field(field(row, "quota"), "limit"),
-        "0",
-      )}`,
+    value: formatQuota,
   },
 ];
-const tenantDetails: readonly DetailField[] = [
+const tenantDetails: readonly Column[] = [
   { label: "Tenant ID", value: (row) => text(field(row, "id")) },
   { label: "Name", value: (row) => text(field(row, "name")) },
   { label: "Status", value: (row) => text(field(row, "status")) },
@@ -513,7 +525,15 @@ const jobColumns: readonly Column[] = [
   { label: "Attempt", value: (row) => text(field(row, "attempt"), "0") },
   { label: "Created", value: (row) => when(field(row, "createdAt")) },
 ];
-const jobDetails: readonly DetailField[] = [
+const adminJobDetails: readonly Column[] = [
+  { label: "Job ID", value: (row) => text(field(row, "id")) },
+  { label: "Tenant", value: (row) => text(field(row, "tenantId")) },
+  { label: "Creator", value: (row) => text(field(row, "creatorId")) },
+  { label: "State", value: (row) => text(field(row, "state")) },
+  { label: "Attempt", value: (row) => text(field(row, "attempt"), "0") },
+  { label: "Created", value: (row) => when(field(row, "createdAt")) },
+];
+const creatorJobDetails: readonly Column[] = [
   { label: "Job ID", value: (row) => text(field(row, "id")) },
   { label: "Tenant", value: (row) => text(field(row, "tenantId")) },
   { label: "State", value: (row) => text(field(row, "state")) },
@@ -532,7 +552,7 @@ const quarantineColumns: readonly Column[] = [
   { label: "Declared type", value: (row) => text(field(row, "declaredType")) },
   { label: "Reason", value: (row) => text(field(row, "reason")) },
 ];
-const quarantineDetails: readonly DetailField[] = [
+const quarantineDetails: readonly Column[] = [
   { label: "Upload ID", value: (row) => text(field(row, "id")) },
   { label: "Tenant", value: (row) => text(field(row, "tenantId")) },
   { label: "State", value: (row) => text(field(row, "state")) },
@@ -552,7 +572,7 @@ const auditColumns: readonly Column[] = [
   { label: "Outcome", value: (row) => text(field(row, "outcome")) },
   { label: "Created", value: (row) => when(field(row, "createdAt")) },
 ];
-const auditDetails: readonly DetailField[] = [
+const auditDetails: readonly Column[] = [
   { label: "Event ID", value: (row) => text(field(row, "id")) },
   { label: "Event type", value: (row) => text(field(row, "eventType")) },
   { label: "Tenant", value: (row) => text(field(row, "tenantId")) },
@@ -563,7 +583,7 @@ const auditDetails: readonly DetailField[] = [
   { label: "Correlation", value: (row) => text(field(row, "correlationId")) },
   { label: "Created", value: (row) => when(field(row, "createdAt")) },
 ];
-const receiptDetails: readonly DetailField[] = [
+const receiptDetails: readonly Column[] = [
   { label: "Receipt ID", value: (row) => text(field(row, "id")) },
   { label: "Job", value: (row) => text(field(row, "jobId")) },
   { label: "Tenant", value: (row) => text(field(row, "tenantId")) },
@@ -579,15 +599,11 @@ const billingColumns: readonly Column[] = [
   { label: "Status", value: (row) => text(field(row, "billingStatus")) },
   {
     label: "Quota",
-    value: (row) =>
-      `${text(field(field(row, "quota"), "used"), "0")} / ${text(
-        field(field(row, "quota"), "limit"),
-        "0",
-      )}`,
+    value: formatQuota,
   },
   { label: "Renewal", value: (row) => when(field(row, "renewalAt")) },
 ];
-const billingDetails: readonly DetailField[] = [
+const billingDetails: readonly Column[] = [
   { label: "Tenant", value: (row) => text(field(row, "tenantId")) },
   { label: "Plan", value: (row) => text(field(row, "plan")) },
   { label: "Status", value: (row) => text(field(row, "billingStatus")) },
@@ -723,28 +739,13 @@ async function renderJobs(title: string, search: SearchState) {
         search={search}
         rows={rows}
         columns={jobColumns}
-        details={jobDetails}
+        details={adminJobDetails}
         empty="No compiler jobs match these filters."
         tableTitle="Queue and delivery"
         tableLandmark="job-table"
         detailTitle="Job detail"
         nextCursor={cursor(result.body)}
-        detailActions={(row) => {
-          const jobId = encodeURIComponent(text(field(row, "id")));
-          return (
-            <>
-              <a
-                className="button button-primary"
-                href={`/progress?jobId=${jobId}`}
-              >
-                Progress
-              </a>
-              <a className="button" href={`/jobs/${jobId}/review`}>
-                Review
-              </a>
-            </>
-          );
-        }}
+        detailActions={jobDetailActions}
       />
     </AdminView>
   );
@@ -1062,28 +1063,13 @@ async function renderWorkflow(
           search={search}
           rows={rows}
           columns={jobColumns}
-          details={jobDetails}
+          details={creatorJobDetails}
           empty="No compiler jobs match these filters."
           tableTitle="Compiler jobs"
           tableLandmark="job-table"
           detailTitle="Job detail"
           nextCursor={cursor(result.body)}
-          detailActions={(row) => {
-            const jobId = encodeURIComponent(text(field(row, "id")));
-            return (
-              <>
-                <a
-                  className="button button-primary"
-                  href={`/progress?jobId=${jobId}`}
-                >
-                  Progress
-                </a>
-                <a className="button" href={`/jobs/${jobId}/review`}>
-                  Review
-                </a>
-              </>
-            );
-          }}
+          detailActions={jobDetailActions}
         />
       </div>
     </CreatorShell>

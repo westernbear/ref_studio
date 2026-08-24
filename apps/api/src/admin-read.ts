@@ -1,11 +1,10 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { type AuthStore, type Principal } from "./auth.js";
 import {
-  authenticateAdminBearer,
-  authenticateSession,
-  type AuthFailure,
-  type AuthStore,
-  type Principal,
-} from "./auth.js";
+  adminRole,
+  authenticateAdminRequest,
+  isAdminPrincipal,
+} from "./admin-auth.js";
 import { safeEnvelope } from "./boundary.js";
 
 export type AdminTenant = {
@@ -105,43 +104,6 @@ const includes = (query: string | undefined, ...values: unknown[]): boolean =>
       typeof value === "string" &&
       value.toLocaleLowerCase().includes(query.toLocaleLowerCase()),
   );
-const role = (principal: Principal): string =>
-  principal.roles[0]?.toUpperCase().replace("-", "_") ?? "";
-const header = (request: FastifyRequest, name: string): string | undefined => {
-  const value = request.headers[name];
-  return typeof value === "string" ? value : undefined;
-};
-const cookie = (request: FastifyRequest, name: string): string | undefined =>
-  header(request, "cookie")
-    ?.split(";")
-    .map((part) => part.trim())
-    .find((part) => part.startsWith(`${name}=`))
-    ?.slice(name.length + 1);
-const adminPrincipal = (
-  auth: AuthStore,
-  request: FastifyRequest,
-  expectedOrigin: string,
-  now: number,
-): Principal | AuthFailure => {
-  const authorization = header(request, "authorization");
-  const raw = authorization?.startsWith("Bearer ")
-    ? authorization.slice(7)
-    : "";
-  const principal = raw
-    ? authenticateAdminBearer(auth, raw, now)
-    : authenticateSession(
-        auth,
-        decodeURIComponent(cookie(request, "rvs_session") ?? ""),
-        header(request, "x-csrf-token"),
-        header(request, "origin"),
-        expectedOrigin,
-        now,
-      );
-  if ("code" in principal) return principal;
-  return ["SUPER_ADMIN", "OPS_ADMIN", "VIEWER"].includes(role(principal))
-    ? principal
-    : { code: "ROLE_NOT_PERMITTED" };
-};
 const page = <T>(
   items: readonly T[],
   query: Query,
@@ -216,25 +178,34 @@ export function registerAdminRead(
   app: FastifyInstance,
   auth: AuthStore,
   store: AdminReadStore,
-  now = Date.now(),
+  now: () => number = Date.now,
   expectedOrigin = "http://localhost:3100",
 ): void {
   app.addHook("onRequest", async (request, reply) => {
     if (
+      (request.method !== "GET" && request.method !== "HEAD") ||
       !request.url.startsWith("/admin/") ||
       request.url.startsWith("/admin/sign-in")
     )
       return;
-    const principal = adminPrincipal(auth, request, expectedOrigin, now);
-    if ("code" in principal) {
+    const principal = authenticateAdminRequest(
+      auth,
+      request,
+      expectedOrigin,
+      now(),
+    );
+    if ("code" in principal || !isAdminPrincipal(principal)) {
       auth.audit({
         action: "ADMIN_ACCESS_DENIED",
         userId: "unknown",
         tenantId: null,
         decision: "DENIED",
       });
-      fail(reply, new Error(principal.code));
-      return;
+      fail(
+        reply,
+        new Error("code" in principal ? principal.code : "ROLE_NOT_PERMITTED"),
+      );
+      return reply;
     } else
       (
         request as FastifyRequest & { adminPrincipal?: Principal }
@@ -270,7 +241,7 @@ export function registerAdminRead(
       }
       if (store.queryCount) store.queryCount.value += 1;
       const visibleTenants = new Set(
-        role(principal) === "SUPER_ADMIN"
+        adminRole(principal) === "SUPER_ADMIN"
           ? store.tenants.map((tenant) => tenant.id)
           : auth.assignments
               .filter(
@@ -287,7 +258,7 @@ export function registerAdminRead(
         request.params?.tenantId ??
         pathUrl.match(/^\/admin\/tenants\/([^/]+)/)?.[1] ??
         pathUrl.match(/^\/admin\/billing\/([^/]+)/)?.[1];
-      if (role(principal) !== "SUPER_ADMIN" && visibleTenants.size === 0)
+      if (adminRole(principal) !== "SUPER_ADMIN" && visibleTenants.size === 0)
         throw new Error("ROLE_NOT_PERMITTED");
       if (requested && !visibleTenants.has(requested))
         throw new Error("RESOURCE_NOT_FOUND");

@@ -1,11 +1,11 @@
 import { randomBytes } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import type { AuthStore, Principal } from "./auth.js";
 import {
-  authenticateAdminBearer,
-  authenticateSession,
-  type AuthStore,
-  type Principal,
-} from "./auth.js";
+  adminRole,
+  authenticateAdminRequest,
+  requestHeader,
+} from "./admin-auth.js";
 import { IdempotencyStore, safeEnvelope, requestHash } from "./boundary.js";
 
 export type AdminMutationJob = {
@@ -91,12 +91,6 @@ type Body = {
 };
 const id = (prefix: string): string =>
   `${prefix}_${randomBytes(10).toString("base64url")}`;
-const header = (request: FastifyRequest, name: string): string | undefined => {
-  const value = request.headers[name];
-  return typeof value === "string" ? value : undefined;
-};
-const role = (principal: Principal): string =>
-  principal.roles[0]?.toUpperCase().replace("-", "_") ?? "";
 const fail = (reply: FastifyReply, error: unknown): void => {
   const code = error instanceof Error ? error.message : "INTERNAL_ERROR";
   const status =
@@ -128,8 +122,8 @@ const requireReason = (body: Body): string => {
 };
 const requireVersion = (request: FastifyRequest, version: number): void => {
   if (
-    header(request, "if-match") !== `W/\"${version}\"` &&
-    header(request, "if-match") !== `\"${version}\"`
+    requestHeader(request, "if-match") !== `W/\"${version}\"` &&
+    requestHeader(request, "if-match") !== `\"${version}\"`
   )
     throw new Error("VERSION_CONFLICT");
 };
@@ -138,32 +132,24 @@ export function registerAdminMutation(
   app: FastifyInstance,
   auth: AuthStore,
   store: AdminMutationStore,
-  now = Date.now(),
+  now: () => number = Date.now,
   expectedOrigin = "http://localhost:3100",
 ): void {
   app.addHook("onRequest", async (request, reply) => {
-    if (!request.url.startsWith("/admin/")) return;
-    const raw = header(request, "authorization")?.startsWith("Bearer ")
-      ? (header(request, "authorization")?.slice(7) ?? "")
-      : "";
-    const sessionId = header(request, "cookie")
-      ?.split(";")
-      .map((part) => part.trim())
-      .find((part) => part.startsWith("rvs_session="))
-      ?.slice("rvs_session=".length);
-    const principal = raw
-      ? authenticateAdminBearer(auth, raw, now)
-      : authenticateSession(
-          auth,
-          decodeURIComponent(sessionId ?? ""),
-          header(request, "x-csrf-token"),
-          header(request, "origin"),
-          expectedOrigin,
-          now,
-        );
+    if (
+      !request.url.startsWith("/admin/") ||
+      request.url.startsWith("/admin/sign-in")
+    )
+      return;
+    const principal = authenticateAdminRequest(
+      auth,
+      request,
+      expectedOrigin,
+      now(),
+    );
     if ("code" in principal) {
       fail(reply, new Error(principal.code));
-      return;
+      return reply;
     }
     (
       request as FastifyRequest & { adminMutationPrincipal?: Principal }
@@ -182,7 +168,7 @@ export function registerAdminMutation(
     ).adminMutationPrincipal;
     if (!principal) throw new Error("ADMIN_ACCESS_DENIED");
     const tenant = targetTenant ?? principal.tenantId;
-    const principalRole = role(principal);
+    const principalRole = adminRole(principal);
     const assigned =
       principalRole === "SUPER_ADMIN" ||
       (principalRole === "OPS_ADMIN" &&
@@ -209,7 +195,7 @@ export function registerAdminMutation(
       });
       throw new Error("ADMIN_ACCESS_DENIED");
     }
-    const key = header(request, "idempotency-key");
+    const key = requestHeader(request, "idempotency-key");
     if (!key) throw new Error("INVALID_REQUEST");
     const correlation = String(request.headers["x-correlation-id"] ?? "");
     const replay = store.idempotency.execute(
@@ -406,7 +392,7 @@ export function registerAdminMutation(
   ): Promise<void> => {
     try {
       const result = command(request, null, (principal, correlation) => {
-        if (role(principal) !== "SUPER_ADMIN")
+        if (adminRole(principal) !== "SUPER_ADMIN")
           throw new Error("ADMIN_ACCESS_DENIED");
         const draining = request.url.endsWith("/drain");
         store.auditEvents.push({

@@ -56,8 +56,8 @@ button:disabled {
   gap: var(--space-2xl);
   padding: var(--space-xl);
 }
-.shell header,
-.shell aside {
+.shell > header,
+.shell > aside {
   display: flex;
   align-items: center;
   gap: var(--space-xl);
@@ -65,7 +65,7 @@ button:disabled {
 .shell-admin {
   grid-template-columns: 240px minmax(0, 1fr);
 }
-.shell-admin aside {
+.shell-admin > aside {
   align-items: flex-start;
   flex-direction: column;
 }
@@ -79,6 +79,9 @@ button:disabled {
   align-self: start;
   display: none;
   justify-self: start;
+}
+.shell > .admin-mobile-header {
+  display: none;
 }
 .admin-scope {
   margin: 0;
@@ -468,6 +471,7 @@ progress {
   gap: var(--space-xl);
   max-width: 100%;
   min-width: 0;
+  container-type: inline-size;
 }
 .shell-creator {
   grid-template-rows: auto minmax(0, 1fr) auto;
@@ -567,8 +571,7 @@ progress {
 }
 .filter-bar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-lg);
   border-block: 1px solid var(--color-hairline);
   padding-block: var(--space-lg);
@@ -606,9 +609,15 @@ progress {
   flex-wrap: wrap;
   gap: var(--space-sm);
 }
+.filter-actions {
+  min-width: 0;
+}
+.filter-actions .button {
+  max-width: 100%;
+}
 .record-layout {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(min(300px, 100%), 1fr);
+  grid-template-columns: minmax(770px, 2fr) minmax(300px, 1fr);
   align-items: start;
   gap: var(--space-xl);
   min-width: 0;
@@ -619,6 +628,15 @@ progress {
 .record-detail {
   position: sticky;
   top: var(--space-xl);
+}
+@container (max-width: 1093px) {
+  .record-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .record-detail {
+    position: static;
+  }
 }
 .record-detail-list {
   display: grid;
@@ -1150,16 +1168,23 @@ progress {
     align-items: flex-start;
     flex-wrap: wrap;
   }
+  .shell-admin > .admin-mobile-header {
+    display: flex;
+    justify-content: space-between;
+  }
+  .shell-admin > aside > .brand-link {
+    display: none;
+  }
   .admin-menu-button {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     width: fit-content;
   }
-  .shell-admin aside {
+  .shell-admin > aside {
     display: none;
   }
-  .shell-admin aside.admin-navigation-open {
+  .shell-admin > aside.admin-navigation-open {
     display: flex;
   }
   .upload-header {

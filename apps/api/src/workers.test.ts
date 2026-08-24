@@ -1,8 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { createHash } from "node:crypto";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { Readable } from "node:stream";
 import { buildAuthApp } from "./app.js";
 import { hashWorkerToken, createWorkerStore } from "./workers.js";
-import type { AuthStore } from "./auth.js";
+import { hashBearer, type AuthStore } from "./auth.js";
 import {
   createCreatorWorkflowStore,
   RUNTIME_DIGEST,
@@ -10,6 +20,7 @@ import {
   type Job,
 } from "./creator-workflow.js";
 import type { UploadStore } from "./uploads.js";
+import { createRetentionStore, type RetentionStore } from "./retention.js";
 
 const sourceBytes = Uint8Array.from([
   0, 0, 0, 16, 102, 116, 121, 112, 105, 115, 111, 109,
@@ -271,20 +282,36 @@ const uploadFixture = (): UploadStore => ({
   now: () => 1_000,
 });
 
+type FixtureOptions = Readonly<{
+  now?: () => number;
+  persist?: () => void;
+  retention?: RetentionStore;
+}>;
 const appFixture = (
   workflow?: CreatorWorkflowStore,
   uploads = uploadFixture(),
-  now: () => number = () => 1_000,
+  options: FixtureOptions = {},
 ) => {
   const token = "worker-test-token";
+  const tenantToken = "tenant-test-token";
+  const artifactRoot = mkdtempSync(join(tmpdir(), "rvs-worker-artifacts-"));
   const workers = createWorkerStore(hashWorkerToken(token));
   const auth: AuthStore = {
     users: [],
     credentials: [],
-    memberships: [],
+    memberships: [{ userId: "tenant-owner", tenantId: "ten_a", role: "OWNER" }],
     assignments: [],
     sessions: [],
-    apiTokens: [],
+    apiTokens: [
+      {
+        id: "tenant-token",
+        userId: "tenant-owner",
+        tenantId: "ten_a",
+        tokenHash: hashBearer(tenantToken),
+        expiresAt: 10_000,
+        revokedAt: null,
+      },
+    ],
     audit: () => undefined,
   };
   const app = buildAuthApp({
@@ -294,7 +321,13 @@ const appFixture = (
     workers,
     creatorWorkflow: workflow,
     uploads,
-    now,
+    artifactRoot,
+    now: options.now ?? (() => 1_000),
+    persist: options.persist,
+    retention: options.retention,
+  });
+  app.addHook("onClose", async () => {
+    rmSync(artifactRoot, { recursive: true, force: true });
   });
   const bootstrapHeaders = {
     authorization: `Bearer ${token}`,
@@ -302,12 +335,21 @@ const appFixture = (
   };
   return {
     app,
+    artifactRoot,
     workers,
     bootstrapHeaders,
     headers: { ...bootstrapHeaders } as Record<string, string>,
+    tenantHeaders: {
+      authorization: `Bearer ${tenantToken}`,
+      "x-tenant-id": "ten_a",
+    },
   };
 };
 type Fixture = ReturnType<typeof appFixture>;
+const artifactFiles = (root: string): readonly string[] =>
+  readdirSync(root, { recursive: true })
+    .map(String)
+    .filter((entry) => entry.endsWith(".mp4") || entry.endsWith(".tmp"));
 const registerWorker = async (
   fixture: Fixture,
   capabilities: readonly string[],
@@ -467,7 +509,7 @@ describe("worker registration API", () => {
       url: `/v1/workers/worker-a/jobs/${job.id}/preview-artifact`,
       headers: {
         ...fixture.headers,
-        "content-type": "application/octet-stream",
+        "content-type": "video/mp4",
       },
       payload: Buffer.from("preview-mp4-bytes"),
     });
@@ -565,6 +607,262 @@ describe("worker registration API", () => {
     await fixture.app.close();
   });
 
+  it("Given a preview MP4, when the worker uploads it, then stores a file-backed artifact with its digest and size", async () => {
+    const workflow = createCreatorWorkflowStore();
+    const job = addJob(workflow, "PREPARING");
+    job.preparationStage = "PREVIEW_QUEUED";
+    job.compilation = compilation;
+    const fixture = appFixture(workflow);
+    await registerWorker(fixture, ["renderer"]);
+    const claim = await claimWorker(fixture);
+    const previewBytes = Buffer.from("preview-mp4-bytes");
+
+    const uploaded = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${job.id}/preview-artifact`,
+      headers: {
+        ...fixture.headers,
+        "content-type": "video/mp4",
+      },
+      payload: previewBytes,
+    });
+
+    const stored = workflow.previews.get(job.id);
+    expect(claim.json().job.payload.phase).toBe("preview");
+    expect(uploaded.statusCode).toBe(201);
+    expect(uploaded.json()).toEqual({
+      artifactId: stored?.id,
+      sha256: sha256(previewBytes),
+      sizeBytes: previewBytes.byteLength,
+    });
+    expect(stored).toMatchObject({
+      kind: "preview",
+      bytes: new Uint8Array(),
+      sha256: sha256(previewBytes),
+      sizeBytes: previewBytes.byteLength,
+    });
+    expect(readFileSync(stored?.storagePath ?? "")).toEqual(previewBytes);
+    expect(
+      artifactFiles(fixture.artifactRoot).some((file) => file.endsWith(".tmp")),
+    ).toBe(false);
+    await fixture.app.close();
+  });
+
+  it.each([
+    ["missing content-length", "video/mp4", undefined],
+    ["zero content-length", "video/mp4", "0"],
+    ["non-integer content-length", "video/mp4", "1.5"],
+    ["oversized content-length", "video/mp4", String(512 * 1024 * 1024 + 1)],
+    ["non-MP4 content type", "application/octet-stream", "17"],
+  ] as const)(
+    "Given %s, when a worker uploads an artifact, then rejects it without creating a file",
+    async (_case, contentType, contentLength) => {
+      const workflow = createCreatorWorkflowStore();
+      const job = addJob(workflow, "QUEUED");
+      const fixture = appFixture(workflow);
+      await registerWorker(fixture, ["renderer"]);
+      await claimWorker(fixture);
+      const artifactBytes = Buffer.from("invalid-mp4-bytes");
+
+      const uploaded = await fixture.app.inject({
+        method: "POST",
+        url: `/v1/workers/worker-a/jobs/${job.id}/artifact`,
+        headers: {
+          ...fixture.headers,
+          "content-type": contentType,
+          ...(contentLength === undefined
+            ? {}
+            : { "content-length": contentLength }),
+        },
+        payload: Readable.from([artifactBytes]),
+      });
+
+      expect(uploaded.statusCode).toBe(422);
+      expect(uploaded.json().error.code).toBe("INVALID_REQUEST");
+      expect(workflow.stagedArtifacts.has(job.id)).toBe(false);
+      expect(artifactFiles(fixture.artifactRoot)).toEqual([]);
+      await fixture.app.close();
+    },
+  );
+
+  it("Given a mismatched content-length, when streaming ends, then removes the partial file", async () => {
+    const workflow = createCreatorWorkflowStore();
+    const job = addJob(workflow, "QUEUED");
+    const fixture = appFixture(workflow);
+    await registerWorker(fixture, ["renderer"]);
+    await claimWorker(fixture);
+    const artifactBytes = Buffer.from("short-mp4-bytes");
+
+    const uploaded = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${job.id}/artifact`,
+      headers: {
+        ...fixture.headers,
+        "content-type": "video/mp4",
+        "content-length": String(artifactBytes.byteLength + 1),
+      },
+      payload: Readable.from([artifactBytes]),
+    });
+
+    expect(uploaded.statusCode).toBe(422);
+    expect(workflow.stagedArtifacts.has(job.id)).toBe(false);
+    expect(artifactFiles(fixture.artifactRoot)).toEqual([]);
+    await fixture.app.close();
+  });
+
+  it("returns cancellation when a job is cancelled while its artifact is streaming", async () => {
+    const workflow = createCreatorWorkflowStore();
+    const job = addJob(workflow, "QUEUED");
+    const fixture = appFixture(workflow);
+    await registerWorker(fixture, ["renderer"]);
+    await claimWorker(fixture);
+    const artifactBytes = Buffer.from("cancelled-upload-bytes");
+    const body = Readable.from(
+      (async function* () {
+        yield artifactBytes.subarray(0, 5);
+        job.state = "CANCEL_REQUESTED";
+        yield artifactBytes.subarray(5);
+      })(),
+    );
+
+    const uploaded = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${job.id}/artifact`,
+      headers: {
+        ...fixture.headers,
+        "content-type": "video/mp4",
+        "content-length": String(artifactBytes.byteLength),
+      },
+      payload: body,
+    });
+
+    expect(uploaded.statusCode).toBe(409);
+    expect(uploaded.json().error.code).toBe("CANCEL_REQUESTED");
+    expect(workflow.stagedArtifacts.has(job.id)).toBe(false);
+    expect(artifactFiles(fixture.artifactRoot)).toEqual([]);
+    await fixture.app.close();
+  });
+
+  it("rolls back the artifact file and map when request persistence fails once", async () => {
+    let injectFailure = false;
+    let persistenceCalls = 0;
+    const workflow = createCreatorWorkflowStore();
+    const job = addJob(workflow, "QUEUED");
+    const fixture = appFixture(workflow, uploadFixture(), {
+      persist: () => {
+        persistenceCalls += 1;
+        if (!injectFailure) return;
+        throw new Error("TEST_PERSISTENCE_FAILURE");
+      },
+    });
+    await registerWorker(fixture, ["renderer"]);
+    await claimWorker(fixture);
+    const upload = (bytes: Uint8Array) =>
+      fixture.app.inject({
+        method: "POST",
+        url: `/v1/workers/worker-a/jobs/${job.id}/artifact`,
+        headers: {
+          ...fixture.headers,
+          "content-type": "video/mp4",
+        },
+        payload: bytes,
+      });
+    const originalBytes = Buffer.from("original-upload-bytes");
+    expect((await upload(originalBytes)).statusCode).toBe(201);
+    const original = workflow.stagedArtifacts.get(job.id);
+    const callsBeforeFailure = persistenceCalls;
+
+    injectFailure = true;
+    const uploaded = await upload(Buffer.from("rollback-upload-bytes"));
+
+    expect(uploaded.statusCode).toBe(500);
+    expect(persistenceCalls - callsBeforeFailure).toBe(1);
+    expect(workflow.stagedArtifacts.get(job.id)).toBe(original);
+    expect(readFileSync(original?.storagePath ?? "")).toEqual(originalBytes);
+    expect(artifactFiles(fixture.artifactRoot)).toHaveLength(1);
+    injectFailure = false;
+    await fixture.app.close();
+  });
+
+  it("removes the replaced artifact file after a repeat upload", async () => {
+    const workflow = createCreatorWorkflowStore();
+    const job = addJob(workflow, "QUEUED");
+    const fixture = appFixture(workflow);
+    await registerWorker(fixture, ["renderer"]);
+    await claimWorker(fixture);
+    const upload = (bytes: Uint8Array) =>
+      fixture.app.inject({
+        method: "POST",
+        url: `/v1/workers/worker-a/jobs/${job.id}/artifact`,
+        headers: {
+          ...fixture.headers,
+          "content-type": "video/mp4",
+        },
+        payload: bytes,
+      });
+
+    await upload(Buffer.from("first-artifact"));
+    const firstPath = workflow.stagedArtifacts.get(job.id)?.storagePath ?? "";
+    const replacement = await upload(Buffer.from("replacement-artifact"));
+    const replacementPath =
+      workflow.stagedArtifacts.get(job.id)?.storagePath ?? "";
+
+    expect(replacement.statusCode).toBe(201);
+    expect(replacementPath).not.toBe(firstPath);
+    expect(existsSync(firstPath)).toBe(false);
+    expect(existsSync(replacementPath)).toBe(true);
+    expect(artifactFiles(fixture.artifactRoot)).toHaveLength(1);
+    await fixture.app.close();
+  });
+
+  it.each(["digest", "size"] as const)(
+    "rejects a preview report whose output %s does not match its stored preview",
+    async (mismatch) => {
+      const workflow = createCreatorWorkflowStore();
+      const job = addJob(workflow, "PREPARING");
+      job.preparationStage = "PREVIEW_QUEUED";
+      job.compilation = compilation;
+      const fixture = appFixture(workflow);
+      await registerWorker(fixture, ["renderer"]);
+      await claimWorker(fixture);
+      const previewBytes = Buffer.from("preview-report-bytes");
+      const uploaded = await fixture.app.inject({
+        method: "POST",
+        url: `/v1/workers/worker-a/jobs/${job.id}/preview-artifact`,
+        headers: {
+          ...fixture.headers,
+          "content-type": "video/mp4",
+        },
+        payload: previewBytes,
+      });
+
+      const completed = await fixture.app.inject({
+        method: "POST",
+        url: `/v1/workers/worker-a/jobs/${job.id}/complete`,
+        headers: fixture.headers,
+        payload: {
+          result: {
+            protocol: "rvs.worker.v1",
+            phase: "preview",
+            previewArtifactId: uploaded.json().artifactId,
+            report: {
+              ...renderReport(job, "attempt-a", previewBytes),
+              mode: "preview",
+              ...(mismatch === "digest"
+                ? { outputSha256: "f".repeat(64) }
+                : { outputBytes: previewBytes.byteLength + 1 }),
+            },
+          },
+        },
+      });
+
+      expect(completed.statusCode).toBe(422);
+      expect(workflow.previews.get(job.id)?.report).toBeNull();
+      expect(job.preparationStage).toBe("PREVIEW_RUNNING");
+      await fixture.app.close();
+    },
+  );
+
   it("keeps cancellation pending until the claimed worker acknowledges it", async () => {
     const workflow = createCreatorWorkflowStore();
     const job = addJob(workflow, "PREPARING");
@@ -598,6 +896,53 @@ describe("worker registration API", () => {
     expect(acknowledged.statusCode).toBe(200);
     expect(job.state).toBe("CANCELLED");
     expect(fixture.workers.leases.has(job.id)).toBe(false);
+    await fixture.app.close();
+  });
+
+  it("records a worker failure that races a cancellation without an invalid transition", async () => {
+    const workflow = createCreatorWorkflowStore();
+    const job = addJob(workflow, "QUEUED");
+    const fixture = appFixture(workflow);
+    await registerWorker(fixture, ["renderer"]);
+    await claimWorker(fixture);
+    job.state = "CANCEL_REQUESTED";
+
+    const failed = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${job.id}/fail`,
+      headers: fixture.headers,
+      payload: { message: "renderer unavailable" },
+    });
+
+    expect(failed.statusCode).toBe(200);
+    expect(job.state).toBe("FAILED");
+    expect(job.failureCode).toBe("WORKER_JOB_FAILED");
+    expect(job.automaticRetries).toBe(0);
+    expect(workflow.attempts.get(job.id)?.at(-1)?.state).toBe("FAILED");
+    expect(fixture.workers.leases.has(job.id)).toBe(false);
+    await fixture.app.close();
+  });
+
+  it("preserves a terminal worker failure code followed by classification detail", async () => {
+    const workflow = createCreatorWorkflowStore();
+    const job = addJob(workflow, "QUEUED");
+    const fixture = appFixture(workflow);
+    await registerWorker(fixture, ["renderer"]);
+    await claimWorker(fixture);
+
+    const failed = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${job.id}/fail`,
+      headers: fixture.headers,
+      payload: {
+        message: "NORMALIZED_ARTIFACT_CORRUPT: checksum mismatch",
+      },
+    });
+
+    expect(failed.statusCode).toBe(200);
+    expect(job.state).toBe("FAILED");
+    expect(job.failureCode).toBe("NORMALIZED_ARTIFACT_CORRUPT");
+    expect(job.automaticRetries).toBe(0);
     await fixture.app.close();
   });
 
@@ -643,7 +988,7 @@ describe("worker registration API", () => {
       url: `/v1/workers/worker-a/jobs/${job.id}/artifact`,
       headers: {
         ...fixture.headers,
-        "content-type": "application/octet-stream",
+        "content-type": "video/mp4",
       },
       payload: artifactBytes,
     });
@@ -682,18 +1027,91 @@ describe("worker registration API", () => {
       evidence: { state: "MAPPED", source: { jobId: job.id } },
       evidenceDigest: job.evidenceDigest,
     });
+    const stored = workflow.stagedArtifacts.get(job.id);
     expect(uploaded.statusCode).toBe(201);
     expect(mismatched.statusCode).toBe(422);
-    expect(uploaded.json()).toMatchObject({
+    expect(uploaded.json()).toEqual({
+      artifactId: stored?.id,
+      sha256: sha256(artifactBytes),
       sizeBytes: artifactBytes.byteLength,
     });
     expect(workflow.jobs.get(job.id)?.state).toBe("AWAITING_T5");
     expect(workflow.jobs.get(job.id)?.artifact).toBeNull();
-    expect(workflow.stagedArtifacts.get(job.id)).toMatchObject({
+    expect(stored).toMatchObject({
       id: uploaded.json().artifactId,
       kind: "delivery",
+      bytes: new Uint8Array(),
+      sha256: sha256(artifactBytes),
+      sizeBytes: artifactBytes.byteLength,
     });
+    expect(readFileSync(stored?.storagePath ?? "")).toEqual(artifactBytes);
+    expect(
+      artifactFiles(fixture.artifactRoot).some((file) => file.endsWith(".tmp")),
+    ).toBe(false);
     expect(complete.statusCode).toBe(200);
+    await fixture.app.close();
+  });
+
+  it("fences an in-flight tenant job before progress or artifact publication after deletion", async () => {
+    const workflow = createCreatorWorkflowStore();
+    const job = addJob(workflow, "QUEUED");
+    const retention = createRetentionStore(() => 1_000);
+    const fixture = appFixture(workflow, uploadFixture(), { retention });
+    await registerWorker(fixture, ["renderer"]);
+    await claimWorker(fixture);
+    const artifactBytes = Buffer.from("in-flight-delete-bytes");
+    let markStarted: () => void = () => undefined;
+    const started = new Promise<void>((resolve) => {
+      markStarted = resolve;
+    });
+    let resumeStream: () => void = () => undefined;
+    const resume = new Promise<void>((resolve) => {
+      resumeStream = resolve;
+    });
+    const body = Readable.from(
+      (async function* () {
+        yield artifactBytes.subarray(0, 5);
+        markStarted();
+        await resume;
+        yield artifactBytes.subarray(5);
+      })(),
+    );
+    const uploading = fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${job.id}/artifact`,
+      headers: {
+        ...fixture.headers,
+        "content-type": "video/mp4",
+        "content-length": String(artifactBytes.byteLength),
+      },
+      payload: body,
+    });
+    await started;
+
+    const deleted = await fixture.app.inject({
+      method: "POST",
+      url: "/v1/tenants/ten_a/delete",
+      headers: fixture.tenantHeaders,
+    });
+    const progress = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${job.id}/progress`,
+      headers: fixture.headers,
+      payload: { phase: "render", stage: "encoding", fraction: 0.5 },
+    });
+    resumeStream();
+    const uploaded = await uploading;
+
+    expect(deleted.statusCode).toBe(200);
+    expect(deleted.json()).toEqual({ deletionEpoch: 1 });
+    expect(job.deletionEpoch).toBe(1);
+    expect(job.state).toBe("CANCELLED");
+    expect(workflow.attempts.get(job.id)?.at(-1)?.state).toBe("CANCELLED");
+    expect(fixture.workers.leases.has(job.id)).toBe(false);
+    expect(progress.statusCode).toBe(401);
+    expect(uploaded.statusCode).toBe(401);
+    expect(workflow.stagedArtifacts.has(job.id)).toBe(false);
+    expect(artifactFiles(fixture.artifactRoot)).toEqual([]);
     await fixture.app.close();
   });
 
@@ -751,7 +1169,7 @@ describe("worker registration API", () => {
           url: `/v1/workers/worker-b/jobs/${job.id}/${endpoint}`,
           headers: {
             ...stolenHeaders,
-            "content-type": "application/octet-stream",
+            "content-type": "video/mp4",
           },
           payload: Buffer.from("not-owned"),
         }),
@@ -761,6 +1179,9 @@ describe("worker registration API", () => {
     expect(firstClaim.json().job.leaseToken).not.toBe(firstSession);
     expect(secondClaim.json().job).toBeNull();
     expect(stolen.every((response) => response.statusCode === 401)).toBe(true);
+    expect(workflow.previews.size).toBe(0);
+    expect(workflow.stagedArtifacts.size).toBe(0);
+    expect(artifactFiles(fixture.artifactRoot)).toEqual([]);
     await fixture.app.close();
   });
 
@@ -768,7 +1189,9 @@ describe("worker registration API", () => {
     let timestamp = 1_000;
     const workflow = createCreatorWorkflowStore(() => timestamp);
     const job = addJob(workflow, "PREPARING");
-    const fixture = appFixture(workflow, uploadFixture(), () => timestamp);
+    const fixture = appFixture(workflow, uploadFixture(), {
+      now: () => timestamp,
+    });
     const register = async (workerId: string) => {
       const response = await fixture.app.inject({
         method: "POST",
@@ -815,7 +1238,9 @@ describe("worker registration API", () => {
     let timestamp = 1_000;
     const workflow = createCreatorWorkflowStore(() => timestamp);
     const job = addJob(workflow, "PREPARING");
-    const fixture = appFixture(workflow, uploadFixture(), () => timestamp);
+    const fixture = appFixture(workflow, uploadFixture(), {
+      now: () => timestamp,
+    });
     await registerWorker(fixture, ["compiler"]);
     const claim = await claimWorker(fixture);
     const leaseToken = String(claim.json().job.leaseToken);

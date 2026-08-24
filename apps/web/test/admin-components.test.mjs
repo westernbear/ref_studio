@@ -45,6 +45,16 @@ describe("admin surface contracts", () => {
     expect(shell).toContain('aria-controls="admin-navigation"');
     expect(shell).toContain('href="/projects/new"');
   });
+  it("keeps admin and creator job detail contracts separate", () => {
+    const adminDetails = routes.match(
+      /const adminJobDetails:[\s\S]*?\n\];/u,
+    )?.[0];
+    expect(adminDetails).toBeDefined();
+    expect(adminDetails).toContain('field(row, "creatorId")');
+    expect(adminDetails).not.toMatch(/preparationStage|updatedAt/u);
+    expect(routes).toContain("details={adminJobDetails}");
+    expect(routes).toContain("details={creatorJobDetails}");
+  });
   it("uses the HTTP-compatible request ID helper for exports", () => {
     expect(exportButton).toContain("requestId()");
     expect(exportButton).not.toContain("crypto.randomUUID()");

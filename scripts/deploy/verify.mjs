@@ -2,7 +2,11 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 const root = resolve(import.meta.dirname, "../..");
-const compose = await readFile(resolve(root, "docker-compose.yml"), "utf8");
+const rootCompose = await readFile(resolve(root, "docker-compose.yml"), "utf8");
+const workerCompose = await readFile(
+  resolve(root, "apps/worker/docker-compose.yml"),
+  "utf8",
+);
 const execution = JSON.parse(
   await readFile(
     resolve(root, "verification/contract/execution-contract-v2.json"),
@@ -21,32 +25,34 @@ const required = [
   "jobAttemptStates",
   "publication",
 ];
-const serviceBlock = (service) =>
+const serviceBlock = (compose, service) =>
   compose.match(
     new RegExp(`^  ${service}:\\n([\\s\\S]*?)(?=^  [a-z]|^networks:)`, "m"),
   )?.[1] ?? "";
+const relay = serviceBlock(workerCompose, "api-relay");
+const worker = serviceBlock(workerCompose, "worker");
 
 if (!required.every((key) => execution[key] !== undefined))
   throw new Error("EXECUTION_CONTRACT_MISSING");
 if (
-  !compose.includes("network_mode: none") ||
-  !compose.includes("internal: true")
+  !rootCompose.includes("network_mode: none") ||
+  !rootCompose.includes("internal: true")
 )
   throw new Error("COMPOSE_ISOLATION_MISSING");
-if (!serviceBlock("web").includes("target: runtime"))
+if (!serviceBlock(rootCompose, "web").includes("target: runtime"))
   throw new Error("COMPOSE_WEB_BUILD_MISSING");
-if (!serviceBlock("web").includes("0.0.0.0:3100:3100"))
+if (!serviceBlock(rootCompose, "web").includes("0.0.0.0:3100:3100"))
   throw new Error("COMPOSE_WEB_EXTERNAL_BIND_MISSING");
-if (!serviceBlock("api").includes("target: runtime"))
+if (!serviceBlock(rootCompose, "api").includes("target: runtime"))
   throw new Error("COMPOSE_API_BUILD_MISSING");
-if (!serviceBlock("api").includes("0.0.0.0:3200:3200"))
+if (!serviceBlock(rootCompose, "api").includes("0.0.0.0:3200:3200"))
   throw new Error("COMPOSE_API_EXTERNAL_BIND_MISSING");
-if (!serviceBlock("api").includes("RVS_WORKER_TOKEN"))
+if (!serviceBlock(rootCompose, "api").includes("RVS_WORKER_TOKEN"))
   throw new Error("COMPOSE_API_WORKER_TOKEN_MISSING");
 if (
-  !serviceBlock("web").includes("/workspace/.pnpm-store") ||
-  !serviceBlock("web").includes("/workspace/node_modules") ||
-  !serviceBlock("web").includes("/workspace/apps/web/node_modules")
+  !serviceBlock(rootCompose, "web").includes("/workspace/.pnpm-store") ||
+  !serviceBlock(rootCompose, "web").includes("/workspace/node_modules") ||
+  !serviceBlock(rootCompose, "web").includes("/workspace/apps/web/node_modules")
 )
   throw new Error("COMPOSE_WEB_NODE_MODULES_VOLUME_MISSING");
 for (const service of [
@@ -56,9 +62,39 @@ for (const service of [
   "qa",
   "qa-audit-egress",
 ]) {
-  if (!serviceBlock(service).includes("profiles:"))
+  if (!serviceBlock(rootCompose, service).includes("profiles:"))
     throw new Error(`COMPOSE_DEFAULT_ONE_SHOT ${service}`);
 }
+if (
+  !/^  worker-internal:\n    internal: true$/m.test(workerCompose) ||
+  !relay.includes("- worker-internal") ||
+  !relay.includes("- default") ||
+  !worker.includes("- worker-internal") ||
+  worker.includes("- default")
+)
+  throw new Error("WORKER_COMPOSE_ISOLATION_MISSING");
+for (const service of ["api-relay", "worker"])
+  if (!serviceBlock(workerCompose, service).includes("restart: always"))
+    throw new Error(`WORKER_COMPOSE_RESTART_POLICY ${service}`);
+if (
+  !worker.includes(
+    "RVS_WORKER_TOKEN: ${RVS_WORKER_TOKEN:?RVS_WORKER_TOKEN must be set}",
+  )
+)
+  throw new Error("WORKER_COMPOSE_TOKEN_NOT_REQUIRED");
+if (
+  !relay.includes(
+    "RVS_API_BASE_URL: ${RVS_API_BASE_URL:-http://host.docker.internal:3200}",
+  ) ||
+  !worker.includes("RVS_API_BASE_URL: http://api-relay:8787") ||
+  !worker.includes(
+    "RVS_API_REQUEST_TIMEOUT_MS: ${RVS_API_REQUEST_TIMEOUT_MS:-30000}",
+  ) ||
+  !worker.includes(
+    "RVS_MEDIA_REQUEST_TIMEOUT_MS: ${RVS_MEDIA_REQUEST_TIMEOUT_MS:-1800000}",
+  )
+)
+  throw new Error("WORKER_COMPOSE_RELAY_TIMEOUT_CONTRACT_MISSING");
 if (openapi.openapi !== "3.1.0" || Object.keys(openapi.paths).length < 5)
   throw new Error("OPENAPI_NOT_GENERATED");
 if (
@@ -73,6 +109,12 @@ process.stdout.write(
     migrations: "explicit",
     preflight: "runtime-preflight",
     composeIsolation: "verified",
+    workerComposeIsolation: "verified",
+    workerRestartAlways: ["api-relay", "worker"],
+    workerToken: "required",
+    workerRelay: "verified",
+    workerApiTimeoutMs: 30_000,
+    workerMediaTimeoutMs: 1_800_000,
     openapiPaths: Object.keys(openapi.paths).length,
   }) + "\n",
 );

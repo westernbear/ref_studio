@@ -1,14 +1,7 @@
 import { createHash } from "node:crypto";
 import { execFile, spawnSync } from "node:child_process";
-import {
-  chmodSync,
-  chownSync,
-  closeSync,
-  existsSync,
-  openSync,
-  writeSync,
-} from "node:fs";
-import { mkdtemp, rm } from "node:fs/promises";
+import { chmodSync, chownSync, existsSync } from "node:fs";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { promisify } from "node:util";
@@ -341,13 +334,7 @@ export async function inspectUploadedMedia(
   const input = durableInput ?? join(directory ?? "", "source.mp4");
   try {
     if (!durableInput) {
-      const descriptor = openSync(input, "w");
-      try {
-        for (const chunk of upload.chunks)
-          writeSync(descriptor, chunk, 0, chunk.byteLength, null);
-      } finally {
-        closeSync(descriptor);
-      }
+      await writeFile(input, upload.chunks, { mode: 0o600 });
     }
     if (durableInput && process.getuid?.() === 0) {
       chownSync(dirname(input), 65_532, 65_532);

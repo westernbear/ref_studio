@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && mkdir -p dist/apps/api/database && cp -R database/db.mjs database/seed.sql database/migrations dist/apps/api/database/",
     "test": "vitest",
     "start": "node dist/apps/api/src/server.js",
     "db:reset": "node database/cli.mjs reset",

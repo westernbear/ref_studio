@@ -1,21 +1,16 @@
-import Database from "better-sqlite3";
+import type Database from "better-sqlite3";
 import {
-  closeSync,
   existsSync,
-  fsyncSync,
   mkdirSync,
-  openSync,
-  readFileSync,
   renameSync,
   rmSync,
   statSync,
   writeFileSync,
 } from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { parseEnv } from "node:util";
 import { z } from "zod";
-import { hashPassword, type AuthStore, type Session } from "./auth.js";
+import { loadSeedEnv, migrate, openDatabase, seed } from "../database/db.mjs";
+import type { AuthStore, Session } from "./auth.js";
 import type { IdempotencyRecord, IdempotencyStore } from "./boundary.js";
 import type {
   CreatorWorkflowStore,
@@ -51,21 +46,6 @@ type UploadMetadata = Omit<
 >;
 type ArtifactMetadata = Omit<StoredArtifact, "bytes">;
 
-const migrations = [
-  "001_initial.sql",
-  "002_allow_duplicate_cas.sql",
-  "003_remove_demo_seed.sql",
-  "004_runtime_durability.sql",
-  "005_worker_lifecycle.sql",
-] as const;
-const sourceDirectory = fileURLToPath(new URL(".", import.meta.url));
-const apiMarker = `${path.sep}apps${path.sep}api${path.sep}`;
-const markerIndex = sourceDirectory.indexOf(apiMarker);
-const apiDirectory =
-  markerIndex < 0
-    ? path.resolve("apps/api")
-    : sourceDirectory.slice(0, markerIndex + apiMarker.length);
-const rootEnv = path.resolve(apiDirectory, "../..", ".env");
 const JsonRows = z.array(z.object({ id: z.string(), valueJson: z.string() }));
 const ChunkRows = z.array(
   z.object({
@@ -162,74 +142,10 @@ const hydrateJob = (value: string): Job => {
   } as Job;
 };
 const segment = (value: string): string => encodeURIComponent(value);
-const envValue = (
-  env: Readonly<Record<string, string | undefined>>,
-  name: string,
-): string | undefined => {
-  const value = env[name]?.trim();
-  return value ? value : undefined;
-};
-
-const seedConfiguredAdmin = (db: Database.Database): void => {
-  const fileEnv = existsSync(rootEnv)
-    ? parseEnv(readFileSync(rootEnv, "utf8"))
-    : {};
-  const env = { ...fileEnv, ...process.env };
-  const email = envValue(env, "RVS_INITIAL_ADMIN_EMAIL");
-  const password = envValue(env, "RVS_INITIAL_ADMIN_PASSWORD");
-  const name = envValue(env, "RVS_INITIAL_ADMIN_NAME");
-  if (!email && !password && !name) return;
-  if (!email || !password) throw new Error("RVS_INITIAL_ADMIN_ENV_INCOMPLETE");
-  const reconcile = db.transaction(() => {
-    db.prepare(
-      "UPDATE users SET email=?, display_name=? WHERE id='usr_platform'",
-    ).run(email, name ?? "Platform Operator");
-    db.prepare(
-      "UPDATE credentials SET secret_hash=?, revoked_at=NULL WHERE id='cred_platform_password'",
-    ).run(hashPassword(password));
-  });
-  reconcile.immediate();
-};
-
 export function openApiDatabase(databasePath: string): Database.Database {
-  if (databasePath !== ":memory:" && !path.isAbsolute(databasePath))
-    throw new Error("LOCAL_DISK_PATH_REQUIRED");
-  if (databasePath !== ":memory:")
-    mkdirSync(path.dirname(databasePath), { recursive: true });
-  const db = new Database(databasePath, { timeout: 5_000 });
-  db.pragma("journal_mode = WAL");
-  db.pragma("foreign_keys = ON");
-  db.pragma("busy_timeout = 5000");
-  db.exec(
-    "CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)",
-  );
-  for (const [index, filename] of migrations.entries()) {
-    const version = index + 1;
-    if (
-      db.prepare("SELECT 1 FROM schema_migrations WHERE version=?").get(version)
-    )
-      continue;
-    const sql = readFileSync(
-      path.join(apiDirectory, "database", "migrations", filename),
-      "utf8",
-    );
-    const migrate = db.transaction(() => {
-      db.exec(sql);
-      db.prepare(
-        "INSERT INTO schema_migrations VALUES (?, datetime('now'))",
-      ).run(version);
-    });
-    if (version === 2 || version === 3) db.pragma("foreign_keys = OFF");
-    try {
-      migrate.immediate();
-    } finally {
-      if (version === 2 || version === 3) db.pragma("foreign_keys = ON");
-    }
-  }
-  db.exec(
-    readFileSync(path.join(apiDirectory, "database", "seed.sql"), "utf8"),
-  );
-  seedConfiguredAdmin(db);
+  const db = openDatabase(databasePath);
+  migrate(db);
+  seed(db, loadSeedEnv());
   return db;
 }
 
@@ -249,13 +165,7 @@ const writeArtifact = (
   const storagePath = path.join(directory, `${segment(artifact.id)}.mp4`);
   const temporary = `${storagePath}.tmp`;
   mkdirSync(directory, { recursive: true, mode: 0o700 });
-  writeFileSync(temporary, artifact.bytes, { mode: 0o600 });
-  const descriptor = openSync(temporary, "r");
-  try {
-    fsyncSync(descriptor);
-  } finally {
-    closeSync(descriptor);
-  }
+  writeFileSync(temporary, artifact.bytes, { mode: 0o600, flush: true });
   renameSync(temporary, storagePath);
   return { ...artifact, bytes: new Uint8Array(), storagePath };
 };

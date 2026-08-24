@@ -81,15 +81,24 @@ export function AdminShell({ children }: { readonly children: ReactNode }) {
   };
   return (
     <div className="shell shell-admin">
-      <button
-        className="admin-menu-button"
-        type="button"
-        aria-expanded={menuOpen}
-        aria-controls="admin-navigation"
-        onClick={() => setMenuOpen((open) => !open)}
-      >
-        Menu
-      </button>
+      <header className="admin-mobile-header">
+        <a
+          className="brand-link"
+          href="/admin"
+          aria-label="Reference Video Studio admin home"
+        >
+          <BrandLogo ops />
+        </a>
+        <button
+          className="admin-menu-button"
+          type="button"
+          aria-expanded={menuOpen}
+          aria-controls="admin-navigation"
+          onClick={() => setMenuOpen((open) => !open)}
+        >
+          Menu
+        </button>
+      </header>
       <aside
         id="admin-navigation"
         className={menuOpen ? "admin-navigation-open" : ""}

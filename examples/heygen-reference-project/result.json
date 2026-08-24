@@ -1,22 +1,24 @@
 {
-  "protocol": "rvs.example-result.v1",
+  "protocol": "rvs.example-result.v2",
   "pilotId": "pilot_heygen_reference_4s_v1",
   "releaseId": "release_heygen_reference_v1",
-  "status": "PASS",
+  "status": "TECHNICAL_PIPELINE_COMPLETED",
+  "gateAuthoritative": false,
   "workflow": {
-    "duplicateUploadAccepted": true,
-    "tenantCasObjectsAfterDuplicate": 1,
-    "prepareClaimFrameCount": 120,
-    "gateStatus": {
-      "T1": "APPROVED",
-      "T2": "APPROVED",
-      "T3": "APPROVED",
-      "T4": "APPROVED",
-      "T5": "APPROVED",
-      "T6": "NOT_RUN"
+    "choiceResolution": {
+      "status": "UNRESOLVED",
+      "choiceIds": ["choice_foreground_subject_ownership"]
     },
-    "finalState": "COMPLETED",
-    "deliveryDownloadVerified": true
+    "tenantGates": {
+      "scope": "T1-T5",
+      "status": "NOT_ESTABLISHED",
+      "receiptIds": []
+    },
+    "releaseGate": {
+      "gate": "T6",
+      "status": "NOT_RUN",
+      "receiptId": null
+    }
   },
   "prepare": {
     "evidenceDigest": "9f7e0da69c9fcb7e1f4b48528f6cb2806ed46e9b462829485749f18fcf0361bc",

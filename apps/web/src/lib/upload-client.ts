@@ -196,5 +196,7 @@ export async function createCompilerJob(
     },
     signal,
   );
-  return String(body.id);
+  const jobId = text(body.id).trim();
+  if (!jobId) throw new Error("NETWORK_INTERRUPTED");
+  return jobId;
 }

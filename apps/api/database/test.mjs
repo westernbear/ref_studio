@@ -1,10 +1,23 @@
 import assert from "node:assert/strict";
 import { scryptSync } from "node:crypto";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import Database from "better-sqlite3";
-import { defaultDatabasePath, loadSeedEnv, migrate, seed } from "./db.mjs";
+import {
+  defaultDatabasePath,
+  findRootEnv,
+  loadSeedEnv,
+  migrate,
+  openDatabase,
+  seed,
+} from "./db.mjs";
 
 const matchesPassword = (password, encoded) => {
   const [, salt, expected] = encoded.split("$");
@@ -28,6 +41,26 @@ assert.equal(admin.email, "admin@example.test");
 assert.equal(admin.display_name, "Ops Admin");
 assert.equal(admin.role, "SUPER_ADMIN");
 assert.equal(matchesPassword("admin-secret", admin.secret_hash), true);
+adminDb.exec(
+  "CREATE TRIGGER reject_admin_password BEFORE UPDATE OF secret_hash ON credentials WHEN OLD.id='cred_platform_password' BEGIN SELECT RAISE(ABORT,'TEST_PASSWORD_REJECTED'); END",
+);
+assert.throws(
+  () =>
+    seed(adminDb, {
+      RVS_INITIAL_ADMIN_EMAIL: "changed@example.test",
+      RVS_INITIAL_ADMIN_NAME: "Changed Admin",
+      RVS_INITIAL_ADMIN_PASSWORD: "changed-secret",
+    }),
+  /TEST_PASSWORD_REJECTED/,
+);
+const unchangedAdmin = adminDb
+  .prepare(
+    "SELECT users.email, users.display_name, credentials.secret_hash FROM users JOIN credentials ON credentials.user_id=users.id WHERE users.id='usr_platform'",
+  )
+  .get();
+assert.equal(unchangedAdmin.email, "admin@example.test");
+assert.equal(unchangedAdmin.display_name, "Ops Admin");
+assert.equal(matchesPassword("admin-secret", unchangedAdmin.secret_hash), true);
 adminDb.close();
 
 const envDir = mkdtempSync(join(tmpdir(), "rvs-admin-env-"));
@@ -42,6 +75,34 @@ assert.equal(loadedEnv.RVS_INITIAL_ADMIN_EMAIL, "file-admin@example.test");
 assert.equal(loadedEnv.RVS_INITIAL_ADMIN_PASSWORD, "process-secret");
 rmSync(envDir, { recursive: true, force: true });
 
+const workspace = mkdtempSync(join(tmpdir(), "rvs-workspace-root-"));
+try {
+  writeFileSync(join(workspace, "pnpm-workspace.yaml"), "packages: []\n");
+  const sourceLayout = join(workspace, "apps", "api", "database");
+  const builtLayout = join(
+    workspace,
+    "apps",
+    "api",
+    "dist",
+    "apps",
+    "api",
+    "database",
+  );
+  mkdirSync(sourceLayout, { recursive: true });
+  mkdirSync(builtLayout, { recursive: true });
+  assert.equal(findRootEnv(sourceLayout), join(workspace, ".env"));
+  assert.equal(findRootEnv(builtLayout), join(workspace, ".env"));
+} finally {
+  rmSync(workspace, { recursive: true, force: true });
+}
+
+const rootBoundary = mkdtempSync(join(tmpdir(), "rvs-workspace-boundary-"));
+try {
+  assert.throws(() => findRootEnv(rootBoundary), /WORKSPACE_ROOT_NOT_FOUND/);
+} finally {
+  rmSync(rootBoundary, { recursive: true, force: true });
+}
+
 const originalCwd = process.cwd();
 try {
   process.chdir(tmpdir());
@@ -51,6 +112,19 @@ try {
   );
 } finally {
   process.chdir(originalCwd);
+}
+
+const pathRoot = mkdtempSync(join(tmpdir(), "rvs-db-path-"));
+try {
+  process.chdir(pathRoot);
+  assert.throws(
+    () => openDatabase(join("relative", "app.sqlite")),
+    /LOCAL_DISK_PATH_REQUIRED/,
+  );
+  assert.equal(existsSync(join(pathRoot, "relative")), false);
+} finally {
+  process.chdir(originalCwd);
+  rmSync(pathRoot, { recursive: true, force: true });
 }
 
 const legacyDb = new Database(":memory:");

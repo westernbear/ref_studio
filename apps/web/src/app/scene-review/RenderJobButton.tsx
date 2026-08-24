@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { errorCode } from "../../lib/api-error";
 
 export function RenderJobButton({
   jobId,
@@ -31,12 +32,7 @@ export function RenderJobButton({
       );
       if (!response.ok) {
         const body: unknown = await response.json().catch(() => null);
-        const error =
-          body && typeof body === "object" ? Reflect.get(body, "error") : null;
-        const code =
-          error && typeof error === "object"
-            ? Reflect.get(error, "code")
-            : null;
+        const code = errorCode(body);
         setError(
           code === "ROLE_NOT_PERMITTED"
             ? "An organization owner or admin must queue the final render."

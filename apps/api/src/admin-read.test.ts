@@ -191,12 +191,13 @@ const fixture = (): Fixture => {
   };
   return { auth, reads, events };
 };
-const appFor = (data: Fixture) =>
+const appFor = (data: Fixture, now: () => number = Date.now) =>
   buildAuthApp({
     store: data.auth,
     expectedOrigin: "https://admin.test",
     introspectSecret: "secret",
     adminReads: data.reads,
+    now,
   });
 const headers = (id: string) => ({ authorization: `Bearer ${id}-token` });
 
@@ -243,7 +244,7 @@ describe("admin-read", () => {
   it("allows browser admin sessions to read admin records", async () => {
     const data = fixture();
     data.auth.sessions.push({
-      id: "session-admin",
+      id: "session/admin",
       userId: "super",
       tenantId: "platform",
       expiresAt: Date.now() + 10000,
@@ -253,7 +254,7 @@ describe("admin-read", () => {
       method: "GET",
       url: "/admin/tenants",
       headers: {
-        cookie: "rvs_session=session-admin",
+        cookie: "rvs_session=session%2Fadmin",
         "x-csrf-token": "web-proxy",
         origin: "https://admin.test",
       },
@@ -262,6 +263,47 @@ describe("admin-read", () => {
     expect(
       response.json().items.map((item: { id: string }) => item.id),
     ).toEqual(["tenant-a", "tenant-b"]);
+  });
+  it("rejects an admin session that expires after route registration", async () => {
+    let now = 1_000;
+    const data = fixture();
+    data.auth.sessions.push({
+      id: "expiring-session",
+      userId: "super",
+      tenantId: "platform",
+      expiresAt: 1_500,
+      revokedAt: null,
+    });
+    const app = appFor(data, () => now);
+    const request = {
+      method: "GET" as const,
+      url: "/admin/tenants",
+      headers: {
+        cookie: "rvs_session=expiring-session",
+        "x-csrf-token": "web-proxy",
+        origin: "https://admin.test",
+      },
+    };
+
+    now = 1_501;
+    const expired = await app.inject(request);
+
+    expect(expired.statusCode).toBe(401);
+    expect(expired.json().error.code).toBe("AUTHENTICATION_REQUIRED");
+  });
+  it("treats a malformed percent-encoded admin cookie as failed authentication", async () => {
+    const response = await appFor(fixture()).inject({
+      method: "GET",
+      url: "/admin/tenants",
+      headers: {
+        cookie: "rvs_session=%E0%A4%A",
+        "x-csrf-token": "web-proxy",
+        origin: "https://admin.test",
+      },
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json().error.code).toBe("AUTHENTICATION_REQUIRED");
   });
   it("assigned ops-admin and viewer see only assigned tenant across all read routes", async () => {
     for (const id of ["ops", "viewer"]) {
