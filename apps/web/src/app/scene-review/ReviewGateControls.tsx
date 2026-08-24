@@ -43,7 +43,10 @@ export function ReviewGateControls(props: Props) {
           artifactRefs: props.artifactRefs,
         }),
       });
-      const body: unknown = await response.json().catch(() => null);
+      const body: unknown = await response.json().catch((error) => {
+        if (error instanceof Error) return null;
+        throw error;
+      });
       if (!response.ok) {
         const code = errorCode(body);
         setError(
@@ -55,9 +58,13 @@ export function ReviewGateControls(props: Props) {
         );
         return;
       }
-      window.location.reload();
-    } catch {
-      setError("The connection was interrupted. Retry.");
+      window.location.assign(
+        `/progress?jobId=${encodeURIComponent(props.jobId)}`,
+      );
+    } catch (error) {
+      if (error instanceof Error)
+        setError("The connection was interrupted. Retry.");
+      else throw error;
     } finally {
       setSubmitting(null);
     }

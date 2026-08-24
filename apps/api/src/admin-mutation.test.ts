@@ -3,6 +3,7 @@ import { buildAuthApp } from "./app.js";
 import { hashBearer, hashPassword, type AuthStore } from "./auth.js";
 import { createAdminMutationStore } from "./admin-mutation.js";
 import type { AdminReadStore } from "./admin-read.js";
+import { createWorkerStore } from "./workers.js";
 
 const adminReads: AdminReadStore = {
   tenants: [],
@@ -12,6 +13,20 @@ const adminReads: AdminReadStore = {
   quarantine: [],
   billing: [],
 };
+const runtimeDigest = "b".repeat(64);
+const workerPreflight = {
+  status: "PASS",
+  chromiumVersion: "151.0.7922.138",
+  renderer: "SwiftShader renderer",
+  fontReady: true,
+  webgl2: true,
+  networkPolicy: "external-blocked",
+  repeatedFrameByteIdentity: true,
+  ffmpeg: true,
+  ffprobe: true,
+  compilerModels: true,
+  runtimeDigest,
+} as const;
 
 const fixture = () => {
   const users = ["super", "ops", "assigned-viewer", "unassigned", "creator"];
@@ -57,7 +72,30 @@ const fixture = () => {
     })),
     audit: () => undefined,
   };
-  const mutations = createAdminMutationStore();
+  const workers = createWorkerStore("worker-token-hash");
+  workers.workers.set("worker-a", {
+    id: "worker-a",
+    capabilities: ["compiler"],
+    lastHeartbeat: 1_000,
+    status: "ONLINE",
+    preflight: workerPreflight,
+  });
+  workers.sessions.set("worker-a", {
+    workerId: "worker-a",
+    tokenHash: "session-token-hash",
+    expiresAt: 5_000,
+  });
+  workers.leases.set("job-worker", {
+    workerId: "worker-a",
+    phase: "render",
+    jobId: "job-worker",
+    attemptId: "attempt-worker",
+    tokenHash: "lease-token-hash",
+    deletionEpoch: 0,
+    restoreEpoch: 0,
+    expiresAt: 4_000,
+  });
+  const mutations = { ...createAdminMutationStore(), workers };
   mutations.jobs.set("job-a", {
     id: "job-a",
     tenantId: "tenant-a",
@@ -293,6 +331,43 @@ describe("admin-mutation", () => {
       ]),
     );
     expect(data.mutations.exports.size).toBe(2);
+  });
+
+  it("marks a worker offline and reclaims its leases", async () => {
+    const data = fixture();
+    const app = appFor(data);
+    const response = await app.inject({
+      method: "POST",
+      url: "/admin/workers/worker-a/offline",
+      headers: headers("ops", "worker-offline"),
+      payload: {
+        ...body(),
+        confirmItemId: "worker-a",
+      },
+    });
+
+    expect(response.statusCode).toBe(202);
+    expect(response.json()).toMatchObject({
+      workerId: "worker-a",
+      status: "OFFLINE",
+      reclaimedLeases: 1,
+    });
+    expect(data.mutations.workers?.workers.get("worker-a")?.status).toBe(
+      "OFFLINE",
+    );
+    expect(data.mutations.workers?.sessions.has("worker-a")).toBe(false);
+    expect(
+      data.mutations.workers?.retiredUntil.get("worker-a"),
+    ).toBeGreaterThan(Date.now());
+    expect(data.mutations.workers?.leases.has("job-worker")).toBe(false);
+    expect(data.mutations.auditEvents).toMatchObject([
+      {
+        action: "WORKER_MARKED_OFFLINE",
+        targetType: "worker",
+        targetId: "worker-a",
+        outcome: "ALLOWED",
+      },
+    ]);
   });
 
   it("covers quarantine release/reject and state/version failures", async () => {

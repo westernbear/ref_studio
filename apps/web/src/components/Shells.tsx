@@ -11,6 +11,7 @@ const adminLinks = [
   { name: "Dashboard", href: "/admin" },
   { name: "Tenants", href: "/admin/tenants" },
   { name: "Jobs", href: "/admin/jobs" },
+  { name: "Workers", href: "/admin/workers" },
   { name: "Receipts", href: "/admin/receipts" },
   { name: "Quarantine", href: "/admin/quarantine" },
   { name: "Billing", href: "/admin/billing" },

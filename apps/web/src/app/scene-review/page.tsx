@@ -11,7 +11,6 @@ import {
   items,
   liveApiGet,
   text,
-  when,
 } from "../../lib/server-api";
 import { RenderJobButton } from "./RenderJobButton";
 import { ReviewGateControls } from "./ReviewGateControls";
@@ -28,10 +27,8 @@ const numberValue = (value: unknown): number => {
   const parsed = typeof value === "number" ? value : Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
 };
-const keys = (value: unknown): readonly string[] =>
-  value && typeof value === "object" ? Object.keys(value) : [];
-const ready = (value: unknown): string =>
-  value === true ? "Ready" : "Not ready";
+const formatSourceWindow = (seconds: number): string =>
+  `${seconds.toFixed(2)}S - ${(seconds + 4).toFixed(2)}S`;
 const receiptFor = (
   receipts: readonly unknown[],
   gate: Gate,
@@ -181,14 +178,6 @@ export default async function SceneReviewPage({
         (nextGate !== "T2" || (evidence && needsChoice.length === 0)) &&
         (!["T3", "T4", "T5"].includes(nextGate) || artifactRefs.length > 0),
     );
-  const tracks = list(field(sceneInput, "tracks"));
-  const mappings = field(evidence, "mappings");
-  const observed = field(evidence, "observed");
-  const temporalVolume = field(observed, "temporalVolume");
-  const matting = field(observed, "matting");
-  const depth = field(observed, "depth");
-  const camera = field(observed, "camera");
-  const audio = field(observed, "audio");
   const startFrame = numberValue(field(result.body, "startFrame"));
   const sourceFps = numberValue(field(result.body, "sourceFps"));
   const sourceStart = sourceFps > 0 ? startFrame / sourceFps : 0;
@@ -197,264 +186,155 @@ export default async function SceneReviewPage({
   )}/source-download#t=${sourceStart},${sourceStart + 4}`;
   return (
     <CreatorShell>
-      <div className="live-stack">
-        <div className="page-title">
-          <div>
-            <h1>Scene Review</h1>
-            <p>Measured evidence, render preview, and approval receipts.</p>
+      <div className="stitch-review-shell">
+        <aside className="stitch-source-feed" data-landmark="preview">
+          <div className="stitch-feed-meta">
+            <span>Source Feed // 01</span>
+            <span>Live-sync</span>
           </div>
-          <a
-            className="button button-primary"
-            href={`/progress?jobId=${encodeURIComponent(jobId)}`}
-          >
-            Progress
-          </a>
-        </div>
-        <Panel>
-          <dl className="detail-grid">
-            <Detail label="Job" value={text(field(result.body, "id"))} />
+          <div className="stitch-video-frame">
+            <video controls preload="metadata" playsInline src={sourceUrl} />
+            <span className="stitch-hud stitch-hud-top">REC</span>
+            <span className="stitch-hud stitch-hud-bottom">
+              {sourceFps > 0 ? `${sourceFps} FPS / 4S` : "FPS PENDING"}
+            </span>
+            <span className="stitch-draft-mark">DRAFT</span>
+          </div>
+          <div className="stitch-playback">
+            <span>Reference source</span>
+            <span>{formatSourceWindow(sourceStart)}</span>
+          </div>
+          <figure className="stitch-preview-card">
+            {previewArtifactId ? (
+              <video
+                controls
+                preload="metadata"
+                playsInline
+                src={`/api/v1/jobs/${encodeURIComponent(jobId)}/preview-download`}
+              />
+            ) : (
+              <div className="review-media-pending">Preview pending</div>
+            )}
+            <figcaption>Frame-indexed animatic</figcaption>
+          </figure>
+        </aside>
+        <section className="stitch-review-panel">
+          <div className="stitch-review-header">
+            <div>
+              <h1>
+                Scene Review <span>#{text(field(result.body, "id"))}</span>
+              </h1>
+              <p>Check the shot and make the next approval decision.</p>
+            </div>
+            <a
+              className="button button-primary"
+              href={`/progress?jobId=${encodeURIComponent(jobId)}`}
+            >
+              Progress
+            </a>
+          </div>
+          <dl className="detail-grid stitch-review-meta">
             <Detail label="State" value={state} />
-            <Detail
-              label="Preparation"
-              value={preparationStage || "Not active"}
-            />
-            <Detail
-              label="Attempt"
-              value={text(field(result.body, "attempt"), "0")}
-            />
-            <Detail
-              label="Created"
-              value={when(field(result.body, "createdAt"))}
-            />
-            <Detail
-              label="Updated"
-              value={when(field(result.body, "updatedAt"))}
-            />
-            <Detail
-              label="Approved gates"
-              value={`${approvedGates.length}/5`}
-            />
-            <Detail
-              label="Runtime"
-              value={text(field(runtime, "chromiumVersion"), "Pending")}
-            />
+            <Detail label="Next gate" value={nextGate ?? "None"} />
+            <Detail label="Approved" value={`${approvedGates.length}/5`} />
           </dl>
-          {state === "READY" && etag && approvedGates.includes("T4") ? (
-            <RenderJobButton jobId={jobId} etag={etag} />
-          ) : null}
-          {state === "COMPLETED" ? (
-            <div className="review-actions">
-              <a
-                className="button button-primary"
-                href={`/api/v1/jobs/${encodeURIComponent(jobId)}/delivery-download`}
-              >
-                Download Delivery
-              </a>
-              <a
-                className="button"
-                href={`/api/v1/jobs/${encodeURIComponent(jobId)}/report-download`}
-              >
-                Download Report
-              </a>
-            </div>
-          ) : null}
-        </Panel>
-        <section
-          className="review-media-section"
-          aria-labelledby="media-title"
-          data-landmark="preview"
-        >
-          <div className="section-heading">
-            <div>
-              <h2 id="media-title">Reference and animatic</h2>
-              <p>Selected source interval and worker-rendered review output.</p>
-            </div>
-          </div>
-          <div className="review-media-grid">
-            <figure>
-              <video controls preload="metadata" playsInline src={sourceUrl} />
-              <figcaption>Reference source</figcaption>
-            </figure>
-            <figure>
-              {previewArtifactId ? (
-                <video
-                  controls
-                  preload="metadata"
-                  playsInline
-                  src={`/api/v1/jobs/${encodeURIComponent(jobId)}/preview-download`}
-                />
-              ) : (
-                <div className="review-media-pending">Preview pending</div>
-              )}
-              <figcaption>Frame-indexed animatic</figcaption>
-            </figure>
-          </div>
-        </section>
-        <Panel data-landmark="evidence-panel">
-          <div className="section-heading">
-            <div>
-              <h2>Compiler evidence</h2>
-              <p>Observed temporal measurements mapped to editable owners.</p>
-            </div>
+          <div className="stitch-review-actions">
+            <span>
+              {nextGate
+                ? canReview
+                  ? `${nextGate} can be reviewed now.`
+                  : `${nextGate} unlocks when evidence is ready.`
+                : "No approval is waiting."}
+            </span>
+            {state === "READY" && etag && approvedGates.includes("T4") ? (
+              <RenderJobButton jobId={jobId} etag={etag} />
+            ) : null}
+            {state === "COMPLETED" ? (
+              <div className="review-actions">
+                <a
+                  className="button button-primary"
+                  href={`/api/v1/jobs/${encodeURIComponent(jobId)}/delivery-download`}
+                >
+                  Download Delivery
+                </a>
+                <a
+                  className="button"
+                  href={`/api/v1/jobs/${encodeURIComponent(jobId)}/report-download`}
+                >
+                  Download Report
+                </a>
+              </div>
+            ) : null}
+            {canReview && nextGate ? (
+              <ReviewGateControls
+                jobId={jobId}
+                attempt={attempt}
+                gate={nextGate}
+                predecessorReceiptId={predecessorReceiptId}
+                evidenceDigest={evidenceDigest}
+                irDigest={irDigest}
+                runtimeDigest={runtimeDigest}
+                releaseBaselineDigest={releaseBaselineDigest}
+                artifactRefs={artifactRefs}
+              />
+            ) : null}
           </div>
           {evidence ? (
-            <>
-              <div className="review-subsection-heading">
-                <h3>Measurement evidence</h3>
+            <section className="stitch-review-section">
+              <div className="stitch-section-heading">
+                <h2>Review focus</h2>
+                <span>{canReview ? "Ready" : "Waiting"}</span>
+              </div>
+              <Panel className="stitch-review-card">
                 <p>
-                  Coverage recorded across the selected four-second interval.
+                  Evidence is prepared. Review the source and preview, then
+                  approve or reject the current gate.
                 </p>
-              </div>
-              <dl className="metric-grid">
-                <Detail
-                  label="Evidence"
-                  value={text(field(evidence, "state"))}
-                />
-                <Detail
-                  label="Preflight"
-                  value={text(field(runtime, "status"), "Pending")}
-                />
-                <Detail
-                  label="Renderer"
-                  value={text(field(runtime, "renderer"), "Pending")}
-                />
-                <Detail
-                  label="WebGL2 / Font"
-                  value={`${ready(field(runtime, "webgl2"))} / ${ready(
-                    field(runtime, "fontReady"),
-                  )}`}
-                />
-                <Detail
-                  label="Network"
-                  value={text(field(runtime, "networkPolicy"), "Pending")}
-                />
-                <Detail
-                  label="Frames"
-                  value={text(field(temporalVolume, "frameCount"), "0")}
-                />
-                <Detail
-                  label="Text owners"
-                  value={text(field(mappings, "textOwnerCount"), "0")}
-                />
-                <Detail
-                  label="UI owners"
-                  value={text(field(mappings, "uiOwnerCount"), "0")}
-                />
-                <Detail
-                  label="Needs choice"
-                  value={String(list(field(evidence, "needsChoice")).length)}
-                />
-                <Detail
-                  label="Effects"
-                  value={String(keys(field(sceneInput, "effects")).length)}
-                />
-                <Detail
-                  label="Matte samples"
-                  value={String(list(field(matting, "frames")).length)}
-                />
-                <Detail
-                  label="Depth samples"
-                  value={String(list(field(depth, "medianNormalized")).length)}
-                />
-                <Detail
-                  label="Camera samples"
-                  value={String(list(field(camera, "frames")).length)}
-                />
-                <Detail
-                  label="Audio anchors"
-                  value={String(list(field(audio, "anchors")).length)}
-                />
-              </dl>
-              <div className="review-subsection-heading">
-                <h3>Owner mapping</h3>
-                <p>Measured objects bound to editable scene owners.</p>
-              </div>
-              <div
-                className="table-wrap review-evidence-table"
-                data-landmark="mapping-table"
-              >
-                <table className="live-table">
-                  <thead>
-                    <tr>
-                      <th>Owner</th>
-                      <th>Kind</th>
-                      <th>Confidence</th>
-                      <th>Lifecycle</th>
-                      <th>Effects</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {owners.map((owner, index) => {
-                      const ownerId = text(
-                        field(owner, "ownerId"),
-                        `owner-${index}`,
-                      );
-                      const track = tracks.find(
-                        (candidate) =>
-                          text(field(candidate, "owner"), "") === ownerId,
-                      );
-                      const confidence = numberValue(
-                        field(owner, "confidence"),
-                      );
-                      return (
-                        <tr key={ownerId}>
-                          <td className="id-cell">
-                            <strong>{ownerId}</strong>
-                          </td>
-                          <td>{text(field(owner, "kind"))}</td>
-                          <td>{`${(confidence * 100).toFixed(1)}%`}</td>
-                          <td>
-                            {keys(field(track, "lifecycle")).join(" / ") ||
-                              "Not set"}
-                          </td>
-                          <td>
-                            {stringList(field(track, "effects")).join(", ") ||
-                              "None"}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </>
+                <dl className="detail-grid stitch-focus-grid">
+                  <Detail label="Owners" value={String(owners.length)} />
+                  <Detail
+                    label="Preview"
+                    value={previewArtifactId ? "Ready" : "Pending"}
+                  />
+                  <Detail
+                    label="Runtime"
+                    value={text(field(runtime, "status"), "Pending")}
+                  />
+                </dl>
+              </Panel>
+            </section>
           ) : (
-            <p className="empty-copy">Compiler evidence is still pending.</p>
+            <Panel>
+              <p className="empty-copy">Compiler evidence is still pending.</p>
+            </Panel>
           )}
-        </Panel>
-        <Panel data-landmark="timeline">
-          <div className="section-heading">
-            <div>
-              <h2>Approval chain</h2>
-              <p>Append-only decisions for the current attempt.</p>
+          <section className="stitch-review-section" data-landmark="timeline">
+            <div className="stitch-section-heading">
+              <h2>Approval Chain</h2>
+              <span>Attempt {attempt}</span>
             </div>
-          </div>
-          <ol className="review-gate-chain">
-            {gates.map((gate) => {
-              const receipt = latestReceiptFor(receipts, gate, attempt);
-              const decision = text(field(receipt, "decision"), "Pending");
-              return (
-                <li
-                  key={gate}
-                  className={
-                    decision === "APPROVED"
-                      ? "is-approved"
-                      : decision === "REJECTED"
-                        ? "is-rejected"
-                        : ""
-                  }
-                >
-                  <strong>{gate}</strong>
-                  <span>{decision}</span>
-                  <small>
-                    {receipt
-                      ? `${text(field(receipt, "actorId"))} / ${when(field(receipt, "createdAt"))}`
-                      : "No receipt"}
-                  </small>
-                </li>
-              );
-            })}
-          </ol>
+            <ol className="review-gate-chain">
+              {gates.map((gate) => {
+                const receipt = latestReceiptFor(receipts, gate, attempt);
+                const decision = text(field(receipt, "decision"), "Pending");
+                return (
+                  <li
+                    key={gate}
+                    className={
+                      decision === "APPROVED"
+                        ? "is-approved"
+                        : decision === "REJECTED"
+                          ? "is-rejected"
+                          : ""
+                    }
+                  >
+                    <strong>{gate}</strong>
+                    <span>{decision}</span>
+                  </li>
+                );
+              })}
+            </ol>
+          </section>
           {preparationStage === "AWAITING_T2" && choiceId && etag ? (
             <ChoiceResolver
               jobId={jobId}
@@ -464,20 +344,7 @@ export default async function SceneReviewPage({
               ownerIds={ownerIds}
             />
           ) : null}
-          {canReview && nextGate ? (
-            <ReviewGateControls
-              jobId={jobId}
-              attempt={attempt}
-              gate={nextGate}
-              predecessorReceiptId={predecessorReceiptId}
-              evidenceDigest={evidenceDigest}
-              irDigest={irDigest}
-              runtimeDigest={runtimeDigest}
-              releaseBaselineDigest={releaseBaselineDigest}
-              artifactRefs={artifactRefs}
-            />
-          ) : null}
-        </Panel>
+        </section>
       </div>
     </CreatorShell>
   );

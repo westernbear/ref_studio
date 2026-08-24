@@ -4,15 +4,12 @@ import { useEffect, useState } from "react";
 import { BrandLogo } from "../../components/Shells";
 import {
   approvalGates,
-  formatJobStamp,
   isTerminalJobState,
-  jobActivityPercent,
   jobProgressPercent,
   jobStatusCopy,
   nextApprovalGate,
   liveJobStatusError,
   parseJobProgress,
-  progressStages,
   type JobProgress,
 } from "../../lib/job-progress";
 
@@ -22,47 +19,21 @@ type Props = {
 
 const displayPercent = (value: number): string => `${value.toFixed(1)}%`;
 
-const stageClass = (jobState: string, stageState: string): string => {
-  const activeIndex = progressStages.findIndex(
-    (stage) => stage.state === jobState,
-  );
-  const stageIndex = progressStages.findIndex(
-    (stage) => stage.state === stageState,
-  );
-  if (activeIndex === -1) return "progress-step";
-  if (stageIndex < activeIndex) return "progress-step is-complete";
-  if (stageIndex === activeIndex) return "progress-step is-active";
-  return "progress-step";
-};
-
 export function ProgressTracker({ initialJob }: Props) {
   const [job, setJob] = useState(initialJob);
   const [error, setError] = useState("");
   const percent = jobProgressPercent(job);
-  const activityPercent = jobActivityPercent(job);
   const shouldPoll = !isTerminalJobState(job.state);
   const nextGate = nextApprovalGate(job);
   const sceneReviewHref = `/scene-review?jobId=${encodeURIComponent(job.id)}`;
   const approvedGateCount = approvalGates.filter((gate) =>
     job.approvedGates.includes(gate),
   ).length;
-  const logs = [
-    ["JOB_STATE", job.state],
-    ["PREPARATION_STAGE", job.preparationStage || "Pending"],
-    ["ATTEMPT", String(job.attempt)],
-    ["APPROVED_GATES", `${approvedGateCount}/${approvalGates.length}`],
-    ["WORKER_PHASE", job.progressPhase || "Pending"],
-    ["WORKER_STAGE", job.progressStage || "Pending"],
-    ["WORKER_FRACTION", displayPercent(activityPercent)],
-    [
-      "FRAMES",
-      job.framesProcessed === null || job.framesTotal === null
-        ? "Pending"
-        : `${job.framesProcessed}/${job.framesTotal}`,
-    ],
-    ["UPDATED_AT", formatJobStamp(job.updatedAt)],
-    ["ARTIFACT", job.artifactId || "Pending"],
-  ];
+  const workerCopy = job.progressStage || job.progressPhase || "Waiting";
+  const frameCopy =
+    job.framesProcessed === null || job.framesTotal === null
+      ? "Pending"
+      : `${job.framesProcessed}/${job.framesTotal}`;
 
   useEffect(() => {
     if (!shouldPoll) return undefined;
@@ -73,7 +44,10 @@ export function ProgressTracker({ initialJob }: Props) {
           `/api/v1/jobs/${encodeURIComponent(initialJob.id)}`,
           { credentials: "include" },
         );
-        const body: unknown = await response.json().catch(() => null);
+        const body: unknown = await response.json().catch((error) => {
+          if (error instanceof Error) return null;
+          throw error;
+        });
         if (!response.ok) {
           setError(liveJobStatusError(body, response.status));
           return;
@@ -83,9 +57,11 @@ export function ProgressTracker({ initialJob }: Props) {
           setJob(parsed);
           setError("");
         }
-      } catch {
+      } catch (error) {
         if (!active) return;
-        setError("Network update failed. Retrying.");
+        if (error instanceof Error)
+          setError("Network update failed. Retrying.");
+        else throw error;
       }
     };
     void load();
@@ -114,7 +90,7 @@ export function ProgressTracker({ initialJob }: Props) {
         </div>
         <nav className="progress-actions" aria-label="Progress actions">
           <a className="button" href="/workflow">
-            Run in Background
+            Workflow
           </a>
           <a className="button button-primary" href={sceneReviewHref}>
             {nextGate ? `Review and approve ${nextGate}` : "Scene Review"}
@@ -122,103 +98,94 @@ export function ProgressTracker({ initialJob }: Props) {
         </nav>
       </header>
       <main className="progress-main">
-        <section className="progress-hero" aria-labelledby="progress-title">
-          <p className="eyebrow">Approval Progress</p>
-          <h1 id="progress-title">{displayPercent(percent)}</h1>
-          <div
-            className="progress-meter"
-            role="progressbar"
-            aria-label="Approval gate progress"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={Math.round(percent)}
-          >
-            <span style={{ inlineSize: `${percent}%` }} />
+        <section
+          className="progress-title-row"
+          aria-labelledby="progress-title"
+        >
+          <div>
+            <h1 id="progress-title">Job Progress</h1>
+            <p>{jobStatusCopy(job)}</p>
           </div>
-          <p>{jobStatusCopy(job)}</p>
-          {nextGate ? (
-            <div className="progress-next-action">
-              <span>Action required</span>
-              <strong>
-                Review and approve {nextGate} before worker progress continues.
-              </strong>
-              <p>
-                Open Scene Review to inspect the current evidence, then approve
-                or reject this gate.
-              </p>
-              <a className="button button-primary" href={sceneReviewHref}>
-                Review and approve {nextGate}
-              </a>
-            </div>
-          ) : null}
-          <div className="progress-activity">
-            <div>
-              <span>Worker activity</span>
-              <strong>{displayPercent(activityPercent)}</strong>
-            </div>
-            <div
-              className="progress-meter progress-meter-secondary"
-              role="progressbar"
-              aria-label="Current worker activity"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={Math.round(activityPercent)}
-            >
-              <span style={{ inlineSize: `${activityPercent}%` }} />
-            </div>
-          </div>
-          {error ? <p className="progress-error">{error}</p> : null}
+          <span className="status-chip">{displayPercent(percent)}</span>
         </section>
         <section className="progress-grid" aria-label="Live compiler status">
           <div className="progress-log-panel">
-            <h2>Observed job log</h2>
-            <dl>
-              {logs.map(([label, value]) => (
-                <div key={label}>
-                  <dt>{label}</dt>
-                  <dd>{value}</dd>
-                </div>
-              ))}
+            <div className="section-heading">
+              <div>
+                <h2>Current status</h2>
+                <p>Only the information needed to decide what to do next.</p>
+              </div>
+            </div>
+            <div className="progress-meter-row">
+              <span>{job.state}</span>
+              <div
+                className="progress-meter"
+                role="progressbar"
+                aria-label="Approval gate progress"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round(percent)}
+              >
+                <span style={{ inlineSize: `${percent}%` }} />
+              </div>
+            </div>
+            <dl className="detail-grid progress-summary-grid">
+              <div>
+                <dt>Worker</dt>
+                <dd>{workerCopy}</dd>
+              </div>
+              <div>
+                <dt>Frames</dt>
+                <dd>{frameCopy}</dd>
+              </div>
+              <div>
+                <dt>Approved</dt>
+                <dd>
+                  {approvedGateCount}/{approvalGates.length}
+                </dd>
+              </div>
             </dl>
+            {error ? <p className="progress-error">{error}</p> : null}
           </div>
           <div className="progress-side-panel">
-            <h2>Approval gates</h2>
-            <ol>
-              {approvalGates.map((gate) => (
-                <li
-                  key={gate}
-                  className={
-                    job.approvedGates.includes(gate)
-                      ? "progress-step is-complete"
-                      : "progress-step"
-                  }
-                >
-                  <strong>{gate}</strong>
-                  <span>
-                    {job.approvedGates.includes(gate) ? "Approved" : "Pending"}
-                  </span>
-                </li>
-              ))}
-            </ol>
-            <h2 className="progress-subheading">Technical stages</h2>
-            <ol>
-              {progressStages.map((stage) => (
-                <li
-                  key={stage.state}
-                  className={stageClass(job.state, stage.state)}
-                >
-                  <strong>{stage.label}</strong>
-                  <span>{stage.description}</span>
-                </li>
-              ))}
+            <div className="section-heading">
+              <div>
+                <h2>Next action</h2>
+                <p>
+                  {nextGate
+                    ? `${nextGate} review is ready.`
+                    : "No approval action is waiting."}
+                </p>
+              </div>
+            </div>
+            {nextGate ? (
+              <a className="button button-primary" href={sceneReviewHref}>
+                Review and approve {nextGate}
+              </a>
+            ) : (
+              <a className="button" href="/workflow">
+                Back to workflow
+              </a>
+            )}
+            <ol className="progress-gate-grid">
+              {approvalGates.map((gate) => {
+                const approved = job.approvedGates.includes(gate);
+                return (
+                  <li
+                    key={gate}
+                    className={
+                      approved ? "progress-step is-complete" : "progress-step"
+                    }
+                  >
+                    <strong>{gate}</strong>
+                    <span>{approved ? "Done" : "Pending"}</span>
+                  </li>
+                );
+              })}
             </ol>
           </div>
         </section>
       </main>
-      <footer className="progress-footer">
-        <span>LIVE JOB ID: {job.id}</span>
-        <span>LAST UPDATE: {formatJobStamp(job.updatedAt)}</span>
-      </footer>
     </div>
   );
 }

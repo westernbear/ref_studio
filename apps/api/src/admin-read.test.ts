@@ -2,15 +2,31 @@ import { describe, expect, it } from "vitest";
 import { buildAuthApp } from "./app.js";
 import { hashBearer, type AuthStore } from "./auth.js";
 import type { AdminReadStore } from "./admin-read.js";
+import { createWorkerStore, type WorkerStore } from "./workers.js";
 
 type Fixture = {
   readonly auth: AuthStore;
   readonly reads: AdminReadStore;
+  readonly workers: WorkerStore;
   readonly events: Array<{
     readonly action: string;
     readonly decision: string;
   }>;
 };
+const runtimeDigest = "a".repeat(64);
+const workerPreflight = {
+  status: "PASS",
+  chromiumVersion: "151.0.7922.138",
+  renderer: "SwiftShader renderer",
+  fontReady: true,
+  webgl2: true,
+  networkPolicy: "external-blocked",
+  repeatedFrameByteIdentity: true,
+  ffmpeg: true,
+  ffprobe: true,
+  compilerModels: true,
+  runtimeDigest,
+} as const;
 const fixture = (): Fixture => {
   const events: Array<{ readonly action: string; readonly decision: string }> =
     [];
@@ -54,6 +70,29 @@ const fixture = (): Fixture => {
     ],
     audit,
   };
+  const workers = createWorkerStore("worker-token-hash");
+  workers.workers.set("worker-a", {
+    id: "worker-a",
+    capabilities: ["compiler", "renderer"],
+    lastHeartbeat: 1_000,
+    status: "ONLINE",
+    preflight: workerPreflight,
+  });
+  workers.sessions.set("worker-a", {
+    workerId: "worker-a",
+    tokenHash: "session-token-hash",
+    expiresAt: 5_000,
+  });
+  workers.leases.set("job_a", {
+    workerId: "worker-a",
+    phase: "render",
+    jobId: "job_a",
+    attemptId: "attempt-a",
+    tokenHash: "lease-token-hash",
+    deletionEpoch: 0,
+    restoreEpoch: 0,
+    expiresAt: 4_000,
+  });
   const reads: AdminReadStore = {
     tenants: [
       {
@@ -187,9 +226,10 @@ const fixture = (): Fixture => {
         renewalAt: "2026-02-01",
       },
     ],
+    workers,
     queryCount: { value: 0 },
   };
-  return { auth, reads, events };
+  return { auth, reads, workers, events };
 };
 const appFor = (data: Fixture, now: () => number = Date.now) =>
   buildAuthApp({
@@ -263,6 +303,39 @@ describe("admin-read", () => {
     expect(
       response.json().items.map((item: { id: string }) => item.id),
     ).toEqual(["tenant-a", "tenant-b"]);
+  });
+  it("returns worker health without exposing worker tokens", async () => {
+    const data = fixture();
+    const response = await appFor(data, () => 2_000).inject({
+      method: "GET",
+      url: "/admin/workers?capability=compiler",
+      headers: headers("super"),
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body).not.toMatch(/tokenHash|session-token|lease-token/i);
+    expect(response.json()).toMatchObject({
+      summary: {
+        totalWorkers: 1,
+        onlineWorkers: 1,
+        activeLeases: 1,
+        expiredLeases: 0,
+      },
+      items: [
+        {
+          id: "worker-a",
+          status: "ONLINE",
+          capabilities: ["compiler", "renderer"],
+          activeLeaseCount: 1,
+          leases: [{ jobId: "job_a", phase: "render", expired: false }],
+          runtime: {
+            chromiumVersion: "151.0.7922.138",
+            renderer: "SwiftShader renderer",
+            runtimeDigest,
+          },
+        },
+      ],
+    });
   });
   it("rejects an admin session that expires after route registration", async () => {
     let now = 1_000;

@@ -479,6 +479,23 @@ describe("worker registration API", () => {
     await fixture.app.close();
   });
 
+  it("rejects a worker that was just marked offline", async () => {
+    const fixture = appFixture(undefined, uploadFixture(), {
+      now: () => 1_000,
+    });
+    fixture.workers.retiredUntil.set("worker-a", 2_000);
+    const response = await fixture.app.inject({
+      method: "POST",
+      url: "/v1/workers/register",
+      headers: fixture.bootstrapHeaders,
+      payload: registration(["compiler"]),
+    });
+    expect(response.statusCode).toBe(401);
+    expect(response.json().error.code).toBe("AUTHENTICATION_REQUIRED");
+    expect(fixture.workers.workers.size).toBe(0);
+    await fixture.app.close();
+  });
+
   it("Given no bearer token, when registering, then rejects the request without storing a worker", async () => {
     const fixture = appFixture();
     const response = await fixture.app.inject({

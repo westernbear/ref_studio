@@ -180,9 +180,15 @@ export async function proxyAdmin(
   path: readonly string[],
 ): Promise<Response> {
   const target = path.join("/");
+  const isWorkerOffline =
+    path.length === 3 &&
+    path[0] === "workers" &&
+    path[1] !== undefined &&
+    path[1].length > 0 &&
+    path[2] === "offline";
   if (
     request.method !== "POST" ||
-    !["audit-exports", "receipt-exports"].includes(target)
+    (!["audit-exports", "receipt-exports"].includes(target) && !isWorkerOffline)
   )
     return Response.json(
       { error: { code: "RESOURCE_NOT_FOUND", message: "Not found." } },
@@ -198,12 +204,15 @@ export async function proxyAdmin(
     const value = request.headers.get(name);
     if (value) headers.set(name, value);
   }
-  const response = await fetch(internalApiUrl(`/admin/${target}`), {
-    method: "POST",
-    headers,
-    body: await request.arrayBuffer(),
-    redirect: "manual",
-  });
+  const response = await fetch(
+    internalApiUrl(`/admin/${path.map(encodeURIComponent).join("/")}`),
+    {
+      method: "POST",
+      headers,
+      body: await request.arrayBuffer(),
+      redirect: "manual",
+    },
+  );
   return new Response(await response.arrayBuffer(), {
     status: response.status,
     headers: {

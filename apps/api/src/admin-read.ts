@@ -6,6 +6,7 @@ import {
   isAdminPrincipal,
 } from "./admin-auth.js";
 import { safeEnvelope } from "./boundary.js";
+import type { WorkerStore } from "./workers.js";
 
 export type AdminTenant = {
   readonly id: string;
@@ -71,6 +72,29 @@ export type AdminBilling = {
   readonly renewalAt: string;
   readonly paymentMethod?: unknown;
 };
+export type AdminWorkerLease = {
+  readonly jobId: string;
+  readonly attemptId: string;
+  readonly phase: string;
+  readonly expiresAt: string;
+  readonly expired: boolean;
+  readonly deletionEpoch: number;
+  readonly restoreEpoch: number;
+};
+export type AdminWorker = {
+  readonly id: string;
+  readonly status: string;
+  readonly capabilities: readonly string[];
+  readonly lastHeartbeatAt: string;
+  readonly sessionExpiresAt: string | null;
+  readonly activeLeaseCount: number;
+  readonly leases: readonly AdminWorkerLease[];
+  readonly runtime: {
+    readonly chromiumVersion: string;
+    readonly renderer: string;
+    readonly runtimeDigest: string;
+  };
+};
 export type AdminReadStore = {
   readonly tenants: readonly AdminTenant[];
   readonly jobs: readonly AdminJob[];
@@ -78,6 +102,7 @@ export type AdminReadStore = {
   readonly audit: AdminAudit[];
   readonly quarantine: readonly AdminQuarantine[];
   readonly billing: readonly AdminBilling[];
+  readonly workers?: WorkerStore;
   readonly recordAudit?: AuthStore["audit"];
   readonly queryCount?: { value: number };
 };
@@ -96,6 +121,7 @@ type Query = {
   readonly limit?: string;
   readonly include?: string;
   readonly fields?: string;
+  readonly capability?: string;
 };
 const includes = (query: string | undefined, ...values: unknown[]): boolean =>
   !query ||
@@ -173,6 +199,45 @@ const visibleBilling = (item: AdminBilling): Record<string, unknown> => ({
   renewalAt: item.renewalAt,
   paymentMethod: { type: "REDACTED" },
 });
+const visibleWorkers = (
+  workers: WorkerStore | undefined,
+  timestamp: number,
+): readonly AdminWorker[] =>
+  workers
+    ? [...workers.workers.values()].map((item) => {
+        const session = workers.sessions.get(item.id);
+        const leases = [...workers.leases.values()]
+          .filter((lease) => lease.workerId === item.id)
+          .map((lease) => ({
+            jobId: lease.jobId,
+            attemptId: lease.attemptId,
+            phase: lease.phase,
+            expiresAt: new Date(lease.expiresAt).toISOString(),
+            expired: lease.expiresAt <= timestamp,
+            deletionEpoch: lease.deletionEpoch,
+            restoreEpoch: lease.restoreEpoch,
+          }));
+        const sessionActive =
+          session !== undefined && session.expiresAt > timestamp;
+        return {
+          id: item.id,
+          status:
+            item.status === "ONLINE" && sessionActive ? "ONLINE" : "OFFLINE",
+          capabilities: item.capabilities,
+          lastHeartbeatAt: new Date(item.lastHeartbeat).toISOString(),
+          sessionExpiresAt: session
+            ? new Date(session.expiresAt).toISOString()
+            : null,
+          activeLeaseCount: leases.filter((lease) => !lease.expired).length,
+          leases,
+          runtime: {
+            chromiumVersion: item.preflight.chromiumVersion,
+            renderer: item.preflight.renderer,
+            runtimeDigest: item.preflight.runtimeDigest,
+          },
+        };
+      })
+    : [];
 
 export function registerAdminRead(
   app: FastifyInstance,
@@ -321,6 +386,45 @@ export function registerAdminRead(
         reply.send(page(items, query));
         return;
       }
+      if (path === "/admin/workers") {
+        const timestamp = now();
+        const items = visibleWorkers(store.workers, timestamp).filter(
+          (item) =>
+            includes(
+              query.q,
+              item.id,
+              item.status,
+              item.runtime.chromiumVersion,
+              item.runtime.renderer,
+              item.runtime.runtimeDigest,
+              ...item.capabilities,
+            ) &&
+            (!query.status || item.status === query.status) &&
+            (!query.capability || item.capabilities.includes(query.capability)),
+        );
+        const summary = {
+          totalWorkers: items.length,
+          onlineWorkers: items.filter((item) => item.status === "ONLINE")
+            .length,
+          activeLeases: items.reduce(
+            (total, item) => total + item.activeLeaseCount,
+            0,
+          ),
+          expiredLeases: items.reduce(
+            (total, item) =>
+              total + item.leases.filter((lease) => lease.expired).length,
+            0,
+          ),
+        };
+        auth.audit({
+          action: "WORKER_POOL_VIEWED",
+          userId: principal.userId,
+          tenantId: null,
+          decision: "ALLOWED",
+        });
+        reply.send({ ...page(items, query), summary });
+        return;
+      }
       if (path.startsWith("/admin/tenants/") && path.endsWith("/jobs")) {
         const items = store.jobs
           .filter(
@@ -444,6 +548,7 @@ export function registerAdminRead(
   };
   app.get("/admin/tenants", handler);
   app.get("/admin/jobs", handler);
+  app.get("/admin/workers", handler);
   app.get("/admin/tenants/:id/jobs", handler);
   app.get("/admin/receipts", handler);
   app.get("/admin/audit-log", handler);

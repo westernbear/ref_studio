@@ -7,6 +7,8 @@ import {
   requestHeader,
 } from "./admin-auth.js";
 import { IdempotencyStore, safeEnvelope, requestHash } from "./boundary.js";
+import type { CreatorWorkflowStore } from "./creator-workflow.js";
+import { retireWorker, type WorkerStore } from "./workers.js";
 
 export type AdminMutationJob = {
   id: string;
@@ -58,6 +60,8 @@ export type AdminMutationStore = {
   readonly auditEvents: AdminAuditEvent[];
   readonly idempotency: IdempotencyStore;
   readonly now: () => number;
+  readonly workers?: WorkerStore;
+  readonly workflow?: CreatorWorkflowStore;
 };
 export const createAdminMutationStore = (
   now = Date.now(),
@@ -209,7 +213,12 @@ export function registerAdminMutation(
   };
   const mutate = async (
     request: FastifyRequest<{
-      Params: { jobId?: string; itemId?: string; tenantId?: string };
+      Params: {
+        jobId?: string;
+        itemId?: string;
+        tenantId?: string;
+        workerId?: string;
+      };
       Body: Body;
     }>,
     reply: FastifyReply,
@@ -321,6 +330,53 @@ export function registerAdminMutation(
               : { state: "rejected" },
           ];
         }
+        if (path.startsWith("/admin/workers/")) {
+          const workerId = request.params.workerId ?? "";
+          const workers = store.workers;
+          const current = workers?.workers.get(workerId);
+          if (!workers || !current) throw new Error("RESOURCE_NOT_FOUND");
+          if (body.confirmItemId !== workerId)
+            throw new Error("INVALID_REQUEST");
+          const before = {
+            status: current.status,
+            sessionActive: workers.sessions.has(workerId),
+            leaseCount: [...workers.leases.values()].filter(
+              (lease) => lease.workerId === workerId,
+            ).length,
+          };
+          const retired = retireWorker(workers, {
+            workerId,
+            workflow: store.workflow,
+            timestamp: store.now(),
+          });
+          if (!retired.workerFound) throw new Error("RESOURCE_NOT_FOUND");
+          store.auditEvents.push({
+            id: id("audit"),
+            tenantId: null,
+            actorId: principal.userId,
+            action: "WORKER_MARKED_OFFLINE",
+            targetType: "worker",
+            targetId: workerId,
+            before,
+            after: {
+              status: "OFFLINE",
+              sessionActive: false,
+              reclaimedLeases: retired.reclaimedLeases,
+            },
+            reason,
+            correlationId: correlation,
+            outcome: "ALLOWED",
+            createdAt: new Date(store.now()).toISOString(),
+          });
+          return [
+            202,
+            {
+              workerId,
+              status: "OFFLINE",
+              reclaimedLeases: retired.reclaimedLeases,
+            },
+          ];
+        }
         const tenant = store.tenants.get(tenantId ?? "");
         if (!tenant) throw new Error("RESOURCE_NOT_FOUND");
         requireVersion(request, tenant.version);
@@ -381,6 +437,7 @@ export function registerAdminMutation(
   };
   app.post("/admin/jobs/:jobId/cancel", mutate);
   app.post("/admin/jobs/:jobId/retry", mutate);
+  app.post("/admin/workers/:workerId/offline", mutate);
   app.post("/admin/quarantine/:itemId/release", mutate);
   app.post("/admin/quarantine/:itemId/reject", mutate);
   app.patch("/admin/tenants/:tenantId/members", mutate);

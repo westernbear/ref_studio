@@ -68,6 +68,7 @@ export type WorkerStore = {
   readonly workers: Map<string, Worker>;
   readonly sessions: Map<string, WorkerSession>;
   readonly leases: Map<string, ClaimedJob>;
+  readonly retiredUntil: Map<string, number>;
   readonly tokenHash: string | undefined;
 };
 
@@ -75,6 +76,7 @@ export const createWorkerStore = (tokenHash?: string): WorkerStore => ({
   workers: new Map(),
   sessions: new Map(),
   leases: new Map(),
+  retiredUntil: new Map(),
   tokenHash,
 });
 export const hashWorkerToken = (token: string): string =>
@@ -299,6 +301,8 @@ const sessionAuthorized = (
   workerId: string,
   now: number,
 ): boolean => {
+  const retiredUntil = store.retiredUntil.get(workerId);
+  if (retiredUntil !== undefined && retiredUntil > now) return false;
   const session = store.sessions.get(workerId);
   if (!session || session.workerId !== workerId || session.expiresAt <= now)
     return false;
@@ -426,6 +430,30 @@ const reclaimLease = (
     job.etag = `\"${digest(job.updatedAt)}\"`;
   }
 };
+type RetireWorkerOptions = Readonly<{
+  workerId: string;
+  workflow: CreatorWorkflowStore | undefined;
+  timestamp: number;
+}>;
+export function retireWorker(
+  store: WorkerStore,
+  options: RetireWorkerOptions,
+): { readonly workerFound: boolean; readonly reclaimedLeases: number } {
+  const current = store.workers.get(options.workerId);
+  if (!current) return { workerFound: false, reclaimedLeases: 0 };
+  current.status = "OFFLINE";
+  store.sessions.delete(options.workerId);
+  store.retiredUntil.set(
+    options.workerId,
+    options.timestamp + WORKER_SESSION_MS,
+  );
+  const jobIds = [...store.leases.values()]
+    .filter((lease) => lease.workerId === options.workerId)
+    .map((lease) => lease.jobId);
+  for (const jobId of jobIds)
+    reclaimLease(store, options.workflow, jobId, options.timestamp);
+  return { workerFound: true, reclaimedLeases: jobIds.length };
+}
 const claimWorkflowJob = (
   store: WorkerStore,
   workflow: CreatorWorkflowStore | undefined,
@@ -743,6 +771,13 @@ export function registerWorkers(
         return;
       }
       const timestamp = now();
+      const retiredUntil = store.retiredUntil.get(parsed.data.workerId);
+      if (retiredUntil !== undefined && retiredUntil > timestamp) {
+        error(reply, "AUTHENTICATION_REQUIRED");
+        return;
+      }
+      if (retiredUntil !== undefined)
+        store.retiredUntil.delete(parsed.data.workerId);
       for (const [jobId, lease] of store.leases)
         if (lease.workerId === parsed.data.workerId)
           reclaimLease(store, workflow, jobId, timestamp);

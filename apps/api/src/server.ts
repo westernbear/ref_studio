@@ -467,6 +467,15 @@ export function createApiServer(config: ApiServerConfig) {
     artifactRoot,
   );
   durable.hydrate();
+  const adminReads = {
+    ...loadAdminReadStore(
+      config.databasePath,
+      creatorWorkflow,
+      uploads,
+      reviews,
+    ),
+    workers,
+  };
   const app = buildAuthApp({
     store: auth,
     expectedOrigin: config.expectedOrigin,
@@ -491,13 +500,8 @@ export function createApiServer(config: ApiServerConfig) {
       }
     },
     creatorWorkflow,
-    adminReads: loadAdminReadStore(
-      config.databasePath,
-      creatorWorkflow,
-      uploads,
-      reviews,
-    ),
-    adminMutations,
+    adminReads,
+    adminMutations: { ...adminMutations, workers, workflow: creatorWorkflow },
     reviews,
     workers,
     artifactRoot,
