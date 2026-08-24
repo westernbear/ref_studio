@@ -559,6 +559,7 @@ describe("worker registration API", () => {
       attemptId: "attempt-a",
       payload: {
         phase: "analyze",
+        sourceSha256: sha256(sourceBytes),
         startFrame: 0,
         sourceFps: 30,
         frameCount: 120,
@@ -896,6 +897,64 @@ describe("worker registration API", () => {
     expect(acknowledged.statusCode).toBe(200);
     expect(job.state).toBe("CANCELLED");
     expect(fixture.workers.leases.has(job.id)).toBe(false);
+    await fixture.app.close();
+  });
+
+  it.each([
+    ["without a lease", false],
+    ["with an expired lease", true],
+  ] as const)("cancels immediately %s", async (_case, expireLease) => {
+    const workflow = createCreatorWorkflowStore();
+    const job = addJob(workflow, "PREPARING");
+    const fixture = appFixture(workflow);
+    if (expireLease) {
+      await registerWorker(fixture, ["compiler"]);
+      await claimWorker(fixture);
+      const lease = fixture.workers.leases.get(job.id);
+      if (!lease) throw new Error("test lease missing");
+      lease.expiresAt = 999;
+    }
+
+    const cancelled = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/jobs/${job.id}/cancel`,
+      headers: {
+        ...fixture.tenantHeaders,
+        "if-match": job.etag,
+        "idempotency-key": `cancel-${expireLease ? "expired" : "idle"}`,
+      },
+      payload: {},
+    });
+
+    expect(cancelled.statusCode).toBe(202);
+    expect(cancelled.json().state).toBe("CANCELLED");
+    expect(job.state).toBe("CANCELLED");
+    expect(fixture.workers.leases.has(job.id)).toBe(false);
+    await fixture.app.close();
+  });
+
+  it("keeps creator cancellation pending for an actively leased job", async () => {
+    const workflow = createCreatorWorkflowStore();
+    const job = addJob(workflow, "PREPARING");
+    const fixture = appFixture(workflow);
+    await registerWorker(fixture, ["compiler"]);
+    await claimWorker(fixture);
+
+    const cancelled = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/jobs/${job.id}/cancel`,
+      headers: {
+        ...fixture.tenantHeaders,
+        "if-match": job.etag,
+        "idempotency-key": "cancel-active",
+      },
+      payload: {},
+    });
+
+    expect(cancelled.statusCode).toBe(202);
+    expect(cancelled.json().state).toBe("CANCEL_REQUESTED");
+    expect(job.state).toBe("CANCEL_REQUESTED");
+    expect(fixture.workers.leases.has(job.id)).toBe(true);
     await fixture.app.close();
   });
 

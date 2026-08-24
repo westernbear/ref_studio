@@ -10,6 +10,7 @@ import { IdempotencyStore, requestHash, safeEnvelope } from "./boundary.js";
 import type { Principal } from "./auth.js";
 import type { ReviewStore } from "./reviews.js";
 import { uploadSourcePath, type UploadStore } from "./uploads.js";
+import type { WorkerStore } from "./workers.js";
 
 export const PreparationStageSchema = z.enum([
   "AWAITING_T1",
@@ -583,6 +584,8 @@ export function registerCreatorWorkflow(
   store: CreatorWorkflowStore,
   uploads: UploadStore,
   reviews?: ReviewStore,
+  workers?: WorkerStore,
+  now: () => number = store.now,
 ): void {
   const tenant = (request: FastifyRequest): string =>
     header(request, "x-tenant-id") ?? "";
@@ -611,6 +614,12 @@ export function registerCreatorWorkflow(
               throw new Error("RESOURCE_NOT_FOUND");
             if (upload.state !== "ACCEPTED")
               throw new Error("UPLOAD_QUARANTINED");
+            const principal = (
+              request as FastifyRequest & {
+                authenticatedPrincipal?: Principal;
+              }
+            ).authenticatedPrincipal;
+            if (!principal) throw new Error("AUTHENTICATION_REQUIRED");
             const requestedFps = Number(request.body.sourceFps);
             const start = Number(request.body.startFrame);
             const fps = upload.media?.fps;
@@ -628,7 +637,7 @@ export function registerCreatorWorkflow(
             const job: Job = {
               id: id("job"),
               tenantId: tenant(request),
-              creatorId: "server-derived",
+              creatorId: principal.userId,
               uploadId: upload.id,
               state: "PREPARING",
               attempt: 1,
@@ -782,8 +791,21 @@ export function registerCreatorWorkflow(
           () => {
             const job = owned(store, request.params.jobId, tenant(request));
             edit(job, request);
+            const lease = workers?.leases.get(job.id);
+            const activelyLeased =
+              lease !== undefined && lease.expiresAt > now();
             mutate(job, "CANCEL_REQUESTED", store.now);
-            return [202, { state: "CANCEL_REQUESTED" }];
+            if (!activelyLeased) {
+              workers?.leases.delete(job.id);
+              mutate(job, "CANCELLED", store.now);
+              const attempt = lease
+                ? store.attempts
+                    .get(job.id)
+                    ?.find((item) => item.id === lease.attemptId)
+                : store.attempts.get(job.id)?.at(-1);
+              if (attempt) attempt.state = "CANCELLED";
+            }
+            return [202, { state: job.state }];
           },
         );
         reply.code(result[0]).send(result[1]);

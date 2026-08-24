@@ -424,6 +424,7 @@ const reclaimLease = (
 const claimWorkflowJob = (
   store: WorkerStore,
   workflow: CreatorWorkflowStore | undefined,
+  uploads: UploadStore | undefined,
   workerId: string,
   now: () => number,
 ) => {
@@ -442,8 +443,11 @@ const claimWorkflowJob = (
   );
   const job = candidates.find((item) => {
     const phase = queuedPhase(item);
+    const upload = uploads?.uploads.get(item.uploadId);
     return (
       phase !== null &&
+      upload?.state === "ACCEPTED" &&
+      upload.sourceSha256 !== null &&
       item.eligibleAt <= timestamp &&
       currentWorker.capabilities.includes(phaseCapability(phase)) &&
       !store.leases.has(item.id) &&
@@ -461,6 +465,9 @@ const claimWorkflowJob = (
     );
   });
   if (!job) return null;
+  const upload = uploads?.uploads.get(job.uploadId);
+  if (!upload || upload.state !== "ACCEPTED" || !upload.sourceSha256)
+    return null;
   const phase = queuedPhase(job);
   if (!phase) return null;
   if (!job.runtimePreflight) job.runtimePreflight = currentWorker.preflight;
@@ -491,6 +498,7 @@ const claimWorkflowJob = (
     payload: {
       tenantId: job.tenantId,
       uploadId: job.uploadId,
+      sourceSha256: upload.sourceSha256,
       startFrame: job.startFrame,
       sourceFps: job.sourceFps,
       frameCount: job.sourceFps * 4,
@@ -818,7 +826,13 @@ export function registerWorkers(
         return;
       }
       reply.send({
-        job: claimWorkflowJob(store, workflow, request.params.workerId, now),
+        job: claimWorkflowJob(
+          store,
+          workflow,
+          uploads,
+          request.params.workerId,
+          now,
+        ),
       });
     },
   );

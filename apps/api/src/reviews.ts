@@ -200,15 +200,24 @@ function decide(
     throw new Error("RESOURCE_NOT_FOUND");
   if (!release && body.attempt !== job?.attempt)
     throw new Error("STALE_APPROVAL_UNSAFE");
+  const tenantSuperAdmin =
+    !release &&
+    gate !== "T6" &&
+    principal.roles.some((role) => role.toUpperCase() === "SUPER_ADMIN");
+  const terminalJob =
+    job !== undefined &&
+    ["COMPLETED", "CANCELLED", "FAILED"].includes(job.state);
   if (release && authorizeReleaseReview(authStore, principal, undefined))
     throw new Error("ROLE_NOT_PERMITTED");
   if (
+    !tenantSuperAdmin &&
     !principal.roles.some(
       (role) => role.toUpperCase() === "DESIGNATED_REVIEWER",
     )
   )
     throw new Error("ROLE_NOT_PERMITTED");
   if (
+    !tenantSuperAdmin &&
     !assignment(
       authStore,
       principal,
@@ -264,7 +273,8 @@ function decide(
         body.evidenceDigest !== job.evidenceDigest ||
         body.irDigest !== job.irDigest))
   ) {
-    if (job && job.state !== "STALE_APPROVAL") job.state = "STALE_APPROVAL";
+    if (job && !terminalJob && job.state !== "STALE_APPROVAL")
+      job.state = "STALE_APPROVAL";
     throw new Error("STALE_APPROVAL_UNSAFE");
   }
   if (job) {
@@ -315,7 +325,8 @@ function decide(
     JSON.stringify(current) !== JSON.stringify(snapshot) &&
     !correctedReceipt
   ) {
-    if (job && job.state !== "STALE_APPROVAL") job.state = "STALE_APPROVAL";
+    if (job && !terminalJob && job.state !== "STALE_APPROVAL")
+      job.state = "STALE_APPROVAL";
     throw new Error("STALE_APPROVAL_UNSAFE");
   }
   if (
@@ -392,6 +403,7 @@ function decide(
     } else if (gate === "T3") {
       job.preparationStage = "PREVIEW_QUEUED";
       job.eligibleAt = now;
+      job.progress = null;
     } else if (gate === "T4") {
       assertLegalTransition(job.state, "READY");
       job.state = "READY";

@@ -201,6 +201,7 @@ describe("creator workflow API", () => {
       headers,
     });
     expect(detail.json().state).toBe("PREPARING");
+    expect(state.workflow.jobs.get(jobId)?.creatorId).toBe("usr_a");
     assertSafe(created.json());
     assertSafe(detail.json());
     expect(receipts.statusCode).toBe(200);

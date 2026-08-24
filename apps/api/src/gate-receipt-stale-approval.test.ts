@@ -60,6 +60,7 @@ const setup = (): {
       { id: "usr_release", email: "release@invalid" },
       { id: "usr_unassigned", email: "unassigned@invalid" },
       { id: "usr_assigned_owner", email: "owner@invalid" },
+      { id: "usr_super", email: "super@invalid" },
     ],
     credentials: [],
     memberships: [
@@ -71,6 +72,7 @@ const setup = (): {
       { userId: "usr_release", tenantId: "ten_a", role: "DESIGNATED_REVIEWER" },
       { userId: "usr_unassigned", tenantId: "ten_a", role: "OWNER" },
       { userId: "usr_assigned_owner", tenantId: "ten_a", role: "OWNER" },
+      { userId: "usr_super", tenantId: "ten_a", role: "SUPER_ADMIN" },
     ],
     assignments,
     sessions: [],
@@ -104,6 +106,14 @@ const setup = (): {
         userId: "usr_assigned_owner",
         tenantId: "ten_a",
         tokenHash: hashBearer("assigned-owner"),
+        expiresAt: 9_000,
+        revokedAt: null,
+      },
+      {
+        id: "tok_super",
+        userId: "usr_super",
+        tenantId: "ten_a",
+        tokenHash: hashBearer("super"),
         expiresAt: 9_000,
         revokedAt: null,
       },
@@ -296,6 +306,84 @@ describe("designated gate receipts", () => {
     expect(report.json()).toEqual({ status: "PASS" });
     await state.app.close();
   });
+  it("allows a tenant SUPER_ADMIN to approve T1 through T5 without reviewer assignment", async () => {
+    const state = setup();
+    let predecessor: string | null = null;
+    for (const gate of ["T1", "T2", "T3", "T4", "T5"]) {
+      if (gate === "T5") stageT5(state);
+      const response = await state.app.inject({
+        method: "POST",
+        url: "/v1/reviews",
+        headers: { authorization: "Bearer super", "x-tenant-id": "ten_a" },
+        payload: body(gate, predecessor),
+      });
+      expect(response.statusCode, response.body).toBe(201);
+      predecessor = String(response.json().receipt.id);
+      advanceAfterGate(state, gate);
+    }
+    expect(state.reviews.receipts.map((receipt) => receipt.actorId)).toEqual(
+      Array<string>(5).fill("usr_super"),
+    );
+    await state.app.close();
+  });
+  it("resets preparation progress when T3 approval queues preview", async () => {
+    const state = setup();
+    const t1 = await state.app.inject({
+      method: "POST",
+      url: "/v1/reviews",
+      headers: { authorization: "Bearer reviewer", "x-tenant-id": "ten_a" },
+      payload: body("T1"),
+    });
+    advanceAfterGate(state, "T1");
+    const t2 = await state.app.inject({
+      method: "POST",
+      url: "/v1/reviews",
+      headers: { authorization: "Bearer reviewer", "x-tenant-id": "ten_a" },
+      payload: body("T2", String(t1.json().receipt.id)),
+    });
+    const job = state.workflow.jobs.get("job_gate");
+    if (!job) throw new Error("test job missing");
+    job.progress = {
+      phase: "prepare",
+      stage: "compile",
+      fraction: 1,
+      framesProcessed: null,
+      framesTotal: null,
+    };
+
+    const t3 = await state.app.inject({
+      method: "POST",
+      url: "/v1/reviews",
+      headers: { authorization: "Bearer reviewer", "x-tenant-id": "ten_a" },
+      payload: body("T3", String(t2.json().receipt.id)),
+    });
+
+    expect(t3.statusCode, t3.body).toBe(201);
+    expect(job.preparationStage).toBe("PREVIEW_QUEUED");
+    expect(job.progress).toBeNull();
+    await state.app.close();
+  });
+  it.each(["COMPLETED", "CANCELLED", "FAILED"] as const)(
+    "rejects stale review input without changing terminal %s jobs",
+    async (terminalState) => {
+      const state = setup();
+      const job = state.workflow.jobs.get("job_gate");
+      if (!job) throw new Error("test job missing");
+      job.state = terminalState;
+
+      const stale = await state.app.inject({
+        method: "POST",
+        url: "/v1/reviews",
+        headers: { authorization: "Bearer reviewer", "x-tenant-id": "ten_a" },
+        payload: body("T1", null, "stale-evidence"),
+      });
+
+      expect(stale.statusCode).toBe(409);
+      expect(stale.json().error.code).toBe("STALE_APPROVAL_UNSAFE");
+      expect(job.state).toBe(terminalState);
+      await state.app.close();
+    },
+  );
   it("rejects skipped predecessors, duplicate decisions, and changed evidence as stale", async () => {
     const state = setup();
     const headers = {
