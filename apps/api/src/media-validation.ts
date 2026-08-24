@@ -1,11 +1,20 @@
 import { createHash } from "node:crypto";
-import { execFile } from "node:child_process";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { execFile, spawnSync } from "node:child_process";
+import {
+  chmodSync,
+  chownSync,
+  closeSync,
+  existsSync,
+  openSync,
+  writeSync,
+} from "node:fs";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 import { z } from "zod";
 import type { UploadMedia, UploadRecord } from "./uploads.js";
+import { uploadSourcePath } from "./uploads.js";
 
 export const MEDIA_LIMITS = {
   minDurationSeconds: 1,
@@ -30,6 +39,7 @@ export const SANDBOX_POLICY = {
 } as const;
 
 const FPS = [24, 25, 30, 50, 60] as const;
+const SDR_PIXEL_FORMATS = ["yuv420p", "yuv422p", "yuv444p"] as const;
 const exec = promisify(execFile);
 const ProbeSchema = z
   .object({
@@ -198,6 +208,15 @@ const fraction = (value: string | undefined): number => {
   const [numerator, denominator] = (value ?? "").split("/").map(Number);
   return numerator && denominator ? numerator / denominator : Number.NaN;
 };
+export const isSafeColorTransfer = (
+  transfer: string | undefined,
+  pixelFormat: string | undefined,
+): boolean =>
+  ["bt709", "iec61966-2-1"].includes(transfer ?? "") ||
+  (transfer === undefined &&
+    SDR_PIXEL_FORMATS.includes(
+      pixelFormat as (typeof SDR_PIXEL_FORMATS)[number],
+    ));
 export const exactSourceInterval = (
   startFrame: number,
   fps: (typeof FPS)[number],
@@ -315,25 +334,97 @@ export async function validateAndNormalize(
 export async function inspectUploadedMedia(
   upload: UploadRecord,
 ): Promise<UploadMedia> {
-  const directory = await mkdtemp(join(tmpdir(), "rvs-upload-probe-"));
-  const input = join(directory, "source.mp4");
+  const durableInput = uploadSourcePath(upload);
+  const directory = durableInput
+    ? null
+    : await mkdtemp(join(tmpdir(), "rvs-upload-probe-"));
+  const input = durableInput ?? join(directory ?? "", "source.mp4");
   try {
-    await writeFile(
+    if (!durableInput) {
+      const descriptor = openSync(input, "w");
+      try {
+        for (const chunk of upload.chunks)
+          writeSync(descriptor, chunk, 0, chunk.byteLength, null);
+      } finally {
+        closeSync(descriptor);
+      }
+    }
+    if (durableInput && process.getuid?.() === 0) {
+      chownSync(dirname(input), 65_532, 65_532);
+      chmodSync(dirname(input), 0o700);
+      chownSync(input, 65_532, 65_532);
+      chmodSync(input, 0o400);
+    }
+    const ffprobe =
+      process.env["RVS_FFPROBE_PATH"] ??
+      (existsSync("/opt/rvs/bin/ffprobe") ? "/opt/rvs/bin/ffprobe" : "ffprobe");
+    const probeArgs = [
+      "-v",
+      "error",
+      "-protocol_whitelist",
+      "file,pipe",
+      "-count_frames",
+      "-show_entries",
+      "format=duration,format_name:stream=codec_type,codec_name,pix_fmt,width,height,avg_frame_rate,r_frame_rate,nb_read_frames,start_time,color_transfer,channels:stream_tags=rotate",
+      "-of",
+      "json",
       input,
-      Buffer.concat(upload.chunks.map((chunk) => Buffer.from(chunk))),
-    );
+    ];
+    const sandboxed =
+      existsSync("/usr/bin/bwrap") &&
+      spawnSync(
+        "/usr/bin/bwrap",
+        [
+          "--unshare-net",
+          "--unshare-user",
+          "--uid",
+          "65532",
+          "--gid",
+          "65532",
+          "--die-with-parent",
+          "--new-session",
+          "--ro-bind",
+          "/",
+          "/",
+          "--dev",
+          "/dev",
+          "--proc",
+          "/proc",
+          "/usr/bin/true",
+        ],
+        { stdio: "ignore" },
+      ).status === 0;
     const result = await exec(
-      process.env["RVS_FFPROBE_PATH"] ?? "ffprobe",
-      [
-        "-v",
-        "error",
-        "-count_frames",
-        "-show_entries",
-        "format=duration,format_name:stream=codec_type,codec_name,pix_fmt,width,height,avg_frame_rate,r_frame_rate,nb_read_frames,start_time,color_transfer,channels:stream_tags=rotate",
-        "-of",
-        "json",
-        input,
-      ],
+      sandboxed ? "/usr/bin/bwrap" : "/usr/bin/setpriv",
+      sandboxed
+        ? [
+            "--unshare-net",
+            "--unshare-user",
+            "--uid",
+            "65532",
+            "--gid",
+            "65532",
+            "--die-with-parent",
+            "--new-session",
+            "--ro-bind",
+            "/",
+            "/",
+            "--dev",
+            "/dev",
+            "--proc",
+            "/proc",
+            ffprobe,
+            ...probeArgs,
+          ]
+        : [
+            ...(process.getuid?.() === 0
+              ? ["--reuid=65532", "--regid=65532", "--clear-groups"]
+              : []),
+            "--no-new-privs",
+            "--",
+            ffprobe,
+            ...probeArgs,
+          ],
       {
         encoding: "utf8",
         timeout: SANDBOX_POLICY.maxWallMilliseconds,
@@ -359,14 +450,12 @@ export async function inspectUploadedMedia(
       metadataSafe:
         Number(video?.start_time ?? 0) >= 0 &&
         [
-          "yuv420p",
-          "yuv422p",
-          "yuv444p",
+          ...SDR_PIXEL_FORMATS,
           "yuv420p10le",
           "yuv422p10le",
           "yuv444p10le",
         ].includes(video?.pix_fmt ?? "") &&
-        ["bt709", "iec61966-2-1"].includes(video?.color_transfer ?? "") &&
+        isSafeColorTransfer(video?.color_transfer, video?.pix_fmt) &&
         (!audio ||
           (audio.channels !== undefined &&
             audio.channels > 0 &&
@@ -378,6 +467,6 @@ export async function inspectUploadedMedia(
       durationSeconds: probe.durationSeconds,
     };
   } finally {
-    await rm(directory, { recursive: true, force: true });
+    if (directory) await rm(directory, { recursive: true, force: true });
   }
 }

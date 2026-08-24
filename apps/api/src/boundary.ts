@@ -101,6 +101,15 @@ export class IdempotencyStore {
   private readonly records = new Map<string, IdempotencyRecord>();
   private readonly pending = new Map<string, Promise<IdempotencyRecord>>();
 
+  snapshot(): readonly (readonly [string, IdempotencyRecord])[] {
+    return [...this.records];
+  }
+
+  hydrate(records: readonly (readonly [string, IdempotencyRecord])[]): void {
+    this.records.clear();
+    for (const [key, record] of records) this.records.set(key, record);
+  }
+
   replayOrReserve(
     scope: string,
     key: string,

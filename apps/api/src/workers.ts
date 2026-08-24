@@ -1,4 +1,5 @@
-import { createHash, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { createReadStream } from "node:fs";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
   assertLegalTransition,
@@ -7,13 +8,18 @@ import {
 import { z } from "zod";
 import { safeEnvelope } from "./boundary.js";
 import type {
+  Compilation,
   CreatorWorkflowStore,
   Job,
+  PreparationStage,
   RuntimePreflightEvidence,
 } from "./creator-workflow.js";
-import type { UploadStore } from "./uploads.js";
+import { CompilationSchema, EvidenceBundleSchema } from "./creator-workflow.js";
+import { uploadSourcePath, type UploadStore } from "./uploads.js";
 
 const MAX_ARTIFACT_BYTES = 512 * 1024 * 1024;
+const LEASE_MS = 90_000;
+const WORKER_SESSION_MS = 5 * 60_000;
 
 export type WorkerStatus = "ONLINE" | "OFFLINE";
 export type Worker = {
@@ -23,16 +29,32 @@ export type Worker = {
   status: WorkerStatus;
   readonly preflight: RuntimePreflightEvidence;
 };
-export type ClaimedJob = { readonly workerId: string; readonly jobId: string };
+export type WorkerSession = {
+  readonly workerId: string;
+  readonly tokenHash: string;
+  expiresAt: number;
+};
+export type ClaimedJob = {
+  readonly workerId: string;
+  readonly phase: "analyze" | "compile" | "preview" | "render";
+  readonly jobId: string;
+  readonly attemptId: string;
+  readonly tokenHash: string;
+  readonly deletionEpoch: number;
+  readonly restoreEpoch: number;
+  expiresAt: number;
+};
 export type WorkerStore = {
   readonly workers: Map<string, Worker>;
-  readonly claimedJobs: Map<string, ClaimedJob>;
+  readonly sessions: Map<string, WorkerSession>;
+  readonly leases: Map<string, ClaimedJob>;
   readonly tokenHash: string | undefined;
 };
 
 export const createWorkerStore = (tokenHash?: string): WorkerStore => ({
   workers: new Map(),
-  claimedJobs: new Map(),
+  sessions: new Map(),
+  leases: new Map(),
   tokenHash,
 });
 export const hashWorkerToken = (token: string): string =>
@@ -61,15 +83,27 @@ const RegisterBody = z
   })
   .strict();
 const HeartbeatBody = z
-  .object({ capabilities: z.array(z.string().min(1)) })
+  .object({
+    capabilities: z.array(z.string().min(1)),
+    leases: z
+      .array(
+        z
+          .object({
+            jobId: z.string().min(1),
+            leaseToken: z.string().min(1),
+          })
+          .strict(),
+      )
+      .max(1),
+  })
   .strict();
-const PrepareResult = z
+const AnalysisResult = z
   .object({
     protocol: z.literal("rvs.worker.v1"),
-    phase: z.literal("prepare"),
-    evidence: z.record(z.string(), z.unknown()),
+    phase: z.literal("analyze"),
+    evidence: EvidenceBundleSchema,
     evidenceDigest: z.string().regex(/^[a-f0-9]{64}$/),
-    previewArtifactId: z.string().min(1),
+    compilation: CompilationSchema,
     normalized: z
       .object({
         sha256: z.string().regex(/^[a-f0-9]{64}$/),
@@ -86,13 +120,21 @@ const PrepareResult = z
       .strict(),
   })
   .strict();
+const CompileResult = z
+  .object({
+    protocol: z.literal("rvs.worker.v1"),
+    phase: z.literal("compile"),
+    evidenceDigest: z.string().regex(/^[a-f0-9]{64}$/),
+    compilation: CompilationSchema,
+  })
+  .strict();
 const DELIVERY_FPS = 30;
 const DELIVERY_FRAME_COUNT = 120;
 const RenderReport = z
   .object({
     status: z.literal("PASS"),
     protocol: z.literal("rvs.render-report.v1"),
-    mode: z.literal("delivery"),
+    mode: z.enum(["preview", "delivery"]),
     jobId: z.string().min(1),
     attemptId: z.string().min(1),
     outputSha256: z.string().regex(/^[a-f0-9]{64}$/u),
@@ -160,6 +202,14 @@ const RenderResult = z
     report: RenderReport,
   })
   .strict();
+const PreviewResult = z
+  .object({
+    protocol: z.literal("rvs.worker.v1"),
+    phase: z.literal("preview"),
+    previewArtifactId: z.string().min(1),
+    report: RenderReport.extend({ mode: z.literal("preview") }),
+  })
+  .strict();
 const ProgressBody = z
   .object({
     phase: z.enum(["prepare", "render"]),
@@ -223,6 +273,21 @@ const authorized = (request: FastifyRequest, store: WorkerStore): boolean => {
     timingSafeEqual(received, expected)
   );
 };
+const sessionAuthorized = (
+  request: FastifyRequest,
+  store: WorkerStore,
+  workerId: string,
+  now: number,
+): boolean => {
+  const session = store.sessions.get(workerId);
+  if (!session || session.workerId !== workerId || session.expiresAt <= now)
+    return false;
+  const received = Buffer.from(hashWorkerToken(tokenFrom(request)));
+  const expected = Buffer.from(session.tokenHash);
+  return (
+    received.length === expected.length && timingSafeEqual(received, expected)
+  );
+};
 const worker = (store: WorkerStore, id: string): Worker | undefined =>
   store.workers.get(id);
 const digest = (value: unknown): string =>
@@ -233,6 +298,59 @@ const transition = (job: Job, next: JobState, now: () => number): void => {
   job.updatedAt = new Date(now()).toISOString();
   job.etag = `\"${digest(job.updatedAt)}\"`;
 };
+type ClaimPhase = ClaimedJob["phase"];
+type FinishOutcome = "QUEUED" | "FAILED";
+const queuedPhase = (job: Job): ClaimPhase | null => {
+  if (job.state === "QUEUED") return "render";
+  if (job.state !== "PREPARING" && job.state !== "STALE_APPROVAL") return null;
+  if (job.preparationStage === "ANALYSIS_QUEUED") return "analyze";
+  if (job.preparationStage === "COMPILATION_QUEUED") return "compile";
+  if (job.preparationStage === "PREVIEW_QUEUED") return "preview";
+  return null;
+};
+const runningStage = (phase: ClaimPhase): PreparationStage | null => {
+  if (phase === "analyze") return "ANALYSIS_RUNNING";
+  if (phase === "compile") return "COMPILATION_RUNNING";
+  if (phase === "preview") return "PREVIEW_RUNNING";
+  return null;
+};
+const queuedStage = (phase: ClaimPhase): PreparationStage | null => {
+  if (phase === "analyze") return "ANALYSIS_QUEUED";
+  if (phase === "compile") return "COMPILATION_QUEUED";
+  if (phase === "preview") return "PREVIEW_QUEUED";
+  return null;
+};
+const phaseCapability = (phase: ClaimPhase): "compiler" | "renderer" =>
+  phase === "analyze" || phase === "compile" ? "compiler" : "renderer";
+const compilationMatchesReport = (
+  compilation: Compilation,
+  report: z.infer<typeof RenderReport>,
+): boolean =>
+  report.ir.authoringDigest === compilation.authoring.digest &&
+  report.ir.sceneDigest === compilation.scene.digest &&
+  report.ir.browserPassSpecDigest === compilation.browserPassSpec.digest;
+const reclaimLease = (
+  store: WorkerStore,
+  workflow: CreatorWorkflowStore | undefined,
+  jobId: string,
+  timestamp: number,
+): void => {
+  const lease = store.leases.get(jobId);
+  if (!lease) return;
+  store.leases.delete(jobId);
+  const attempt = workflow?.attempts
+    .get(jobId)
+    ?.find((item) => item.id === lease.attemptId);
+  if (attempt?.state === "RUNNING") attempt.state = "QUEUED";
+  const job = workflow?.jobs.get(jobId);
+  if (job?.state === "RENDERING") job.state = "QUEUED";
+  const stage = lease ? queuedStage(lease.phase) : null;
+  if (job && stage) job.preparationStage = stage;
+  if (job) {
+    job.updatedAt = new Date(timestamp).toISOString();
+    job.etag = `\"${digest(job.updatedAt)}\"`;
+  }
+};
 const claimWorkflowJob = (
   store: WorkerStore,
   workflow: CreatorWorkflowStore | undefined,
@@ -242,21 +360,61 @@ const claimWorkflowJob = (
   if (!workflow) return null;
   const currentWorker = store.workers.get(workerId);
   if (!currentWorker) return null;
-  const job = [...workflow.jobs.values()].find(
-    (item) =>
-      (item.state === "PREPARING" ||
-        (item.state === "QUEUED" && item.approved && item.evidence !== null)) &&
-      currentWorker.capabilities.includes(
-        item.state === "PREPARING" ? "compiler" : "renderer",
-      ) &&
-      !store.claimedJobs.has(item.id),
+  const timestamp = now();
+  for (const [jobId, lease] of store.leases)
+    if (lease.expiresAt <= timestamp)
+      reclaimLease(store, workflow, jobId, timestamp);
+  const candidates = [...workflow.jobs.values()].sort(
+    (left, right) =>
+      left.eligibleAt - right.eligibleAt ||
+      left.createdAt.localeCompare(right.createdAt) ||
+      left.id.localeCompare(right.id),
   );
+  const job = candidates.find((item) => {
+    const phase = queuedPhase(item);
+    return (
+      phase !== null &&
+      item.eligibleAt <= timestamp &&
+      currentWorker.capabilities.includes(phaseCapability(phase)) &&
+      !store.leases.has(item.id) &&
+      (phase !== "compile" || item.evidence !== null) &&
+      (phase !== "preview" || item.compilation !== null) &&
+      (phase !== "render" ||
+        (item.approved &&
+          item.evidence !== null &&
+          item.compilation !== null &&
+          item.approvedSpecDigest ===
+            item.compilation.browserPassSpec.digest)) &&
+      (item.runtimePreflight === null ||
+        item.runtimePreflight.runtimeDigest ===
+          currentWorker.preflight.runtimeDigest)
+    );
+  });
   if (!job) return null;
-  if (job.state === "PREPARING") job.runtimePreflight = currentWorker.preflight;
+  const phase = queuedPhase(job);
+  if (!phase) return null;
+  if (!job.runtimePreflight) job.runtimePreflight = currentWorker.preflight;
   const attempt = workflow.attempts.get(job.id)?.at(-1);
   if (!attempt) return null;
-  if (job.state === "QUEUED") transition(job, "RENDERING", now);
-  store.claimedJobs.set(job.id, { workerId, jobId: job.id });
+  attempt.state = "RUNNING";
+  if (phase === "render") transition(job, "RENDERING", now);
+  else {
+    const stage = runningStage(phase);
+    if (!stage) return null;
+    job.preparationStage = stage;
+  }
+  const leaseToken = randomBytes(32).toString("base64url");
+  const expiresAt = timestamp + LEASE_MS;
+  store.leases.set(job.id, {
+    workerId,
+    phase,
+    jobId: job.id,
+    attemptId: attempt.id,
+    tokenHash: hashWorkerToken(leaseToken),
+    deletionEpoch: job.deletionEpoch,
+    restoreEpoch: job.restoreEpoch,
+    expiresAt,
+  });
   return {
     jobId: job.id,
     attemptId: attempt.id,
@@ -266,45 +424,110 @@ const claimWorkflowJob = (
       startFrame: job.startFrame,
       sourceFps: job.sourceFps,
       frameCount: job.sourceFps * 4,
-      phase: job.state === "PREPARING" ? "prepare" : "render",
-      ...(job.state === "PREPARING" ? {} : { evidence: job.evidence }),
-      ...(job.state === "PREPARING"
+      phase,
+      deletionEpoch: job.deletionEpoch,
+      restoreEpoch: job.restoreEpoch,
+      ...(phase === "analyze"
         ? {}
-        : { evidenceDigest: job.evidenceDigest }),
+        : { evidence: job.candidateEvidence ?? job.evidence }),
+      ...(phase === "preview" || phase === "render"
+        ? {
+            compilation: job.compilation,
+            evidenceDigest: job.evidenceDigest,
+            browserPassSpecDigest: job.compilation?.browserPassSpec.digest,
+          }
+        : {}),
     },
+    leaseToken,
+    leaseExpiresAt: new Date(expiresAt).toISOString(),
   };
+};
+const failureToken = (value: unknown): string => {
+  const message = typeof value === "string" ? value : "WORKER_JOB_FAILED";
+  return message.match(/[A-Z][A-Z0-9_:-]{2,}/u)?.[0] ?? "WORKER_JOB_FAILED";
+};
+const terminalFailure = (token: string): boolean =>
+  [
+    "AUTHENTICATION_REQUIRED",
+    "COMPILER_PROTOCOL_INVALID",
+    "EVIDENCE_CONTRACT_INVALID",
+    "MEDIA_CONTRACT_INVALID",
+    "NORMALIZED_ARTIFACT_CORRUPT",
+    "TEMPORAL_CONTRACT_INVALID",
+    "UNRESOLVED_CHOICE",
+    "WORKSPACE_BOUNDARY_VIOLATION",
+  ].includes(token);
+const failWorkflowJob = (
+  workflow: CreatorWorkflowStore | undefined,
+  lease: ClaimedJob,
+  message: unknown,
+  now: () => number,
+): FinishOutcome => {
+  const job = workflow?.jobs.get(lease.jobId);
+  if (!job) return "FAILED";
+  const token = failureToken(message);
+  job.failureCode = token;
+  if (!terminalFailure(token) && job.automaticRetries < 3) {
+    job.automaticRetries += 1;
+    job.eligibleAt = now() + 1_000 * 2 ** (job.automaticRetries - 1);
+    if (lease.phase === "render") {
+      transition(job, "RETRYABLE_ERROR", now);
+      transition(job, "QUEUED", now);
+    } else {
+      const stage = queuedStage(lease.phase);
+      if (!stage) return "FAILED";
+      job.preparationStage = stage;
+      job.updatedAt = new Date(now()).toISOString();
+      job.etag = `\"${digest(job.updatedAt)}\"`;
+    }
+    return "QUEUED";
+  }
+  transition(job, "FAILED", now);
+  return "FAILED";
 };
 const finishWorkflowJob = (
   workflow: CreatorWorkflowStore | undefined,
-  jobId: string,
-  failed: boolean,
+  lease: ClaimedJob,
   result: unknown,
   now: () => number,
-): boolean => {
-  const job = workflow?.jobs.get(jobId);
-  if (!job) return false;
+): FinishOutcome | null => {
+  const job = workflow?.jobs.get(lease.jobId);
+  if (!job) return null;
   if (job.state === "CANCEL_REQUESTED") {
     transition(job, "CANCELLED", now);
-    return true;
+    return "FAILED";
   }
-  if (failed) {
-    transition(job, "FAILED", now);
-    return true;
-  }
-  if (job.state === "PREPARING") {
-    const parsed = PrepareResult.safeParse(result);
-    const preview = workflow?.previews.get(job.id);
+  if (lease.phase === "analyze") {
+    const parsed = AnalysisResult.safeParse(result);
+    const rawEvidence = z
+      .record(z.string(), z.unknown())
+      .safeParse(
+        result && typeof result === "object" && "evidence" in result
+          ? result.evidence
+          : null,
+      );
     if (
       !parsed.success ||
-      !preview ||
-      preview.id !== parsed.data.previewArtifactId ||
-      digest(parsed.data.evidence) !== parsed.data.evidenceDigest ||
+      !rawEvidence.success ||
+      digest(rawEvidence.data) !== parsed.data.evidenceDigest ||
+      parsed.data.evidence.source.jobId !== job.id ||
+      parsed.data.evidence.source.attemptId !== lease.attemptId ||
+      parsed.data.evidence.source.normalizedSha256 !==
+        parsed.data.normalized.sha256 ||
+      parsed.data.evidence.observed.temporalVolume.fps !== job.sourceFps ||
+      parsed.data.evidence.observed.temporalVolume.frameCount !==
+        job.frameCount ||
       parsed.data.normalized.fps !== job.sourceFps ||
       parsed.data.normalized.frameCount !== job.sourceFps * 4
     )
-      return false;
-    job.evidence = parsed.data.evidence;
+      return null;
+    job.evidence = rawEvidence.data;
     job.evidenceDigest = parsed.data.evidenceDigest;
+    job.pendingCompilation = parsed.data.compilation;
+    job.irDigest = parsed.data.compilation.browserPassSpec.digest;
+    job.preparationStage = "AWAITING_T2";
+    job.automaticRetries = 0;
+    job.failureCode = null;
     job.progress = {
       phase: "prepare",
       stage: "evidence",
@@ -312,10 +535,50 @@ const finishWorkflowJob = (
       framesProcessed: job.sourceFps * 4,
       framesTotal: job.sourceFps * 4,
     };
-    transition(job, "READY", now);
-    return true;
+    return "QUEUED";
   }
-  if (job.state !== "RENDERING" || !job.approved) return false;
+  if (lease.phase === "compile") {
+    const parsed = CompileResult.safeParse(result);
+    if (
+      !parsed.success ||
+      !job.evidence ||
+      parsed.data.evidenceDigest !== job.evidenceDigest
+    )
+      return null;
+    job.pendingCompilation = parsed.data.compilation;
+    job.irDigest = parsed.data.compilation.browserPassSpec.digest;
+    job.preparationStage = "AWAITING_T2";
+    job.automaticRetries = 0;
+    job.failureCode = null;
+    return "QUEUED";
+  }
+  if (lease.phase === "preview") {
+    const parsed = PreviewResult.safeParse(result);
+    const preview = workflow?.previews.get(job.id);
+    if (
+      !parsed.success ||
+      !job.compilation ||
+      !preview ||
+      preview.id !== parsed.data.previewArtifactId ||
+      !compilationMatchesReport(job.compilation, parsed.data.report)
+    )
+      return null;
+    preview.report = parsed.data.report;
+    job.previewSpecDigest = parsed.data.report.ir.browserPassSpecDigest;
+    job.preparationStage = "AWAITING_T4";
+    job.automaticRetries = 0;
+    job.failureCode = null;
+    job.progress = {
+      phase: "prepare",
+      stage: "preview",
+      fraction: 1,
+      framesProcessed: DELIVERY_FRAME_COUNT,
+      framesTotal: DELIVERY_FRAME_COUNT,
+    };
+    return "QUEUED";
+  }
+  if (job.state !== "RENDERING" || !job.approved || !job.compilation)
+    return null;
   const parsed = RenderResult.safeParse(result);
   const artifact = workflow?.stagedArtifacts.get(job.id);
   const attemptId = workflow?.attempts.get(job.id)?.at(-1)?.id;
@@ -327,12 +590,15 @@ const finishWorkflowJob = (
     parsed.data.report.attemptId !== attemptId ||
     parsed.data.report.outputSha256 !== artifact.sha256 ||
     parsed.data.report.outputBytes !== artifact.sizeBytes ||
+    parsed.data.report.mode !== "delivery" ||
+    !compilationMatchesReport(job.compilation, parsed.data.report) ||
+    parsed.data.report.ir.browserPassSpecDigest !== job.approvedSpecDigest ||
     parsed.data.report.runtime.frameSha256.length !== DELIVERY_FRAME_COUNT ||
     parsed.data.report.runtime.renderer !== job.runtimePreflight?.renderer ||
     new Set(parsed.data.report.runtime.passIds).size !==
       parsed.data.report.runtime.passIds.length
   )
-    return false;
+    return null;
   artifact.report = parsed.data.report;
   transition(job, "ASSEMBLING", now);
   transition(job, "AWAITING_T5", now);
@@ -343,7 +609,9 @@ const finishWorkflowJob = (
     framesProcessed: DELIVERY_FRAME_COUNT,
     framesTotal: DELIVERY_FRAME_COUNT,
   };
-  return true;
+  job.automaticRetries = 0;
+  job.failureCode = null;
+  return "QUEUED";
 };
 
 export function registerWorkers(
@@ -353,8 +621,12 @@ export function registerWorkers(
   workflow?: CreatorWorkflowStore,
   uploads?: UploadStore,
 ): void {
-  const auth = (request: FastifyRequest, reply: FastifyReply): boolean => {
-    if (!authorized(request, store)) {
+  const auth = (
+    request: FastifyRequest,
+    reply: FastifyReply,
+    workerId: string,
+  ): boolean => {
+    if (!sessionAuthorized(request, store, workerId, now())) {
       error(reply, "AUTHENTICATION_REQUIRED");
       return false;
     }
@@ -363,26 +635,54 @@ export function registerWorkers(
   app.post<{ Body: unknown }>(
     "/v1/workers/register",
     async (request, reply) => {
-      if (!auth(request, reply)) return;
+      if (!authorized(request, store)) {
+        error(reply, "AUTHENTICATION_REQUIRED");
+        return;
+      }
       const parsed = RegisterBody.safeParse(request.body);
       if (!parsed.success) {
         error(reply, "INVALID_REQUEST");
         return;
       }
+      const timestamp = now();
+      for (const [jobId, lease] of store.leases)
+        if (lease.workerId === parsed.data.workerId)
+          reclaimLease(store, workflow, jobId, timestamp);
+      const sessionToken = randomBytes(32).toString("base64url");
+      const sessionExpiresAt = timestamp + WORKER_SESSION_MS;
       store.workers.set(parsed.data.workerId, {
         id: parsed.data.workerId,
         capabilities: [...parsed.data.capabilities],
-        lastHeartbeat: now(),
+        lastHeartbeat: timestamp,
         status: "ONLINE",
         preflight: parsed.data.preflight,
       });
-      reply.send({ workerId: parsed.data.workerId });
+      if (workflow) {
+        workflow.availablePreflight = parsed.data.preflight;
+        for (const job of workflow.jobs.values())
+          if (
+            job.state === "PREPARING" &&
+            job.preparationStage === "AWAITING_T1" &&
+            !job.runtimePreflight
+          )
+            job.runtimePreflight = parsed.data.preflight;
+      }
+      store.sessions.set(parsed.data.workerId, {
+        workerId: parsed.data.workerId,
+        tokenHash: hashWorkerToken(sessionToken),
+        expiresAt: sessionExpiresAt,
+      });
+      reply.send({
+        workerId: parsed.data.workerId,
+        sessionToken,
+        sessionExpiresAt: new Date(sessionExpiresAt).toISOString(),
+      });
     },
   );
   app.post<{ Params: { workerId: string }; Body: unknown }>(
     "/v1/workers/:workerId/heartbeat",
     async (request, reply) => {
-      if (!auth(request, reply)) return;
+      if (!auth(request, reply, request.params.workerId)) return;
       const current = worker(store, request.params.workerId);
       if (!current) {
         error(reply, "RESOURCE_NOT_FOUND");
@@ -393,16 +693,43 @@ export function registerWorkers(
         error(reply, "INVALID_REQUEST");
         return;
       }
+      const timestamp = now();
+      const session = store.sessions.get(current.id);
+      if (!session) {
+        error(reply, "AUTHENTICATION_REQUIRED");
+        return;
+      }
+      const activeLeases: ClaimedJob[] = [];
+      for (const item of parsed.data.leases) {
+        const lease = store.leases.get(item.jobId);
+        if (
+          lease?.workerId !== current.id ||
+          lease.expiresAt <= timestamp ||
+          hashWorkerToken(item.leaseToken) !== lease.tokenHash
+        ) {
+          if (lease?.expiresAt !== undefined && lease.expiresAt <= timestamp)
+            reclaimLease(store, workflow, item.jobId, timestamp);
+          error(reply, "AUTHENTICATION_REQUIRED");
+          return;
+        }
+        activeLeases.push(lease);
+      }
       current.capabilities = [...parsed.data.capabilities];
-      current.lastHeartbeat = now();
+      current.lastHeartbeat = timestamp;
       current.status = "ONLINE";
-      reply.send({ workerId: current.id });
+      session.expiresAt = timestamp + WORKER_SESSION_MS;
+      const renewedUntil = timestamp + LEASE_MS;
+      for (const lease of activeLeases) lease.expiresAt = renewedUntil;
+      reply.send({
+        workerId: current.id,
+        sessionExpiresAt: new Date(session.expiresAt).toISOString(),
+      });
     },
   );
   app.post<{ Params: { workerId: string } }>(
     "/v1/workers/:workerId/claim",
     async (request, reply) => {
-      if (!auth(request, reply)) return;
+      if (!auth(request, reply, request.params.workerId)) return;
       if (!worker(store, request.params.workerId)) {
         error(reply, "RESOURCE_NOT_FOUND");
         return;
@@ -415,26 +742,48 @@ export function registerWorkers(
   const claimedJob = (
     request: FastifyRequest<{ Params: { workerId: string; jobId: string } }>,
     reply: FastifyReply,
-  ): Job | null => {
-    if (!auth(request, reply)) return null;
-    const claimed = store.claimedJobs.get(request.params.jobId);
+  ): { job: Job; lease: ClaimedJob } | null => {
+    if (!auth(request, reply, request.params.workerId)) return null;
+    const claimed = store.leases.get(request.params.jobId);
     const job = workflow?.jobs.get(request.params.jobId);
+    if (claimed && claimed.expiresAt <= now())
+      reclaimLease(store, workflow, request.params.jobId, now());
     if (
       !claimed ||
       claimed.workerId !== request.params.workerId ||
-      !job ||
-      !worker(store, request.params.workerId)
+      claimed.expiresAt <= now() ||
+      hashWorkerToken(
+        typeof request.headers["x-worker-lease"] === "string"
+          ? request.headers["x-worker-lease"]
+          : "",
+      ) !== claimed.tokenHash
     ) {
+      error(reply, "AUTHENTICATION_REQUIRED");
+      return null;
+    }
+    if (!job || !worker(store, request.params.workerId)) {
       error(reply, "RESOURCE_NOT_FOUND");
       return null;
     }
-    return job;
+    if (
+      claimed.deletionEpoch !== job.deletionEpoch ||
+      claimed.restoreEpoch !== job.restoreEpoch
+    ) {
+      error(reply, "INVALID_REQUEST");
+      return null;
+    }
+    return { job, lease: claimed };
   };
   app.get<{ Params: { workerId: string; jobId: string } }>(
     "/v1/workers/:workerId/jobs/:jobId/source",
     async (request, reply) => {
-      const job = claimedJob(request, reply);
-      if (!job) return;
+      const claimed = claimedJob(request, reply);
+      if (!claimed) return;
+      const { job, lease } = claimed;
+      if (lease.phase === "compile") {
+        error(reply, "INVALID_REQUEST");
+        return;
+      }
       const upload = uploads?.uploads.get(job.uploadId);
       if (
         !upload ||
@@ -444,25 +793,37 @@ export function registerWorkers(
         error(reply, "RESOURCE_NOT_FOUND");
         return;
       }
-      reply
+      const sourcePath = uploadSourcePath(upload);
+      const memorySource = sourcePath ? null : Buffer.alloc(upload.actualBytes);
+      let offset = 0;
+      for (const chunk of upload.chunks) {
+        memorySource?.set(chunk, offset);
+        offset += chunk.byteLength;
+      }
+      return reply
         .header("content-type", upload.contentType)
         .header("content-length", upload.actualBytes)
         .header("content-disposition", 'attachment; filename="source.mp4"')
-        .send(Buffer.concat(upload.chunks.map((chunk) => Buffer.from(chunk))));
+        .send(
+          sourcePath
+            ? createReadStream(sourcePath)
+            : (memorySource ?? Buffer.alloc(0)),
+        );
     },
   );
   app.post<{
     Params: { workerId: string; jobId: string };
     Body: unknown;
   }>("/v1/workers/:workerId/jobs/:jobId/progress", async (request, reply) => {
-    const job = claimedJob(request, reply);
-    if (!job) return;
+    const claimed = claimedJob(request, reply);
+    if (!claimed) return;
+    const { job, lease } = claimed;
     if (job.state === "CANCEL_REQUESTED") {
       error(reply, "CANCEL_REQUESTED");
       return;
     }
     const parsed = ProgressBody.safeParse(request.body);
-    const expectedPhase = job.state === "PREPARING" ? "prepare" : "render";
+    const expectedPhase = lease.phase === "render" ? "render" : "prepare";
     if (
       !parsed.success ||
       parsed.data.phase !== expectedPhase ||
@@ -483,11 +844,14 @@ export function registerWorkers(
     "/v1/workers/:workerId/jobs/:jobId/preview-artifact",
     { bodyLimit: MAX_ARTIFACT_BYTES },
     async (request, reply) => {
-      const job = claimedJob(request, reply);
-      if (!job) return;
+      const claimed = claimedJob(request, reply);
+      if (!claimed) return;
+      const { job, lease } = claimed;
       const bytes = request.body instanceof Uint8Array ? request.body : null;
       if (
-        job.state !== "PREPARING" ||
+        lease.phase !== "preview" ||
+        job.preparationStage !== "PREVIEW_RUNNING" ||
+        (job.state !== "PREPARING" && job.state !== "STALE_APPROVAL") ||
         !bytes ||
         bytes.byteLength === 0 ||
         bytes.byteLength > MAX_ARTIFACT_BYTES
@@ -521,10 +885,12 @@ export function registerWorkers(
     "/v1/workers/:workerId/jobs/:jobId/artifact",
     { bodyLimit: MAX_ARTIFACT_BYTES },
     async (request, reply) => {
-      const job = claimedJob(request, reply);
-      if (!job) return;
+      const claimed = claimedJob(request, reply);
+      if (!claimed) return;
+      const { job, lease } = claimed;
       const bytes = request.body instanceof Uint8Array ? request.body : null;
       if (
+        lease.phase !== "render" ||
         job.state !== "RENDERING" ||
         !bytes ||
         bytes.byteLength === 0 ||
@@ -559,20 +925,37 @@ export function registerWorkers(
     }>,
     reply: FastifyReply,
   ): Promise<void> => {
-    const job = claimedJob(request, reply);
-    if (!job) return;
+    const claimed = claimedJob(request, reply);
+    if (!claimed) return;
+    const { job, lease } = claimed;
     const failed = request.url.endsWith("/fail");
+    const message =
+      request.body && typeof request.body === "object"
+        ? Reflect.get(request.body, "message")
+        : undefined;
     const result =
       request.body && typeof request.body === "object"
         ? Reflect.get(request.body, "result")
         : undefined;
-    if (
-      !finishWorkflowJob(workflow, request.params.jobId, failed, result, now)
-    ) {
+    const outcome = failed
+      ? failWorkflowJob(workflow, lease, message, now)
+      : finishWorkflowJob(workflow, lease, result, now);
+    if (!outcome) {
       error(reply, "INVALID_REQUEST");
       return;
     }
-    store.claimedJobs.delete(request.params.jobId);
+    const attempt = workflow?.attempts
+      .get(request.params.jobId)
+      ?.find((item) => item.id === lease?.attemptId);
+    const finishedJob = workflow?.jobs.get(request.params.jobId);
+    if (attempt)
+      attempt.state =
+        finishedJob?.state === "CANCELLED"
+          ? "CANCELLED"
+          : outcome === "FAILED"
+            ? "FAILED"
+            : "QUEUED";
+    store.leases.delete(request.params.jobId);
     reply.send({ ok: true });
   };
   app.post<{ Params: { workerId: string; jobId: string }; Body: unknown }>(
@@ -586,14 +969,19 @@ export function registerWorkers(
   app.post<{ Params: { workerId: string; jobId: string } }>(
     "/v1/workers/:workerId/jobs/:jobId/cancelled",
     async (request, reply) => {
-      const job = claimedJob(request, reply);
-      if (!job) return;
+      const claimed = claimedJob(request, reply);
+      if (!claimed) return;
+      const { job, lease } = claimed;
       if (job.state !== "CANCEL_REQUESTED") {
         error(reply, "INVALID_REQUEST");
         return;
       }
       transition(job, "CANCELLED", now);
-      store.claimedJobs.delete(job.id);
+      const attempt = workflow?.attempts
+        .get(job.id)
+        ?.find((item) => item.id === lease?.attemptId);
+      if (attempt) attempt.state = "CANCELLED";
+      store.leases.delete(job.id);
       reply.send({ ok: true });
     },
   );

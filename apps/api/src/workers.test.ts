@@ -34,6 +34,161 @@ const registration = (capabilities: readonly string[]) => ({
 });
 const sha256 = (value: Uint8Array | string): string =>
   createHash("sha256").update(value).digest("hex");
+const compilation = {
+  authoring: {
+    versionId: "air_a",
+    digest: "a".repeat(64),
+    parentDigest: null,
+  },
+  scene: {
+    versionId: "sir_b",
+    digest: "b".repeat(64),
+    parentDigest: "a".repeat(64),
+  },
+  browserPassSpec: {
+    versionId: "bps_c",
+    digest: "c".repeat(64),
+    parentDigest: "b".repeat(64),
+  },
+} as const;
+const analysisEvidence = (
+  jobId: string,
+  attemptId: string,
+  frameCount = 120,
+  fps: 24 | 25 | 30 | 50 | 60 = 30,
+) => ({
+  schemaVersion: "rvs-reference-evidence-v1",
+  state: "MAPPED",
+  source: {
+    jobId,
+    attemptId,
+    normalizedSha256: "e".repeat(64),
+  },
+  observed: {
+    temporalVolume: {
+      profile: "540x960",
+      fps,
+      frameCount,
+      intervalMs: [0, 4_000],
+      frames: Array.from({ length: frameCount }, (_, index) => ({
+        index,
+        timeMs: Math.floor((index * 1_000) / fps),
+        nativeSha256: sha256(`frame-${index}`),
+        confidence: 1,
+      })),
+    },
+    ocr: { engine: "EasyOCR ko+en", candidates: [] },
+    uiSurfaces: [],
+    matting: {
+      engine: "RVM MobileNetV3",
+      frames: Array.from({ length: frameCount }, (_, frame) => ({
+        frame,
+        confidence: 1,
+      })),
+    },
+    depth: {
+      engine: "MiDaS v2.1 small",
+      medianNormalized: Array<null>(frameCount).fill(null),
+      ownerSamples: [],
+    },
+    camera: {
+      method: "foreground-masked RANSAC background homography",
+      frames: Array.from({ length: frameCount }, (_, frame) => ({
+        frame,
+        confidence: 1,
+      })),
+    },
+    tracking: [],
+    effects: Array.from({ length: frameCount }, () => ({
+      lowerLightRgb16x9: Array<number>(16 * 9 * 3).fill(0),
+      confidence: 1,
+      formulas: { lowerLight: "median RGB per 16x9 cell" },
+    })),
+    rhythm: { beats: [] },
+    audio: { sampleRateHz: 48_000, channels: 2, anchors: [] },
+    palette: ["#000000", "#ffffff"],
+  },
+  mappings: {
+    textOwnerCount: 0,
+    uiOwnerCount: 0,
+    residualOwner: "global-residual",
+  },
+  needsChoice: [],
+  sceneInput: {
+    tenantId: "ten_a",
+    editor: "reference-compiler",
+    reason: "measured reference evidence",
+    timestamp: "1970-01-01T00:00:00.000Z",
+    gate: "PENDING",
+    needsChoice: [],
+    owners: [
+      {
+        ownerId: "global-residual",
+        kind: "global-residual",
+        editable: true,
+        assetRef: "asset-global-residual",
+        confidence: 1,
+      },
+    ],
+    editableAssets: [
+      {
+        assetId: "asset-global-residual",
+        kind: "measured-background",
+        editable: true,
+        owner: "global-residual",
+      },
+    ],
+    geometry: {
+      "global-residual": {
+        boundsPerFrame: [{ frame: 0, x: 0, y: 0, width: 1080, height: 1920 }],
+        fixedWidth: true,
+        fixedX: true,
+      },
+    },
+    tracks: [
+      {
+        trackId: "track-global-residual",
+        owner: "global-residual",
+        lifecycle: {
+          enter: { start: 0 },
+          stable: { start: 0 },
+          exit: { start: frameCount },
+        },
+        geometryRef: "global-residual",
+        effects: ["residual-canvas"],
+      },
+    ],
+    effects: {
+      "global-residual": {
+        "residual-canvas": { source: "all-frame measurements" },
+      },
+    },
+    residualCanvas: {
+      owner: "global-residual",
+      measurements: ["lower-light field"],
+      mustRemainSeparate: true,
+      compositeRule: "background then semantic owners",
+    },
+    audio: {
+      sampleRateHz: 48_000,
+      channels: 2,
+      frameRate: fps,
+      anchors: [],
+    },
+    passes: [
+      {
+        passId: "background-dom",
+        owner: "global-residual",
+        kind: "DOM/SVG",
+        shader: null,
+        reads: ["asset-global-residual"],
+        writes: "background-layer",
+      },
+    ],
+    layerOrder: ["background-layer"],
+    allowedShaders: [],
+  },
+});
 const renderReport = (job: Job, attemptId: string, bytes: Uint8Array) => ({
   status: "PASS",
   protocol: "rvs.render-report.v1",
@@ -43,9 +198,9 @@ const renderReport = (job: Job, attemptId: string, bytes: Uint8Array) => ({
   outputSha256: sha256(bytes),
   outputBytes: bytes.byteLength,
   ir: {
-    authoringDigest: "a".repeat(64),
-    sceneDigest: "b".repeat(64),
-    browserPassSpecDigest: "c".repeat(64),
+    authoringDigest: job.compilation?.authoring.digest,
+    sceneDigest: job.compilation?.scene.digest,
+    browserPassSpecDigest: job.compilation?.browserPassSpec.digest,
   },
   runtime: {
     chromiumVersion: "151.0.7922.138",
@@ -105,6 +260,8 @@ const uploadFixture = (): UploadStore => ({
         sourceSha256: sha256(sourceBytes),
         media: { fps: 30, frameCount: 120, durationSeconds: 4 },
         chunks: [sourceBytes],
+        chunkHashes: [sha256(sourceBytes)],
+        chunkSizes: [sourceBytes.byteLength],
         actualBytes: sourceBytes.byteLength,
       },
     ],
@@ -117,6 +274,7 @@ const uploadFixture = (): UploadStore => ({
 const appFixture = (
   workflow?: CreatorWorkflowStore,
   uploads = uploadFixture(),
+  now: () => number = () => 1_000,
 ) => {
   const token = "worker-test-token";
   const workers = createWorkerStore(hashWorkerToken(token));
@@ -136,18 +294,50 @@ const appFixture = (
     workers,
     creatorWorkflow: workflow,
     uploads,
-    now: () => 1_000,
+    now,
   });
+  const bootstrapHeaders = {
+    authorization: `Bearer ${token}`,
+    "content-type": "application/json",
+  };
   return {
     app,
     workers,
-    headers: {
-      authorization: `Bearer ${token}`,
-      "content-type": "application/json",
-    },
+    bootstrapHeaders,
+    headers: { ...bootstrapHeaders } as Record<string, string>,
   };
 };
+type Fixture = ReturnType<typeof appFixture>;
+const registerWorker = async (
+  fixture: Fixture,
+  capabilities: readonly string[],
+  workerId = "worker-a",
+) => {
+  const response = await fixture.app.inject({
+    method: "POST",
+    url: "/v1/workers/register",
+    headers: fixture.bootstrapHeaders,
+    payload: { ...registration(capabilities), workerId },
+  });
+  fixture.headers.authorization = `Bearer ${String(response.json().sessionToken)}`;
+  return response;
+};
+const claimWorker = async (fixture: Fixture, workerId = "worker-a") => {
+  const response = await fixture.app.inject({
+    method: "POST",
+    url: `/v1/workers/${workerId}/claim`,
+    headers: fixture.headers,
+    payload: {},
+  });
+  const leaseToken = response.json().job?.leaseToken;
+  if (leaseToken) fixture.headers["x-worker-lease"] = String(leaseToken);
+  return response;
+};
 const addJob = (workflow: CreatorWorkflowStore, state: Job["state"]): Job => {
+  const evidence =
+    state === "PREPARING"
+      ? null
+      : analysisEvidence(`job-${state.toLowerCase()}`, "attempt-a");
   const job: Job = {
     id: `job-${state.toLowerCase()}`,
     tenantId: "ten_a",
@@ -158,13 +348,27 @@ const addJob = (workflow: CreatorWorkflowStore, state: Job["state"]): Job => {
     etag: '"etag"',
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
-    irDigest: "ir",
-    evidenceDigest: "evidence",
+    irDigest: compilation.browserPassSpec.digest,
+    evidenceDigest: evidence ? sha256(JSON.stringify(evidence)) : "",
     approved: state === "QUEUED",
     startFrame: 0,
     sourceFps: 30,
     frameCount: 120,
-    evidence: state === "PREPARING" ? null : { state: "MAPPED" },
+    evidence,
+    candidateEvidence: null,
+    candidateEvidenceDigest: null,
+    preparationStage: state === "PREPARING" ? "ANALYSIS_QUEUED" : "READY",
+    pendingCompilation: null,
+    compilation: state === "PREPARING" ? null : compilation,
+    previewSpecDigest:
+      state === "PREPARING" ? null : compilation.browserPassSpec.digest,
+    approvedSpecDigest:
+      state === "PREPARING" ? null : compilation.browserPassSpec.digest,
+    eligibleAt: 0,
+    automaticRetries: 0,
+    deletionEpoch: 0,
+    restoreEpoch: 0,
+    failureCode: null,
     runtimePreflight: state === "PREPARING" ? null : preflight,
     progress: null,
     artifact: null,
@@ -179,21 +383,16 @@ const addJob = (workflow: CreatorWorkflowStore, state: Job["state"]): Job => {
 describe("worker registration API", () => {
   it("Given a valid bearer token, when registering and heartbeating, then stores the worker lifecycle state", async () => {
     const fixture = appFixture();
-    const registered = await fixture.app.inject({
-      method: "POST",
-      url: "/v1/workers/register",
-      headers: fixture.headers,
-      payload: registration(["compiler"]),
-    });
+    const registered = await registerWorker(fixture, ["compiler"]);
     const heartbeat = await fixture.app.inject({
       method: "POST",
       url: "/v1/workers/worker-a/heartbeat",
       headers: fixture.headers,
-      payload: { capabilities: ["compiler", "renderer"] },
+      payload: { capabilities: ["compiler", "renderer"], leases: [] },
     });
     expect(registered.statusCode).toBe(200);
-    expect(registered.json()).toEqual({ workerId: "worker-a" });
-    expect(heartbeat.json()).toEqual({ workerId: "worker-a" });
+    expect(registered.json()).toMatchObject({ workerId: "worker-a" });
+    expect(heartbeat.json()).toMatchObject({ workerId: "worker-a" });
     expect(fixture.workers.workers.get("worker-a")).toMatchObject({
       capabilities: ["compiler", "renderer"],
       lastHeartbeat: 1_000,
@@ -232,18 +431,8 @@ describe("worker registration API", () => {
 
   it("Given a registered worker, when claiming and completing an unknown job, then returns no job and a safe not-found error", async () => {
     const fixture = appFixture();
-    await fixture.app.inject({
-      method: "POST",
-      url: "/v1/workers/register",
-      headers: fixture.headers,
-      payload: registration(["compiler"]),
-    });
-    const claim = await fixture.app.inject({
-      method: "POST",
-      url: "/v1/workers/worker-a/claim",
-      headers: fixture.headers,
-      payload: {},
-    });
+    await registerWorker(fixture, ["compiler"]);
+    const claim = await claimWorker(fixture);
     const complete = await fixture.app.inject({
       method: "POST",
       url: "/v1/workers/worker-a/jobs/job-missing/complete",
@@ -251,31 +440,21 @@ describe("worker registration API", () => {
       payload: { result: {} },
     });
     expect(claim.json()).toEqual({ job: null });
-    expect(complete.statusCode).toBe(404);
-    expect(complete.json().error.code).toBe("RESOURCE_NOT_FOUND");
+    expect(complete.statusCode).toBe(401);
+    expect(complete.json().error.code).toBe("AUTHENTICATION_REQUIRED");
     await fixture.app.close();
   });
 
-  it("Given a preparing workflow job, when claimed and completed, then marks it ready", async () => {
+  it("stores analyzed evidence and waits for T2 before compilation", async () => {
     const workflow = createCreatorWorkflowStore();
     const job = addJob(workflow, "PREPARING");
     const fixture = appFixture(workflow);
-    await fixture.app.inject({
-      method: "POST",
-      url: "/v1/workers/register",
-      headers: fixture.headers,
-      payload: registration(["compiler"]),
-    });
-    const claim = await fixture.app.inject({
-      method: "POST",
-      url: "/v1/workers/worker-a/claim",
-      headers: fixture.headers,
-      payload: {},
-    });
+    await registerWorker(fixture, ["compiler"]);
+    const claim = await claimWorker(fixture);
     const source = await fixture.app.inject({
       method: "GET",
       url: `/v1/workers/worker-a/jobs/${job.id}/source`,
-      headers: { authorization: fixture.headers.authorization },
+      headers: fixture.headers,
     });
     const invalidComplete = await fixture.app.inject({
       method: "POST",
@@ -287,12 +466,12 @@ describe("worker registration API", () => {
       method: "POST",
       url: `/v1/workers/worker-a/jobs/${job.id}/preview-artifact`,
       headers: {
-        authorization: fixture.headers.authorization,
+        ...fixture.headers,
         "content-type": "application/octet-stream",
       },
       payload: Buffer.from("preview-mp4-bytes"),
     });
-    const evidence = { state: "MAPPED", measurements: [] };
+    const evidence = analysisEvidence(job.id, "attempt-a");
     const digestMismatch = await fixture.app.inject({
       method: "POST",
       url: `/v1/workers/worker-a/jobs/${job.id}/complete`,
@@ -300,12 +479,12 @@ describe("worker registration API", () => {
       payload: {
         result: {
           protocol: "rvs.worker.v1",
-          phase: "prepare",
+          phase: "analyze",
           evidence,
           evidenceDigest: "a".repeat(64),
-          previewArtifactId: preview.json().artifactId,
+          compilation,
           normalized: {
-            sha256: "b".repeat(64),
+            sha256: evidence.source.normalizedSha256,
             durationMs: 4_000,
             fps: 30,
             frameCount: 120,
@@ -320,12 +499,12 @@ describe("worker registration API", () => {
       payload: {
         result: {
           protocol: "rvs.worker.v1",
-          phase: "prepare",
+          phase: "analyze",
           evidence,
           evidenceDigest: sha256(JSON.stringify(evidence)),
-          previewArtifactId: preview.json().artifactId,
+          compilation,
           normalized: {
-            sha256: "b".repeat(64),
+            sha256: evidence.source.normalizedSha256,
             durationMs: 4_000,
             fps: 30,
             frameCount: 120,
@@ -337,7 +516,7 @@ describe("worker registration API", () => {
       jobId: job.id,
       attemptId: "attempt-a",
       payload: {
-        phase: "prepare",
+        phase: "analyze",
         startFrame: 0,
         sourceFps: 30,
         frameCount: 120,
@@ -347,17 +526,16 @@ describe("worker registration API", () => {
     expect(source.rawPayload).toEqual(Buffer.from(sourceBytes));
     expect(invalidComplete.statusCode).toBe(422);
     expect(digestMismatch.statusCode).toBe(422);
-    expect(preview.statusCode).toBe(201);
-    expect(workflow.previews.get(job.id)).toMatchObject({
-      id: preview.json().artifactId,
-      kind: "preview",
-    });
-    expect(workflow.jobs.get(job.id)?.evidence).toEqual({
-      state: "MAPPED",
-      measurements: [],
-    });
+    expect(preview.statusCode).toBe(422);
+    expect(workflow.previews.has(job.id)).toBe(false);
+    expect(workflow.jobs.get(job.id)?.evidence).toEqual(evidence);
     expect(complete.statusCode).toBe(200);
-    expect(workflow.jobs.get(job.id)?.state).toBe("READY");
+    expect(workflow.jobs.get(job.id)).toMatchObject({
+      state: "PREPARING",
+      preparationStage: "AWAITING_T2",
+      pendingCompilation: compilation,
+      compilation: null,
+    });
     await fixture.app.close();
   });
 
@@ -365,18 +543,8 @@ describe("worker registration API", () => {
     const workflow = createCreatorWorkflowStore();
     const job = addJob(workflow, "PREPARING");
     const fixture = appFixture(workflow);
-    await fixture.app.inject({
-      method: "POST",
-      url: "/v1/workers/register",
-      headers: fixture.headers,
-      payload: registration(["compiler"]),
-    });
-    await fixture.app.inject({
-      method: "POST",
-      url: "/v1/workers/worker-a/claim",
-      headers: fixture.headers,
-      payload: {},
-    });
+    await registerWorker(fixture, ["compiler"]);
+    await claimWorker(fixture);
     const report = (fraction: number, framesProcessed: number) =>
       fixture.app.inject({
         method: "POST",
@@ -401,18 +569,8 @@ describe("worker registration API", () => {
     const workflow = createCreatorWorkflowStore();
     const job = addJob(workflow, "PREPARING");
     const fixture = appFixture(workflow);
-    await fixture.app.inject({
-      method: "POST",
-      url: "/v1/workers/register",
-      headers: fixture.headers,
-      payload: registration(["compiler"]),
-    });
-    await fixture.app.inject({
-      method: "POST",
-      url: "/v1/workers/worker-a/claim",
-      headers: fixture.headers,
-      payload: {},
-    });
+    await registerWorker(fixture, ["compiler"]);
+    await claimWorker(fixture);
     job.state = "CANCEL_REQUESTED";
 
     const progress = await fixture.app.inject({
@@ -439,7 +597,7 @@ describe("worker registration API", () => {
     });
     expect(acknowledged.statusCode).toBe(200);
     expect(job.state).toBe("CANCELLED");
-    expect(fixture.workers.claimedJobs.has(job.id)).toBe(false);
+    expect(fixture.workers.leases.has(job.id)).toBe(false);
     await fixture.app.close();
   });
 
@@ -447,18 +605,8 @@ describe("worker registration API", () => {
     const workflow = createCreatorWorkflowStore();
     const job = addJob(workflow, "QUEUED");
     const fixture = appFixture(workflow);
-    await fixture.app.inject({
-      method: "POST",
-      url: "/v1/workers/register",
-      headers: fixture.headers,
-      payload: registration(["renderer"]),
-    });
-    const claim = await fixture.app.inject({
-      method: "POST",
-      url: "/v1/workers/worker-a/claim",
-      headers: fixture.headers,
-      payload: {},
-    });
+    await registerWorker(fixture, ["renderer"]);
+    const claim = await claimWorker(fixture);
     const complete = await fixture.app.inject({
       method: "POST",
       url: `/v1/workers/worker-a/jobs/${job.id}/complete`,
@@ -484,26 +632,17 @@ describe("worker registration API", () => {
     const job = addJob(workflow, "QUEUED");
     job.sourceFps = 25;
     job.frameCount = 100;
-    job.evidence = { state: "MAPPED" };
+    job.evidence = analysisEvidence(job.id, "attempt-a", 100, 25);
+    job.evidenceDigest = sha256(JSON.stringify(job.evidence));
     const fixture = appFixture(workflow);
-    await fixture.app.inject({
-      method: "POST",
-      url: "/v1/workers/register",
-      headers: fixture.headers,
-      payload: registration(["renderer"]),
-    });
-    const claim = await fixture.app.inject({
-      method: "POST",
-      url: "/v1/workers/worker-a/claim",
-      headers: fixture.headers,
-      payload: {},
-    });
+    await registerWorker(fixture, ["renderer"]);
+    const claim = await claimWorker(fixture);
     const artifactBytes = Buffer.from("real-mp4-bytes");
     const uploaded = await fixture.app.inject({
       method: "POST",
       url: `/v1/workers/worker-a/jobs/${job.id}/artifact`,
       headers: {
-        authorization: fixture.headers.authorization,
+        ...fixture.headers,
         "content-type": "application/octet-stream",
       },
       payload: artifactBytes,
@@ -540,7 +679,7 @@ describe("worker registration API", () => {
 
     expect(claim.json().job.payload).toMatchObject({
       phase: "render",
-      evidence: { state: "MAPPED" },
+      evidence: { state: "MAPPED", source: { jobId: job.id } },
       evidenceDigest: job.evidenceDigest,
     });
     expect(uploaded.statusCode).toBe(201);
@@ -555,6 +694,150 @@ describe("worker registration API", () => {
       kind: "delivery",
     });
     expect(complete.statusCode).toBe(200);
+    await fixture.app.close();
+  });
+
+  it("binds every job operation to one worker session and lease", async () => {
+    const workflow = createCreatorWorkflowStore(() => 1_000);
+    const job = addJob(workflow, "PREPARING");
+    const fixture = appFixture(workflow, uploadFixture());
+    const register = async (workerId: string) => {
+      const response = await fixture.app.inject({
+        method: "POST",
+        url: "/v1/workers/register",
+        headers: fixture.bootstrapHeaders,
+        payload: { ...registration(["compiler"]), workerId },
+      });
+      return String(response.json().sessionToken);
+    };
+    const firstSession = await register("worker-a");
+    const secondSession = await register("worker-b");
+    const firstClaim = await fixture.app.inject({
+      method: "POST",
+      url: "/v1/workers/worker-a/claim",
+      headers: { authorization: `Bearer ${firstSession}` },
+    });
+    const secondClaim = await fixture.app.inject({
+      method: "POST",
+      url: "/v1/workers/worker-b/claim",
+      headers: { authorization: `Bearer ${secondSession}` },
+    });
+    const stolenHeaders = {
+      authorization: `Bearer ${secondSession}`,
+      "x-worker-lease": String(firstClaim.json().job.leaseToken),
+    };
+    const stolen = await Promise.all([
+      fixture.app.inject({
+        method: "GET",
+        url: `/v1/workers/worker-b/jobs/${job.id}/source`,
+        headers: stolenHeaders,
+      }),
+      ...[
+        ["progress", { phase: "prepare", stage: "x", fraction: 0.1 }],
+        ["complete", { result: {} }],
+        ["fail", { message: "failed" }],
+        ["cancelled", {}],
+      ].map(([endpoint, payload]) =>
+        fixture.app.inject({
+          method: "POST",
+          url: `/v1/workers/worker-b/jobs/${job.id}/${String(endpoint)}`,
+          headers: stolenHeaders,
+          payload,
+        }),
+      ),
+      ...["preview-artifact", "artifact"].map((endpoint) =>
+        fixture.app.inject({
+          method: "POST",
+          url: `/v1/workers/worker-b/jobs/${job.id}/${endpoint}`,
+          headers: {
+            ...stolenHeaders,
+            "content-type": "application/octet-stream",
+          },
+          payload: Buffer.from("not-owned"),
+        }),
+      ),
+    ]);
+
+    expect(firstClaim.json().job.leaseToken).not.toBe(firstSession);
+    expect(secondClaim.json().job).toBeNull();
+    expect(stolen.every((response) => response.statusCode === 401)).toBe(true);
+    await fixture.app.close();
+  });
+
+  it("reclaims an expired lease once and rejects its former owner", async () => {
+    let timestamp = 1_000;
+    const workflow = createCreatorWorkflowStore(() => timestamp);
+    const job = addJob(workflow, "PREPARING");
+    const fixture = appFixture(workflow, uploadFixture(), () => timestamp);
+    const register = async (workerId: string) => {
+      const response = await fixture.app.inject({
+        method: "POST",
+        url: "/v1/workers/register",
+        headers: fixture.bootstrapHeaders,
+        payload: { ...registration(["compiler"]), workerId },
+      });
+      return String(response.json().sessionToken);
+    };
+    const firstSession = await register("worker-a");
+    const secondSession = await register("worker-b");
+    const first = await fixture.app.inject({
+      method: "POST",
+      url: "/v1/workers/worker-a/claim",
+      headers: { authorization: `Bearer ${firstSession}` },
+    });
+    timestamp += 90_001;
+    const second = await fixture.app.inject({
+      method: "POST",
+      url: "/v1/workers/worker-b/claim",
+      headers: { authorization: `Bearer ${secondSession}` },
+    });
+    const stale = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${job.id}/fail`,
+      headers: {
+        authorization: `Bearer ${firstSession}`,
+        "x-worker-lease": String(first.json().job.leaseToken),
+      },
+      payload: { message: "late" },
+    });
+
+    expect(second.json().job).toMatchObject({
+      jobId: job.id,
+      attemptId: "attempt-a",
+    });
+    expect(second.json().job.leaseToken).not.toBe(first.json().job.leaseToken);
+    expect(stale.statusCode).toBe(401);
+    expect(workflow.attempts.get(job.id)?.at(-1)?.state).toBe("RUNNING");
+    await fixture.app.close();
+  });
+
+  it("renews a live lease and rejects an expired lease heartbeat", async () => {
+    let timestamp = 1_000;
+    const workflow = createCreatorWorkflowStore(() => timestamp);
+    const job = addJob(workflow, "PREPARING");
+    const fixture = appFixture(workflow, uploadFixture(), () => timestamp);
+    await registerWorker(fixture, ["compiler"]);
+    const claim = await claimWorker(fixture);
+    const leaseToken = String(claim.json().job.leaseToken);
+    const heartbeat = () =>
+      fixture.app.inject({
+        method: "POST",
+        url: "/v1/workers/worker-a/heartbeat",
+        headers: fixture.headers,
+        payload: {
+          capabilities: ["compiler"],
+          leases: [{ jobId: job.id, leaseToken }],
+        },
+      });
+
+    timestamp += 89_000;
+    expect((await heartbeat()).statusCode).toBe(200);
+    timestamp += 89_000;
+    expect((await heartbeat()).statusCode).toBe(200);
+    timestamp += 90_001;
+    expect((await heartbeat()).statusCode).toBe(401);
+    expect(fixture.workers.leases.has(job.id)).toBe(false);
+    expect(workflow.jobs.get(job.id)?.preparationStage).toBe("ANALYSIS_QUEUED");
     await fixture.app.close();
   });
 });

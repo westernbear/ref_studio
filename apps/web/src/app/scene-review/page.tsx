@@ -10,6 +10,7 @@ import {
 } from "../../lib/server-api";
 import { RenderJobButton } from "./RenderJobButton";
 import { ReviewGateControls } from "./ReviewGateControls";
+import { ChoiceResolver } from "./ChoiceResolver";
 
 const gates = ["T1", "T2", "T3", "T4", "T5"] as const;
 type Gate = (typeof gates)[number];
@@ -122,12 +123,14 @@ export default async function SceneReviewPage({
       </CreatorShell>
     );
   const state = text(field(result.body, "state"));
+  const preparationStage = text(field(result.body, "preparationStage"));
   const etag = text(field(result.body, "etag"), "");
   const attempt = numberValue(field(result.body, "attempt"));
   const approvedGates = stringList(field(result.body, "approvedGates"));
   const receipts = receiptsResult.ok ? items(receiptsResult.body) : [];
   const previewArtifactId = text(field(result.body, "previewArtifactId"), "");
   const reviewArtifactId = text(field(result.body, "reviewArtifactId"), "");
+  const authoringVersionId = text(field(result.body, "authoringVersionId"), "");
   const evidenceDigest = text(field(result.body, "evidenceDigest"), "");
   const irDigest = text(field(result.body, "irDigest"), "");
   const runtimeDigest = text(field(result.body, "runtimeDigest"), "");
@@ -136,13 +139,27 @@ export default async function SceneReviewPage({
     "",
   );
   const runtime = field(result.body, "runtimePreflight");
+  const evidence = evidenceResult.ok ? evidenceResult.body : null;
+  const sceneInput = field(evidence, "sceneInput");
+  const owners = list(field(sceneInput, "owners"));
+  const needsChoice = list(field(evidence, "needsChoice"));
+  const pendingChoice = needsChoice[0];
+  const choiceId = text(field(pendingChoice, "choiceId"), "");
+  const ownerIds = owners
+    .map((owner) => text(field(owner, "ownerId"), ""))
+    .filter(Boolean);
   const nextGate: Gate | null =
     state === "AWAITING_T5"
       ? "T5"
-      : state === "READY"
-        ? (gates.slice(0, 4).find((gate) => !approvedGates.includes(gate)) ??
-          null)
-        : null;
+      : preparationStage === "AWAITING_T1"
+        ? "T1"
+        : preparationStage === "AWAITING_T2"
+          ? "T2"
+          : preparationStage === "AWAITING_T3"
+            ? "T3"
+            : preparationStage === "AWAITING_T4"
+              ? "T4"
+              : null;
   const predecessorGate = nextGate
     ? gates[gates.indexOf(nextGate) - 1]
     : undefined;
@@ -151,13 +168,13 @@ export default async function SceneReviewPage({
       null
     : null;
   const artifactRefs =
-    nextGate === "T3" || nextGate === "T4"
-      ? previewArtifactId
+    nextGate === "T3" && authoringVersionId
+      ? [authoringVersionId]
+      : nextGate === "T4" && previewArtifactId
         ? [previewArtifactId]
-        : []
-      : nextGate === "T5" && reviewArtifactId
-        ? [reviewArtifactId]
-        : [];
+        : nextGate === "T5" && reviewArtifactId
+          ? [reviewArtifactId]
+          : [];
   const canReview =
     nextGate !== null &&
     Boolean(
@@ -167,15 +184,17 @@ export default async function SceneReviewPage({
         releaseBaselineDigest &&
         text(field(runtime, "status"), "") === "PASS" &&
         (nextGate === "T1" || predecessorReceiptId) &&
+        (nextGate !== "T2" || (evidence && needsChoice.length === 0)) &&
         (!["T3", "T4", "T5"].includes(nextGate) || artifactRefs.length > 0),
     );
-  const evidence = evidenceResult.ok ? evidenceResult.body : null;
-  const sceneInput = field(evidence, "sceneInput");
-  const owners = list(field(sceneInput, "owners"));
   const tracks = list(field(sceneInput, "tracks"));
   const mappings = field(evidence, "mappings");
   const observed = field(evidence, "observed");
   const temporalVolume = field(observed, "temporalVolume");
+  const matting = field(observed, "matting");
+  const depth = field(observed, "depth");
+  const camera = field(observed, "camera");
+  const audio = field(observed, "audio");
   const startFrame = numberValue(field(result.body, "startFrame"));
   const sourceFps = numberValue(field(result.body, "sourceFps"));
   const sourceStart = sourceFps > 0 ? startFrame / sourceFps : 0;
@@ -202,6 +221,10 @@ export default async function SceneReviewPage({
             <Detail label="Job" value={text(field(result.body, "id"))} />
             <Detail label="State" value={state} />
             <Detail
+              label="Preparation"
+              value={preparationStage || "Not active"}
+            />
+            <Detail
               label="Attempt"
               value={text(field(result.body, "attempt"), "0")}
             />
@@ -215,7 +238,7 @@ export default async function SceneReviewPage({
             />
             <Detail
               label="Approved gates"
-              value={`${approvedGates.length}/6`}
+              value={`${approvedGates.length}/5`}
             />
             <Detail
               label="Runtime"
@@ -242,7 +265,11 @@ export default async function SceneReviewPage({
             </div>
           ) : null}
         </Panel>
-        <section className="review-media-section" aria-labelledby="media-title">
+        <section
+          className="review-media-section"
+          aria-labelledby="media-title"
+          data-landmark="preview"
+        >
           <div className="section-heading">
             <div>
               <h2 id="media-title">Reference and animatic</h2>
@@ -269,7 +296,7 @@ export default async function SceneReviewPage({
             </figure>
           </div>
         </section>
-        <Panel>
+        <Panel data-landmark="evidence-panel">
           <div className="section-heading">
             <div>
               <h2>Compiler evidence</h2>
@@ -278,6 +305,12 @@ export default async function SceneReviewPage({
           </div>
           {evidence ? (
             <>
+              <div className="review-subsection-heading">
+                <h3>Measurement evidence</h3>
+                <p>
+                  Coverage recorded across the selected four-second interval.
+                </p>
+              </div>
               <dl className="metric-grid">
                 <Detail
                   label="Evidence"
@@ -321,8 +354,31 @@ export default async function SceneReviewPage({
                   label="Effects"
                   value={String(keys(field(sceneInput, "effects")).length)}
                 />
+                <Detail
+                  label="Matte samples"
+                  value={String(list(field(matting, "frames")).length)}
+                />
+                <Detail
+                  label="Depth samples"
+                  value={String(list(field(depth, "medianNormalized")).length)}
+                />
+                <Detail
+                  label="Camera samples"
+                  value={String(list(field(camera, "frames")).length)}
+                />
+                <Detail
+                  label="Audio anchors"
+                  value={String(list(field(audio, "anchors")).length)}
+                />
               </dl>
-              <div className="table-wrap review-evidence-table">
+              <div className="review-subsection-heading">
+                <h3>Owner mapping</h3>
+                <p>Measured objects bound to editable scene owners.</p>
+              </div>
+              <div
+                className="table-wrap review-evidence-table"
+                data-landmark="mapping-table"
+              >
                 <table className="live-table">
                   <thead>
                     <tr>
@@ -372,7 +428,7 @@ export default async function SceneReviewPage({
             <p className="empty-copy">Compiler evidence is still pending.</p>
           )}
         </Panel>
-        <Panel>
+        <Panel data-landmark="timeline">
           <div className="section-heading">
             <div>
               <h2>Approval chain</h2>
@@ -405,6 +461,15 @@ export default async function SceneReviewPage({
               );
             })}
           </ol>
+          {preparationStage === "AWAITING_T2" && choiceId && etag ? (
+            <ChoiceResolver
+              jobId={jobId}
+              etag={etag}
+              choiceId={choiceId}
+              choiceReason={text(field(pendingChoice, "reason"), "")}
+              ownerIds={ownerIds}
+            />
+          ) : null}
           {canReview && nextGate ? (
             <ReviewGateControls
               jobId={jobId}

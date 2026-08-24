@@ -50,6 +50,8 @@ export function migrate(db) {
     [1, "./migrations/001_initial.sql", false],
     [2, "./migrations/002_allow_duplicate_cas.sql", true],
     [3, "./migrations/003_remove_demo_seed.sql", true],
+    [4, "./migrations/004_runtime_durability.sql", false],
+    [5, "./migrations/005_worker_lifecycle.sql", false],
   ];
   for (const [version, file, disableForeignKeys] of migrations) {
     if (

@@ -56,7 +56,7 @@ try {
 const legacyDb = new Database(":memory:");
 legacyDb.pragma("foreign_keys = ON");
 legacyDb.exec(
-  "CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL); INSERT INTO schema_migrations VALUES (1, datetime('now')), (3, datetime('now')); CREATE TABLE tenants (id TEXT PRIMARY KEY); INSERT INTO tenants VALUES ('ten_legacy'); CREATE TABLE cas_objects (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, sha256 TEXT NOT NULL, content_type TEXT NOT NULL, size_bytes INTEGER NOT NULL CHECK (size_bytes >= 0), purpose TEXT NOT NULL, retention_until TEXT NOT NULL, UNIQUE (tenant_id,sha256), UNIQUE (tenant_id,id), FOREIGN KEY (tenant_id) REFERENCES tenants(id))",
+  "CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL); INSERT INTO schema_migrations VALUES (1, datetime('now')), (3, datetime('now')); CREATE TABLE tenants (id TEXT PRIMARY KEY); INSERT INTO tenants VALUES ('ten_legacy'); CREATE TABLE reviewer_assignments (id TEXT PRIMARY KEY, tenant_id TEXT, reviewer_id TEXT NOT NULL, gate TEXT NOT NULL, scope TEXT NOT NULL, created_at TEXT NOT NULL); CREATE TABLE cas_objects (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, sha256 TEXT NOT NULL, content_type TEXT NOT NULL, size_bytes INTEGER NOT NULL CHECK (size_bytes >= 0), purpose TEXT NOT NULL, retention_until TEXT NOT NULL, UNIQUE (tenant_id,sha256), UNIQUE (tenant_id,id), FOREIGN KEY (tenant_id) REFERENCES tenants(id))",
 );
 migrate(legacyDb);
 legacyDb.exec(
@@ -77,7 +77,7 @@ assert.equal(
   0,
 );
 db.exec(
-  "INSERT INTO tenants VALUES ('ten_test','Test Studio','ORGANIZATION','ACTIVE',0,'2026-08-22T00:00:00Z'); INSERT INTO users VALUES ('usr_owner','owner@example.test','Test Owner','2026-08-22T00:00:00Z'), ('usr_reviewer','reviewer@example.test','Test Reviewer','2026-08-22T00:00:00Z'); INSERT INTO tenant_memberships VALUES ('ten_test','usr_owner','OWNER','2026-08-22T00:00:00Z'), ('ten_test','usr_reviewer','DESIGNATED_REVIEWER','2026-08-22T00:00:00Z'); INSERT INTO reviewer_assignments VALUES ('asn_test_t1','ten_test','usr_reviewer','T1','TENANT','2026-08-22T00:00:00Z'), ('asn_test_t2','ten_test','usr_reviewer','T2','TENANT','2026-08-22T00:00:00Z'), ('asn_test_t3','ten_test','usr_reviewer','T3','TENANT','2026-08-22T00:00:00Z'), ('asn_test_t4','ten_test','usr_reviewer','T4','TENANT','2026-08-22T00:00:00Z'), ('asn_test_t5','ten_test','usr_reviewer','T5','TENANT','2026-08-22T00:00:00Z')",
+  "INSERT INTO tenants VALUES ('ten_test','Test Studio','ORGANIZATION','ACTIVE',0,'2026-08-22T00:00:00Z'); INSERT INTO users VALUES ('usr_owner','owner@example.test','Test Owner','2026-08-22T00:00:00Z'), ('usr_reviewer','reviewer@example.test','Test Reviewer','2026-08-22T00:00:00Z'); INSERT INTO tenant_memberships VALUES ('ten_test','usr_owner','OWNER','2026-08-22T00:00:00Z'), ('ten_test','usr_reviewer','DESIGNATED_REVIEWER','2026-08-22T00:00:00Z'); INSERT INTO reviewer_assignments(id,tenant_id,reviewer_id,gate,scope,created_at) VALUES ('asn_test_t1','ten_test','usr_reviewer','T1','TENANT','2026-08-22T00:00:00Z'), ('asn_test_t2','ten_test','usr_reviewer','T2','TENANT','2026-08-22T00:00:00Z'), ('asn_test_t3','ten_test','usr_reviewer','T3','TENANT','2026-08-22T00:00:00Z'), ('asn_test_t4','ten_test','usr_reviewer','T4','TENANT','2026-08-22T00:00:00Z'), ('asn_test_t5','ten_test','usr_reviewer','T5','TENANT','2026-08-22T00:00:00Z')",
 );
 db.exec(
   "INSERT INTO uploads VALUES ('upl_a','ten_test','a.mp4','video/mp4',1,'ACCEPTED',NULL,'2026-08-22T00:00:00Z','2026-08-23T00:00:00Z')",
@@ -128,10 +128,33 @@ assert.equal(
     .all()[0],
   1,
 );
+assert.deepEqual(
+  db
+    .prepare("SELECT version FROM schema_migrations ORDER BY version")
+    .pluck()
+    .all(),
+  [1, 2, 3, 4, 5],
+);
+assert.equal(
+  db
+    .prepare(
+      "SELECT name FROM pragma_table_info('reviewer_assignments') WHERE name='release_id'",
+    )
+    .pluck()
+    .get(),
+  "release_id",
+);
+db.prepare(
+  "INSERT INTO runtime_review_receipts VALUES ('runtime_rcpt',NULL,'ten_test','job_a','T1',1,1,'{}')",
+).run();
+rejection(
+  "UPDATE runtime_review_receipts SET value_json='{\"changed\":true}' WHERE id='runtime_rcpt'",
+);
+rejection("DELETE FROM runtime_review_receipts WHERE id='runtime_rcpt'");
 console.log(
   JSON.stringify({
     integrity: db.pragma("integrity_check", { simple: true }),
-    negativeCases: 4,
+    negativeCases: 6,
     duplicateCasAllowed: true,
     singleClaim: true,
     orderedReceipts: true,

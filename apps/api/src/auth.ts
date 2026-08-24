@@ -42,6 +42,7 @@ export type Assignment = {
   readonly tenantId: string | null;
   readonly gate: string;
   readonly scope: "TENANT" | "RELEASE";
+  readonly releaseId?: string | null;
 };
 export type Session = {
   readonly id: string;

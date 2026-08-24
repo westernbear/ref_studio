@@ -88,6 +88,45 @@ const headers = (userId: string, key: string, version = 1) => ({
 const body = (reason = "operator reason") => ({ reason });
 
 describe("admin-mutation", () => {
+  it("allows an origin-checked admin session to create an export", async () => {
+    const data = fixture();
+    data.auth.sessions.push({
+      id: "session-admin",
+      userId: "super",
+      tenantId: "platform",
+      expiresAt: Date.now() + 10000,
+      revokedAt: null,
+    });
+    const response = await appFor(data).inject({
+      method: "POST",
+      url: "/admin/audit-exports",
+      headers: {
+        cookie: "rvs_session=session-admin",
+        origin: "https://admin.test",
+        "x-csrf-token": "web-proxy",
+        "idempotency-key": "session-export",
+      },
+      payload: { format: "jsonl", reason: "browser export" },
+    });
+
+    expect(response.statusCode).toBe(202);
+    expect(response.json()).toMatchObject({ state: "PENDING" });
+
+    const foreign = await appFor(data).inject({
+      method: "POST",
+      url: "/admin/audit-exports",
+      headers: {
+        cookie: "rvs_session=session-admin",
+        origin: "https://foreign.test",
+        "x-csrf-token": "web-proxy",
+        "idempotency-key": "foreign-export",
+      },
+      payload: { format: "jsonl", reason: "browser export" },
+    });
+    expect(foreign.statusCode).toBe(403);
+    expect(foreign.json().error.code).toBe("CSRF_ORIGIN_INVALID");
+  });
+
   it("covers job cancel and retry for assigned ops with exact audited replay", async () => {
     const data = fixture();
     const app = appFor(data);

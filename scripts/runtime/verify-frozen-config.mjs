@@ -35,7 +35,6 @@ for (const service of [
   "runtime",
   "runtime-preflight",
   "compiler",
-  "worker",
   "web",
   "api",
   "qa",
@@ -45,7 +44,7 @@ for (const service of [
     throw new Error(`RUNTIME_CONFIG_UNFROZEN missing service ${service}`);
 }
 
-for (const service of ["runtime", "runtime-preflight", "compiler", "worker"]) {
+for (const service of ["runtime", "runtime-preflight", "compiler"]) {
   if (!serviceBlock(service).includes("network_mode: none")) {
     throw new Error(
       `RUNTIME_CONFIG_UNFROZEN ${service} is not network-isolated`,
@@ -56,12 +55,23 @@ if (!compose.match(/appnet:\n    internal: true/))
   throw new Error("RUNTIME_CONFIG_UNFROZEN appnet is not internal");
 
 for (const service of ["web", "api"]) {
-  if (!serviceBlock(service).includes("networks: [appnet]")) {
+  const config = serviceBlock(service);
+  if (!config.includes("networks: [appnet, default]")) {
     throw new Error(
-      `RUNTIME_CONFIG_UNFROZEN ${service} is not confined to appnet`,
+      `RUNTIME_CONFIG_UNFROZEN ${service} network topology changed`,
     );
   }
+  if (!config.includes("restart: always"))
+    throw new Error(
+      `RUNTIME_CONFIG_UNFROZEN ${service} restart policy changed`,
+    );
 }
+if (
+  !serviceBlock("api").includes(
+    "RVS_WORKER_TOKEN: ${RVS_WORKER_TOKEN:?RVS_WORKER_TOKEN must be set}",
+  )
+)
+  throw new Error("RUNTIME_CONFIG_UNFROZEN API worker token is not required");
 if (!serviceBlock("qa").includes("network_mode: none"))
   throw new Error("RUNTIME_CONFIG_UNFROZEN qa is not network-isolated");
 

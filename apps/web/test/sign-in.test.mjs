@@ -4,6 +4,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   forwardedSetCookie,
   internalApiUrl,
+  proxyAdmin,
+  proxyLogout,
+  proxySignIn,
   proxyV1,
 } from "../src/app/api/auth-proxy";
 
@@ -24,6 +27,7 @@ describe("shared sign-in contract", () => {
     resetEnv("NEXT_PUBLIC_API_URL");
     resetEnv("RVS_INTERNAL_API_URL");
     resetEnv("RVS_INSECURE_COOKIES");
+    resetEnv("RVS_EXPECTED_ORIGIN");
     vi.unstubAllGlobals();
   });
 
@@ -77,7 +81,61 @@ describe("shared sign-in contract", () => {
     ).toBe("rvs_session=fixture; Path=/; HttpOnly; SameSite=Lax");
   });
 
+  it("requires the configured browser origin before proxying sign-in", async () => {
+    process.env.RVS_EXPECTED_ORIGIN = "https://studio.invalid";
+    const fetchMock = vi.fn(async (_url, init) => {
+      expect(init.headers.origin).toBe("https://studio.invalid");
+      return Response.json(
+        { ok: true },
+        { headers: { "set-cookie": "rvs_session=fixture; Secure" } },
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const missing = await proxySignIn(
+      new Request("https://studio.invalid/api/sign-in", {
+        method: "POST",
+        body: JSON.stringify({
+          email: "user@example.test",
+          password: "secret",
+        }),
+      }),
+      "/sign-in",
+    );
+    const foreign = await proxySignIn(
+      new Request("https://studio.invalid/api/admin/sign-in", {
+        method: "POST",
+        headers: { origin: "https://evil.invalid" },
+        body: JSON.stringify({
+          email: "user@example.test",
+          password: "secret",
+        }),
+      }),
+      "/admin/sign-in",
+    );
+    const allowed = await proxySignIn(
+      new Request("https://studio.invalid/api/sign-in", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "https://studio.invalid",
+        },
+        body: JSON.stringify({
+          email: "user@example.test",
+          password: "secret",
+        }),
+      }),
+      "/sign-in",
+    );
+
+    expect(missing.status).toBe(403);
+    expect(foreign.status).toBe(403);
+    expect(allowed.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("forwards 204 responses without constructing a forbidden body", async () => {
+    process.env.RVS_EXPECTED_ORIGIN = "http://localhost:3100";
     vi.stubGlobal(
       "fetch",
       vi.fn(
@@ -91,6 +149,7 @@ describe("shared sign-in contract", () => {
     const response = await proxyV1(
       new Request("http://localhost/api/v1/uploads/upl_a/chunks/0", {
         method: "PUT",
+        headers: { origin: "http://localhost:3100" },
         body: Uint8Array.from([1]),
       }),
       ["uploads", "upl_a", "chunks", "0"],
@@ -99,5 +158,61 @@ describe("shared sign-in contract", () => {
     expect(response.status).toBe(204);
     expect(response.headers.get("x-received-bytes")).toBe("12");
     expect((await response.arrayBuffer()).byteLength).toBe(0);
+  });
+
+  it("rejects foreign mutation origins before any proxy request", async () => {
+    process.env.RVS_EXPECTED_ORIGIN = "https://studio.invalid";
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const request = (path) =>
+      new Request(`https://studio.invalid${path}`, {
+        method: "POST",
+        headers: { origin: "https://foreign.invalid" },
+        body: "{}",
+      });
+
+    const responses = await Promise.all([
+      proxyLogout(request("/api/logout")),
+      proxyV1(request("/api/v1/reviews"), ["reviews"]),
+      proxyAdmin(request("/api/admin/audit-exports"), ["audit-exports"]),
+    ]);
+
+    expect(responses.map((response) => response.status)).toEqual([
+      403, 403, 403,
+    ]);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("proxies allowlisted admin exports with session and request fencing", async () => {
+    process.env.RVS_EXPECTED_ORIGIN = "https://studio.invalid";
+    process.env.RVS_INTERNAL_API_URL = "";
+    const fetchMock = vi.fn(async (url, init) => {
+      expect(url).toBe("http://127.0.0.1:3200/admin/audit-exports");
+      expect(init.headers.get("cookie")).toBe("rvs_session=fixture");
+      expect(init.headers.get("origin")).toBe("https://studio.invalid");
+      expect(init.headers.get("x-csrf-token")).toBe("web-proxy");
+      return Response.json(
+        { exportId: "exp_a", state: "PENDING" },
+        { status: 202 },
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await proxyAdmin(
+      new Request("https://studio.invalid/api/admin/audit-exports", {
+        method: "POST",
+        headers: {
+          cookie: "rvs_session=fixture",
+          "content-type": "application/json",
+          "idempotency-key": "export-a",
+          origin: "https://studio.invalid",
+        },
+        body: JSON.stringify({ format: "jsonl", reason: "test" }),
+      }),
+      ["audit-exports"],
+    );
+
+    expect(response.status).toBe(202);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

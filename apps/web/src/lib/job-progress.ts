@@ -1,6 +1,7 @@
 export type JobProgress = {
   readonly id: string;
   readonly state: string;
+  readonly preparationStage: string;
   readonly attempt: number;
   readonly updatedAt: string;
   readonly artifactId: string;
@@ -50,15 +51,9 @@ export const progressStages = [
   },
 ] as const;
 
-export const approvalGates = ["T1", "T2", "T3", "T4", "T5", "T6"] as const;
+export const approvalGates = ["T1", "T2", "T3", "T4", "T5"] as const;
 
-const terminalStates = [
-  "COMPLETED",
-  "CANCELLED",
-  "FAILED",
-  "RETRYABLE_ERROR",
-  "STALE_APPROVAL",
-] as const;
+const terminalStates = ["COMPLETED", "CANCELLED", "FAILED"] as const;
 
 const field = (value: unknown, key: string): unknown =>
   value !== null && typeof value === "object" ? Reflect.get(value, key) : "";
@@ -85,6 +80,7 @@ export const parseJobProgress = (value: unknown): JobProgress | null => {
   return {
     id,
     state: text(field(value, "state")) || "QUEUED",
+    preparationStage: text(field(value, "preparationStage")),
     attempt: numberValue(field(value, "attempt")),
     updatedAt: text(field(value, "updatedAt")),
     artifactId: text(field(artifact, "id")),
@@ -122,10 +118,22 @@ export const jobStatusCopy = (job: JobProgress): string => {
     return job.progressStage
       ? `Renderer active: ${job.progressStage}.`
       : "Reference renderer active.";
-  if (state === "PREPARING")
-    return job.progressStage
-      ? `Compiler active: ${job.progressStage}.`
-      : "Preparing compiler inputs.";
+  if (state === "PREPARING" || state === "STALE_APPROVAL") {
+    if (job.progressStage) return `Compiler active: ${job.progressStage}.`;
+    const stageCopy: Readonly<Record<string, string>> = {
+      AWAITING_T1: "Awaiting T1 input and runtime approval.",
+      ANALYSIS_QUEUED: "Reference analysis is queued.",
+      ANALYSIS_RUNNING: "Reference analysis is running.",
+      AWAITING_T2: "Measured evidence is awaiting T2 review.",
+      COMPILATION_QUEUED: "Scene compilation is queued.",
+      COMPILATION_RUNNING: "Scene compilation is running.",
+      AWAITING_T3: "Authoring IR is awaiting T3 review.",
+      PREVIEW_QUEUED: "Animatic preview is queued.",
+      PREVIEW_RUNNING: "Animatic preview is rendering.",
+      AWAITING_T4: "Animatic preview is awaiting T4 review.",
+    };
+    return stageCopy[job.preparationStage] ?? "Preparing compiler inputs.";
+  }
   if (state === "READY") return "Ready for queue admission.";
   if (state === "ASSEMBLING") return "Assembling compiler output.";
   if (state === "AWAITING_T5") return "Awaiting final delivery gate.";
@@ -134,7 +142,7 @@ export const jobStatusCopy = (job: JobProgress): string => {
 
 export const liveJobStatusError = (value: unknown, status: number): string => {
   const code = text(field(field(value, "error"), "code")) || `HTTP_${status}`;
-  return `Live job status is unavailable: ${code}.`;
+  return `Job status update failed: ${code}. Retrying.`;
 };
 
 export const formatJobStamp = (value: string): string =>

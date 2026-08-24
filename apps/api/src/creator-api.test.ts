@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { buildAuthApp } from "./app.js";
 import { hashBearer, type Assignment, type AuthStore } from "./auth.js";
@@ -9,6 +12,37 @@ import {
 } from "./creator-workflow.js";
 import { createReviewStore } from "./reviews.js";
 import { createUpload, finalizeUpload, type UploadStore } from "./uploads.js";
+
+const preflight = {
+  status: "PASS",
+  chromiumVersion: "151.0.7922.138",
+  renderer: "ANGLE SwiftShader",
+  fontReady: true,
+  webgl2: true,
+  networkPolicy: "external-blocked",
+  repeatedFrameByteIdentity: true,
+  ffmpeg: true,
+  ffprobe: true,
+  compilerModels: true,
+  runtimeDigest: RUNTIME_DIGEST,
+} as const;
+const compilation = {
+  authoring: {
+    versionId: "air_test",
+    digest: "a".repeat(64),
+    parentDigest: null,
+  },
+  scene: {
+    versionId: "sir_test",
+    digest: "b".repeat(64),
+    parentDigest: "a".repeat(64),
+  },
+  browserPassSpec: {
+    versionId: "bps_test",
+    digest: "c".repeat(64),
+    parentDigest: "b".repeat(64),
+  },
+} as const;
 
 const fixture = (): {
   readonly app: ReturnType<typeof buildAuthApp>;
@@ -77,6 +111,7 @@ const fixture = (): {
   finalizeUpload(uploads, "ten_a", upload.id);
   upload.media = { fps: 30, frameCount: 120, durationSeconds: 4 };
   const workflow = createCreatorWorkflowStore();
+  workflow.availablePreflight = preflight;
   const reviews = createReviewStore();
   const app = buildAuthApp({
     store: auth,
@@ -100,39 +135,33 @@ const jobPayload = (uploadId: string, startFrame = 0) => ({
   startFrame,
   outputProfile: "vertical-1080p30",
 });
-const approveThroughT4 = async (
+const approveGate = async (
   state: ReturnType<typeof fixture>,
   job: Job,
-): Promise<void> => {
-  let predecessorReceiptId: string | null = null;
-  for (const gate of ["T1", "T2", "T3", "T4"] as const) {
-    const response: { readonly statusCode: number; readonly body: string } =
-      await state.app.inject({
-        method: "POST",
-        url: "/v1/reviews",
-        headers: reviewerHeaders,
-        payload: {
-          jobId: job.id,
-          attempt: job.attempt,
-          gate,
-          decision: "APPROVED",
-          predecessorReceiptId,
-          evidenceDigest: job.evidenceDigest,
-          irDigest: job.irDigest,
-          runtimeDigest: RUNTIME_DIGEST,
-          releaseBaselineDigest: RELEASE_BASELINE_DIGEST,
-          reason: `approve ${gate}`,
-          artifactRefs:
-            gate === "T3" || gate === "T4"
-              ? [state.workflow.previews.get(job.id)?.id].filter(
-                  (value): value is string => Boolean(value),
-                )
-              : [],
-        },
-      });
-    expect(response.statusCode).toBe(201);
-    predecessorReceiptId = JSON.parse(response.body).receipt.id;
-  }
+  gate: "T1" | "T2" | "T3" | "T4",
+  predecessorReceiptId: string | null,
+  artifactRefs: readonly string[] = [],
+): Promise<string> => {
+  const response = await state.app.inject({
+    method: "POST",
+    url: "/v1/reviews",
+    headers: reviewerHeaders,
+    payload: {
+      jobId: job.id,
+      attempt: job.attempt,
+      gate,
+      decision: "APPROVED",
+      predecessorReceiptId,
+      evidenceDigest: job.evidenceDigest,
+      irDigest: job.irDigest,
+      runtimeDigest: RUNTIME_DIGEST,
+      releaseBaselineDigest: RELEASE_BASELINE_DIGEST,
+      reason: `approve ${gate}`,
+      artifactRefs,
+    },
+  });
+  expect(response.statusCode, response.body).toBe(201);
+  return String(response.json().receipt.id);
 };
 const assertSafe = (value: unknown): void => {
   if (Array.isArray(value)) {
@@ -178,7 +207,80 @@ describe("creator workflow API", () => {
     expect(receipts.json().items).toEqual([]);
     await state.app.close();
   });
-  it("exposes ready jobs and requires explicit approval to launch render", async () => {
+  it("streams a file-backed reference video", async () => {
+    const state = fixture();
+    const upload = [...state.uploads.uploads.values()][0];
+    if (!upload) throw new Error("test upload was not created");
+    const directory = mkdtempSync(join(tmpdir(), "rvs-source-"));
+    const sourcePath = join(directory, "source.mp4");
+    writeFileSync(sourcePath, Buffer.concat(upload.chunks));
+    upload.casPath = sourcePath;
+    upload.chunks.length = 0;
+
+    try {
+      const created = await state.app.inject({
+        method: "POST",
+        url: "/v1/jobs",
+        headers: { ...headers, "idempotency-key": "file-source-create" },
+        payload: jobPayload(upload.id),
+      });
+      const source = await state.app.inject({
+        method: "GET",
+        url: `/v1/jobs/${created.json().id}/source-download`,
+        headers,
+      });
+
+      expect(source.statusCode).toBe(200);
+      expect(source.headers["content-length"]).toBe("12");
+      expect(source.rawPayload.byteLength).toBe(12);
+    } finally {
+      await state.app.close();
+      rmSync(directory, { force: true, recursive: true });
+    }
+  });
+  it("paginates and filters the creator job list with stable cursors", async () => {
+    const state = fixture();
+    const uploadId = [...state.uploads.uploads.keys()][0];
+    const created = [];
+    for (const key of ["page-a", "page-b"]) {
+      const response = await state.app.inject({
+        method: "POST",
+        url: "/v1/jobs",
+        headers: { ...headers, "idempotency-key": key },
+        payload: jobPayload(uploadId),
+      });
+      created.push(response.json().id as string);
+    }
+    const first = await state.app.inject({
+      method: "GET",
+      url: "/v1/jobs?limit=1",
+      headers,
+    });
+    const second = await state.app.inject({
+      method: "GET",
+      url: `/v1/jobs?limit=1&after=${first.json().nextCursor}`,
+      headers,
+    });
+    const filtered = await state.app.inject({
+      method: "GET",
+      url: `/v1/jobs?q=${encodeURIComponent(created[1] ?? "")}`,
+      headers,
+    });
+
+    expect(first.json()).toMatchObject({
+      nextCursor: "1",
+      pageInfo: { hasNextPage: true, hasPreviousPage: false },
+    });
+    expect(second.json().pageInfo).toEqual({
+      hasNextPage: false,
+      hasPreviousPage: true,
+    });
+    expect(
+      filtered.json().items.map((item: { id: string }) => item.id),
+    ).toEqual([created[1]]);
+    await state.app.close();
+  });
+  it("resolves ambiguity before T2 and launches only the T4-approved IR", async () => {
     const state = fixture();
     const uploadId = [...state.uploads.uploads.keys()][0];
     const created = await state.app.inject({
@@ -190,35 +292,15 @@ describe("creator workflow API", () => {
     const job = state.workflow.jobs.get(created.json().id);
     expect(job).toBeDefined();
     if (!job) throw new Error("test job was not created");
-    job.state = "READY";
-    job.runtimePreflight = {
-      status: "PASS",
-      chromiumVersion: "151.0.7922.138",
-      renderer: "ANGLE SwiftShader",
-      fontReady: true,
-      webgl2: true,
-      networkPolicy: "external-blocked",
-      repeatedFrameByteIdentity: true,
-      ffmpeg: true,
-      ffprobe: true,
-      compilerModels: true,
-      runtimeDigest: RUNTIME_DIGEST,
-    };
-    state.workflow.previews.set(job.id, {
-      id: "preview-ready",
-      jobId: job.id,
-      tenantId: job.tenantId,
-      kind: "preview",
-      filename: `${job.id}-preview.mp4`,
-      contentType: "video/mp4",
-      bytes: Uint8Array.from([4, 5, 6]),
-      sha256: "b".repeat(64),
-      sizeBytes: 3,
-      createdAt: "2026-01-01T00:00:00.000Z",
-      expiresAt: "2026-01-02T00:00:00.000Z",
-      report: null,
-    });
+    const t1 = await approveGate(state, job, "T1", null);
     job.evidence = {
+      state: "NEEDS_CHOICE",
+      needsChoice: [
+        {
+          choiceId: "choice_font_family",
+          options: ["Inter", "Arial"],
+        },
+      ],
       sceneInput: {
         owners: [
           {
@@ -237,11 +319,107 @@ describe("creator workflow API", () => {
             effects: ["bloom"],
           },
         ],
-        needsChoice: [{ id: "font", options: ["Inter", "Arial"] }],
+        needsChoice: [
+          {
+            choiceId: "choice_font_family",
+            options: ["Inter", "Arial"],
+          },
+        ],
       },
     };
+    job.evidenceDigest = "e".repeat(64);
+    job.irDigest = compilation.browserPassSpec.digest;
+    job.pendingCompilation = compilation;
+    job.preparationStage = "AWAITING_T2";
+    const choiceEtag = job.etag;
+    const choices = await state.app.inject({
+      method: "GET",
+      url: `/v1/jobs/${job.id}/choices`,
+      headers,
+    });
+    const blockedEligibility = await state.app.inject({
+      method: "GET",
+      url: `/v1/jobs/${job.id}/render`,
+      headers,
+    });
+    const blockedLaunch = await state.app.inject({
+      method: "POST",
+      url: `/v1/jobs/${job.id}/render`,
+      headers: {
+        ...headers,
+        "if-match": choiceEtag,
+        "idempotency-key": "ready-render-unresolved-choice",
+      },
+      payload: {},
+    });
+    expect(blockedEligibility.json()).toMatchObject({
+      eligible: false,
+      reason: "UNRESOLVED_CHOICE_SKIPPED",
+    });
+    expect(blockedLaunch.statusCode).toBe(409);
+    expect(blockedLaunch.json().error.code).toBe("JOB_NOT_READY");
+    const resolved = await state.app.inject({
+      method: "POST",
+      url: `/v1/jobs/${job.id}/choices`,
+      headers: {
+        ...headers,
+        "if-match": choiceEtag,
+        "idempotency-key": "resolve-font-family-choice",
+      },
+      payload: {
+        choiceId: "choice_font_family",
+        polygonOrOwner: { ownerId: "title" },
+        reason: "Assign the measured text to the title owner.",
+      },
+    });
+    const resolvedChoices = await state.app.inject({
+      method: "GET",
+      url: `/v1/jobs/${job.id}/choices`,
+      headers,
+    });
+    expect(resolved.statusCode).toBe(201);
+    expect(resolved.json()).toMatchObject({
+      evidenceDigest: job.evidenceDigest,
+      irDigest: job.irDigest,
+    });
+    expect(resolvedChoices.json().choices).toEqual([]);
+    job.pendingCompilation = compilation;
+    job.irDigest = compilation.browserPassSpec.digest;
+    job.preparationStage = "AWAITING_T2";
+    const t2 = await approveGate(state, job, "T2", t1);
+    const t3 = await approveGate(state, job, "T3", t2, [
+      compilation.authoring.versionId,
+    ]);
+    state.workflow.previews.set(job.id, {
+      id: "preview-ready",
+      jobId: job.id,
+      tenantId: job.tenantId,
+      kind: "preview",
+      filename: `${job.id}-preview.mp4`,
+      contentType: "video/mp4",
+      bytes: Uint8Array.from([4, 5, 6]),
+      sha256: "b".repeat(64),
+      sizeBytes: 3,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      expiresAt: "2026-01-02T00:00:00.000Z",
+      report: null,
+    });
+    job.previewSpecDigest = compilation.browserPassSpec.digest;
+    job.preparationStage = "AWAITING_T4";
+    const beforeT4 = await state.app.inject({
+      method: "POST",
+      url: `/v1/jobs/${job.id}/render`,
+      headers: {
+        ...headers,
+        "if-match": job.etag,
+        "idempotency-key": "render-before-t4",
+      },
+      payload: {},
+    });
+    expect(beforeT4.statusCode).toBe(409);
+    expect(beforeT4.json().error.code).toBe("JOB_NOT_READY");
+    await approveGate(state, job, "T4", t3, ["preview-ready"]);
     const readyEtag = job.etag;
-
     const detail = await state.app.inject({
       method: "GET",
       url: `/v1/jobs/${job.id}`,
@@ -267,25 +445,6 @@ describe("creator workflow API", () => {
       url: `/v1/jobs/${job.id}/topology`,
       headers,
     });
-    const choices = await state.app.inject({
-      method: "GET",
-      url: `/v1/jobs/${job.id}/choices`,
-      headers,
-    });
-    const missingApproval = await state.app.inject({
-      method: "POST",
-      url: `/v1/jobs/${job.id}/render`,
-      headers: {
-        ...headers,
-        "if-match": readyEtag,
-        "idempotency-key": "ready-render-missing-approval",
-      },
-      payload: {},
-    });
-    expect(missingApproval.statusCode).toBe(409);
-    expect(missingApproval.json().error.code).toBe("APPROVAL_REQUIRED");
-
-    await approveThroughT4(state, job);
     const reviewerLaunch = await state.app.inject({
       method: "POST",
       url: `/v1/jobs/${job.id}/render`,
@@ -325,9 +484,7 @@ describe("creator workflow API", () => {
       owners: [{ ownerId: "title" }],
       tracks: [{ trackId: "track-title", owner: "title" }],
     });
-    expect(choices.json().choices).toEqual([
-      { id: "font", options: ["Inter", "Arial"] },
-    ]);
+    expect(choices.json().choices).toHaveLength(1);
     expect(reviewerLaunch.statusCode).toBe(403);
     expect(reviewerLaunch.json().error.code).toBe("ROLE_NOT_PERMITTED");
     expect(launch.statusCode).toBe(202);
@@ -419,6 +576,28 @@ describe("creator workflow API", () => {
       url: `/v1/jobs/${jobId}/evidence`,
       headers,
     });
+    const job = state.workflow.jobs.get(jobId);
+    if (!job) throw new Error("fixture job missing");
+    job.state = "READY";
+    job.preparationStage = "READY";
+    job.evidence = {
+      state: "MAPPED",
+      sceneInput: {
+        owners: [
+          {
+            ownerId: "title",
+            kind: "text-word",
+            editable: true,
+            confidence: 1,
+          },
+        ],
+        tracks: [],
+        needsChoice: [],
+      },
+    };
+    job.compilation = compilation;
+    job.irDigest = compilation.browserPassSpec.digest;
+    job.approvedSpecDigest = compilation.browserPassSpec.digest;
     const ir = await state.app.inject({
       method: "GET",
       url: `/v1/jobs/${jobId}/authoring-ir`,
@@ -474,10 +653,15 @@ describe("creator workflow API", () => {
     expect(attempts.statusCode).toBe(200);
     expect(evidence.statusCode).toBe(404);
     expect(ir.statusCode).toBe(200);
-    expect(edit.statusCode).toBe(201);
+    expect(edit.statusCode).toBe(202);
+    expect(edit.json()).toMatchObject({
+      state: "PREPARING",
+      preparationStage: "COMPILATION_QUEUED",
+    });
+    expect(job.state).toBe("STALE_APPROVAL");
     expect(preview.statusCode).toBe(404);
-    expect(topology.statusCode).toBe(404);
-    expect(choices.statusCode).toBe(404);
+    expect(topology.statusCode).toBe(200);
+    expect(choices.statusCode).toBe(200);
     expect(eligibility.json().eligible).toBe(false);
     expect(receipts.statusCode).toBe(200);
     expect(report.statusCode).toBe(404);
@@ -586,19 +770,7 @@ describe("creator workflow API", () => {
     job.state = "FAILED";
     job.approved = true;
     job.evidence = { state: "MAPPED" };
-    job.runtimePreflight = {
-      status: "PASS",
-      chromiumVersion: "151.0.7922.138",
-      renderer: "ANGLE SwiftShader",
-      fontReady: true,
-      webgl2: true,
-      networkPolicy: "external-blocked",
-      repeatedFrameByteIdentity: true,
-      ffmpeg: true,
-      ffprobe: true,
-      compilerModels: true,
-      runtimeDigest: RUNTIME_DIGEST,
-    };
+    job.runtimePreflight = preflight;
     const retried = await state.app.inject({
       method: "POST",
       url: `/v1/jobs/${job.id}/retry`,
@@ -614,7 +786,7 @@ describe("creator workflow API", () => {
       state: "PREPARING",
       attempt: 2,
       progress: null,
-      runtimePreflight: null,
+      runtimePreflight: preflight,
     });
     expect(job.evidence).toBeNull();
     expect(job.approved).toBe(false);

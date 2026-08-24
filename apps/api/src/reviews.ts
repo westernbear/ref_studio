@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { assertLegalTransition } from "../../../packages/contracts/src/lifecycle.js";
 import {
   authenticateBearer,
   authenticateReleaseBearer,
@@ -12,6 +13,7 @@ import { safeEnvelope } from "./boundary.js";
 import {
   publishStagedArtifact,
   RELEASE_BASELINE_DIGEST,
+  hasUnresolvedChoices,
   type CreatorWorkflowStore,
   type Job,
 } from "./creator-workflow.js";
@@ -22,12 +24,13 @@ export const GATE_DAG = {
   T3: "T2",
   T4: "T3",
   T5: "T4",
-  T6: "T5",
+  T6: null,
 } as const;
 export type Gate = keyof typeof GATE_DAG;
 export type ReviewDecision = "APPROVED" | "REJECTED";
 export type ReviewReceipt = Readonly<{
   id: string;
+  releaseId: string | null;
   jobId: string | null;
   tenantId: string | null;
   attempt: number;
@@ -64,6 +67,7 @@ export const createReviewStore = (): ReviewStore => ({
   sequence: { value: 0 },
 });
 type Body = {
+  releaseId?: string;
   jobId?: string;
   attempt?: number;
   gate?: string;
@@ -132,13 +136,15 @@ const assignment = (
   gate: Gate,
   tenantId: string | null,
   scope: Assignment["scope"],
+  releaseId: string | null,
 ): boolean =>
   store.assignments.some(
     (item) =>
       item.reviewerId === principal.userId &&
       item.gate === gate &&
       item.scope === scope &&
-      item.tenantId === tenantId,
+      item.tenantId === tenantId &&
+      (scope !== "RELEASE" || item.releaseId === releaseId),
   );
 const required = (
   body: Body,
@@ -157,8 +163,12 @@ const required = (
     | "artifactRefs"
   >
 > &
-  Pick<Body, "jobId" | "predecessorReceiptId" | "correctionOf"> =>
-  (release || typeof body.jobId === "string") &&
+  Pick<Body, "jobId" | "releaseId" | "predecessorReceiptId" | "correctionOf"> =>
+  (release
+    ? typeof body.releaseId === "string" &&
+      body.releaseId.length > 0 &&
+      body.releaseId.length <= 100
+    : typeof body.jobId === "string") &&
   Number.isInteger(body.attempt) &&
   typeof body.gate === "string" &&
   body.gate in GATE_DAG &&
@@ -193,12 +203,19 @@ function decide(
   if (release && authorizeReleaseReview(authStore, principal, undefined))
     throw new Error("ROLE_NOT_PERMITTED");
   if (
+    !principal.roles.some(
+      (role) => role.toUpperCase() === "DESIGNATED_REVIEWER",
+    )
+  )
+    throw new Error("ROLE_NOT_PERMITTED");
+  if (
     !assignment(
       authStore,
       principal,
       gate,
       tenantId,
       release ? "RELEASE" : "TENANT",
+      release ? (body.releaseId ?? null) : null,
     )
   )
     throw new Error("ROLE_NOT_PERMITTED");
@@ -211,35 +228,70 @@ function decide(
           item.gate === predecessor &&
           item.decision === "APPROVED" &&
           item.attempt === body.attempt &&
-          (release || item.jobId === body.jobId),
+          (release
+            ? item.releaseId === body.releaseId
+            : item.jobId === body.jobId),
       )
     : undefined;
+  const releaseManifest = release
+    ? workflow?.releaseManifests.get(body.releaseId ?? "")
+    : undefined;
   if (
-    (predecessor && !previous) ||
-    (!predecessor && body.predecessorReceiptId != null)
+    (release &&
+      (!releaseManifest ||
+        body.predecessorReceiptId !== releaseManifest.baselineDigest ||
+        body.releaseBaselineDigest !== releaseManifest.baselineDigest ||
+        body.evidenceDigest !== releaseManifest.evidenceDigest ||
+        body.irDigest !== releaseManifest.irDigest ||
+        body.runtimeDigest !== releaseManifest.runtimeDigest ||
+        !releaseManifest.t5ReceiptIds.some((receiptId) =>
+          body.artifactRefs.includes(receiptId),
+        ) ||
+        !body.artifactRefs.includes(releaseManifest.recoveryReportArtifactId) ||
+        !releaseManifest.fixedFrameArtifactIds.every((artifactId) =>
+          body.artifactRefs.includes(artifactId),
+        ))) ||
+    (!release &&
+      ((predecessor && !previous) ||
+        (!predecessor && body.predecessorReceiptId != null)))
   )
     throw new Error("INVALID_REQUEST");
   if (
-    body.releaseBaselineDigest !== RELEASE_BASELINE_DIGEST ||
+    (!release && body.releaseBaselineDigest !== RELEASE_BASELINE_DIGEST) ||
     (job &&
       (!job.runtimePreflight ||
         body.runtimeDigest !== job.runtimePreflight.runtimeDigest ||
         body.evidenceDigest !== job.evidenceDigest ||
-        body.irDigest !== job.irDigest)) ||
-    (previous &&
-      (body.evidenceDigest !== previous.evidenceDigest ||
-        body.irDigest !== previous.irDigest ||
-        body.runtimeDigest !== previous.runtimeDigest ||
-        body.releaseBaselineDigest !== previous.releaseBaselineDigest))
+        body.irDigest !== job.irDigest))
   ) {
     if (job && job.state !== "STALE_APPROVAL") job.state = "STALE_APPROVAL";
     throw new Error("STALE_APPROVAL_UNSAFE");
   }
-  if (job && gate !== "T5" && job.state !== "READY")
-    throw new Error("INVALID_REQUEST");
-  if (job && gate === "T5" && job.state !== "AWAITING_T5")
-    throw new Error("INVALID_REQUEST");
-  const key = `${body.jobId ?? "release"}:${gate}:${body.attempt}`;
+  if (job) {
+    const gateReady =
+      (gate === "T1" &&
+        job.state === "PREPARING" &&
+        job.preparationStage === "AWAITING_T1" &&
+        job.runtimePreflight !== null) ||
+      (gate === "T2" &&
+        job.state === "PREPARING" &&
+        job.preparationStage === "AWAITING_T2" &&
+        job.pendingCompilation !== null &&
+        !hasUnresolvedChoices(job)) ||
+      (gate === "T3" &&
+        job.state === "PREPARING" &&
+        job.preparationStage === "AWAITING_T3" &&
+        job.compilation !== null) ||
+      (gate === "T4" &&
+        (job.state === "PREPARING" || job.state === "STALE_APPROVAL") &&
+        job.preparationStage === "AWAITING_T4" &&
+        job.compilation !== null &&
+        job.previewSpecDigest === job.compilation.browserPassSpec.digest) ||
+      (gate === "T5" && job.state === "AWAITING_T5");
+    if (!gateReady) throw new Error("INVALID_REQUEST");
+  }
+  const scopeId = release ? body.releaseId : body.jobId;
+  const key = `${scopeId}:${gate}:${body.attempt}`;
   const current = store.current.get(key);
   const snapshot = {
     evidenceDigest: body.evidenceDigest,
@@ -247,14 +299,31 @@ function decide(
     runtimeDigest: body.runtimeDigest,
     releaseBaselineDigest: body.releaseBaselineDigest,
   };
-  if (current && JSON.stringify(current) !== JSON.stringify(snapshot)) {
+  const correctedReceipt = body.correctionOf
+    ? store.receipts.find(
+        (receipt) =>
+          receipt.id === body.correctionOf &&
+          receipt.gate === gate &&
+          receipt.jobId === (body.jobId ?? null) &&
+          receipt.releaseId === (body.releaseId ?? null),
+      )
+    : undefined;
+  if (body.correctionOf && !correctedReceipt)
+    throw new Error("INVALID_REQUEST");
+  if (
+    current &&
+    JSON.stringify(current) !== JSON.stringify(snapshot) &&
+    !correctedReceipt
+  ) {
     if (job && job.state !== "STALE_APPROVAL") job.state = "STALE_APPROVAL";
     throw new Error("STALE_APPROVAL_UNSAFE");
   }
   if (
+    !correctedReceipt &&
     store.receipts.some(
       (item) =>
         item.jobId === (body.jobId ?? null) &&
+        item.releaseId === (body.releaseId ?? null) &&
         item.attempt === body.attempt &&
         item.gate === gate &&
         item.decision === body.decision,
@@ -265,9 +334,17 @@ function decide(
   const preview = job ? workflow?.previews.get(job.id) : undefined;
   if (
     job &&
-    (gate === "T3" || gate === "T4") &&
+    gate === "T4" &&
     body.decision === "APPROVED" &&
     (!preview || !body.artifactRefs.includes(preview.id))
+  )
+    throw new Error("INVALID_REQUEST");
+  if (
+    job &&
+    gate === "T3" &&
+    body.decision === "APPROVED" &&
+    (!job.compilation ||
+      !body.artifactRefs.includes(job.compilation.authoring.versionId))
   )
     throw new Error("INVALID_REQUEST");
   if (
@@ -282,6 +359,7 @@ function decide(
   store.current.set(key, snapshot);
   const receipt: ReviewReceipt = {
     id: id("rcpt"),
+    releaseId: body.releaseId ?? null,
     jobId: body.jobId ?? null,
     tenantId,
     attempt: body.attempt,
@@ -297,10 +375,46 @@ function decide(
     createdAt: new Date(now).toISOString(),
   };
   store.receipts.push(receipt);
-  if (job && gate === "T5" && body.decision === "APPROVED") {
-    if (!workflow || !publishStagedArtifact(workflow, job))
-      throw new Error("INVALID_REQUEST");
-    job.approved = true;
+  if (job && body.decision === "APPROVED") {
+    const attempt = workflow?.attempts.get(job.id)?.at(-1);
+    if (gate === "T1") {
+      job.preparationStage = "ANALYSIS_QUEUED";
+      job.eligibleAt = now;
+    } else if (gate === "T2") {
+      if (job.candidateEvidence) {
+        job.evidence = job.candidateEvidence;
+        job.candidateEvidence = null;
+        job.candidateEvidenceDigest = null;
+      }
+      job.compilation = job.pendingCompilation;
+      job.pendingCompilation = null;
+      job.preparationStage = "AWAITING_T3";
+    } else if (gate === "T3") {
+      job.preparationStage = "PREVIEW_QUEUED";
+      job.eligibleAt = now;
+    } else if (gate === "T4") {
+      assertLegalTransition(job.state, "READY");
+      job.state = "READY";
+      job.preparationStage = "READY";
+      job.approvedSpecDigest = job.compilation?.browserPassSpec.digest ?? null;
+      if (attempt) attempt.state = "COMPLETED";
+    } else if (gate === "T5") {
+      if (!workflow || !publishStagedArtifact(workflow, job))
+        throw new Error("INVALID_REQUEST");
+      job.approved = true;
+      if (attempt) attempt.state = "COMPLETED";
+    }
+    job.failureCode = null;
+    job.updatedAt = new Date(now).toISOString();
+    job.etag = `\"${id("etag")}\"`;
+  } else if (job && gate === "T5") {
+    assertLegalTransition(job.state, "FAILED");
+    job.state = "FAILED";
+    job.failureCode = "T5_REJECTED";
+    const attempt = workflow?.attempts.get(job.id)?.at(-1);
+    if (attempt) attempt.state = "FAILED";
+    job.updatedAt = new Date(now).toISOString();
+    job.etag = `\"${id("etag")}\"`;
   }
   return receipt;
 }

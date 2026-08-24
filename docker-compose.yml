@@ -24,6 +24,7 @@ services:
     network_mode: none
     command: ["python3.12", "-m", "compiler.preflight"]
   web:
+    restart: always
     build:
       context: .
       dockerfile: Dockerfile
@@ -37,6 +38,7 @@ services:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
       RVS_INTERNAL_API_URL: ${RVS_INTERNAL_API_URL:-http://api:3200}
       RVS_INSECURE_COOKIES: ${RVS_INSECURE_COOKIES:-true}
+      RVS_EXPECTED_ORIGIN: ${RVS_EXPECTED_ORIGIN:-http://localhost:3100}
     working_dir: /workspace/apps/web
     volumes:
       - .:/workspace
@@ -52,6 +54,7 @@ services:
         "pnpm --filter @rvs/web install --frozen-lockfile && pnpm --filter @rvs/web build && pnpm --filter @rvs/web exec next start --hostname 0.0.0.0 --port 3100",
       ]
   api:
+    restart: always
     build:
       context: .
       dockerfile: Dockerfile
@@ -59,6 +62,9 @@ services:
       provenance: false
     image: reference-video-studio-runtime:1.0.0
     networks: [appnet, default]
+    env_file:
+      - path: .env
+        required: false
     environment:
       CI: "true"
       PNPM_CONFIG_CONFIRM_MODULES_PURGE: "false"
@@ -66,8 +72,8 @@ services:
       HOST: "0.0.0.0"
       PORT: "3200"
       RVS_EXPECTED_ORIGIN: ${RVS_EXPECTED_ORIGIN:-http://localhost:3100}
-      RVS_SESSION_INTROSPECT_SECRET: ${RVS_SESSION_INTROSPECT_SECRET:-dev-introspect-secret}
-      RVS_WORKER_TOKEN: ${RVS_WORKER_TOKEN:-dev-worker-token}
+      RVS_SESSION_INTROSPECT_SECRET: ${RVS_SESSION_INTROSPECT_SECRET:?RVS_SESSION_INTROSPECT_SECRET must be set}
+      RVS_WORKER_TOKEN: ${RVS_WORKER_TOKEN:?RVS_WORKER_TOKEN must be set}
     working_dir: /workspace/apps/api
     volumes:
       - .:/workspace

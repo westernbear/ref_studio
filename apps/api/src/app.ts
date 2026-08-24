@@ -75,6 +75,7 @@ export type AppOptions = {
   readonly reviews?: ReviewStore;
   readonly retention?: RetentionStore;
   readonly workers?: WorkerStore;
+  readonly persist?: () => void;
 };
 const header = (request: FastifyRequest, name: string): string | undefined => {
   const value = request.headers[name];
@@ -146,6 +147,10 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
   );
   const now = (): number => options.now?.() ?? Date.now();
   const idempotency = options.idempotency ?? new IdempotencyStore();
+  app.addHook("onSend", async (_request, _reply, payload) => {
+    options.persist?.();
+    return payload;
+  });
   app.addHook("onRequest", async (request, reply) => {
     const correlation = correlationId();
     reply.header("x-correlation-id", correlation);
@@ -214,6 +219,10 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
     request: FastifyRequest<{ Body: { email: string; password: string } }>,
     reply: FastifyReply,
   ): Promise<void> => {
+    if (header(request, "origin") !== options.expectedOrigin) {
+      failure(reply, { code: "CSRF_ORIGIN_INVALID" });
+      return;
+    }
     const result = signIn(
       options.store,
       request.body.email,
@@ -621,7 +630,13 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
       options.expectedOrigin,
     );
   if (options.adminMutations)
-    registerAdminMutation(app, options.store, options.adminMutations, now());
+    registerAdminMutation(
+      app,
+      options.store,
+      options.adminMutations,
+      now(),
+      options.expectedOrigin,
+    );
   if (options.reviews)
     registerReviews(
       app,

@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
   authenticateAdminBearer,
+  authenticateSession,
   type AuthStore,
   type Principal,
 } from "./auth.js";
@@ -99,13 +100,18 @@ const role = (principal: Principal): string =>
 const fail = (reply: FastifyReply, error: unknown): void => {
   const code = error instanceof Error ? error.message : "INTERNAL_ERROR";
   const status =
-    code === "ADMIN_ACCESS_DENIED" || code === "ROLE_NOT_PERMITTED"
-      ? 403
-      : code === "RESOURCE_NOT_FOUND"
-        ? 404
-        : code === "VERSION_CONFLICT"
-          ? 409
-          : 400;
+    code === "AUTHENTICATION_REQUIRED"
+      ? 401
+      : code === "ADMIN_ACCESS_DENIED" ||
+          code === "ROLE_NOT_PERMITTED" ||
+          code === "CSRF_REQUIRED" ||
+          code === "CSRF_ORIGIN_INVALID"
+        ? 403
+        : code === "RESOURCE_NOT_FOUND"
+          ? 404
+          : code === "VERSION_CONFLICT"
+            ? 409
+            : 400;
   reply
     .code(status)
     .send(
@@ -133,13 +139,28 @@ export function registerAdminMutation(
   auth: AuthStore,
   store: AdminMutationStore,
   now = Date.now(),
+  expectedOrigin = "http://localhost:3100",
 ): void {
   app.addHook("onRequest", async (request, reply) => {
     if (!request.url.startsWith("/admin/")) return;
     const raw = header(request, "authorization")?.startsWith("Bearer ")
       ? (header(request, "authorization")?.slice(7) ?? "")
       : "";
-    const principal = authenticateAdminBearer(auth, raw, now);
+    const sessionId = header(request, "cookie")
+      ?.split(";")
+      .map((part) => part.trim())
+      .find((part) => part.startsWith("rvs_session="))
+      ?.slice("rvs_session=".length);
+    const principal = raw
+      ? authenticateAdminBearer(auth, raw, now)
+      : authenticateSession(
+          auth,
+          decodeURIComponent(sessionId ?? ""),
+          header(request, "x-csrf-token"),
+          header(request, "origin"),
+          expectedOrigin,
+          now,
+        );
     if ("code" in principal) {
       fail(reply, new Error(principal.code));
       return;

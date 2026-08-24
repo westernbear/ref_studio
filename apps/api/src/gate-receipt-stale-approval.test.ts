@@ -10,6 +10,24 @@ import {
 } from "./creator-workflow.js";
 import { createReviewStore } from "./reviews.js";
 
+const compilation = {
+  authoring: {
+    versionId: "artifact-T3",
+    digest: "authoring-ir",
+    parentDigest: null,
+  },
+  scene: {
+    versionId: "scene-ir",
+    digest: "scene-ir",
+    parentDigest: "authoring-ir",
+  },
+  browserPassSpec: {
+    versionId: "browser-pass-spec",
+    digest: "ir-1",
+    parentDigest: "scene-ir",
+  },
+} as const;
+
 const setup = (): {
   readonly app: FastifyInstance;
   readonly reviews: ReturnType<typeof createReviewStore>;
@@ -28,12 +46,20 @@ const setup = (): {
     tenantId: null,
     gate: "T6",
     scope: "RELEASE",
+    releaseId: "release-1",
+  });
+  assignments.push({
+    reviewerId: "usr_assigned_owner",
+    tenantId: "ten_a",
+    gate: "T1",
+    scope: "TENANT",
   });
   const auth: AuthStore = {
     users: [
       { id: "usr_reviewer", email: "reviewer@invalid" },
       { id: "usr_release", email: "release@invalid" },
       { id: "usr_unassigned", email: "unassigned@invalid" },
+      { id: "usr_assigned_owner", email: "owner@invalid" },
     ],
     credentials: [],
     memberships: [
@@ -44,6 +70,7 @@ const setup = (): {
       },
       { userId: "usr_release", tenantId: "ten_a", role: "DESIGNATED_REVIEWER" },
       { userId: "usr_unassigned", tenantId: "ten_a", role: "OWNER" },
+      { userId: "usr_assigned_owner", tenantId: "ten_a", role: "OWNER" },
     ],
     assignments,
     sessions: [],
@@ -72,6 +99,14 @@ const setup = (): {
         expiresAt: 9_000,
         revokedAt: null,
       },
+      {
+        id: "tok_owner",
+        userId: "usr_assigned_owner",
+        tenantId: "ten_a",
+        tokenHash: hashBearer("assigned-owner"),
+        expiresAt: 9_000,
+        revokedAt: null,
+      },
     ],
     audit: () => undefined,
   };
@@ -81,7 +116,7 @@ const setup = (): {
     tenantId: "ten_a",
     creatorId: "server",
     uploadId: "upl_a",
-    state: "READY" as const,
+    state: "PREPARING" as const,
     attempt: 1,
     etag: '"etag"',
     createdAt: "2026-01-01T00:00:00.000Z",
@@ -92,7 +127,19 @@ const setup = (): {
     startFrame: 0,
     sourceFps: 30,
     frameCount: 120,
-    evidence: { state: "MAPPED" },
+    evidence: null,
+    candidateEvidence: null,
+    candidateEvidenceDigest: null,
+    preparationStage: "AWAITING_T1",
+    pendingCompilation: null,
+    compilation: null,
+    previewSpecDigest: null,
+    approvedSpecDigest: null,
+    eligibleAt: 0,
+    automaticRetries: 0,
+    deletionEpoch: 0,
+    restoreEpoch: 0,
+    failureCode: null,
     runtimePreflight: {
       status: "PASS",
       chromiumVersion: "151.0.7922.138",
@@ -110,6 +157,9 @@ const setup = (): {
     artifact: null,
   };
   workflow.jobs.set(job.id, job);
+  workflow.attempts.set(job.id, [
+    { id: "attempt-1", number: 1, state: "QUEUED", immutable: true },
+  ]);
   workflow.previews.set(job.id, {
     id: "preview-gate",
     jobId: job.id,
@@ -142,6 +192,24 @@ const setup = (): {
   });
   return { app, reviews, workflow };
 };
+const advanceAfterGate = (
+  state: ReturnType<typeof setup>,
+  gate: string,
+): void => {
+  const job = state.workflow.jobs.get("job_gate");
+  if (!job) throw new Error("test job missing");
+  if (gate === "T1") {
+    job.evidence = {
+      state: "MAPPED",
+      sceneInput: { owners: [], tracks: [], needsChoice: [] },
+    };
+    job.pendingCompilation = compilation;
+    job.preparationStage = "AWAITING_T2";
+  } else if (gate === "T3") {
+    job.previewSpecDigest = compilation.browserPassSpec.digest;
+    job.preparationStage = "AWAITING_T4";
+  }
+};
 const stageT5 = (state: ReturnType<typeof setup>): void => {
   const job = state.workflow.jobs.get("job_gate");
   if (!job) throw new Error("test job missing");
@@ -167,6 +235,7 @@ const body = (
   evidenceDigest = "ev-1",
   release = false,
 ) => ({
+  releaseId: "release-1",
   ...(release ? {} : { jobId: "job_gate" }),
   attempt: 1,
   gate,
@@ -196,6 +265,7 @@ describe("designated gate receipts", () => {
         });
       expect(response.statusCode).toBe(201);
       predecessor = JSON.parse(response.body).receipt.id;
+      advanceAfterGate(state, gate);
     }
     expect(state.reviews.receipts.map((receipt) => receipt.gate)).toEqual([
       "T1",
@@ -271,6 +341,16 @@ describe("designated gate receipts", () => {
       payload: body("T1"),
     });
     expect(denied.json().error.code).toBe("ROLE_NOT_PERMITTED");
+    const assignedOwner = await state.app.inject({
+      method: "POST",
+      url: "/v1/reviews",
+      headers: {
+        authorization: "Bearer assigned-owner",
+        "x-tenant-id": "ten_a",
+      },
+      payload: body("T1"),
+    });
+    expect(assignedOwner.json().error.code).toBe("ROLE_NOT_PERMITTED");
     const headers = {
       authorization: "Bearer reviewer",
       "x-tenant-id": "ten_a",
@@ -317,6 +397,8 @@ describe("designated gate receipts", () => {
     const job = state.workflow.jobs.get("job_gate");
     if (!job) throw new Error("test job missing");
     job.attempt = 2;
+    job.state = "PREPARING";
+    job.preparationStage = "AWAITING_T1";
 
     const oldPredecessor = await state.app.inject({
       method: "POST",
@@ -356,12 +438,35 @@ describe("designated gate receipts", () => {
         payload: body(gate, predecessor),
       });
       predecessor = response.json().receipt.id;
+      advanceAfterGate(state, gate);
     }
+    const t5ReceiptId = predecessor;
+    if (!t5ReceiptId) throw new Error("T5 receipt missing");
+    state.workflow.releaseManifests.set("release-1", {
+      releaseId: "release-1",
+      baselineDigest: RELEASE_BASELINE_DIGEST,
+      evidenceDigest: "ev-1",
+      irDigest: "ir-1",
+      runtimeDigest: RUNTIME_DIGEST,
+      t5ReceiptIds: [t5ReceiptId],
+      recoveryReportArtifactId: "recovery-report",
+      fixedFrameArtifactIds: ["fixed-frame-0", "fixed-frame-119"],
+      verifiedAt: "2026-01-01T00:00:00.000Z",
+    });
+    const releaseBody = {
+      ...body("T6", RELEASE_BASELINE_DIGEST, "ev-1", true),
+      artifactRefs: [
+        t5ReceiptId,
+        "recovery-report",
+        "fixed-frame-0",
+        "fixed-frame-119",
+      ],
+    };
     const response = await state.app.inject({
       method: "POST",
       url: "/v1/release-reviews",
       headers: { authorization: "Bearer release" },
-      payload: body("T6", predecessor, "ev-1", true),
+      payload: releaseBody,
     });
     expect(response.statusCode).toBe(201);
     expect(response.json().receipt).toMatchObject({
@@ -369,20 +474,20 @@ describe("designated gate receipts", () => {
       jobId: null,
       gate: "T6",
       sequence: 6,
-      predecessorReceiptId: predecessor,
+      predecessorReceiptId: RELEASE_BASELINE_DIGEST,
     });
     const wrongGate = await state.app.inject({
       method: "POST",
       url: "/v1/release-reviews",
       headers: { authorization: "Bearer release" },
-      payload: body("T5", predecessor, "ev-1", true),
+      payload: { ...releaseBody, gate: "T5" },
     });
     expect(wrongGate.json().error.code).toBe("ROLE_NOT_PERMITTED");
     const withHeader = await state.app.inject({
       method: "POST",
       url: "/v1/release-reviews",
       headers: { authorization: "Bearer release", "x-tenant-id": "ten_a" },
-      payload: body("T6", predecessor, "ev-1", true),
+      payload: releaseBody,
     });
     expect(withHeader.json().error.code).toBe("TENANT_HEADER_FORBIDDEN");
     await state.app.close();

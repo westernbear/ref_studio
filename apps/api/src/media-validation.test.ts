@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   exactSourceInterval,
+  isSafeColorTransfer,
   MEDIA_LIMITS,
   mediaCommands,
   MediaValidationFailure,
@@ -24,6 +25,8 @@ const upload = (sizeBytes = 100): UploadRecord => ({
   sourceSha256: "source_digest",
   media: { fps: 30, frameCount: 120, durationSeconds: 4 },
   chunks: [],
+  chunkHashes: [],
+  chunkSizes: [],
   actualBytes: sizeBytes,
 });
 const probe = (overrides: Partial<MediaProbe> = {}): MediaProbe => ({
@@ -204,5 +207,10 @@ describe("media-validation", () => {
     expect(() => exactSourceInterval(1, 24, 96)).toThrowError(
       new MediaValidationFailure("MEDIA_INTERVAL_INVALID"),
     );
+  });
+  it("admits untagged 8-bit SDR but not untagged 10-bit media", () => {
+    expect(isSafeColorTransfer(undefined, "yuv420p")).toBe(true);
+    expect(isSafeColorTransfer(undefined, "yuv420p10le")).toBe(false);
+    expect(isSafeColorTransfer("smpte2084", "yuv420p")).toBe(false);
   });
 });

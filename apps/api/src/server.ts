@@ -2,6 +2,7 @@ import Database from "better-sqlite3";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
+import { IdempotencyStore } from "./boundary.js";
 import type {
   AdminAudit,
   AdminBilling,
@@ -11,6 +12,7 @@ import type {
   AdminReceipt,
   AdminTenant,
 } from "./admin-read.js";
+import { createAdminMutationStore } from "./admin-mutation.js";
 import { buildAuthApp } from "./app.js";
 import type { AuthStore } from "./auth.js";
 import {
@@ -18,6 +20,7 @@ import {
   type CreatorWorkflowStore,
 } from "./creator-workflow.js";
 import { inspectUploadedMedia } from "./media-validation.js";
+import { createDurableState, openApiDatabase } from "./durable-state.js";
 import { createReviewStore, type ReviewStore } from "./reviews.js";
 import type { UploadStore } from "./uploads.js";
 import { createWorkerStore, hashWorkerToken } from "./workers.js";
@@ -28,10 +31,7 @@ const ServerEnv = z.object({
   PORT: z.coerce.number().int().min(1).max(65_535).default(3_200),
   DATABASE_PATH: z.string().min(1).optional(),
   RVS_EXPECTED_ORIGIN: z.string().url().default("http://localhost:3100"),
-  RVS_SESSION_INTROSPECT_SECRET: z
-    .string()
-    .min(1)
-    .default("dev-introspect-secret"),
+  RVS_SESSION_INTROSPECT_SECRET: z.string().min(1),
   RVS_WORKER_TOKEN: z.string().min(1),
 });
 const UserRows = z.array(z.object({ id: z.string(), email: z.string() }));
@@ -52,6 +52,7 @@ const AssignmentRows = z.array(
     tenant_id: z.string().nullable(),
     gate: z.string(),
     scope: z.literal("TENANT").or(z.literal("RELEASE")),
+    release_id: z.string().nullable(),
   }),
 );
 const ApiTokenRows = z.array(
@@ -221,7 +222,7 @@ export function loadAuthStore(
       assignments: AssignmentRows.parse(
         db
           .prepare(
-            "SELECT reviewer_id, tenant_id, gate, scope FROM reviewer_assignments",
+            "SELECT reviewer_id, tenant_id, gate, scope, release_id FROM reviewer_assignments",
           )
           .all(),
       ).map((row) => ({
@@ -229,6 +230,7 @@ export function loadAuthStore(
         tenantId: row.tenant_id,
         gate: row.gate,
         scope: row.scope,
+        releaseId: row.release_id,
       })),
       sessions: [],
       apiTokens: ApiTokenRows.parse(
@@ -435,19 +437,41 @@ export function loadAdminReadStore(
 }
 
 export function createApiServer(config: ApiServerConfig) {
+  const db = openApiDatabase(config.databasePath);
+  const dataRoot = path.join(path.dirname(config.databasePath), "objects");
   const uploads: UploadStore = {
     uploads: new Map(),
     cas: new Map(),
     casByTenantDigest: new Map(),
     now: Date.now,
+    stagingRoot: path.join(dataRoot, "staging"),
+    casRoot: path.join(dataRoot, "cas"),
   };
   const creatorWorkflow = createCreatorWorkflowStore();
   const reviews = createReviewStore();
+  const adminMutations = createAdminMutationStore();
+  const auth = loadAuthStore(config.databasePath);
+  const workers = createWorkerStore(hashWorkerToken(config.workerToken));
+  const idempotency = new IdempotencyStore();
+  const durable = createDurableState(
+    db,
+    {
+      auth,
+      uploads,
+      workflow: creatorWorkflow,
+      reviews,
+      workers,
+      idempotency,
+    },
+    path.join(dataRoot, "artifacts"),
+  );
+  durable.hydrate();
   const app = buildAuthApp({
-    store: loadAuthStore(config.databasePath),
+    store: auth,
     expectedOrigin: config.expectedOrigin,
     introspectSecret: config.introspectSecret,
     uploads,
+    idempotency,
     validateUpload: async (upload) => {
       try {
         return await inspectUploadedMedia(upload);
@@ -472,9 +496,12 @@ export function createApiServer(config: ApiServerConfig) {
       uploads,
       reviews,
     ),
+    adminMutations,
     reviews,
-    workers: createWorkerStore(hashWorkerToken(config.workerToken)),
+    workers,
+    persist: durable.persist,
   });
+  app.addHook("onClose", async () => db.close());
   app.get("/health", async () => ({ ok: true }));
   return app;
 }

@@ -74,11 +74,13 @@ describe("auth flows", () => {
     const creator = await app.inject({
       method: "POST",
       url: "/sign-in",
+      headers: { origin: "https://studio.invalid" },
       payload: { email: "reviewer@example.invalid", password: "correct" },
     });
     const admin = await app.inject({
       method: "POST",
       url: "/admin/sign-in",
+      headers: { origin: "https://studio.invalid" },
       payload: { email: "reviewer@example.invalid", password: "wrong" },
     });
     expect(creator.statusCode).toBe(200);
@@ -101,6 +103,7 @@ describe("auth flows", () => {
     const login = await app.inject({
       method: "POST",
       url: "/sign-in",
+      headers: { origin: "https://studio.invalid" },
       payload: { email: "reviewer@example.invalid", password: "correct" },
     });
     const sessionCookie = login.headers["set-cookie"];
@@ -158,6 +161,7 @@ describe("auth flows", () => {
     const login = await app.inject({
       method: "POST",
       url: "/sign-in",
+      headers: { origin: "https://studio.invalid" },
       payload: { email: "reviewer@example.invalid", password: "correct" },
     });
     const oldCookie = login.headers["set-cookie"];
@@ -208,6 +212,34 @@ describe("auth flows", () => {
     expect(rotated.headers["set-cookie"]).toContain("Max-Age=1800");
     expect(oldUse.json().error.code).toBe("AUTHENTICATION_REQUIRED");
     expect(newUse.statusCode).toBe(200);
+    await app.close();
+  });
+  it("rejects missing and foreign sign-in origins", async () => {
+    const fixture = store();
+    const app = buildAuthApp({
+      store: fixture,
+      expectedOrigin: "https://studio.invalid",
+      introspectSecret: "service-secret",
+      now: () => 1_000,
+    });
+    for (const url of ["/sign-in", "/admin/sign-in"]) {
+      const missing = await app.inject({
+        method: "POST",
+        url,
+        payload: { email: "reviewer@example.invalid", password: "correct" },
+      });
+      const foreign = await app.inject({
+        method: "POST",
+        url,
+        headers: { origin: "https://evil.invalid" },
+        payload: { email: "reviewer@example.invalid", password: "correct" },
+      });
+      expect(missing.statusCode).toBe(403);
+      expect(missing.json().error.code).toBe("CSRF_ORIGIN_INVALID");
+      expect(foreign.statusCode).toBe(403);
+      expect(foreign.json().error.code).toBe("CSRF_ORIGIN_INVALID");
+    }
+    expect(fixture.sessions).toHaveLength(0);
     await app.close();
   });
   it("protects direct identity and release review routes", async () => {

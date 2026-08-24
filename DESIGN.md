@@ -20,11 +20,11 @@ Display text uses Manrope. Body text uses Inter. Dense IDs, timestamps, states, 
 
 ## 4. Components
 
-Buttons are 44px minimum targets with pill treatment for primary navigation actions. Panels use `--color-canvas-card`, one `--color-hairline` border, and small radii. The shared brand lockup displays `/logo.png` in a clipped, stable frame across creator, admin, auth, upload, and progress shells. Tables sit inside `.table-wrap` so narrow viewports scroll only the table when needed. Progress surfaces use a large numeric state, a thin meter, and live metadata panels without placeholder rows.
+Buttons are 44px minimum targets with pill treatment for primary navigation actions. Panels use `--color-canvas-card`, one `--color-hairline` border, and small radii. The shared brand lockup displays `/logo.png` in a clipped, stable frame across creator, admin, auth, upload, and progress shells. Tables sit inside `.table-wrap` so narrow viewports scroll only the table when needed. Live record pages use native GET filters, an adjacent selected-record detail panel, and cursor pagination. Receipt decisions use a chronological timeline; audit and receipt exports expose the API's pending export state. Progress surfaces use a large numeric state, a thin meter, and live metadata panels without placeholder rows. Review choice forms use labeled native selects and numeric inputs inside the existing panel surface, with explicit owner and measured-rectangle modes.
 
 ## 5. Layout
 
-Creator and admin pages use bounded app shells with responsive wrapping navigation. Product workflow pages use a centered content width, while progress pages use a full-viewport shell with header/footer fixed in the document flow and a single main scroll region on small screens. Intrinsic grids must use `minmax(min(..., 100%), 1fr)`, and unbroken metadata values must wrap inside their cells, to avoid mobile overflow.
+Creator and admin pages use bounded app shells with responsive wrapping navigation. Product workflow pages use a centered content width. List/detail layouts use two desktop columns and stack in document order on narrow screens; pagination and export actions stay in normal flow. Progress pages use a full-viewport shell with header/footer fixed in the document flow and a single main scroll region on small screens. Intrinsic grids must use `minmax(min(..., 100%), 1fr)`, and unbroken metadata values must wrap inside their cells, to avoid mobile overflow.
 
 ## 6. Motion
 

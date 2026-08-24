@@ -45,6 +45,7 @@ export function ProgressTracker({ initialJob }: Props) {
   ).length;
   const logs = [
     ["JOB_STATE", job.state],
+    ["PREPARATION_STAGE", job.preparationStage || "Pending"],
     ["ATTEMPT", String(job.attempt)],
     ["APPROVED_GATES", `${approvedGateCount}/${approvalGates.length}`],
     ["WORKER_PHASE", job.progressPhase || "Pending"],

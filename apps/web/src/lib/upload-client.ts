@@ -12,7 +12,7 @@ export type AcceptedMedia = {
   readonly durationSeconds: number;
 };
 
-const uuid = (): string => {
+export const requestId = (): string => {
   if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
   const bytes = crypto.getRandomValues(new Uint8Array(16));
   bytes[6] = ((bytes[6] ?? 0) & 0x0f) | 0x40;
@@ -22,7 +22,7 @@ const uuid = (): string => {
 };
 const commandHeaders = (key: string): Record<string, string> => ({
   "idempotency-key": key,
-  "x-correlation-id": uuid(),
+  "x-correlation-id": requestId(),
 });
 
 const request = async (
@@ -93,7 +93,7 @@ export async function uploadMp4(
         mimeHint: "video/mp4",
         sizeBytes: file.size,
       }),
-      headers: commandHeaders(`upload:${uuid()}`),
+      headers: commandHeaders(`upload:${requestId()}`),
     },
     signal,
   );

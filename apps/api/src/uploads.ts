@@ -1,4 +1,17 @@
 import { createHash, randomBytes } from "node:crypto";
+import {
+  closeSync,
+  copyFileSync,
+  existsSync,
+  fsyncSync,
+  mkdirSync,
+  openSync,
+  readSync,
+  renameSync,
+  rmSync,
+  writeSync,
+} from "node:fs";
+import { dirname, join } from "node:path";
 import { z } from "zod";
 
 export const MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024;
@@ -29,6 +42,10 @@ export type UploadRecord = {
   sourceSha256: string | null;
   media: UploadMedia | null;
   readonly chunks: Uint8Array[];
+  readonly chunkHashes: string[];
+  readonly chunkSizes: number[];
+  readonly stagingPath?: string;
+  casPath?: string | null;
   actualBytes: number;
 };
 export type CasRecord = {
@@ -45,6 +62,8 @@ export type UploadStore = {
   readonly cas: Map<string, CasRecord>;
   readonly casByTenantDigest: Map<string, string>;
   readonly now: () => number;
+  readonly stagingRoot?: string;
+  readonly casRoot?: string;
   readonly audit?: (event: {
     readonly action: string;
     readonly tenantId: string | null;
@@ -85,6 +104,7 @@ export class UploadFailure extends Error {
 
 const id = (prefix: string): string =>
   `${prefix}_${randomBytes(12).toString("base64url")}`;
+const segment = (value: string): string => encodeURIComponent(value);
 const isSafeFilename = (filename: string): boolean =>
   !filename.includes("/") &&
   !filename.includes("\\") &&
@@ -144,8 +164,9 @@ export function createUpload(
         : "INVALID_REQUEST",
     );
   const now = store.now();
+  const uploadId = id("upl");
   const upload: UploadRecord = {
-    id: id("upl"),
+    id: uploadId,
     tenantId,
     filename,
     contentType: "video/mp4",
@@ -157,8 +178,28 @@ export function createUpload(
     sourceSha256: null,
     media: null,
     chunks: [],
+    chunkHashes: [],
+    chunkSizes: [],
+    ...(store.stagingRoot
+      ? {
+          stagingPath: join(
+            store.stagingRoot,
+            segment(tenantId),
+            uploadId,
+            "source.upload",
+          ),
+          casPath: null,
+        }
+      : {}),
     actualBytes: 0,
   };
+  if (upload.stagingPath) {
+    mkdirSync(join(store.stagingRoot ?? "", segment(tenantId)), {
+      recursive: true,
+      mode: 0o711,
+    });
+    mkdirSync(dirname(upload.stagingPath), { recursive: true, mode: 0o700 });
+  }
   store.uploads.set(upload.id, upload);
   return upload;
 }
@@ -205,15 +246,25 @@ export function putChunk(
   )
     throw new UploadFailure("UPLOAD_RANGE_INVALID");
   if (actualSha256 !== declaredSha256) throw new UploadFailure("HASH_MISMATCH");
-  const existing = upload.chunks[index];
-  if (existing) {
-    if (createHash("sha256").update(existing).digest("hex") !== declaredSha256)
+  const existingHash = upload.chunkHashes[index];
+  if (existingHash) {
+    if (existingHash !== declaredSha256)
       throw new UploadFailure("HASH_MISMATCH");
     return upload;
   }
   if (index !== upload.chunks.length)
     throw new UploadFailure("UPLOAD_RANGE_INVALID");
-  upload.chunks.push(chunk);
+  if (upload.stagingPath) {
+    const descriptor = openSync(upload.stagingPath, index === 0 ? "w" : "r+");
+    try {
+      writeSync(descriptor, chunk, 0, chunk.byteLength, start);
+    } finally {
+      closeSync(descriptor);
+    }
+    upload.chunks.push(new Uint8Array());
+  } else upload.chunks.push(chunk);
+  upload.chunkHashes.push(declaredSha256);
+  upload.chunkSizes.push(chunk.byteLength);
   upload.actualBytes += chunk.byteLength;
   return upload;
 }
@@ -226,6 +277,25 @@ export const FinalizeUploadSchema = z
   .strict();
 type FinalizeExpectation = Readonly<z.infer<typeof FinalizeUploadSchema>>;
 
+const fileDigest = (filename: string): string => {
+  const descriptor = openSync(filename, "r");
+  const digest = createHash("sha256");
+  const bytes = Buffer.alloc(64 * 1024);
+  try {
+    for (
+      let count = readSync(descriptor, bytes, 0, bytes.length, null);
+      count > 0;
+
+    ) {
+      digest.update(bytes.subarray(0, count));
+      count = readSync(descriptor, bytes, 0, bytes.length, null);
+    }
+  } finally {
+    closeSync(descriptor);
+  }
+  return digest.digest("hex");
+};
+
 const verifyFinalize = (
   upload: UploadRecord,
   expectation?: FinalizeExpectation,
@@ -233,16 +303,31 @@ const verifyFinalize = (
   if (
     upload.state !== "PENDING" ||
     upload.actualBytes !== upload.sizeBytes ||
-    (expectation && upload.chunks.length !== expectation.orderedChunkCount)
+    (expectation && upload.chunkHashes.length !== expectation.orderedChunkCount)
   )
     throw new UploadFailure("UPLOAD_INCOMPLETE");
-  if (!hasFtyp(upload.chunks)) {
+  let prefix = upload.chunks;
+  if (upload.stagingPath) {
+    const descriptor = openSync(upload.stagingPath, "r");
+    const bytes = Buffer.alloc(16 * 1024);
+    try {
+      const count = readSync(descriptor, bytes, 0, bytes.length, 0);
+      prefix = [bytes.subarray(0, count)];
+    } finally {
+      closeSync(descriptor);
+    }
+  }
+  if (!hasFtyp(prefix)) {
     upload.state = "QUARANTINED";
     throw new UploadFailure("VIDEO_TYPE_INVALID");
   }
-  const digest = createHash("sha256");
-  for (const chunk of upload.chunks) digest.update(chunk);
-  const sha256 = digest.digest("hex");
+  const sha256 = upload.stagingPath
+    ? fileDigest(upload.stagingPath)
+    : (() => {
+        const digest = createHash("sha256");
+        for (const chunk of upload.chunks) digest.update(chunk);
+        return digest.digest("hex");
+      })();
   if (expectation && sha256 !== expectation.declaredSha256)
     throw new UploadFailure("HASH_MISMATCH");
   return sha256;
@@ -268,6 +353,24 @@ const acceptUpload = (
       retentionUntil: new Date(store.now() + UPLOAD_TTL_MS).toISOString(),
     });
   }
+  if (upload.stagingPath && store.casRoot) {
+    const directory = join(store.casRoot, segment(upload.tenantId));
+    const destination = join(directory, sha256);
+    mkdirSync(directory, { recursive: true, mode: 0o700 });
+    if (!existsSync(destination)) {
+      const temporary = `${destination}.${id("tmp")}`;
+      copyFileSync(upload.stagingPath, temporary);
+      const descriptor = openSync(temporary, "r");
+      try {
+        fsyncSync(descriptor);
+      } finally {
+        closeSync(descriptor);
+      }
+      renameSync(temporary, destination);
+    }
+    upload.casPath = destination;
+  } else if (store.casRoot)
+    upload.casPath = join(store.casRoot, segment(upload.tenantId), sha256);
   upload.casObjectId = casObjectId;
   upload.sourceSha256 = sha256;
   upload.state = "ACCEPTED";
@@ -279,7 +382,10 @@ const verifyAcceptedReplay = (
   expectation?: FinalizeExpectation,
 ): boolean => {
   if (upload.state !== "ACCEPTED") return false;
-  if (expectation && upload.chunks.length !== expectation.orderedChunkCount)
+  if (
+    expectation &&
+    upload.chunkHashes.length !== expectation.orderedChunkCount
+  )
     throw new UploadFailure("UPLOAD_INCOMPLETE");
   if (expectation && upload.sourceSha256 !== expectation.declaredSha256)
     throw new UploadFailure("HASH_MISMATCH");
@@ -335,6 +441,8 @@ export function abortUpload(
   if (upload.state !== "PENDING" && upload.state !== "VALIDATING")
     throw new UploadFailure("UPLOAD_NOT_ABORTABLE");
   upload.state = "EXPIRED";
+  if (upload.stagingPath)
+    rmSync(dirname(upload.stagingPath), { force: true, recursive: true });
 }
 export function cleanupExpiredUploads(store: UploadStore): number {
   const now = store.now();
@@ -345,7 +453,15 @@ export function cleanupExpiredUploads(store: UploadStore): number {
       Date.parse(upload.expiresAt) <= now
     ) {
       store.uploads.delete(uploadId);
+      if (upload.stagingPath)
+        rmSync(dirname(upload.stagingPath), {
+          force: true,
+          recursive: true,
+        });
       removed += 1;
     }
   return removed;
 }
+
+export const uploadSourcePath = (upload: UploadRecord): string | undefined =>
+  upload.casPath ?? upload.stagingPath;

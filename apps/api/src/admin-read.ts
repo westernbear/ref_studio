@@ -83,6 +83,7 @@ export type AdminReadStore = {
   readonly queryCount?: { value: number };
 };
 type Query = {
+  readonly q?: string;
   readonly tenantId?: string;
   readonly state?: string;
   readonly status?: string;
@@ -97,6 +98,13 @@ type Query = {
   readonly include?: string;
   readonly fields?: string;
 };
+const includes = (query: string | undefined, ...values: unknown[]): boolean =>
+  !query ||
+  values.some(
+    (value) =>
+      typeof value === "string" &&
+      value.toLocaleLowerCase().includes(query.toLocaleLowerCase()),
+  );
 const role = (principal: Principal): string =>
   principal.roles[0]?.toUpperCase().replace("-", "_") ?? "";
 const header = (request: FastifyRequest, name: string): string | undefined => {
@@ -291,6 +299,7 @@ export function registerAdminRead(
           .filter(
             (item) =>
               visibleTenants.has(item.id) &&
+              includes(query.q, item.id, item.name, item.status, item.plan) &&
               (!query.status || item.status === query.status) &&
               (!query.plan || item.plan === query.plan),
           )
@@ -316,11 +325,37 @@ export function registerAdminRead(
         reply.send(page(items, query));
         return;
       }
+      if (path === "/admin/jobs") {
+        const items = store.jobs
+          .filter(
+            (item) =>
+              allowed(item.tenantId) &&
+              includes(
+                query.q,
+                item.id,
+                item.tenantId,
+                item.creatorId,
+                item.state,
+              ) &&
+              (!query.tenantId || item.tenantId === query.tenantId) &&
+              (!query.state || item.state === query.state),
+          )
+          .map(({ privatePath: _path, ...safe }) => safe);
+        auth.audit({
+          action: "TENANT_VIEWED",
+          userId: principal.userId,
+          tenantId: query.tenantId ?? null,
+          decision: "ALLOWED",
+        });
+        reply.send(page(items, query));
+        return;
+      }
       if (path.startsWith("/admin/tenants/") && path.endsWith("/jobs")) {
         const items = store.jobs
           .filter(
             (item) =>
               item.tenantId === requested &&
+              includes(query.q, item.id, item.creatorId, item.state) &&
               (!query.state || item.state === query.state),
           )
           .map(({ privatePath: _path, ...safe }) => safe);
@@ -338,6 +373,14 @@ export function registerAdminRead(
           .filter(
             (item) =>
               allowed(item.tenantId) &&
+              includes(
+                query.q,
+                item.id,
+                item.jobId,
+                item.gate,
+                item.decision,
+                item.actorId,
+              ) &&
               (!query.tenantId || item.tenantId === query.tenantId) &&
               (!query.jobId || item.jobId === query.jobId) &&
               (!query.eventType || item.gate === query.eventType),
@@ -357,6 +400,15 @@ export function registerAdminRead(
           .filter(
             (item) =>
               (item.tenantId === null || allowed(item.tenantId)) &&
+              includes(
+                query.q,
+                item.id,
+                item.jobId,
+                item.actorId,
+                item.eventType,
+                item.correlationId,
+                item.outcome,
+              ) &&
               (!query.tenantId || item.tenantId === query.tenantId) &&
               (!query.actorId || item.actorId === query.actorId) &&
               (!query.eventType || item.eventType === query.eventType) &&
@@ -378,6 +430,14 @@ export function registerAdminRead(
           .filter(
             (item) =>
               allowed(item.tenantId) &&
+              includes(
+                query.q,
+                item.id,
+                item.declaredType,
+                item.magicBytes,
+                item.containerParse,
+                item.reason,
+              ) &&
               (!query.tenantId || item.tenantId === query.tenantId) &&
               (!query.state || item.state === query.state) &&
               (!query.reason || item.reason === query.reason),
@@ -412,6 +472,7 @@ export function registerAdminRead(
     }
   };
   app.get("/admin/tenants", handler);
+  app.get("/admin/jobs", handler);
   app.get("/admin/tenants/:id/jobs", handler);
   app.get("/admin/receipts", handler);
   app.get("/admin/audit-log", handler);

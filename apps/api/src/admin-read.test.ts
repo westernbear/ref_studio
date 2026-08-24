@@ -206,6 +206,7 @@ describe("admin-read", () => {
     const app = appFor(data);
     for (const url of [
       "/admin/tenants",
+      "/admin/jobs?q=job_a",
       "/admin/tenants/tenant-a/jobs",
       "/admin/receipts",
       "/admin/audit-log",
@@ -237,7 +238,7 @@ describe("admin-read", () => {
         "BILLING_METADATA_VIEWED",
       ]),
     );
-    expect(data.reads.queryCount?.value).toBe(6);
+    expect(data.reads.queryCount?.value).toBe(7);
   });
   it("allows browser admin sessions to read admin records", async () => {
     const data = fixture();
@@ -268,6 +269,7 @@ describe("admin-read", () => {
       const app = appFor(data);
       for (const url of [
         "/admin/tenants",
+        "/admin/jobs",
         "/admin/tenants/tenant-a/jobs",
         "/admin/receipts",
         "/admin/audit-log",

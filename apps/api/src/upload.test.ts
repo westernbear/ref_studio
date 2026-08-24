@@ -1,4 +1,7 @@
 import { createHash } from "node:crypto";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { buildAuthApp } from "./app.js";
 import { hashBearer, type AuthStore } from "./auth.js";
@@ -6,7 +9,9 @@ import { createCreatorWorkflowStore } from "./creator-workflow.js";
 import {
   cleanupExpiredUploads,
   createUpload,
+  finalizeUpload,
   MAX_CHUNK_BYTES,
+  putChunk,
   type UploadMedia,
   type UploadStore,
 } from "./uploads.js";
@@ -398,5 +403,50 @@ describe("sandboxed upload sessions", () => {
     expect(expired.statusCode).toBe(410);
     expect(cleanupExpiredUploads(state.uploads)).toBe(1);
     await app.close();
+  });
+
+  it("writes tenant-fenced chunks to disk and promotes the verified source", () => {
+    const directory = mkdtempSync(join(tmpdir(), "rvs-upload-disk-"));
+    const bytes = mp4();
+    const uploads: UploadStore = {
+      uploads: new Map(),
+      cas: new Map(),
+      casByTenantDigest: new Map(),
+      now: () => 1_000,
+      stagingRoot: join(directory, "staging"),
+      casRoot: join(directory, "cas"),
+    };
+    const upload = createUpload(uploads, "ten_a", {
+      fileName: "disk.mp4",
+      sizeBytes: bytes.byteLength,
+    });
+    putChunk(
+      uploads,
+      "ten_a",
+      upload.id,
+      0,
+      bytes,
+      `bytes 0-${bytes.byteLength - 1}/${bytes.byteLength}`,
+      sha256(bytes),
+    );
+    putChunk(
+      uploads,
+      "ten_a",
+      upload.id,
+      0,
+      bytes,
+      `bytes 0-${bytes.byteLength - 1}/${bytes.byteLength}`,
+      sha256(bytes),
+    );
+    finalizeUpload(uploads, "ten_a", upload.id, {
+      orderedChunkCount: 1,
+      declaredSha256: sha256(bytes),
+    });
+
+    expect(upload.stagingPath).toContain(`${join("staging", "ten_a")}`);
+    expect(upload.actualBytes).toBe(bytes.byteLength);
+    expect(existsSync(upload.casPath ?? "")).toBe(true);
+    expect(readFileSync(upload.casPath ?? "")).toEqual(Buffer.from(bytes));
+    rmSync(directory, { recursive: true, force: true });
   });
 });

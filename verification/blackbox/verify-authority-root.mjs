@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import { readFile, stat } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { readFile, realpath, stat } from "node:fs/promises";
+import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const DRIFT = "AUTHORITY_ROOT_DRIFT";
@@ -14,6 +14,35 @@ function option(name) {
   return index === -1 ? undefined : process.argv[index + 1];
 }
 
+function workspacePath(workspace, candidate, label) {
+  if (isAbsolute(candidate)) {
+    throw new Error(`${label} path must be workspace-relative`);
+  }
+  const path = resolve(workspace, candidate);
+  const offset = relative(workspace, path);
+  if (
+    offset === "" ||
+    offset === ".." ||
+    offset.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)
+  ) {
+    throw new Error(`${label} path must stay within workspace`);
+  }
+  if (candidate.split(/[\\/]/).includes("..")) {
+    throw new Error(`${label} path must not contain traversal`);
+  }
+  return path;
+}
+
+async function assertRealPathWithin(workspace, path, label) {
+  const offset = relative(workspace, await realpath(path));
+  if (
+    offset === ".." ||
+    offset.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)
+  ) {
+    throw new Error(`${label} path resolves outside workspace`);
+  }
+}
+
 async function verify() {
   const rootArgument = option("--root");
   const expected =
@@ -25,7 +54,8 @@ async function verify() {
   }
 
   const workspace = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-  const rootPath = resolve(workspace, rootArgument);
+  const rootPath = workspacePath(workspace, rootArgument, "root");
+  await assertRealPathWithin(workspace, rootPath, "root");
   const rootBytes = await readFile(rootPath);
   const actualRootSha256 = sha256(rootBytes);
   if (actualRootSha256 !== expected) {
@@ -52,6 +82,7 @@ async function verify() {
   }
 
   const verifiedEntries = [];
+  const entryPaths = new Set();
   for (const entry of manifest.entries) {
     if (
       typeof entry?.path !== "string" ||
@@ -60,7 +91,12 @@ async function verify() {
     ) {
       throw new Error("invalid authority-root entry");
     }
-    const entryPath = resolve(workspace, entry.path);
+    if (entryPaths.has(entry.path)) {
+      throw new Error(`duplicate entry path=${entry.path}`);
+    }
+    entryPaths.add(entry.path);
+    const entryPath = workspacePath(workspace, entry.path, "entry");
+    await assertRealPathWithin(workspace, entryPath, "entry");
     const entryStat = await stat(entryPath);
     const bytes = await readFile(entryPath);
     const digest = sha256(bytes);

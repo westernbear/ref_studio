@@ -71,7 +71,7 @@ export function ReviewGateControls(props: Props) {
   };
 
   return (
-    <div className="review-actions">
+    <div className="review-actions" data-landmark="gate-action">
       <button
         className="button button-primary"
         type="button"

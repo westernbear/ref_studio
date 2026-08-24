@@ -13,6 +13,7 @@ node_modules/**
 apps/*/.next/
 apps/*/dist/
 apps/*/test-results/
+apps/api/data/
 apps/worker/compiler/.venv/
 examples/heygen-reference-project/output/
 packages/*/dist/

@@ -1,6 +1,13 @@
 {
   "protocol": "rvs.example-project.v1",
+  "pilotId": "pilot_heygen_reference_4s_v1",
+  "releaseId": "release_heygen_reference_v1",
   "archive": "heygen_handoff.zip",
+  "scope": {
+    "immutable": true,
+    "precedence": "pilot-contract-over-archive-creative-brief",
+    "archiveBriefDurationSeconds": [26, 28]
+  },
   "source": {
     "member": "reference_style_youmotion.mp4",
     "sha256": "af1c8bbe5b33b37c9a128698ea55206c1eb2cd1640fae9fa6950904b5332d3a9",

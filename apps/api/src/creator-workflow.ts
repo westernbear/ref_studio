@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
+import { createReadStream } from "node:fs";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import {
@@ -8,8 +9,61 @@ import {
 import { IdempotencyStore, requestHash, safeEnvelope } from "./boundary.js";
 import type { Principal } from "./auth.js";
 import type { ReviewStore } from "./reviews.js";
-import type { UploadStore } from "./uploads.js";
+import { uploadSourcePath, type UploadStore } from "./uploads.js";
 
+export const PreparationStageSchema = z.enum([
+  "AWAITING_T1",
+  "ANALYSIS_QUEUED",
+  "ANALYSIS_RUNNING",
+  "COMPILATION_QUEUED",
+  "COMPILATION_RUNNING",
+  "AWAITING_T2",
+  "AWAITING_T3",
+  "PREVIEW_QUEUED",
+  "PREVIEW_RUNNING",
+  "AWAITING_T4",
+  "READY",
+]);
+export type PreparationStage = z.infer<typeof PreparationStageSchema>;
+const VersionedIr = z
+  .object({
+    versionId: z.string().min(1),
+    digest: z.string().regex(/^[a-f0-9]{64}$/u),
+    parentDigest: z
+      .string()
+      .regex(/^[a-f0-9]{64}$/u)
+      .nullable(),
+  })
+  .passthrough();
+export const CompilationSchema = z
+  .object({
+    authoring: VersionedIr,
+    scene: VersionedIr,
+    browserPassSpec: VersionedIr,
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (
+      value.scene.parentDigest !== value.authoring.digest ||
+      value.browserPassSpec.parentDigest !== value.scene.digest
+    )
+      context.addIssue({
+        code: "custom",
+        message: "IR parent digests must form one immutable chain",
+      });
+  });
+export type Compilation = z.infer<typeof CompilationSchema>;
+export type ReleaseManifest = Readonly<{
+  releaseId: string;
+  baselineDigest: string;
+  evidenceDigest: string;
+  irDigest: string;
+  runtimeDigest: string;
+  t5ReceiptIds: readonly string[];
+  recoveryReportArtifactId: string;
+  fixedFrameArtifactIds: readonly string[];
+  verifiedAt: string;
+}>;
 export type Job = {
   id: string;
   tenantId: string;
@@ -27,6 +81,18 @@ export type Job = {
   sourceFps: number;
   frameCount: number;
   evidence: Record<string, unknown> | null;
+  candidateEvidence: Record<string, unknown> | null;
+  candidateEvidenceDigest: string | null;
+  preparationStage: PreparationStage;
+  pendingCompilation: Compilation | null;
+  compilation: Compilation | null;
+  previewSpecDigest: string | null;
+  approvedSpecDigest: string | null;
+  eligibleAt: number;
+  automaticRetries: number;
+  deletionEpoch: number;
+  restoreEpoch: number;
+  failureCode: string | null;
   runtimePreflight: RuntimePreflightEvidence | null;
   progress: {
     phase: "prepare" | "render";
@@ -62,6 +128,7 @@ export type StoredArtifact = {
   readonly filename: string;
   readonly contentType: "video/mp4";
   readonly bytes: Uint8Array;
+  readonly storagePath?: string;
   readonly sha256: string;
   readonly sizeBytes: number;
   readonly createdAt: string;
@@ -80,19 +147,23 @@ export type CreatorWorkflowStore = {
   readonly stagedArtifacts: Map<string, StoredArtifact>;
   readonly previews: Map<string, StoredArtifact>;
   readonly artifacts: Map<string, StoredArtifact>;
+  readonly releaseManifests: Map<string, ReleaseManifest>;
   readonly idempotency: IdempotencyStore;
   readonly now: () => number;
+  availablePreflight: RuntimePreflightEvidence | null;
 };
 export const createCreatorWorkflowStore = (
-  now = Date.now(),
+  now: () => number = Date.now,
 ): CreatorWorkflowStore => ({
   jobs: new Map(),
   attempts: new Map(),
   stagedArtifacts: new Map(),
   previews: new Map(),
   artifacts: new Map(),
+  releaseManifests: new Map(),
   idempotency: new IdempotencyStore(),
-  now: () => now,
+  now,
+  availablePreflight: null,
 });
 
 const id = (prefix: string): string =>
@@ -111,32 +182,268 @@ export const RELEASE_BASELINE_DIGEST = digest({
   height: 1920,
   durationSeconds: 4,
 });
-const EvidenceSceneInput = z.object({
-  owners: z.array(
-    z.object({
-      ownerId: z.string(),
-      kind: z.string(),
-      editable: z.boolean(),
-      confidence: z.number().min(0).max(1),
-    }),
-  ),
-  tracks: z.array(
-    z.object({
-      trackId: z.string(),
-      owner: z.string(),
-      geometryRef: z.string(),
-      lifecycle: z.record(z.string(), z.unknown()),
-      effects: z.array(z.string()),
-    }),
-  ),
-  needsChoice: z.array(z.unknown()).optional(),
-});
+const ChoiceRecord = z
+  .object({
+    choiceId: z.string().regex(/^choice_[A-Za-z0-9_-]{8,64}$/u),
+  })
+  .passthrough();
+const EvidenceSceneInput = z
+  .object({
+    owners: z.array(
+      z
+        .object({
+          ownerId: z.string(),
+          kind: z.string(),
+          editable: z.boolean(),
+          confidence: z.number().min(0).max(1),
+        })
+        .passthrough(),
+    ),
+    tracks: z.array(
+      z
+        .object({
+          trackId: z.string(),
+          owner: z.string(),
+          geometryRef: z.string(),
+          lifecycle: z.record(z.string(), z.unknown()),
+          effects: z.array(z.string()),
+        })
+        .passthrough(),
+    ),
+    needsChoice: z.array(ChoiceRecord).optional(),
+  })
+  .passthrough();
+const Confidence = z.number().min(0).max(1);
+const EvidenceFrame = z
+  .object({
+    index: z.number().int().nonnegative(),
+    timeMs: z.number().int().nonnegative(),
+    nativeSha256: z.string().regex(/^[a-f0-9]{64}$/u),
+    confidence: Confidence,
+  })
+  .passthrough();
+const ConfidentFrame = z
+  .object({ frame: z.number().int().nonnegative(), confidence: Confidence })
+  .passthrough();
+export const EvidenceBundleSchema = z
+  .object({
+    schemaVersion: z.literal("rvs-reference-evidence-v1"),
+    state: z.enum(["MAPPED", "NEEDS_CHOICE"]),
+    source: z
+      .object({
+        jobId: z.string().min(1),
+        attemptId: z.string().min(1),
+        normalizedSha256: z.string().regex(/^[a-f0-9]{64}$/u),
+      })
+      .strict(),
+    observed: z
+      .object({
+        temporalVolume: z
+          .object({
+            profile: z.string().min(1),
+            fps: z.union([
+              z.literal(24),
+              z.literal(25),
+              z.literal(30),
+              z.literal(50),
+              z.literal(60),
+            ]),
+            frameCount: z.number().int().min(96).max(240),
+            intervalMs: z.tuple([z.literal(0), z.literal(4_000)]),
+            frames: z.array(EvidenceFrame).min(96).max(240),
+          })
+          .strict(),
+        ocr: z.object({ candidates: z.array(ConfidentFrame) }).passthrough(),
+        uiSurfaces: z.array(ConfidentFrame),
+        matting: z.object({ frames: z.array(ConfidentFrame) }).passthrough(),
+        depth: z
+          .object({
+            medianNormalized: z.array(z.number().min(0).max(1).nullable()),
+            ownerSamples: z.array(z.record(z.string(), z.unknown())),
+          })
+          .passthrough(),
+        camera: z.object({ frames: z.array(ConfidentFrame) }).passthrough(),
+        tracking: z.array(
+          z
+            .object({
+              ownerId: z.string().min(1),
+              samples: z.array(
+                z
+                  .object({
+                    frame: z.number().int().nonnegative(),
+                    timeMs: z.number().int().nonnegative(),
+                    boundsPx: z.tuple([
+                      z.number().finite(),
+                      z.number().finite(),
+                      z.number().positive(),
+                      z.number().positive(),
+                    ]),
+                    centroidPx: z.tuple([
+                      z.number().finite(),
+                      z.number().finite(),
+                    ]),
+                    velocityPxPerMs: z.tuple([
+                      z.number().finite(),
+                      z.number().finite(),
+                    ]),
+                    confidence: Confidence,
+                  })
+                  .passthrough(),
+              ),
+            })
+            .strict(),
+        ),
+        effects: z.array(
+          z
+            .object({
+              lowerLightRgb16x9: z
+                .array(z.number().min(0).max(1))
+                .length(16 * 9 * 3),
+              confidence: Confidence,
+              formulas: z.record(z.string(), z.string().min(1)),
+            })
+            .passthrough(),
+        ),
+        rhythm: z.record(z.string(), z.unknown()),
+        audio: z
+          .object({
+            sampleRateHz: z.literal(48_000),
+            channels: z.literal(2),
+            anchors: z.array(ConfidentFrame),
+          })
+          .strict(),
+        palette: z.array(z.string().regex(/^#[0-9a-f]{6}$/iu)).min(1),
+      })
+      .strict(),
+    mappings: z
+      .object({
+        textOwnerCount: z.number().int().nonnegative(),
+        uiOwnerCount: z.number().int().nonnegative(),
+        residualOwner: z.string().min(1),
+      })
+      .strict(),
+    needsChoice: z.array(ChoiceRecord).max(1),
+    sceneInput: EvidenceSceneInput,
+  })
+  .strict()
+  .superRefine((value, context) => {
+    const count = value.observed.temporalVolume.frameCount;
+    const perFrame = [
+      value.observed.temporalVolume.frames,
+      value.observed.matting.frames,
+      value.observed.depth.medianNormalized,
+      value.observed.camera.frames,
+      value.observed.effects,
+    ];
+    if (perFrame.some((items) => items.length !== count))
+      context.addIssue({
+        code: "custom",
+        message: "every temporal measurement must cover the selected interval",
+      });
+    if (
+      value.observed.temporalVolume.frames.some(
+        (frame, index) =>
+          frame.index !== index ||
+          frame.timeMs !==
+            Math.floor((index * 1_000) / value.observed.temporalVolume.fps),
+      )
+    )
+      context.addIssue({
+        code: "custom",
+        message: "temporal frame sequence is invalid",
+      });
+    if (
+      (value.state === "MAPPED" && value.needsChoice.length !== 0) ||
+      (value.state === "NEEDS_CHOICE" && value.needsChoice.length !== 1) ||
+      (value.sceneInput.needsChoice?.length ?? 0) !== value.needsChoice.length
+    )
+      context.addIssue({
+        code: "custom",
+        message: "choice state is inconsistent",
+      });
+    const owners = new Set(
+      value.sceneInput.owners.map((owner) => owner.ownerId),
+    );
+    if (
+      owners.size !== value.sceneInput.owners.length ||
+      value.sceneInput.tracks.some((track) => !owners.has(track.owner))
+    )
+      context.addIssue({
+        code: "custom",
+        message: "owner topology is invalid",
+      });
+  });
+const AuthoringPatch = z
+  .object({
+    ops: z
+      .array(
+        z
+          .object({
+            op: z.literal("replace"),
+            path: z.string().startsWith("/").max(300),
+            value: z.unknown(),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(20),
+    reason: z.string().min(1).max(500),
+  })
+  .strict();
+const GeometryEdit = z
+  .object({
+    x: z.number().finite().min(0).max(1080),
+    y: z.number().finite().min(0).max(1920),
+    width: z.number().finite().positive().max(1080),
+    height: z.number().finite().positive().max(1920),
+  })
+  .strict()
+  .refine((value) => value.x + value.width <= 1080, "geometry exceeds width")
+  .refine((value) => value.y + value.height <= 1920, "geometry exceeds height");
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+const reviewEvidence = (job: Job): Record<string, unknown> | null =>
+  job.candidateEvidence ?? job.evidence;
+const ChoiceResolveRequest = z
+  .object({
+    choiceId: z.string().regex(/^choice_[A-Za-z0-9_-]{8,64}$/u),
+    polygonOrOwner: z.union([
+      z.object({ ownerId: z.string().min(1).max(100) }).strict(),
+      z
+        .object({
+          polygon: z
+            .array(
+              z
+                .object({
+                  x: z.number().min(0).max(1080),
+                  y: z.number().min(0).max(1920),
+                })
+                .strict(),
+            )
+            .min(3)
+            .max(64),
+        })
+        .strict(),
+    ]),
+    reason: z.string().min(1).max(500),
+  })
+  .strict();
 const jobSceneInput = (job: Job): z.infer<typeof EvidenceSceneInput> => {
   const parsed = z
     .object({ sceneInput: EvidenceSceneInput })
-    .safeParse(job.evidence);
+    .safeParse(reviewEvidence(job));
   if (!parsed.success) throw new Error("ARTIFACT_UNAVAILABLE");
   return parsed.data.sceneInput;
+};
+export const hasUnresolvedChoices = (job: Job): boolean => {
+  const evidence = reviewEvidence(job);
+  if (!evidence) return true;
+  const parsed = z
+    .object({ sceneInput: EvidenceSceneInput })
+    .safeParse(evidence);
+  return (
+    !parsed.success || (parsed.data.sceneInput.needsChoice?.length ?? 0) > 0
+  );
 };
 const header = (request: FastifyRequest, name: string): string | undefined => {
   const value = request.headers[name];
@@ -157,6 +464,9 @@ const projection = (
   startFrame: job.startFrame,
   sourceFps: job.sourceFps,
   frameCount: job.frameCount,
+  preparationStage: job.preparationStage,
+  failureCode: job.failureCode,
+  automaticRetries: job.automaticRetries,
   artifact: job.artifact,
   progress: job.progress,
   runtimePreflight: job.runtimePreflight,
@@ -164,6 +474,8 @@ const projection = (
   irDigest: job.irDigest,
   reviewArtifactId: store.stagedArtifacts.get(job.id)?.id ?? null,
   previewArtifactId: store.previews.get(job.id)?.id ?? null,
+  authoringVersionId: job.compilation?.authoring.versionId ?? null,
+  browserPassSpecDigest: job.compilation?.browserPassSpec.digest ?? null,
   runtimeDigest: job.runtimePreflight?.runtimeDigest ?? RUNTIME_DIGEST,
   releaseBaselineDigest: RELEASE_BASELINE_DIGEST,
   approvedGates: [
@@ -189,6 +501,10 @@ const fail = (reply: FastifyReply, code: string, status = 400): void => {
       ),
     );
 };
+const artifactBody = (artifact: StoredArtifact) =>
+  artifact.storagePath
+    ? createReadStream(artifact.storagePath)
+    : Buffer.from(artifact.bytes);
 const command = (
   store: CreatorWorkflowStore,
   request: FastifyRequest,
@@ -221,10 +537,10 @@ const edit = (job: Job, request: FastifyRequest): void => {
   const match = header(request, "if-match");
   if (!match || match !== job.etag) throw new Error("VERSION_CONFLICT");
 };
-const mutate = (job: Job, next: JobState): void => {
+const mutate = (job: Job, next: JobState, now = Date.now): void => {
   assertLegalTransition(job.state, next);
   job.state = next;
-  job.updatedAt = new Date().toISOString();
+  job.updatedAt = new Date(now()).toISOString();
   job.etag = `\"${digest(job.updatedAt)}\"`;
 };
 
@@ -324,9 +640,21 @@ export function registerCreatorWorkflow(
               approved: false,
               startFrame: start,
               sourceFps: fps,
-              frameCount: frames,
+              frameCount: fps * 4,
               evidence: null,
-              runtimePreflight: null,
+              candidateEvidence: null,
+              candidateEvidenceDigest: null,
+              preparationStage: "AWAITING_T1",
+              pendingCompilation: null,
+              compilation: null,
+              previewSpecDigest: null,
+              approvedSpecDigest: null,
+              eligibleAt: store.now(),
+              automaticRetries: 0,
+              deletionEpoch: 0,
+              restoreEpoch: 0,
+              failureCode: null,
+              runtimePreflight: store.availablePreflight,
               progress: null,
               artifact: null,
             };
@@ -357,7 +685,12 @@ export function registerCreatorWorkflow(
     "/v1/jobs",
     async (
       request: FastifyRequest<{
-        Querystring: { limit?: number; after?: string };
+        Querystring: {
+          limit?: number;
+          after?: string;
+          q?: string;
+          state?: string;
+        };
       }>,
       reply,
     ) => {
@@ -366,15 +699,35 @@ export function registerCreatorWorkflow(
         fail(reply, "INVALID_REQUEST");
         return;
       }
-      const items = [...store.jobs.values()]
-        .filter((job) => job.tenantId === tenant(request))
-        .slice(0, limit)
+      const start = Number(request.query.after ?? 0);
+      if (
+        !Number.isInteger(start) ||
+        start < 0 ||
+        String(start) !== String(request.query.after ?? 0)
+      ) {
+        fail(reply, "CURSOR_INVALID");
+        return;
+      }
+      const query = request.query.q?.toLocaleLowerCase();
+      const jobs = [...store.jobs.values()].filter(
+        (job) =>
+          job.tenantId === tenant(request) &&
+          (!request.query.state || job.state === request.query.state) &&
+          (!query ||
+            [job.id, job.state, job.uploadId].some((value) =>
+              value.toLocaleLowerCase().includes(query),
+            )),
+      );
+      const items = jobs
+        .slice(start, start + limit)
         .map((job) => projection(store, job, reviews));
+      const hasNextPage = start + items.length < jobs.length;
       reply.send({
         items,
+        nextCursor: hasNextPage ? String(start + items.length) : null,
         pageInfo: {
-          hasNextPage: items.length === limit,
-          hasPreviousPage: Boolean(request.query.after),
+          hasNextPage,
+          hasPreviousPage: start > 0,
         },
       });
     },
@@ -429,7 +782,7 @@ export function registerCreatorWorkflow(
           () => {
             const job = owned(store, request.params.jobId, tenant(request));
             edit(job, request);
-            mutate(job, "CANCEL_REQUESTED");
+            mutate(job, "CANCEL_REQUESTED", store.now);
             return [202, { state: "CANCEL_REQUESTED" }];
           },
         );
@@ -461,9 +814,21 @@ export function registerCreatorWorkflow(
             job.state = "PREPARING";
             job.approved = false;
             job.evidence = null;
-            job.runtimePreflight = null;
+            job.candidateEvidence = null;
+            job.candidateEvidenceDigest = null;
+            job.preparationStage = "AWAITING_T1";
+            job.pendingCompilation = null;
+            job.compilation = null;
+            job.previewSpecDigest = null;
+            job.approvedSpecDigest = null;
+            job.eligibleAt = store.now();
+            job.automaticRetries = 0;
+            job.failureCode = null;
+            job.runtimePreflight = store.availablePreflight;
             job.progress = null;
             job.artifact = null;
+            store.previews.delete(job.id);
+            store.stagedArtifacts.delete(job.id);
             job.evidenceDigest = digest({
               upload: job.uploadId,
               attempt: job.attempt,
@@ -507,12 +872,23 @@ export function registerCreatorWorkflow(
           upload.state !== "ACCEPTED"
         )
           throw new Error("ARTIFACT_UNAVAILABLE");
-        reply
+        const sourcePath = uploadSourcePath(upload);
+        const memorySource = sourcePath
+          ? null
+          : Buffer.alloc(upload.actualBytes);
+        let offset = 0;
+        for (const chunk of upload.chunks) {
+          memorySource?.set(chunk, offset);
+          offset += chunk.byteLength;
+        }
+        return reply
           .header("content-type", upload.contentType)
           .header("content-length", upload.actualBytes)
           .header("content-disposition", 'inline; filename="reference.mp4"')
           .send(
-            Buffer.concat(upload.chunks.map((chunk) => Buffer.from(chunk))),
+            sourcePath
+              ? createReadStream(sourcePath)
+              : (memorySource ?? Buffer.alloc(0)),
           );
       } catch {
         fail(reply, "ARTIFACT_UNAVAILABLE", 404);
@@ -527,14 +903,14 @@ export function registerCreatorWorkflow(
         const preview = store.previews.get(job.id);
         if (!preview || preview.kind !== "preview")
           throw new Error("ARTIFACT_UNAVAILABLE");
-        reply
+        return reply
           .header("content-type", preview.contentType)
           .header("content-length", preview.sizeBytes)
           .header(
             "content-disposition",
             `inline; filename="${preview.filename}"`,
           )
-          .send(Buffer.from(preview.bytes));
+          .send(artifactBody(preview));
       } catch {
         fail(reply, "ARTIFACT_UNAVAILABLE", 404);
       }
@@ -545,8 +921,9 @@ export function registerCreatorWorkflow(
     async (request: FastifyRequest<{ Params: { jobId: string } }>, reply) => {
       try {
         const job = owned(store, request.params.jobId, tenant(request));
-        if (!job.evidence) throw new Error("ARTIFACT_UNAVAILABLE");
-        reply.send({ ...job.evidence, digest: job.evidenceDigest });
+        const evidence = reviewEvidence(job);
+        if (!evidence) throw new Error("ARTIFACT_UNAVAILABLE");
+        reply.send({ ...evidence, digest: job.evidenceDigest });
       } catch (error) {
         fail(
           reply,
@@ -561,9 +938,12 @@ export function registerCreatorWorkflow(
     async (request: FastifyRequest<{ Params: { jobId: string } }>, reply) => {
       try {
         const job = owned(store, request.params.jobId, tenant(request));
-        reply
-          .header("etag", job.etag)
-          .send({ digest: job.irDigest, version: 1 });
+        reply.header("etag", job.etag).send({
+          digest: job.compilation?.authoring.digest ?? job.irDigest,
+          versionId: job.compilation?.authoring.versionId ?? null,
+          candidateDigest: job.pendingCompilation?.authoring.digest ?? null,
+          preparationStage: job.preparationStage,
+        });
       } catch (error) {
         fail(
           reply,
@@ -585,15 +965,167 @@ export function registerCreatorWorkflow(
           () => {
             const job = owned(store, request.params.jobId, tenant(request));
             edit(job, request);
-            job.irDigest = digest(request.body);
+            if (
+              !job.evidence ||
+              !job.compilation ||
+              (job.state !== "READY" && job.state !== "STALE_APPROVAL")
+            )
+              throw new Error("JOB_NOT_READY");
+            const patch = AuthoringPatch.parse(request.body);
+            const candidate = structuredClone(job.evidence);
+            const sceneInput = candidate["sceneInput"];
+            if (!isRecord(sceneInput)) throw new Error("EDIT_COMPILE_FAILED");
+            for (const operation of patch.ops) {
+              const segments = operation.path
+                .slice(1)
+                .split("/")
+                .map((part) =>
+                  part.replaceAll("~1", "/").replaceAll("~0", "~"),
+                );
+              const [group, ownerId, effectName] = segments;
+              if (group === "copy" && ownerId && segments.length === 2) {
+                const value = z.string().max(500).parse(operation.value);
+                const owners = sceneInput["owners"];
+                const owner = Array.isArray(owners)
+                  ? owners.find(
+                      (item) => isRecord(item) && item["ownerId"] === ownerId,
+                    )
+                  : undefined;
+                if (!isRecord(owner)) throw new Error("INVALID_REQUEST");
+                owner["content"] = value;
+              } else if (
+                group === "geometry" &&
+                ownerId &&
+                segments.length === 2
+              ) {
+                const value = GeometryEdit.parse(operation.value);
+                const geometry = sceneInput["geometry"];
+                const ownerGeometry = isRecord(geometry)
+                  ? geometry[ownerId]
+                  : undefined;
+                if (!isRecord(ownerGeometry))
+                  throw new Error("INVALID_REQUEST");
+                const bounds = ownerGeometry["boundsPerFrame"];
+                if (!Array.isArray(bounds) || bounds.length === 0)
+                  throw new Error("INVALID_REQUEST");
+                ownerGeometry["boundsPerFrame"] = bounds.map((sample) => ({
+                  frame:
+                    isRecord(sample) && Number.isInteger(sample["frame"])
+                      ? sample["frame"]
+                      : 0,
+                  ...value,
+                }));
+              } else if (group === "passOrder" && segments.length === 1) {
+                const value = z.array(z.string().min(1)).parse(operation.value);
+                const passes = sceneInput["passes"];
+                if (!Array.isArray(passes)) throw new Error("INVALID_REQUEST");
+                const byId = new Map(
+                  passes.flatMap((item) =>
+                    isRecord(item) && typeof item["passId"] === "string"
+                      ? [[item["passId"], item] as const]
+                      : [],
+                  ),
+                );
+                if (
+                  value.length !== byId.size ||
+                  new Set(value).size !== value.length ||
+                  value.some((passId) => !byId.has(passId))
+                )
+                  throw new Error("INVALID_REQUEST");
+                sceneInput["passes"] = value.map((passId) => byId.get(passId));
+              } else if (
+                group === "effects" &&
+                ownerId &&
+                effectName &&
+                segments.length === 3
+              ) {
+                const value = z.number().finite().parse(operation.value);
+                const effects = sceneInput["effects"];
+                const ownerEffects = isRecord(effects)
+                  ? effects[ownerId]
+                  : undefined;
+                const effect = isRecord(ownerEffects)
+                  ? ownerEffects[effectName]
+                  : undefined;
+                const samples = isRecord(effect)
+                  ? effect["samples"]
+                  : undefined;
+                const measured = Array.isArray(samples)
+                  ? samples.flatMap((sample) =>
+                      isRecord(sample) && typeof sample["value"] === "number"
+                        ? [sample["value"]]
+                        : [],
+                    )
+                  : [];
+                if (
+                  !isRecord(effect) ||
+                  !Array.isArray(samples) ||
+                  measured.length === 0 ||
+                  value < Math.min(...measured) ||
+                  value > Math.max(...measured)
+                )
+                  throw new Error("INVALID_REQUEST");
+                effect["samples"] = samples.map((sample) => ({
+                  ...(isRecord(sample) ? sample : {}),
+                  value,
+                }));
+              } else if (
+                group === "assets" &&
+                ownerId &&
+                segments.length === 2
+              ) {
+                const assetId = z
+                  .string()
+                  .min(1)
+                  .max(200)
+                  .parse(operation.value);
+                const assets = sceneInput["editableAssets"];
+                const owners = sceneInput["owners"];
+                const validAsset =
+                  Array.isArray(assets) &&
+                  assets.some(
+                    (asset) =>
+                      isRecord(asset) &&
+                      asset["assetId"] === assetId &&
+                      asset["owner"] === ownerId,
+                  );
+                const owner = Array.isArray(owners)
+                  ? owners.find(
+                      (item) => isRecord(item) && item["ownerId"] === ownerId,
+                    )
+                  : undefined;
+                if (!validAsset || !isRecord(owner))
+                  throw new Error("INVALID_REQUEST");
+                owner["assetRef"] = assetId;
+              } else {
+                throw new Error("INVALID_REQUEST");
+              }
+            }
+            const candidateDigest = digest(candidate);
+            job.candidateEvidence = candidate;
+            job.candidateEvidenceDigest = candidateDigest;
+            job.evidenceDigest = candidateDigest;
+            job.irDigest = digest({ candidateDigest, pending: true });
+            job.pendingCompilation = null;
+            job.previewSpecDigest = null;
+            job.approvedSpecDigest = null;
             job.approved = false;
-            job.etag = `\"${digest(job.irDigest)}\"`;
+            job.preparationStage = "COMPILATION_QUEUED";
+            job.eligibleAt = store.now();
+            job.progress = null;
+            job.failureCode = null;
+            if (job.state === "READY") mutate(job, "STALE_APPROVAL", store.now);
+            else {
+              job.updatedAt = new Date(store.now()).toISOString();
+              job.etag = `\"${digest(job.updatedAt)}\"`;
+            }
             return [
-              201,
+              202,
               {
-                authoringIrDigest: job.irDigest,
-                sceneIrDigest: digest({ scene: job.irDigest }),
-                browserPassSpecDigest: digest({ pass: job.irDigest }),
+                state: "PREPARING",
+                preparationStage: job.preparationStage,
+                evidenceDigest: candidateDigest,
+                etag: job.etag,
               },
             ];
           },
@@ -684,16 +1216,188 @@ export function registerCreatorWorkflow(
       }
     },
   );
+  app.post(
+    "/v1/jobs/:jobId/choices",
+    async (
+      request: FastifyRequest<{ Params: { jobId: string }; Body: unknown }>,
+      reply,
+    ) => {
+      try {
+        const result = command(
+          store,
+          request,
+          tenant(request),
+          "evidence-choice",
+          () => {
+            const job = owned(store, request.params.jobId, tenant(request));
+            edit(job, request);
+            const body = ChoiceResolveRequest.parse(request.body);
+            const sceneInput = jobSceneInput(job);
+            const choices = sceneInput.needsChoice ?? [];
+            if (choices.length !== 1 || choices[0]?.choiceId !== body.choiceId)
+              throw new Error("CHOICE_NOT_CURRENT");
+            const resolvedOwner =
+              "ownerId" in body.polygonOrOwner
+                ? body.polygonOrOwner.ownerId
+                : null;
+            if (
+              resolvedOwner &&
+              !sceneInput.owners.some(
+                (owner) => owner.ownerId === resolvedOwner,
+              )
+            )
+              throw new Error("CHOICE_NOT_CURRENT");
+            if (
+              job.state !== "PREPARING" ||
+              job.preparationStage !== "AWAITING_T2" ||
+              !job.evidence
+            )
+              throw new Error("CHOICE_NOT_CURRENT");
+            const nextEvidence = structuredClone(job.evidence);
+            const rawSceneInput = nextEvidence["sceneInput"];
+            if (!isRecord(rawSceneInput)) throw new Error("CHOICE_NOT_CURRENT");
+            const resolvedAt = new Date(store.now()).toISOString();
+            nextEvidence["state"] = "MAPPED";
+            nextEvidence["needsChoice"] = [];
+            rawSceneInput["needsChoice"] = [];
+            if ("polygon" in body.polygonOrOwner) {
+              const points = body.polygonOrOwner.polygon;
+              const x = Math.min(...points.map((point) => point.x));
+              const y = Math.min(...points.map((point) => point.y));
+              const width = Math.max(
+                1,
+                Math.max(...points.map((point) => point.x)) - x,
+              );
+              const height = Math.max(
+                1,
+                Math.max(...points.map((point) => point.y)) - y,
+              );
+              const ownerId = "foreground-subject";
+              const owners = rawSceneInput["owners"];
+              const assets = rawSceneInput["editableAssets"];
+              const geometry = rawSceneInput["geometry"];
+              const tracks = rawSceneInput["tracks"];
+              const passes = rawSceneInput["passes"];
+              if (
+                !Array.isArray(owners) ||
+                !Array.isArray(assets) ||
+                !isRecord(geometry) ||
+                !Array.isArray(tracks) ||
+                !Array.isArray(passes) ||
+                owners.some(
+                  (owner) => isRecord(owner) && owner["ownerId"] === ownerId,
+                )
+              )
+                throw new Error("CHOICE_NOT_CURRENT");
+              owners.push({
+                ownerId,
+                kind: "foreground-subject",
+                editable: true,
+                assetRef: "asset-foreground-subject",
+                confidence: 1,
+              });
+              assets.push({
+                assetId: "asset-foreground-subject",
+                kind: "manual-matte",
+                editable: true,
+                owner: ownerId,
+              });
+              geometry[ownerId] = {
+                boundsPerFrame: Array.from(
+                  { length: job.frameCount },
+                  (_, frame) => ({
+                    frame,
+                    x,
+                    y,
+                    width,
+                    height,
+                  }),
+                ),
+                fixedWidth: true,
+                fixedX: true,
+              };
+              tracks.push({
+                trackId: "track-foreground-subject",
+                owner: ownerId,
+                lifecycle: {
+                  enter: { start: 0 },
+                  stable: { start: 0, end: job.frameCount - 1 },
+                  exit: { start: job.frameCount },
+                },
+                geometryRef: ownerId,
+                effects: [],
+              });
+              const finalIndex = passes.findIndex(
+                (pass) =>
+                  isRecord(pass) && pass["passId"] === "final-composite",
+              );
+              passes.splice(finalIndex < 0 ? passes.length : finalIndex, 0, {
+                passId: "foreground-subject-dom",
+                owner: ownerId,
+                kind: "DOM/SVG",
+                shader: null,
+                reads: ["manual choice polygon"],
+                writes: "semantic-ui-layer",
+              });
+            }
+            nextEvidence["choiceResolutions"] = [
+              ...(Array.isArray(nextEvidence["choiceResolutions"])
+                ? nextEvidence["choiceResolutions"]
+                : []),
+              { ...body, resolvedAt },
+            ];
+            job.evidence = nextEvidence;
+            job.evidenceDigest = digest(nextEvidence);
+            job.irDigest = digest({
+              evidenceDigest: job.evidenceDigest,
+              choice: body,
+            });
+            job.approved = false;
+            job.candidateEvidence = null;
+            job.candidateEvidenceDigest = null;
+            job.pendingCompilation = null;
+            job.compilation = null;
+            job.previewSpecDigest = null;
+            job.approvedSpecDigest = null;
+            job.preparationStage = "COMPILATION_QUEUED";
+            job.eligibleAt = store.now();
+            job.progress = null;
+            job.failureCode = null;
+            job.updatedAt = resolvedAt;
+            job.etag = `\"${digest({ jobId: job.id, resolvedAt })}\"`;
+            return [
+              201,
+              {
+                evidenceDigest: job.evidenceDigest,
+                irDigest: job.irDigest,
+              },
+            ];
+          },
+        );
+        reply.code(result[0]).send(result[1]);
+      } catch (error) {
+        fail(
+          reply,
+          error instanceof Error ? error.message : "INTERNAL_ERROR",
+          409,
+        );
+      }
+    },
+  );
   app.get(
     "/v1/jobs/:jobId/render",
     async (request: FastifyRequest<{ Params: { jobId: string } }>, reply) => {
       try {
         const job = owned(store, request.params.jobId, tenant(request));
+        const unresolved = hasUnresolvedChoices(job);
         reply.send({
           eligible:
-            job.state === "READY" && currentT4Approval(reviews, job) !== null,
-          reason:
-            job.state !== "READY"
+            !unresolved &&
+            job.state === "READY" &&
+            currentT4Approval(reviews, job) !== null,
+          reason: unresolved
+            ? "UNRESOLVED_CHOICE_SKIPPED"
+            : job.state !== "READY"
               ? "JOB_NOT_READY"
               : currentT4Approval(reviews, job)
                 ? null
@@ -738,10 +1442,12 @@ export function registerCreatorWorkflow(
               )
             )
               throw new Error("ROLE_NOT_PERMITTED");
+            if (hasUnresolvedChoices(job))
+              throw new Error("UNRESOLVED_CHOICE_SKIPPED");
             if (!currentT4Approval(reviews, job))
               throw new Error("APPROVAL_REQUIRED");
             job.approved = true;
-            mutate(job, "QUEUED");
+            mutate(job, "QUEUED", store.now);
             return [
               202,
               {
@@ -768,13 +1474,13 @@ export function registerCreatorWorkflow(
           : undefined;
         if (job.state !== "COMPLETED" || !artifact)
           throw new Error("ARTIFACT_UNAVAILABLE");
-        reply
+        return reply
           .header("content-type", artifact.contentType)
           .header(
             "content-disposition",
             `attachment; filename="${artifact.filename}"`,
           )
-          .send(Buffer.from(artifact.bytes));
+          .send(artifactBody(artifact));
       } catch {
         fail(reply, "ARTIFACT_UNAVAILABLE", 404);
       }

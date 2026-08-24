@@ -54,7 +54,7 @@ function Navigation({
 export function CreatorShell({ children }: { readonly children: ReactNode }) {
   return (
     <div className="shell shell-creator">
-      <header>
+      <header data-landmark="app-header">
         <a
           className="brand-link"
           href="/workflow"
@@ -65,6 +65,10 @@ export function CreatorShell({ children }: { readonly children: ReactNode }) {
         <Navigation links={creatorLinks} />
       </header>
       <main>{children}</main>
+      <footer className="shell-footer" data-landmark="footer">
+        <span>Reference Video Studio</span>
+        <span>2026</span>
+      </footer>
     </div>
   );
 }
@@ -89,6 +93,7 @@ export function AdminShell({ children }: { readonly children: ReactNode }) {
       <aside
         id="admin-navigation"
         className={menuOpen ? "admin-navigation-open" : ""}
+        data-landmark="sidebar"
       >
         <a
           className="brand-link"
