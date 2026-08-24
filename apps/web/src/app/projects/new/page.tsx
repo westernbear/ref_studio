@@ -168,11 +168,7 @@ export default function NewProjectPage() {
   return (
     <div className="upload-shell">
       <header className="upload-header">
-        <a
-          className="brand"
-          href="/workflow"
-          aria-label="Reference Video Studio home"
-        >
+        <a className="brand" href="/" aria-label="Reference Video Studio home">
           <BrandLogo />
         </a>
         <nav aria-label="Primary navigation">

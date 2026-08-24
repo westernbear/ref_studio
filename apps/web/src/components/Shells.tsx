@@ -57,7 +57,7 @@ export function CreatorShell({ children }: { readonly children: ReactNode }) {
       <header data-landmark="app-header">
         <a
           className="brand-link"
-          href="/workflow"
+          href="/"
           aria-label="Reference Video Studio home"
         >
           <BrandLogo />

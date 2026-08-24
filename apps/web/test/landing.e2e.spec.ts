@@ -1,14 +1,18 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("REF_STUDIO entry @workflow", () => {
-  test("opens the live workflow and reports health", async ({
+  test("opens the landing page without jumping to workflow", async ({
     page,
     request,
   }) => {
     await page.goto("/");
-    await expect(page).toHaveURL(/\/workflow$/u);
-    await expect(page.getByRole("heading", { name: "Workflow" })).toBeVisible();
-    await expect(page.getByTestId("brand-logo").first()).toBeVisible();
+    await expect(page).toHaveURL(/\/$/u);
+    await expect(
+      page.getByRole("heading", { name: "REF_STUDIO" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "Sign in now" }),
+    ).toHaveAttribute("href", "/sign-in?returnTo=%2Fprojects%2Fnew");
     await expect(
       page.locator('a[href="/docs"], a[href="/support"]'),
     ).toHaveCount(0);

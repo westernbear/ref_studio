@@ -45,4 +45,25 @@ test.describe("shared sign-in", () => {
     await expect(page.getByText("Admin Authorization Required")).toBeVisible();
     await expect(page.locator('a[href="/support"]')).toHaveCount(0);
   });
+
+  test("returns creator sign-in without returnTo to the landing page @sign-in", async ({
+    page,
+  }) => {
+    await page.route("**/api/sign-in", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true }),
+      });
+    });
+    await page.goto("/sign-in");
+    await page.getByLabel("Identifier").fill("creator@example.invalid");
+    await page.getByLabel("Secret").fill("correct-secret");
+    await page.getByRole("button", { name: "Sign in" }).click();
+
+    await expect(page).toHaveURL(/\/$/u);
+    await expect(
+      page.getByRole("heading", { name: "REF_STUDIO" }),
+    ).toBeVisible();
+  });
 });

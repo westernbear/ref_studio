@@ -35,7 +35,7 @@ export function SignInForm({ mode }: { readonly mode: SignInMode }) {
     ? returnUrl
     : isAdmin
       ? "/admin"
-      : "/workflow";
+      : "/";
 
   const submit = async (event: FormSubmitEvent): Promise<void> => {
     event.preventDefault();

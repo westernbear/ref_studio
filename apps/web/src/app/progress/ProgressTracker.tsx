@@ -99,7 +99,7 @@ export function ProgressTracker({ initialJob }: Props) {
         <div className="progress-brand-row">
           <a
             className="progress-wordmark brand-link"
-            href="/workflow"
+            href="/"
             aria-label="Reference Video Studio home"
           >
             <BrandLogo />
