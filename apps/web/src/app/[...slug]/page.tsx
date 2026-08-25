@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { notFound, redirect } from "next/navigation";
 import { AdminExportButton } from "../../components/AdminExportButton";
+import { AiProviderSettingsForm } from "../../components/AiProviderSettingsForm";
 import { AdminJobCancelButton } from "../../components/AdminJobCancelButton";
 import { AdminJobForceTerminateButton } from "../../components/AdminJobForceTerminateButton";
 import { AdminJobRetryButton } from "../../components/AdminJobRetryButton";
@@ -40,6 +41,7 @@ const jobStates = [
 ] as const;
 const adminPages: Record<string, string> = {
   admin: "Admin dashboard",
+  "admin/ai-settings": "AI provider settings",
   "admin/audit": "Audit log",
   "admin/billing": "Billing",
   "admin/jobs": "Queue & Delivery",
@@ -1073,8 +1075,31 @@ async function renderBilling(title: string, search: SearchState) {
   );
 }
 
+async function renderAiSettings(title: string) {
+  const result = await liveApiGet("/admin/ai-provider-settings");
+  if (!result.ok) return <AdminProblem code={result.code} title={title} />;
+  const body = result.body;
+  return (
+    <AdminView
+      title={title}
+      description="Configure which AI provider powers Compiler Dialogue prompt refinement."
+    >
+      <AiProviderSettingsForm
+        providerKind={text(field(body, "providerKind"), "openai")}
+        model={text(field(body, "model"), "")}
+        baseUrl={text(field(body, "baseUrl"), "") || null}
+        enabled={field(body, "enabled") === true}
+        hasApiKey={field(body, "hasApiKey") === true}
+        updatedAt={text(field(body, "updatedAt"), "")}
+        updatedBy={text(field(body, "updatedBy"), "")}
+      />
+    </AdminView>
+  );
+}
+
 async function renderAdmin(key: string, title: string, search: SearchState) {
   if (key === "admin") return renderDashboard(title);
+  if (key === "admin/ai-settings") return renderAiSettings(title);
   if (key === "admin/tenants") return renderTenants(title, search);
   if (key === "admin/jobs") return renderJobs(title, search);
   if (key === "admin/receipts") return renderReceipts(title, search);

@@ -35,6 +35,14 @@ const jobForceTerminateButton = readFileSync(
   resolve(root, "apps/web/src/components/AdminJobForceTerminateButton.tsx"),
   "utf8",
 );
+const aiProviderSettingsForm = readFileSync(
+  resolve(root, "apps/web/src/components/AiProviderSettingsForm.tsx"),
+  "utf8",
+);
+const authProxy = readFileSync(
+  resolve(root, "apps/web/src/app/api/auth-proxy.ts"),
+  "utf8",
+);
 
 describe("admin surface contracts", () => {
   it("uses live API-backed surfaces instead of static admin screens", () => {
@@ -96,5 +104,22 @@ describe("admin surface contracts", () => {
     // Cancel/retry buttons must never render for the creator-facing
     // Workflow page — only the admin Jobs table gets them.
     expect(routes).toContain("detailActions={jobDetailActions}");
+  });
+  it("adds an AI Settings destination and never renders a plaintext key", () => {
+    expect(shell).toContain('href: "/admin/ai-settings"');
+    expect(routes).toContain('"admin/ai-settings"');
+    expect(routes).toContain("renderAiSettings");
+    // Only a write-only password input and a boolean "Configured"/"Not set"
+    // summary -- the previous key value must never be echoed back.
+    expect(aiProviderSettingsForm).toContain('type="password"');
+    // The api key field starts empty -- never seeded from a server prop --
+    // and the server-provided `hasApiKey` boolean is the only signal shown.
+    expect(aiProviderSettingsForm).toContain('useState("")');
+    expect(aiProviderSettingsForm).toContain("hasApiKey");
+    expect(aiProviderSettingsForm).not.toMatch(/apiKey:\s*string;/u);
+    // The browser BFF proxy must explicitly allow this PATCH route through,
+    // same as every other admin mutation -- easy to add the backend route
+    // and forget this half, which 404s the form silently.
+    expect(authProxy).toContain('["PATCH", ["ai-provider-settings"]]');
   });
 });

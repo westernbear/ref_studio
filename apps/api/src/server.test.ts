@@ -40,7 +40,12 @@ describe("api server config", () => {
 
     expect(app.hasRoute({ method: "POST", url: "/v1/uploads" })).toBe(true);
     expect(app.hasRoute({ method: "POST", url: "/v1/jobs" })).toBe(true);
-    expect(app.hasRoute({ method: "POST", url: "/v1/reviews" })).toBe(true);
+    // /v1/reviews was removed with the T1-T6 human-approval gate (replaced
+    // by automatic continuation) -- this route must stay gone.
+    expect(app.hasRoute({ method: "POST", url: "/v1/reviews" })).toBe(false);
+    expect(
+      app.hasRoute({ method: "POST", url: "/v1/jobs/:jobId/refine-prompt" }),
+    ).toBe(true);
     expect(app.hasRoute({ method: "GET", url: "/admin/tenants" })).toBe(true);
     expect(app.hasRoute({ method: "POST", url: "/admin/audit-exports" })).toBe(
       true,

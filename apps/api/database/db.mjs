@@ -64,6 +64,7 @@ export function migrate(db) {
     [3, "./migrations/003_remove_demo_seed.sql", true],
     [4, "./migrations/004_runtime_durability.sql", false],
     [5, "./migrations/005_worker_lifecycle.sql", false],
+    [6, "./migrations/006_ai_provider_settings.sql", false],
   ];
   for (const [version, file, disableForeignKeys] of migrations) {
     if (

@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { buildAuthApp } from "./app.js";
 import { hashBearer, hashPassword, type AuthStore } from "./auth.js";
@@ -10,6 +13,7 @@ import {
   createCreatorWorkflowStore,
   type Job,
 } from "./creator-workflow.js";
+import { openApiDatabase } from "./durable-state.js";
 import { createReviewStore } from "./reviews.js";
 import { createWorkerStore } from "./workers.js";
 
@@ -673,5 +677,64 @@ describe("admin-mutation", () => {
     });
     expect(prioritize.statusCode).toBe(403);
     expect(prioritize.json().error.code).toBe("ROLE_NOT_PERMITTED");
+  });
+
+  it("updates AI provider settings for a super admin without leaking the key into the audit log", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "rvs-admin-ai-settings-"));
+    const db = openApiDatabase(join(directory, "app.sqlite"));
+    try {
+      const data = fixture();
+      data.mutations.db = db;
+      data.mutations.aiSecretKey = "test-secret-key-material";
+      const app = appFor(data);
+      const response = await app.inject({
+        method: "PATCH",
+        url: "/admin/ai-provider-settings",
+        headers: headers("super", "ai-settings"),
+        payload: {
+          providerKind: "openai",
+          model: "gpt-4o",
+          apiKey: "sk-secret",
+          enabled: true,
+        },
+      });
+      expect(response.statusCode, response.body).toBe(200);
+      expect(response.json()).toMatchObject({
+        providerKind: "openai",
+        model: "gpt-4o",
+        hasApiKey: true,
+        enabled: true,
+      });
+      expect(JSON.stringify(response.json())).not.toContain("sk-secret");
+      const auditEvent = data.mutations.auditEvents.find(
+        (event) => event.action === "AI_PROVIDER_SETTINGS_UPDATED",
+      );
+      expect(auditEvent).toBeDefined();
+      expect(JSON.stringify(auditEvent)).not.toContain("sk-secret");
+    } finally {
+      db.close();
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("denies AI provider settings updates from a non-super-admin", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "rvs-admin-ai-settings-denied-"));
+    const db = openApiDatabase(join(directory, "app.sqlite"));
+    try {
+      const data = fixture();
+      data.mutations.db = db;
+      data.mutations.aiSecretKey = "test-secret-key-material";
+      const app = appFor(data);
+      const response = await app.inject({
+        method: "PATCH",
+        url: "/admin/ai-provider-settings",
+        headers: headers("ops", "ai-settings-denied"),
+        payload: { providerKind: "openai", model: "gpt-4o" },
+      });
+      expect(response.statusCode).toBe(403);
+    } finally {
+      db.close();
+      rmSync(directory, { recursive: true, force: true });
+    }
   });
 });

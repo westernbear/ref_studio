@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  compileStageRows,
   formatJobStamp,
   isTerminalJobState,
   liveJobStatusError,
@@ -9,6 +10,7 @@ import {
   nextApprovalGate,
   parseJobProgress,
   progressStages,
+  stageLabel,
 } from "../src/lib/job-progress.ts";
 
 describe("compiler progress projection", () => {
@@ -87,5 +89,70 @@ describe("compiler progress projection", () => {
     expect(liveJobStatusError(null, 502)).toBe(
       "Job status update failed: HTTP_502. Retrying.",
     );
+  });
+
+  it("maps real compiler stage strings to friendly labels, not invented pass names", () => {
+    expect(stageLabel("all-frame-analysis")).toBe("Frame Analysis");
+    expect(stageLabel("totally-unknown-stage")).toBe("Totally Unknown Stage");
+    expect(stageLabel("")).toBe("Preparing");
+  });
+
+  it("builds an ordered checklist from the current prepare-phase stage", () => {
+    const job = parseJobProgress({
+      id: "job_1",
+      state: "PREPARING",
+      preparationStage: "COMPILATION_RUNNING",
+      progress: {
+        phase: "prepare",
+        stage: "compiler:all-frame-analysis",
+        fraction: 0.6,
+      },
+      approvedGates: [],
+    });
+    const rows = compileStageRows(job);
+    expect(rows.map((row) => row.key)).toEqual([
+      "download",
+      "ffprobe",
+      "normalize",
+      "preflight",
+      "models",
+      "all-frame-analysis",
+      "audio-and-mapping",
+      "evidence",
+    ]);
+    const active = rows.find((row) => row.key === "all-frame-analysis");
+    expect(active).toMatchObject({ status: "active", percent: 60 });
+    expect(rows.find((row) => row.key === "download")).toMatchObject({
+      status: "done",
+      percent: 100,
+    });
+    expect(rows.find((row) => row.key === "evidence")).toMatchObject({
+      status: "pending",
+      percent: 0,
+    });
+  });
+
+  it("builds the render-phase checklist and degrades gracefully for an unrecognized stage", () => {
+    const renderJob = parseJobProgress({
+      id: "job_2",
+      state: "RENDERING",
+      preparationStage: "READY",
+      progress: { phase: "render", stage: "scene-render", fraction: 0.5 },
+      approvedGates: [],
+    });
+    expect(compileStageRows(renderJob).map((row) => row.key)).toEqual([
+      "scene-render",
+      "upload",
+    ]);
+    const unknownJob = parseJobProgress({
+      id: "job_3",
+      state: "PREPARING",
+      preparationStage: "AWAITING_T1",
+      progress: { phase: "prepare", stage: "something-new", fraction: 0.3 },
+      approvedGates: [],
+    });
+    expect(compileStageRows(unknownJob)).toEqual([
+      { key: "something-new", label: "Something New", percent: 30, status: "active" },
+    ]);
   });
 });

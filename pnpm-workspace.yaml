@@ -17,3 +17,13 @@ onlyBuiltDependencies:
   - better-sqlite3
   - esbuild
   - sharp
+
+minimumReleaseAgeExclude:
+  - '@ai-sdk/anthropic@4.0.42'
+  - '@ai-sdk/gateway@4.0.64'
+  - '@ai-sdk/google@4.0.51'
+  - '@ai-sdk/openai@4.0.47'
+  - '@ai-sdk/provider-utils@5.0.30'
+  - '@ai-sdk/provider@4.0.8'
+  - '@ai-sdk/xai@4.0.44'
+  - ai@7.0.79

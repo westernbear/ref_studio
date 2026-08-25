@@ -16,6 +16,7 @@ const adminLinks = [
   { name: "Quarantine", href: "/admin/quarantine" },
   { name: "Billing", href: "/admin/billing" },
   { name: "Audit", href: "/admin/audit" },
+  { name: "AI Settings", href: "/admin/ai-settings" },
 ] as const;
 
 export function BrandLogo({ ops = false }: { readonly ops?: boolean }) {

@@ -1,3 +1,4 @@
+import type Database from "better-sqlite3";
 import Fastify, {
   type FastifyInstance,
   type FastifyReply,
@@ -50,6 +51,7 @@ import {
   registerAdminMutation,
   type AdminMutationStore,
 } from "./admin-mutation.js";
+import { registerRefinePrompt } from "./refine-prompt.js";
 import { registerReviews, type ReviewStore } from "./reviews.js";
 import {
   advanceDeletionEpoch,
@@ -85,6 +87,11 @@ export type AppOptions = {
   readonly retention?: RetentionStore;
   readonly persist?: () => void;
   readonly adminSessionTimeoutMs?: number;
+  readonly db?: Database.Database;
+  readonly aiSecretKey?: string;
+  readonly refinePromptGenerate?: Parameters<
+    typeof registerRefinePrompt
+  >[5];
 } & WorkerAppOptions;
 const header = (request: FastifyRequest, name: string): string | undefined => {
   const value = request.headers[name];
@@ -684,6 +691,17 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
       options.expectedOrigin,
     );
   if (options.reviews) registerReviews(app, options.reviews);
+  if (options.creatorWorkflow && options.uploads && options.db && options.aiSecretKey)
+    registerRefinePrompt(
+      app,
+      options.creatorWorkflow,
+      options.uploads,
+      options.db,
+      options.aiSecretKey,
+      ...(options.refinePromptGenerate
+        ? [options.refinePromptGenerate]
+        : []),
+    );
   if (options.workers)
     registerWorkers(app, options.workers, {
       now,

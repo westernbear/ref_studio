@@ -191,6 +191,7 @@ const ADMIN_MUTATION_ROUTES: readonly (readonly [string, readonly string[]])[] =
     ["POST", ["tenants", "*", "suspend"]],
     ["PATCH", ["tenants", "*", "members"]],
     ["PATCH", ["billing", "*"]],
+    ["PATCH", ["ai-provider-settings"]],
   ];
 const matchesAdminRoute = (
   method: string,

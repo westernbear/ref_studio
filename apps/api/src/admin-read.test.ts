@@ -228,6 +228,15 @@ const fixture = (): Fixture => {
     ],
     workers,
     queryCount: { value: 0 },
+    aiProviderSettings: {
+      providerKind: "openai",
+      model: "gpt-4o",
+      baseUrl: null,
+      enabled: true,
+      hasApiKey: true,
+      updatedAt: "2026-01-01T00:00:00.000Z",
+      updatedBy: "super",
+    },
   };
   return { auth, reads, workers, events };
 };
@@ -453,5 +462,34 @@ describe("admin-read", () => {
           event.decision === "DENIED",
       ),
     ).toBe(true);
+  });
+  it("returns AI provider settings for super admin without the key, and denies non-super-admins", async () => {
+    const data = fixture();
+    const app = appFor(data);
+    const superResponse = await app.inject({
+      method: "GET",
+      url: "/admin/ai-provider-settings",
+      headers: headers("super"),
+    });
+    expect(superResponse.statusCode).toBe(200);
+    expect(superResponse.json()).toMatchObject({
+      providerKind: "openai",
+      model: "gpt-4o",
+      hasApiKey: true,
+    });
+    expect(JSON.stringify(superResponse.json())).not.toMatch(/"apiKey"/i);
+    const opsResponse = await app.inject({
+      method: "GET",
+      url: "/admin/ai-provider-settings",
+      headers: headers("ops"),
+    });
+    expect(opsResponse.statusCode).toBe(403);
+    expect(opsResponse.json().error.code).toBe("ROLE_NOT_PERMITTED");
+    const fieldQuery = await app.inject({
+      method: "GET",
+      url: "/admin/ai-provider-settings?fields=apiKey",
+      headers: headers("super"),
+    });
+    expect(fieldQuery.statusCode).toBe(403);
   });
 });

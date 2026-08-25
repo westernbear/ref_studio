@@ -5,6 +5,7 @@ import {
   authenticateAdminRequest,
   isAdminPrincipal,
 } from "./admin-auth.js";
+import type { AiProviderSettingsPublic } from "./ai-provider-settings.js";
 import { safeEnvelope } from "./boundary.js";
 import type { WorkerStore } from "./workers.js";
 
@@ -108,6 +109,7 @@ export type AdminReadStore = {
   readonly workers?: WorkerStore;
   readonly recordAudit?: AuthStore["audit"];
   readonly queryCount?: { value: number };
+  readonly aiProviderSettings?: AiProviderSettingsPublic;
 };
 type Query = {
   readonly q?: string;
@@ -296,7 +298,9 @@ export function registerAdminRead(
         [query.include, query.fields].some(
           (value) =>
             typeof value === "string" &&
-            /payment|rawBytes|privatePath|artifactPath|stack/i.test(value),
+            /payment|rawBytes|privatePath|artifactPath|stack|apiKey/i.test(
+              value,
+            ),
         )
       ) {
         auth.audit({
@@ -544,6 +548,18 @@ export function registerAdminRead(
         reply.send(visibleBilling(item));
         return;
       }
+      if (path === "/admin/ai-provider-settings") {
+        if (adminRole(principal) !== "SUPER_ADMIN")
+          throw new Error("ROLE_NOT_PERMITTED");
+        auth.audit({
+          action: "AI_PROVIDER_SETTINGS_VIEWED",
+          userId: principal.userId,
+          tenantId: null,
+          decision: "ALLOWED",
+        });
+        reply.send(store.aiProviderSettings ?? null);
+        return;
+      }
       throw new Error("RESOURCE_NOT_FOUND");
     } catch (error) {
       fail(reply, error);
@@ -557,4 +573,5 @@ export function registerAdminRead(
   app.get("/admin/audit-log", handler);
   app.get("/admin/quarantine", handler);
   app.get("/admin/billing/:tenantId", handler);
+  app.get("/admin/ai-provider-settings", handler);
 }

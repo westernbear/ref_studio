@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
+import type Database from "better-sqlite3";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { AuthStore, Principal } from "./auth.js";
 import {
@@ -6,6 +7,11 @@ import {
   authenticateAdminRequest,
   requestHeader,
 } from "./admin-auth.js";
+import {
+  getAiProviderSettings,
+  updateAiProviderSettings,
+  type AiProviderSettingsPatch,
+} from "./ai-provider-settings.js";
 import { IdempotencyStore, safeEnvelope, requestHash } from "./boundary.js";
 import {
   cancelJob,
@@ -62,6 +68,8 @@ export type AdminMutationStore = {
   readonly workflow?: CreatorWorkflowStore;
   readonly uploads?: UploadStore;
   readonly reviews?: ReviewStore;
+  readonly db?: Database.Database;
+  readonly aiSecretKey?: string;
 };
 export const createAdminMutationStore = (
   now = Date.now(),
@@ -90,6 +98,11 @@ type Body = {
   outcome?: string;
   actor?: string;
   range?: string;
+  providerKind?: string;
+  model?: string;
+  baseUrl?: string;
+  apiKey?: string;
+  enabled?: boolean;
 };
 const id = (prefix: string): string =>
   `${prefix}_${randomBytes(10).toString("base64url")}`;
@@ -538,6 +551,57 @@ export function registerAdminMutation(
   };
   app.post("/admin/audit-exports", exports);
   app.post("/admin/receipt-exports", exports);
+  const aiSettings = async (
+    request: FastifyRequest<{ Body: Body }>,
+    reply: FastifyReply,
+  ): Promise<void> => {
+    try {
+      const result = command(request, null, (principal, correlation) => {
+        if (adminRole(principal) !== "SUPER_ADMIN")
+          throw new Error("ADMIN_ACCESS_DENIED");
+        const db = store.db;
+        const aiSecretKey = store.aiSecretKey;
+        if (!db || !aiSecretKey) throw new Error("RESOURCE_NOT_FOUND");
+        const before = getAiProviderSettings(db);
+        const body = request.body ?? {};
+        const patch: AiProviderSettingsPatch = {
+          ...(body.providerKind !== undefined && {
+            providerKind: body.providerKind,
+          }),
+          ...(body.model !== undefined && { model: body.model }),
+          ...(body.baseUrl !== undefined && { baseUrl: body.baseUrl }),
+          ...(body.apiKey !== undefined && { apiKey: body.apiKey }),
+          ...(body.enabled !== undefined && { enabled: body.enabled }),
+        };
+        const after = updateAiProviderSettings(
+          db,
+          patch,
+          principal.userId,
+          store.now(),
+          aiSecretKey,
+        );
+        store.auditEvents.push({
+          id: id("audit"),
+          tenantId: null,
+          actorId: principal.userId,
+          action: "AI_PROVIDER_SETTINGS_UPDATED",
+          targetType: "ai-provider-settings",
+          targetId: "default",
+          before,
+          after,
+          reason: "AI provider settings updated from the admin console",
+          correlationId: correlation,
+          outcome: "ALLOWED",
+          createdAt: new Date(store.now()).toISOString(),
+        });
+        return [200, after as unknown as Record<string, unknown>];
+      });
+      reply.code(result[0]).send(result[1]);
+    } catch (error) {
+      fail(reply, error);
+    }
+  };
+  app.patch("/admin/ai-provider-settings", aiSettings);
   app.all("/admin/jobs/:jobId/prioritize", async (_request, reply) => {
     reply
       .code(403)

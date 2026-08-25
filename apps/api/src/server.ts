@@ -16,6 +16,8 @@ import {
   createAdminMutationStore,
   quarantineVersion,
 } from "./admin-mutation.js";
+import type { AiProviderSettingsPublic } from "./ai-provider-settings.js";
+import { getAiProviderSettings } from "./ai-provider-settings.js";
 import { buildAuthApp } from "./app.js";
 import type { AuthStore } from "./auth.js";
 import {
@@ -284,6 +286,7 @@ export function loadAdminReadStore(
   uploads: UploadStore,
   reviews: ReviewStore,
   workers: WorkerStore,
+  writableDb: Database.Database,
 ): AdminReadStore {
   const db = new Database(databasePath, {
     readonly: true,
@@ -452,6 +455,12 @@ export function loadAdminReadStore(
       get billing(): readonly AdminBilling[] {
         return billing;
       },
+      // Reads through the server's live writable db (not the boot-time
+      // snapshot `db` above) so admin-panel edits are visible immediately,
+      // matching the fix for the getter-freeze bug documented on `jobs`.
+      get aiProviderSettings(): AiProviderSettingsPublic {
+        return getAiProviderSettings(writableDb);
+      },
     };
   } finally {
     db.close();
@@ -500,6 +509,7 @@ export function createApiServer(config: ApiServerConfig) {
     uploads,
     reviews,
     workers,
+    db,
   );
   const app = buildAuthApp({
     store: auth,
@@ -533,11 +543,15 @@ export function createApiServer(config: ApiServerConfig) {
       workflow: creatorWorkflow,
       uploads,
       reviews,
+      db,
+      aiSecretKey: config.introspectSecret,
     },
     reviews,
     workers,
     artifactRoot,
     persist: durable.persist,
+    db,
+    aiSecretKey: config.introspectSecret,
   });
   app.addHook("onClose", async () => db.close());
   app.get("/health", async () => ({ ok: true }));

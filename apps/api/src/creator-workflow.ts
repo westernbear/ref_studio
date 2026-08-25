@@ -457,6 +457,7 @@ const projection = (
 ): Record<string, unknown> => ({
   id: job.id,
   tenantId: job.tenantId,
+  uploadId: job.uploadId,
   state: job.state,
   attempt: job.attempt,
   etag: job.etag,

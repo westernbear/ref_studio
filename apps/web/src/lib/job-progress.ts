@@ -154,6 +154,80 @@ export const jobStatusCopy = (job: JobProgress): string => {
   return "Waiting for worker update.";
 };
 
+// Friendly labels for the real compiler/worker stage strings reported via
+// job.progress.stage (apps/worker/src/worker-job-handler.ts). Deliberately
+// mapped from real data -- no invented pass names -- per the honest-mapping
+// decision for the Compiler Dialogue screen.
+export const STAGE_LABELS: Readonly<Record<string, string>> = {
+  download: "Downloading Source",
+  ffprobe: "Inspecting Media",
+  normalize: "Normalizing Media",
+  preflight: "Preflight Check",
+  models: "Model Verification",
+  "all-frame-analysis": "Frame Analysis",
+  "audio-and-mapping": "Audio Mapping",
+  evidence: "Evidence Compilation",
+  "scene-compile": "Recompiling Scene",
+  "scene-render": "Rendering Frames",
+  upload: "Uploading Output",
+};
+const PREPARE_STAGE_ORDER = [
+  "download",
+  "ffprobe",
+  "normalize",
+  "preflight",
+  "models",
+  "all-frame-analysis",
+  "audio-and-mapping",
+  "evidence",
+] as const;
+const RENDER_STAGE_ORDER = ["scene-render", "upload"] as const;
+const titleCase = (value: string): string =>
+  value
+    .replace(/[-_]/gu, " ")
+    .replace(/\b\w/gu, (letter) => letter.toUpperCase());
+
+export const stageLabel = (stage: string): string =>
+  STAGE_LABELS[stage] ?? (stage ? titleCase(stage) : "Preparing");
+
+const normalizeStage = (stage: string): string =>
+  stage.replace(/^compiler:/u, "").replace("preview-upload", "upload");
+
+export type CompileStageRow = {
+  readonly key: string;
+  readonly label: string;
+  readonly percent: number;
+  readonly status: "done" | "active" | "pending";
+};
+
+export const compileStageRows = (job: JobProgress): readonly CompileStageRow[] => {
+  const normalized = normalizeStage(job.progressStage);
+  const order = job.progressPhase === "render" ? RENDER_STAGE_ORDER : PREPARE_STAGE_ORDER;
+  const activeIndex = (order as readonly string[]).indexOf(normalized);
+  if (activeIndex === -1) {
+    if (!normalized) return [];
+    return [
+      {
+        key: normalized,
+        label: stageLabel(normalized),
+        percent: Math.round(job.progressFraction * 100),
+        status: "active",
+      },
+    ];
+  }
+  return order.map((key, index) => ({
+    key,
+    label: stageLabel(key),
+    percent:
+      index < activeIndex
+        ? 100
+        : index === activeIndex
+          ? Math.round(job.progressFraction * 100)
+          : 0,
+    status: index < activeIndex ? "done" : index === activeIndex ? "active" : "pending",
+  }));
+};
+
 export const liveJobStatusError = (value: unknown, status: number): string => {
   const code = text(field(field(value, "error"), "code")) || `HTTP_${status}`;
   return `Job status update failed: ${code}. Retrying.`;

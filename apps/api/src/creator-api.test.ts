@@ -176,11 +176,13 @@ describe("creator workflow API", () => {
       state: "PREPARING",
       preparationStage: "ANALYSIS_QUEUED",
       approvedGates: ["T1"],
+      uploadId,
     });
     expect(detail.json()).toMatchObject({
       state: "PREPARING",
       preparationStage: "ANALYSIS_QUEUED",
       approvedGates: ["T1"],
+      uploadId,
     });
     expect(state.workflow.jobs.get(jobId)?.creatorId).toBe("usr_a");
     assertSafe(created.json());
