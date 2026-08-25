@@ -94,6 +94,35 @@ describe("ai-provider-settings", () => {
     });
   });
 
+  it("accepts every direct provider kind, each with its own native api key", () => {
+    withDb((db) => {
+      for (const providerKind of [
+        "groq",
+        "mistral",
+        "cohere",
+        "deepseek",
+        "cerebras",
+        "perplexity",
+        "fireworks",
+        "togetherai",
+        "deepinfra",
+        "baseten",
+        "huggingface",
+        "moonshotai",
+        "alibaba",
+      ]) {
+        const result = updateAiProviderSettings(
+          db,
+          { providerKind, model: "some-model", apiKey: `${providerKind}-key` },
+          "admin-1",
+          1_000,
+          "secret-key-material",
+        );
+        expect(result.providerKind).toBe(providerKind);
+      }
+    });
+  });
+
   it("rejects an unknown provider kind", () => {
     withDb((db) => {
       expect(() =>

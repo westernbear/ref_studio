@@ -1,6 +1,11 @@
 CREATE TABLE ai_provider_settings (
   id TEXT PRIMARY KEY CHECK (id = 'default'),
-  provider_kind TEXT NOT NULL CHECK (provider_kind IN ('openai', 'anthropic', 'google', 'xai', 'openai-compatible')),
+  provider_kind TEXT NOT NULL CHECK (provider_kind IN (
+    'openai', 'anthropic', 'google', 'xai', 'groq', 'mistral', 'cohere',
+    'deepseek', 'cerebras', 'perplexity', 'fireworks', 'togetherai',
+    'deepinfra', 'baseten', 'huggingface', 'moonshotai', 'alibaba',
+    'openai-compatible'
+  )),
   model TEXT NOT NULL,
   base_url TEXT,
   api_key_ciphertext TEXT,
