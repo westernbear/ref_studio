@@ -8,7 +8,7 @@ import {
 } from "../../../packages/contracts/src/lifecycle.js";
 import { IdempotencyStore, requestHash, safeEnvelope } from "./boundary.js";
 import type { Principal } from "./auth.js";
-import type { ReviewReceipt, ReviewStore } from "./reviews.js";
+import type { Gate, ReviewReceipt, ReviewStore } from "./reviews.js";
 import { uploadSourcePath, type UploadStore } from "./uploads.js";
 import type { WorkerStore } from "./workers.js";
 
@@ -550,6 +550,159 @@ export function autoApproveT1(
   job.etag = `\"${id("etag")}\"`;
   return receipt.id;
 }
+// Shared by autoApproveT2T3/T4/T5: writes one automatic (system-actor) receipt,
+// mirroring autoApproveT1's receipt shape without a human decision round-trip.
+const writeAutoReceipt = (
+  reviews: ReviewStore,
+  job: Job,
+  gate: Gate,
+  actorId: string,
+  now: number,
+  artifactRefs: readonly string[],
+  predecessorReceiptId: string | null = null,
+): ReviewReceipt => {
+  const snapshot = {
+    evidenceDigest: job.evidenceDigest,
+    irDigest: job.irDigest,
+    runtimeDigest: job.runtimePreflight?.runtimeDigest ?? RUNTIME_DIGEST,
+    releaseBaselineDigest: RELEASE_BASELINE_DIGEST,
+  };
+  reviews.current.set(`${job.id}:${gate}:${job.attempt}`, snapshot);
+  const receipt: ReviewReceipt = {
+    id: id("rcpt"),
+    releaseId: null,
+    jobId: job.id,
+    tenantId: job.tenantId,
+    attempt: job.attempt,
+    gate,
+    decision: "APPROVED",
+    actorId,
+    predecessorReceiptId,
+    ...snapshot,
+    reason: "Automatic verification passed.",
+    artifactRefs: [...artifactRefs],
+    correctionOf: null,
+    sequence: ++reviews.sequence.value,
+    createdAt: new Date(now).toISOString(),
+  };
+  reviews.receipts.push(receipt);
+  return receipt;
+};
+const findApprovedReceiptId = (
+  reviews: ReviewStore,
+  job: Job,
+  gate: Gate,
+): string | null =>
+  reviews.receipts.find(
+    (receipt) =>
+      receipt.jobId === job.id &&
+      receipt.attempt === job.attempt &&
+      receipt.gate === gate &&
+      receipt.decision === "APPROVED",
+  )?.id ?? null;
+// T2 and T3 previously required two separate human clicks over the same
+// compiled artifact; since nothing new is produced between them, both are
+// auto-approved in one step once compilation succeeds and no choice is
+// pending (mirrors the old decide() T2/T3 branches, minus the HTTP round-trip).
+export function autoApproveT2T3(
+  reviews: ReviewStore | undefined,
+  job: Job,
+  actorId: string,
+  now: number,
+): void {
+  if (
+    !reviews ||
+    job.preparationStage !== "AWAITING_T2" ||
+    !job.pendingCompilation ||
+    hasUnresolvedChoices(job)
+  )
+    return;
+  const t1 = findApprovedReceiptId(reviews, job, "T1");
+  const t2 = writeAutoReceipt(reviews, job, "T2", actorId, now, [], t1);
+  if (job.candidateEvidence) {
+    job.evidence = job.candidateEvidence;
+    job.candidateEvidence = null;
+    job.candidateEvidenceDigest = null;
+  }
+  job.compilation = job.pendingCompilation;
+  job.pendingCompilation = null;
+  writeAutoReceipt(
+    reviews,
+    job,
+    "T3",
+    actorId,
+    now,
+    [job.compilation.authoring.versionId],
+    t2.id,
+  );
+  job.preparationStage = "PREVIEW_QUEUED";
+  job.eligibleAt = now;
+  job.progress = null;
+  job.failureCode = null;
+  job.updatedAt = new Date(now).toISOString();
+  job.etag = `\"${id("etag")}\"`;
+}
+export function autoApproveT4(
+  reviews: ReviewStore | undefined,
+  workflow: CreatorWorkflowStore,
+  job: Job,
+  actorId: string,
+  now: number,
+): void {
+  if (
+    !reviews ||
+    (job.state !== "PREPARING" && job.state !== "STALE_APPROVAL") ||
+    job.preparationStage !== "AWAITING_T4" ||
+    !job.compilation ||
+    job.previewSpecDigest !== job.compilation.browserPassSpec.digest
+  )
+    return;
+  const preview = workflow.previews.get(job.id);
+  if (!preview) return;
+  writeAutoReceipt(
+    reviews,
+    job,
+    "T4",
+    actorId,
+    now,
+    [preview.id],
+    findApprovedReceiptId(reviews, job, "T3"),
+  );
+  assertLegalTransition(job.state, "READY");
+  job.state = "READY";
+  job.preparationStage = "READY";
+  job.approvedSpecDigest = job.compilation.browserPassSpec.digest;
+  const attempt = workflow.attempts.get(job.id)?.at(-1);
+  if (attempt) attempt.state = "COMPLETED";
+  job.failureCode = null;
+  job.updatedAt = new Date(now).toISOString();
+  job.etag = `\"${id("etag")}\"`;
+}
+export function autoApproveT5(
+  reviews: ReviewStore | undefined,
+  workflow: CreatorWorkflowStore,
+  job: Job,
+  actorId: string,
+  now: number,
+): void {
+  if (!reviews || job.state !== "AWAITING_T5") return;
+  const staged = workflow.stagedArtifacts.get(job.id);
+  if (!staged) return;
+  writeAutoReceipt(
+    reviews,
+    job,
+    "T5",
+    actorId,
+    now,
+    [staged.id],
+    findApprovedReceiptId(reviews, job, "T4"),
+  );
+  if (!publishStagedArtifact(workflow, job)) return;
+  job.approved = true;
+  const attempt = workflow.attempts.get(job.id)?.at(-1);
+  if (attempt) attempt.state = "COMPLETED";
+  job.failureCode = null;
+}
 const fail = (reply: FastifyReply, code: string, status = 400): void => {
   reply
     .code(status)
@@ -596,12 +749,78 @@ const edit = (job: Job, request: FastifyRequest): void => {
   const match = header(request, "if-match");
   if (!match || match !== job.etag) throw new Error("VERSION_CONFLICT");
 };
-const mutate = (job: Job, next: JobState, now = Date.now): void => {
+export const transitionJob = (job: Job, next: JobState, now = Date.now): void => {
   assertLegalTransition(job.state, next);
   job.state = next;
   job.updatedAt = new Date(now()).toISOString();
   job.etag = `\"${digest(job.updatedAt)}\"`;
 };
+// Shared by the creator-facing /v1/jobs/:jobId/cancel route and admin's job
+// cancel mutation, so both operate on the same live job with identical rules.
+export function cancelJob(
+  store: CreatorWorkflowStore,
+  workers: WorkerStore | undefined,
+  job: Job,
+  now: () => number,
+  transitionNow: () => number = store.now,
+): void {
+  const lease = workers?.leases.get(job.id);
+  const activelyLeased = lease !== undefined && lease.expiresAt > now();
+  transitionJob(job, "CANCEL_REQUESTED", transitionNow);
+  if (!activelyLeased) {
+    workers?.leases.delete(job.id);
+    transitionJob(job, "CANCELLED", transitionNow);
+    const attempt = lease
+      ? store.attempts.get(job.id)?.find((item) => item.id === lease.attemptId)
+      : store.attempts.get(job.id)?.at(-1);
+    if (attempt) attempt.state = "CANCELLED";
+  }
+}
+// Shared by the creator-facing /v1/jobs/:jobId/retry route and admin's job
+// retry mutation. Throws JOB_NOT_RETRYABLE if the job isn't FAILED/CANCELLED.
+export function retryJob(
+  store: CreatorWorkflowStore,
+  reviews: ReviewStore | undefined,
+  job: Job,
+): void {
+  if (!["FAILED", "CANCELLED"].includes(job.state))
+    throw new Error("JOB_NOT_RETRYABLE");
+  job.attempt += 1;
+  job.state = "PREPARING";
+  job.approved = false;
+  job.evidence = null;
+  job.candidateEvidence = null;
+  job.candidateEvidenceDigest = null;
+  job.preparationStage = "AWAITING_T1";
+  job.pendingCompilation = null;
+  job.compilation = null;
+  job.previewSpecDigest = null;
+  job.approvedSpecDigest = null;
+  job.eligibleAt = store.now();
+  job.automaticRetries = 0;
+  job.failureCode = null;
+  job.runtimePreflight = store.availablePreflight;
+  job.progress = null;
+  job.artifact = null;
+  store.previews.delete(job.id);
+  store.stagedArtifacts.delete(job.id);
+  job.evidenceDigest = digest({ upload: job.uploadId, attempt: job.attempt });
+  job.irDigest = digest({
+    upload: job.uploadId,
+    attempt: job.attempt,
+    ir: true,
+  });
+  job.updatedAt = new Date(store.now()).toISOString();
+  job.etag = `\"${digest(job.id + job.attempt)}\"`;
+  const attempt: Attempt = {
+    id: id("attempt"),
+    number: job.attempt,
+    state: "QUEUED",
+    immutable: true,
+  };
+  store.attempts.get(job.id)?.push(attempt);
+  autoApproveT1(reviews, job, job.creatorId, store.now());
+}
 
 export const publishStagedArtifact = (
   store: CreatorWorkflowStore,
@@ -850,20 +1069,7 @@ export function registerCreatorWorkflow(
           () => {
             const job = owned(store, request.params.jobId, tenant(request));
             edit(job, request);
-            const lease = workers?.leases.get(job.id);
-            const activelyLeased =
-              lease !== undefined && lease.expiresAt > now();
-            mutate(job, "CANCEL_REQUESTED", store.now);
-            if (!activelyLeased) {
-              workers?.leases.delete(job.id);
-              mutate(job, "CANCELLED", store.now);
-              const attempt = lease
-                ? store.attempts
-                    .get(job.id)
-                    ?.find((item) => item.id === lease.attemptId)
-                : store.attempts.get(job.id)?.at(-1);
-              if (attempt) attempt.state = "CANCELLED";
-            }
+            cancelJob(store, workers, job, now, store.now);
             return [202, { state: job.state }];
           },
         );
@@ -889,46 +1095,7 @@ export function registerCreatorWorkflow(
           () => {
             const job = owned(store, request.params.jobId, tenant(request));
             edit(job, request);
-            if (!["FAILED", "CANCELLED"].includes(job.state))
-              throw new Error("JOB_NOT_RETRYABLE");
-            job.attempt += 1;
-            job.state = "PREPARING";
-            job.approved = false;
-            job.evidence = null;
-            job.candidateEvidence = null;
-            job.candidateEvidenceDigest = null;
-            job.preparationStage = "AWAITING_T1";
-            job.pendingCompilation = null;
-            job.compilation = null;
-            job.previewSpecDigest = null;
-            job.approvedSpecDigest = null;
-            job.eligibleAt = store.now();
-            job.automaticRetries = 0;
-            job.failureCode = null;
-            job.runtimePreflight = store.availablePreflight;
-            job.progress = null;
-            job.artifact = null;
-            store.previews.delete(job.id);
-            store.stagedArtifacts.delete(job.id);
-            job.evidenceDigest = digest({
-              upload: job.uploadId,
-              attempt: job.attempt,
-            });
-            job.irDigest = digest({
-              upload: job.uploadId,
-              attempt: job.attempt,
-              ir: true,
-            });
-            job.updatedAt = new Date(store.now()).toISOString();
-            job.etag = `\"${digest(job.id + job.attempt)}\"`;
-            const attempt: Attempt = {
-              id: id("attempt"),
-              number: job.attempt,
-              state: "QUEUED",
-              immutable: true,
-            };
-            store.attempts.get(job.id)?.push(attempt);
-            autoApproveT1(reviews, job, job.creatorId, store.now());
+            retryJob(store, reviews, job);
             return [201, projection(store, job, reviews)];
           },
         );
@@ -1189,7 +1356,7 @@ export function registerCreatorWorkflow(
             job.eligibleAt = store.now();
             job.progress = null;
             job.failureCode = null;
-            if (job.state === "READY") mutate(job, "STALE_APPROVAL", store.now);
+            if (job.state === "READY") transitionJob(job, "STALE_APPROVAL", store.now);
             else {
               job.updatedAt = new Date(store.now()).toISOString();
               job.etag = `\"${digest(job.updatedAt)}\"`;
@@ -1522,7 +1689,7 @@ export function registerCreatorWorkflow(
             if (!currentT4Approval(reviews, job))
               throw new Error("APPROVAL_REQUIRED");
             job.approved = true;
-            mutate(job, "QUEUED", store.now);
+            transitionJob(job, "QUEUED", store.now);
             return [
               202,
               {

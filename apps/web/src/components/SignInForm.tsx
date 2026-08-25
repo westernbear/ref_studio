@@ -154,10 +154,20 @@ export function SignInForm({ mode }: { readonly mode: SignInMode }) {
               {busy ? "Signing in..." : "Sign in"}
             </button>
           </form>
+          <div className="auth-card-links">
+            <a href="/forgot-secret">Forgot Secret?</a>
+            <a href="/support">Node Support</a>
+          </div>
         </section>
       </section>
       <footer className="auth-footer">
         <span>© 2026 REFERENCE VIDEO STUDIO</span>
+        <nav aria-label="Legal and support links">
+          <a href="/privacy">Privacy</a>
+          <a href="/terms">Terms</a>
+          <a href="/status">API Status</a>
+          <a href="/security">Security</a>
+        </nav>
       </footer>
     </main>
   );

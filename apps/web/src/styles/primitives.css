@@ -259,6 +259,20 @@ nav a:hover {
   color: var(--color-error);
   font: var(--type-body-sm);
 }
+.auth-card-links {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-md);
+  margin-top: var(--space-lg);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--color-hairline);
+  font: var(--type-body-sm);
+}
+.auth-footer nav {
+  display: flex;
+  gap: var(--space-lg);
+}
 .auth-footer {
   display: flex;
   flex-wrap: wrap;
@@ -525,11 +539,51 @@ nav a:hover {
   color: var(--color-body);
   font: var(--type-body-lg);
 }
+.upload-bento {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: var(--space-xl);
+  align-items: start;
+}
 .upload-card {
   border: 1px solid var(--color-hairline);
   border-radius: var(--radius-lg);
   background: var(--color-canvas-card);
   padding: var(--space-2xl);
+}
+.preflight-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-lg);
+  background: var(--color-canvas-soft);
+  overflow: hidden;
+}
+.preflight-card h3 {
+  margin: 0;
+  padding: var(--space-lg);
+  border-bottom: 1px solid var(--color-hairline);
+  font: var(--type-caption-mono);
+}
+.preflight-list {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.preflight-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  border-bottom: 1px solid var(--color-hairline);
+  font: var(--type-caption-mono-sm);
+  color: var(--color-body-mid);
+}
+.preflight-card .button-primary {
+  margin: var(--space-lg);
 }
 .card-heading,
 .file-meta,
@@ -1667,6 +1721,9 @@ progress {
   }
   .upload-card {
     padding: var(--space-lg);
+  }
+  .upload-bento {
+    grid-template-columns: 1fr;
   }
   .page-title {
     align-items: flex-start;

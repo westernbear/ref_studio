@@ -113,9 +113,13 @@ export function AdminShell({ children }: { readonly children: ReactNode }) {
           <BrandLogo ops />
         </a>
         <p className="admin-scope">Platform scope · Operations</p>
+        <a className="button button-primary admin-new-project" href="/projects/new">
+          New Project
+        </a>
         <Navigation links={adminLinks} />
         <div className="admin-utility">
-          <a href="/projects/new">New Project</a>
+          <a href="/docs">Docs</a>
+          <a href="/support">Support</a>
           <button type="button" onClick={() => void logout()}>
             Log out
           </button>

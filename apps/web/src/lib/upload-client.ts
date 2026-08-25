@@ -90,7 +90,7 @@ export async function uploadMp4(
       method: "POST",
       body: JSON.stringify({
         fileName: file.name,
-        mimeHint: "video/mp4",
+        mimeHint: file.type || "video/mp4",
         sizeBytes: file.size,
       }),
       headers: commandHeaders(`upload:${requestId()}`),

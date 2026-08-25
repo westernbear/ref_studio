@@ -13,7 +13,6 @@ import {
   text,
 } from "../../lib/server-api";
 import { RenderJobButton } from "./RenderJobButton";
-import { ReviewGateControls } from "./ReviewGateControls";
 import { ChoiceResolver } from "./ChoiceResolver";
 
 const gates = approvalGates;
@@ -29,19 +28,6 @@ const numberValue = (value: unknown): number => {
 };
 const formatSourceWindow = (seconds: number): string =>
   `${seconds.toFixed(2)}S - ${(seconds + 4).toFixed(2)}S`;
-const receiptFor = (
-  receipts: readonly unknown[],
-  gate: Gate,
-  attempt: number,
-): unknown =>
-  [...receipts]
-    .reverse()
-    .find(
-      (receipt) =>
-        text(field(receipt, "gate"), "") === gate &&
-        text(field(receipt, "decision"), "") === "APPROVED" &&
-        numberValue(field(receipt, "attempt")) === attempt,
-    );
 const latestReceiptFor = (
   receipts: readonly unknown[],
   gate: Gate,
@@ -131,15 +117,6 @@ export default async function SceneReviewPage({
   const approvedGates = stringList(field(result.body, "approvedGates"));
   const receipts = receiptsResult.ok ? items(receiptsResult.body) : [];
   const previewArtifactId = text(field(result.body, "previewArtifactId"), "");
-  const reviewArtifactId = text(field(result.body, "reviewArtifactId"), "");
-  const authoringVersionId = text(field(result.body, "authoringVersionId"), "");
-  const evidenceDigest = text(field(result.body, "evidenceDigest"), "");
-  const irDigest = text(field(result.body, "irDigest"), "");
-  const runtimeDigest = text(field(result.body, "runtimeDigest"), "");
-  const releaseBaselineDigest = text(
-    field(result.body, "releaseBaselineDigest"),
-    "",
-  );
   const runtime = field(result.body, "runtimePreflight");
   const evidence = evidenceResult.ok ? evidenceResult.body : null;
   const sceneInput = field(evidence, "sceneInput");
@@ -151,33 +128,6 @@ export default async function SceneReviewPage({
     .map((owner) => text(field(owner, "ownerId"), ""))
     .filter(Boolean);
   const nextGate = nextApprovalGate({ state, preparationStage });
-  const predecessorGate = nextGate
-    ? gates[gates.indexOf(nextGate) - 1]
-    : undefined;
-  const predecessorReceiptId = predecessorGate
-    ? text(field(receiptFor(receipts, predecessorGate, attempt), "id"), "") ||
-      null
-    : null;
-  const artifactRefs =
-    nextGate === "T3" && authoringVersionId
-      ? [authoringVersionId]
-      : nextGate === "T4" && previewArtifactId
-        ? [previewArtifactId]
-        : nextGate === "T5" && reviewArtifactId
-          ? [reviewArtifactId]
-          : [];
-  const canReview =
-    nextGate !== null &&
-    Boolean(
-      evidenceDigest &&
-        irDigest &&
-        runtimeDigest &&
-        releaseBaselineDigest &&
-        text(field(runtime, "status"), "") === "PASS" &&
-        (nextGate === "T1" || predecessorReceiptId) &&
-        (nextGate !== "T2" || (evidence && needsChoice.length === 0)) &&
-        (!["T3", "T4", "T5"].includes(nextGate) || artifactRefs.length > 0),
-    );
   const startFrame = numberValue(field(result.body, "startFrame"));
   const sourceFps = numberValue(field(result.body, "sourceFps"));
   const sourceStart = sourceFps > 0 ? startFrame / sourceFps : 0;
@@ -224,7 +174,7 @@ export default async function SceneReviewPage({
               <h1>
                 Scene Review <span>#{text(field(result.body, "id"))}</span>
               </h1>
-              <p>Check the shot and make the next approval decision.</p>
+              <p>Inspect the shot and its automatic verification history.</p>
             </div>
             <a
               className="button button-primary"
@@ -241,10 +191,8 @@ export default async function SceneReviewPage({
           <div className="stitch-review-actions">
             <span>
               {nextGate
-                ? canReview
-                  ? `${nextGate} can be reviewed now.`
-                  : `${nextGate} unlocks when evidence is ready.`
-                : "No approval is waiting."}
+                ? `${nextGate} is auto-verifying.`
+                : "No stage is waiting."}
             </span>
             {state === "READY" && etag && approvedGates.includes("T4") ? (
               <RenderJobButton jobId={jobId} etag={etag} />
@@ -265,30 +213,17 @@ export default async function SceneReviewPage({
                 </a>
               </div>
             ) : null}
-            {canReview && nextGate ? (
-              <ReviewGateControls
-                jobId={jobId}
-                attempt={attempt}
-                gate={nextGate}
-                predecessorReceiptId={predecessorReceiptId}
-                evidenceDigest={evidenceDigest}
-                irDigest={irDigest}
-                runtimeDigest={runtimeDigest}
-                releaseBaselineDigest={releaseBaselineDigest}
-                artifactRefs={artifactRefs}
-              />
-            ) : null}
           </div>
           {evidence ? (
             <section className="stitch-review-section">
               <div className="stitch-section-heading">
                 <h2>Review focus</h2>
-                <span>{canReview ? "Ready" : "Waiting"}</span>
+                <span>{nextGate ? "Verifying" : "Idle"}</span>
               </div>
               <Panel className="stitch-review-card">
                 <p>
-                  Evidence is prepared. Review the source and preview, then
-                  approve or reject the current gate.
+                  Evidence is prepared. This is a read-only view of the source,
+                  preview, and pipeline history.
                 </p>
                 <dl className="detail-grid stitch-focus-grid">
                   <Detail label="Owners" value={String(owners.length)} />
@@ -310,7 +245,7 @@ export default async function SceneReviewPage({
           )}
           <section className="stitch-review-section" data-landmark="timeline">
             <div className="stitch-section-heading">
-              <h2>Approval Chain</h2>
+              <h2>Pipeline Chain</h2>
               <span>Attempt {attempt}</span>
             </div>
             <ol className="review-gate-chain">

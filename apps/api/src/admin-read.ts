@@ -25,6 +25,7 @@ export type AdminJob = {
   readonly creatorId: string;
   readonly createdAt: string;
   readonly privatePath?: string;
+  readonly etag?: string;
 };
 export type AdminReceipt = {
   readonly id: string;
@@ -61,6 +62,8 @@ export type AdminQuarantine = {
   readonly createdAt: string;
   readonly rawBytes?: Uint8Array;
   readonly privatePath?: string;
+  readonly version?: string;
+  readonly retentionUntil?: string;
 };
 export type AdminBilling = {
   readonly tenantId: string;

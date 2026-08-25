@@ -11,3 +11,11 @@ export async function POST(
   const { path } = await context.params;
   return proxyAdmin(request, path);
 }
+
+export async function PATCH(
+  request: Request,
+  context: Context,
+): Promise<Response> {
+  const { path } = await context.params;
+  return proxyAdmin(request, path);
+}

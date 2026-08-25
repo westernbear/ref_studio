@@ -5,9 +5,7 @@ import Fastify, {
 } from "fastify";
 import {
   authenticateBearer,
-  authenticateReleaseBearer,
   authenticateSession,
-  authorizeReleaseReview,
   clearSessionCookie,
   hashBearer,
   revokeSession,
@@ -86,6 +84,7 @@ export type AppOptions = {
   readonly reviews?: ReviewStore;
   readonly retention?: RetentionStore;
   readonly persist?: () => void;
+  readonly adminSessionTimeoutMs?: number;
 } & WorkerAppOptions;
 const header = (request: FastifyRequest, name: string): string | undefined => {
   const value = request.headers[name];
@@ -155,9 +154,10 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
       done(null, body);
     },
   );
-  app.addContentTypeParser("video/mp4", (_request, body, done) => {
-    done(null, body);
-  });
+  for (const contentType of ["video/mp4", "video/quicktime", "video/webm"])
+    app.addContentTypeParser(contentType, (_request, body, done) => {
+      done(null, body);
+    });
   const now = (): number => options.now?.() ?? Date.now();
   const idempotency = options.idempotency ?? new IdempotencyStore();
   app.addHook("onSend", async (request, _reply, payload) => {
@@ -173,8 +173,7 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
     reply.header("x-correlation-id", correlation);
     if (
       request.url.startsWith("/v1/") &&
-      !request.url.startsWith("/v1/workers/") &&
-      !(request.method === "POST" && request.url === "/v1/release-reviews")
+      !request.url.startsWith("/v1/workers/")
     ) {
       const tenant = header(request, "x-tenant-id");
       const authorization = header(request, "authorization");
@@ -245,6 +244,7 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
       request.body.email,
       request.body.password,
       now(),
+      options.adminSessionTimeoutMs,
     );
     if (!result.session) {
       reply.code(401).send({
@@ -256,7 +256,15 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
       return;
     }
     reply
-      .header("set-cookie", sessionCookie(result.session.id))
+      .header(
+        "set-cookie",
+        sessionCookie(
+          result.session.id,
+          options.adminSessionTimeoutMs === undefined
+            ? undefined
+            : options.adminSessionTimeoutMs / 1000,
+        ),
+      )
       .send({ ok: true });
   };
   app.post("/sign-in", signInRoute);
@@ -284,12 +292,23 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
         principal.sessionId ?? "",
         request.body.tenantId,
         now(),
+        options.adminSessionTimeoutMs,
       );
       if ("code" in rotated) {
         failure(reply, rotated);
         return;
       }
-      reply.header("set-cookie", sessionCookie(rotated.id)).send({ ok: true });
+      reply
+        .header(
+          "set-cookie",
+          sessionCookie(
+            rotated.id,
+            options.adminSessionTimeoutMs === undefined
+              ? undefined
+              : options.adminSessionTimeoutMs / 1000,
+          ),
+        )
+        .send({ ok: true });
     },
   );
   app.get("/bff/session-introspect", async (request, reply) => {
@@ -664,36 +683,7 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
       now,
       options.expectedOrigin,
     );
-  if (options.reviews)
-    registerReviews(
-      app,
-      options.store,
-      options.reviews,
-      options.creatorWorkflow,
-      now,
-    );
-  else
-    app.post("/v1/release-reviews", async (request, reply) => {
-      const authorization = header(request, "authorization");
-      const bearer = authorization?.startsWith("Bearer ")
-        ? authorization.slice(7)
-        : "";
-      const principal = authenticateReleaseBearer(options.store, bearer, now());
-      if ("code" in principal) {
-        failure(reply, principal);
-        return;
-      }
-      const gate = authorizeReleaseReview(
-        options.store,
-        principal,
-        header(request, "x-tenant-id"),
-      );
-      if (gate) {
-        failure(reply, gate);
-        return;
-      }
-      reply.send({ ok: true });
-    });
+  if (options.reviews) registerReviews(app, options.reviews);
   if (options.workers)
     registerWorkers(app, options.workers, {
       now,

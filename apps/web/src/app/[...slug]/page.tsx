@@ -1,6 +1,10 @@
 import type { ReactNode } from "react";
 import { notFound, redirect } from "next/navigation";
 import { AdminExportButton } from "../../components/AdminExportButton";
+import { AdminJobCancelButton } from "../../components/AdminJobCancelButton";
+import { AdminJobRetryButton } from "../../components/AdminJobRetryButton";
+import { AdminQuarantineReleaseButton } from "../../components/AdminQuarantineReleaseButton";
+import { AdminQuarantineRejectButton } from "../../components/AdminQuarantineRejectButton";
 import { AdminShell, CreatorShell } from "../../components/Shells";
 import { Panel } from "../../components/Primitives";
 import {
@@ -264,27 +268,36 @@ function FilterInput({
   );
 }
 
+type SelectOption = string | { readonly value: string; readonly label: string };
 function FilterSelect({
   label,
   name,
   value,
   options,
+  allLabel = "All",
 }: {
   readonly label: string;
   readonly name: string;
   readonly value: string;
-  readonly options: readonly string[];
+  readonly options: readonly SelectOption[];
+  readonly allLabel?: string;
 }) {
   return (
     <label>
       <span>{label}</span>
       <select name={name} defaultValue={value}>
-        <option value="">All</option>
-        {options.map((option) => (
-          <option key={option} value={option}>
-            {option}
-          </option>
-        ))}
+        <option value="">{allLabel}</option>
+        {options.map((option) => {
+          const optionValue =
+            typeof option === "string" ? option : option.value;
+          const optionLabel =
+            typeof option === "string" ? option : option.label;
+          return (
+            <option key={optionValue} value={optionValue}>
+              {optionLabel}
+            </option>
+          );
+        })}
       </select>
     </label>
   );
@@ -492,6 +505,45 @@ function jobDetailActions(row: unknown): ReactNode {
     </>
   );
 }
+const CANCELLABLE_STATES = ["QUEUED", "PREPARING", "RENDERING"];
+const RETRYABLE_STATES = ["FAILED", "CANCELLED"];
+function adminJobDetailActions(row: unknown): ReactNode {
+  const jobId = text(field(row, "id"));
+  const state = text(field(row, "state"));
+  const etag = text(field(row, "etag"), "");
+  return (
+    <>
+      {jobDetailActions(row)}
+      {etag && CANCELLABLE_STATES.includes(state) ? (
+        <AdminJobCancelButton jobId={jobId} etag={etag} />
+      ) : null}
+      {etag && RETRYABLE_STATES.includes(state) ? (
+        <AdminJobRetryButton jobId={jobId} etag={etag} />
+      ) : null}
+    </>
+  );
+}
+function quarantineDetailActions(row: unknown): ReactNode {
+  const itemId = text(field(row, "id"));
+  const tenantId = text(field(row, "tenantId"));
+  const version = text(field(row, "version"), "");
+  const state = text(field(row, "state"));
+  if (!version || state !== "QUARANTINED") return null;
+  return (
+    <>
+      <AdminQuarantineReleaseButton
+        itemId={itemId}
+        tenantId={tenantId}
+        version={version}
+      />
+      <AdminQuarantineRejectButton
+        itemId={itemId}
+        tenantId={tenantId}
+        version={version}
+      />
+    </>
+  );
+}
 
 const tenantColumns: readonly Column[] = [
   { label: "Tenant", value: (row) => <IdCell row={row} label="name" /> },
@@ -551,6 +603,7 @@ const quarantineColumns: readonly Column[] = [
   { label: "State", value: (row) => text(field(row, "state")) },
   { label: "Declared type", value: (row) => text(field(row, "declaredType")) },
   { label: "Reason", value: (row) => text(field(row, "reason")) },
+  { label: "Retention", value: (row) => when(field(row, "retentionUntil")) },
 ];
 const quarantineDetails: readonly Column[] = [
   { label: "Upload ID", value: (row) => text(field(row, "id")) },
@@ -745,7 +798,7 @@ async function renderJobs(title: string, search: SearchState) {
         tableLandmark="job-table"
         detailTitle="Job detail"
         nextCursor={cursor(result.body)}
-        detailActions={jobDetailActions}
+        detailActions={adminJobDetailActions}
       />
     </AdminView>
   );
@@ -892,6 +945,7 @@ async function renderQuarantine(title: string, search: SearchState) {
         detailTitle="Admission evidence"
         detailLandmark="evidence-drawer"
         nextCursor={cursor(result.body)}
+        detailActions={quarantineDetailActions}
       />
     </AdminView>
   );
@@ -936,11 +990,17 @@ async function renderAudit(title: string, search: SearchState) {
           value={single(search.actorId)}
           placeholder="Actor ID"
         />
-        <FilterInput
+        <FilterSelect
           label="Event type"
           name="eventType"
           value={single(search.eventType)}
-          placeholder="Event type"
+          allLabel="All Event Types"
+          options={[
+            { value: "auth", label: "Authentication" },
+            { value: "data", label: "Data Access" },
+            { value: "job", label: "Job Execution" },
+            { value: "config", label: "System Config" },
+          ]}
         />
         <FilterInput
           label="Outcome"

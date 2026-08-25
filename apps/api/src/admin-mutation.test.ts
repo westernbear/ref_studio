@@ -1,8 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { buildAuthApp } from "./app.js";
 import { hashBearer, hashPassword, type AuthStore } from "./auth.js";
-import { createAdminMutationStore } from "./admin-mutation.js";
+import {
+  createAdminMutationStore,
+  quarantineVersion,
+} from "./admin-mutation.js";
 import type { AdminReadStore } from "./admin-read.js";
+import {
+  createCreatorWorkflowStore,
+  type Job,
+} from "./creator-workflow.js";
+import { createReviewStore } from "./reviews.js";
 import { createWorkerStore } from "./workers.js";
 
 const adminReads: AdminReadStore = {
@@ -27,6 +35,48 @@ const workerPreflight = {
   compilerModels: true,
   runtimeDigest,
 } as const;
+
+const makeJob = (
+  id: string,
+  tenantId: string,
+  state: Job["state"],
+  etag: string,
+): Job => ({
+  id,
+  tenantId,
+  creatorId: "creator",
+  uploadId: "upl_a",
+  state,
+  attempt: 1,
+  etag,
+  createdAt: "2026-01-01T00:00:00.000Z",
+  updatedAt: "2026-01-01T00:00:00.000Z",
+  irDigest: "ir-1",
+  evidenceDigest: "ev-1",
+  approved: false,
+  startFrame: 0,
+  sourceFps: 30,
+  frameCount: 120,
+  evidence: null,
+  candidateEvidence: null,
+  candidateEvidenceDigest: null,
+  preparationStage: "AWAITING_T1",
+  pendingCompilation: null,
+  compilation: null,
+  previewSpecDigest: null,
+  approvedSpecDigest: null,
+  eligibleAt: 0,
+  automaticRetries: 0,
+  deletionEpoch: 0,
+  restoreEpoch: 0,
+  failureCode: null,
+  runtimePreflight: null,
+  progress: null,
+  artifact: null,
+});
+const JOB_A_ETAG = '"job-a-etag"';
+const JOB_B_ETAG = '"job-b-etag"';
+const ITEM_A_VERSION = quarantineVersion("item-a", "QUARANTINED");
 
 const fixture = () => {
   const users = ["super", "ops", "assigned-viewer", "unassigned", "creator"];
@@ -95,27 +145,45 @@ const fixture = () => {
     restoreEpoch: 0,
     expiresAt: 4_000,
   });
-  const mutations = { ...createAdminMutationStore(), workers };
-  mutations.jobs.set("job-a", {
-    id: "job-a",
-    tenantId: "tenant-a",
-    state: "RENDERING",
-    attempt: 1,
-    version: 1,
-  });
-  mutations.jobs.set("job-b", {
-    id: "job-b",
-    tenantId: "tenant-a",
-    state: "FAILED",
-    attempt: 1,
-    version: 1,
-  });
-  mutations.quarantine.set("item-a", {
-    id: "item-a",
-    tenantId: "tenant-a",
-    state: "QUARANTINED",
-    version: 1,
-  });
+  const workflow = createCreatorWorkflowStore();
+  workflow.availablePreflight = workerPreflight;
+  workflow.jobs.set("job-a", makeJob("job-a", "tenant-a", "RENDERING", JOB_A_ETAG));
+  workflow.jobs.set("job-b", makeJob("job-b", "tenant-a", "FAILED", JOB_B_ETAG));
+  workflow.attempts.set("job-a", [
+    { id: "attempt-a", number: 1, state: "RUNNING", immutable: true },
+  ]);
+  workflow.attempts.set("job-b", [
+    { id: "attempt-b", number: 1, state: "FAILED", immutable: true },
+  ]);
+  const uploads = {
+    uploads: new Map([
+      [
+        "item-a",
+        {
+          id: "item-a",
+          tenantId: "tenant-a",
+          filename: "clip.mp4",
+          contentType: "video/mp4",
+          sizeBytes: 12,
+          state: "QUARANTINED" as const,
+          createdAt: "2026-01-01T00:00:00.000Z",
+          expiresAt: "2026-01-02T00:00:00.000Z",
+          casObjectId: null,
+          sourceSha256: null,
+          media: null,
+          chunks: [],
+          chunkHashes: [],
+          chunkSizes: [],
+          actualBytes: 12,
+        },
+      ],
+    ]),
+    cas: new Map(),
+    casByTenantDigest: new Map(),
+    now: () => 1_000,
+  };
+  const reviews = createReviewStore();
+  const mutations = { ...createAdminMutationStore(), workers, workflow, uploads, reviews };
   for (const id of ["tenant-a", "tenant-b"])
     mutations.tenants.set(id, {
       id,
@@ -125,7 +193,7 @@ const fixture = () => {
       planMetadata: {},
       quotaBytes: 100,
     });
-  return { auth, mutations };
+  return { auth, mutations, workflow, uploads };
 };
 const appFor = (
   data: ReturnType<typeof fixture>,
@@ -139,10 +207,10 @@ const appFor = (
     adminMutations: data.mutations,
     now,
   });
-const headers = (userId: string, key: string, version = 1) => ({
+const headers = (userId: string, key: string, ifMatch = '"1"') => ({
   authorization: `Bearer ${userId}-token`,
   "idempotency-key": key,
-  "if-match": `"${version}"`,
+  "if-match": ifMatch,
   "x-correlation-id": `cor_${key}`,
 });
 const body = (reason = "operator reason") => ({ reason });
@@ -259,33 +327,36 @@ describe("admin-mutation", () => {
     ]);
   });
 
-  it("covers job cancel and retry for assigned ops with exact audited replay", async () => {
+  it("covers job cancel and retry for assigned ops with exact audited replay, against real workflow jobs", async () => {
     const data = fixture();
     const app = appFor(data);
     const cancel = await app.inject({
       method: "POST",
       url: "/admin/jobs/job-a/cancel",
-      headers: headers("ops", "cancel-a"),
+      headers: headers("ops", "cancel-a", JOB_A_ETAG),
       payload: body(),
     });
-    expect(cancel.statusCode).toBe(202);
-    expect(data.mutations.jobs.get("job-a")?.state).toBe("CANCEL_REQUESTED");
+    expect(cancel.statusCode, cancel.body).toBe(202);
+    // job-a has no active worker lease in this fixture, so cancelJob()
+    // completes the cancellation immediately rather than staying requested.
+    expect(data.workflow.jobs.get("job-a")?.state).toBe("CANCELLED");
     const retry = await app.inject({
       method: "POST",
       url: "/admin/jobs/job-b/retry",
-      headers: headers("ops", "retry-b"),
+      headers: headers("ops", "retry-b", JOB_B_ETAG),
       payload: body(),
     });
-    expect(retry.statusCode).toBe(201);
-    expect(data.mutations.jobs.get("job-b")?.attempt).toBe(2);
+    expect(retry.statusCode, retry.body).toBe(201);
+    expect(data.workflow.jobs.get("job-b")?.attempt).toBe(2);
+    expect(data.workflow.jobs.get("job-b")?.state).toBe("PREPARING");
     const replay = await app.inject({
       method: "POST",
       url: "/admin/jobs/job-b/retry",
-      headers: headers("ops", "retry-b"),
+      headers: headers("ops", "retry-b", JOB_B_ETAG),
       payload: body(),
     });
     expect(replay.statusCode).toBe(201);
-    expect(data.mutations.jobs.get("job-b")?.attempt).toBe(2);
+    expect(data.workflow.jobs.get("job-b")?.attempt).toBe(2);
     expect(
       data.mutations.auditEvents.filter((event) => event.outcome === "ALLOWED"),
     ).toHaveLength(2);
@@ -370,7 +441,7 @@ describe("admin-mutation", () => {
     ]);
   });
 
-  it("covers quarantine release/reject and state/version failures", async () => {
+  it("covers quarantine release/reject and state/version failures, against real uploads", async () => {
     const data = fixture();
     const app = appFor(data);
     const decision = {
@@ -381,15 +452,22 @@ describe("admin-mutation", () => {
     const release = await app.inject({
       method: "POST",
       url: "/admin/quarantine/item-a/release",
-      headers: headers("ops", "release-a"),
+      headers: headers("ops", "release-a", ITEM_A_VERSION),
       payload: decision,
     });
-    expect(release.statusCode).toBe(202);
-    expect(data.mutations.quarantine.get("item-a")?.state).toBe("VALIDATING");
+    expect(release.statusCode, release.body).toBe(202);
+    expect(data.uploads.uploads.get("item-a")?.state).toBe("VALIDATING");
     const invalid = await app.inject({
       method: "POST",
       url: "/admin/quarantine/item-a/release",
-      headers: headers("ops", "release-b", 2),
+      // Item is now VALIDATING, not QUARANTINED, but the If-Match value
+      // matches its new (current) version — so the version check passes
+      // and the request is rejected on state instead.
+      headers: headers(
+        "ops",
+        "release-b",
+        quarantineVersion("item-a", "VALIDATING"),
+      ),
       payload: decision,
     });
     expect(invalid.statusCode).toBe(400);
@@ -397,13 +475,13 @@ describe("admin-mutation", () => {
     const reject = await appFor(rejectData).inject({
       method: "POST",
       url: "/admin/quarantine/item-a/reject",
-      headers: headers("ops", "reject-a"),
+      headers: headers("ops", "reject-a", ITEM_A_VERSION),
       payload: { ...decision, confirmItemId: "item-a" },
     });
-    expect(reject.statusCode).toBe(200);
-    expect(rejectData.mutations.quarantine.get("item-a")?.state).toBe(
-      "REJECTED",
-    );
+    expect(reject.statusCode, reject.body).toBe(200);
+    // UploadState has no distinct REJECTED value; EXPIRED is the terminal
+    // state used for a rejected quarantine item (see admin-mutation.ts).
+    expect(rejectData.uploads.uploads.get("item-a")?.state).toBe("EXPIRED");
   });
 
   it("covers member add/remove, quota/plan, and suspend with role allowlist", async () => {
@@ -425,7 +503,7 @@ describe("admin-mutation", () => {
     const remove = await app.inject({
       method: "PATCH",
       url: "/admin/tenants/tenant-a/members",
-      headers: headers("ops", "member-remove", 2),
+      headers: headers("ops", "member-remove", '"2"'),
       payload: { ...body(), removeUserId: "creator" },
     });
     expect(remove.statusCode).toBe(200);
@@ -435,14 +513,14 @@ describe("admin-mutation", () => {
     const billing = await app.inject({
       method: "PATCH",
       url: "/admin/billing/tenant-a",
-      headers: headers("ops", "billing", 3),
+      headers: headers("ops", "billing", '"3"'),
       payload: { ...body(), quotaBytes: 500, planMetadata: { tier: "pro" } },
     });
     expect(billing.statusCode).toBe(200);
     const suspend = await app.inject({
       method: "POST",
       url: "/admin/tenants/tenant-a/suspend",
-      headers: headers("ops", "suspend", 4),
+      headers: headers("ops", "suspend", '"4"'),
       payload: body(),
     });
     expect(suspend.statusCode).toBe(200);
@@ -450,7 +528,7 @@ describe("admin-mutation", () => {
     const invalidRole = await app.inject({
       method: "PATCH",
       url: "/admin/tenants/tenant-a/members",
-      headers: headers("ops", "invalid-role", 5),
+      headers: headers("ops", "invalid-role", '"5"'),
       payload: {
         ...body(),
         addOrUpdate: { userId: "creator", role: "SUPER_ADMIN" },
@@ -465,20 +543,20 @@ describe("admin-mutation", () => {
     const stale = await app.inject({
       method: "POST",
       url: "/admin/jobs/job-a/cancel",
-      headers: headers("ops", "stale", 9),
+      headers: headers("ops", "stale", '"not-the-real-etag"'),
       payload: body(),
     });
     expect(stale.statusCode).toBe(409);
     const changed = await app.inject({
       method: "POST",
       url: "/admin/jobs/job-a/cancel",
-      headers: headers("ops", "cancel-change"),
+      headers: headers("ops", "cancel-change", JOB_A_ETAG),
       payload: body("first"),
     });
     const replay = await app.inject({
       method: "POST",
       url: "/admin/jobs/job-a/cancel",
-      headers: headers("ops", "cancel-change"),
+      headers: headers("ops", "cancel-change", JOB_A_ETAG),
       payload: body("changed"),
     });
     expect(changed.statusCode).toBe(202);
@@ -487,7 +565,7 @@ describe("admin-mutation", () => {
       const response = await app.inject({
         method: "POST",
         url: "/admin/jobs/job-a/cancel",
-        headers: headers(userId, `deny-${userId}`),
+        headers: headers(userId, `deny-${userId}`, JOB_A_ETAG),
         payload: body(),
       });
       expect(response.statusCode).toBe(403);

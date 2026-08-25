@@ -24,6 +24,9 @@ import type {
 } from "./creator-workflow.js";
 import {
   autoApproveT1,
+  autoApproveT2T3,
+  autoApproveT4,
+  autoApproveT5,
   CompilationSchema,
   EvidenceBundleSchema,
 } from "./creator-workflow.js";
@@ -606,6 +609,7 @@ const finishWorkflowJob = (
   lease: ClaimedJob,
   result: unknown,
   now: () => number,
+  reviews: ReviewStore | undefined,
 ): FinishOutcome | null => {
   const job = workflow?.jobs.get(lease.jobId);
   if (!job) return null;
@@ -651,6 +655,7 @@ const finishWorkflowJob = (
       framesProcessed: job.sourceFps * 4,
       framesTotal: job.sourceFps * 4,
     };
+    autoApproveT2T3(reviews, job, job.creatorId, now());
     return "QUEUED";
   }
   if (lease.phase === "compile") {
@@ -666,6 +671,7 @@ const finishWorkflowJob = (
     job.preparationStage = "AWAITING_T2";
     job.automaticRetries = 0;
     job.failureCode = null;
+    autoApproveT2T3(reviews, job, job.creatorId, now());
     return "QUEUED";
   }
   if (lease.phase === "preview") {
@@ -693,6 +699,7 @@ const finishWorkflowJob = (
       framesProcessed: DELIVERY_FRAME_COUNT,
       framesTotal: DELIVERY_FRAME_COUNT,
     };
+    if (workflow) autoApproveT4(reviews, workflow, job, job.creatorId, now());
     return "QUEUED";
   }
   if (job.state !== "RENDERING" || !job.approved || !job.compilation)
@@ -729,6 +736,7 @@ const finishWorkflowJob = (
   };
   job.automaticRetries = 0;
   job.failureCode = null;
+  if (workflow) autoApproveT5(reviews, workflow, job, job.creatorId, now());
   return "QUEUED";
 };
 
@@ -1171,7 +1179,7 @@ export function registerWorkers(
         : undefined;
     const outcome = failed
       ? failWorkflowJob(workflow, lease, message, now)
-      : finishWorkflowJob(workflow, lease, result, now);
+      : finishWorkflowJob(workflow, lease, result, now, reviews);
     if (!outcome) {
       error(reply, "INVALID_REQUEST");
       return;

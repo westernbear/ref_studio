@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { AuthStore, Principal } from "./auth.js";
 import {
@@ -7,22 +7,21 @@ import {
   requestHeader,
 } from "./admin-auth.js";
 import { IdempotencyStore, safeEnvelope, requestHash } from "./boundary.js";
-import type { CreatorWorkflowStore } from "./creator-workflow.js";
+import {
+  cancelJob,
+  retryJob,
+  type CreatorWorkflowStore,
+} from "./creator-workflow.js";
+import type { ReviewStore } from "./reviews.js";
+import type { UploadStore } from "./uploads.js";
 import { retireWorker, type WorkerStore } from "./workers.js";
 
-export type AdminMutationJob = {
-  id: string;
-  tenantId: string;
-  state: string;
-  attempt: number;
-  version: number;
-};
-export type AdminMutationQuarantine = {
-  id: string;
-  tenantId: string;
-  state: "QUARANTINED" | "REJECTED" | "VALIDATING";
-  version: number;
-};
+// UploadRecord carries no etag/version field of its own; this derives a
+// content-addressed one (changes whenever `state` changes) so quarantine
+// release/reject can use the same If-Match optimistic-concurrency pattern
+// as jobs, without a schema change. admin-read.ts exposes the same value.
+export const quarantineVersion = (id: string, state: string): string =>
+  `\"${createHash("sha256").update(`${id}:${state}`).digest("hex").slice(0, 16)}\"`;
 export type AdminMutationTenant = {
   id: string;
   status: string;
@@ -53,8 +52,6 @@ export type AdminAuditEvent = {
   createdAt: string;
 };
 export type AdminMutationStore = {
-  readonly jobs: Map<string, AdminMutationJob>;
-  readonly quarantine: Map<string, AdminMutationQuarantine>;
   readonly tenants: Map<string, AdminMutationTenant>;
   readonly exports: Map<string, AdminMutationExport>;
   readonly auditEvents: AdminAuditEvent[];
@@ -62,12 +59,12 @@ export type AdminMutationStore = {
   readonly now: () => number;
   readonly workers?: WorkerStore;
   readonly workflow?: CreatorWorkflowStore;
+  readonly uploads?: UploadStore;
+  readonly reviews?: ReviewStore;
 };
 export const createAdminMutationStore = (
   now = Date.now(),
 ): AdminMutationStore => ({
-  jobs: new Map(),
-  quarantine: new Map(),
   tenants: new Map(),
   exports: new Map(),
   auditEvents: [],
@@ -228,35 +225,28 @@ export function registerAdminMutation(
       const tenantId =
         request.params.tenantId ??
         (request.params.jobId
-          ? store.jobs.get(request.params.jobId)?.tenantId
+          ? store.workflow?.jobs.get(request.params.jobId)?.tenantId
           : request.params.itemId
-            ? store.quarantine.get(request.params.itemId)?.tenantId
+            ? store.uploads?.uploads.get(request.params.itemId)?.tenantId
             : null) ??
         null;
       const result = command(request, tenantId, (principal, correlation) => {
         const reason = requireReason(body);
         const path = request.url.split("?")[0] ?? "";
         if (path.endsWith("/cancel") || path.endsWith("/retry")) {
-          const job = store.jobs.get(request.params.jobId ?? "");
-          if (!job || job.tenantId !== tenantId)
+          const job = store.workflow?.jobs.get(request.params.jobId ?? "");
+          if (!job || job.tenantId !== tenantId || !store.workflow)
             throw new Error("RESOURCE_NOT_FOUND");
-          requireVersion(request, job.version);
-          const before = {
-            state: job.state,
-            attempt: job.attempt,
-            version: job.version,
-          };
+          if (requestHeader(request, "if-match") !== job.etag)
+            throw new Error("VERSION_CONFLICT");
+          const before = { state: job.state, attempt: job.attempt };
           if (path.endsWith("/cancel")) {
             if (!["QUEUED", "PREPARING", "RENDERING"].includes(job.state))
               throw new Error("JOB_NOT_CANCELLABLE");
-            job.state = "CANCEL_REQUESTED";
+            cancelJob(store.workflow, store.workers, job, store.now);
           } else {
-            if (!["FAILED", "CANCELLED"].includes(job.state))
-              throw new Error("JOB_NOT_RETRYABLE");
-            job.attempt += 1;
-            job.state = "QUEUED";
+            retryJob(store.workflow, store.reviews, job);
           }
-          job.version += 1;
           store.auditEvents.push({
             id: id("audit"),
             tenantId,
@@ -267,11 +257,7 @@ export function registerAdminMutation(
             targetType: "job",
             targetId: job.id,
             before,
-            after: {
-              state: job.state,
-              attempt: job.attempt,
-              version: job.version,
-            },
+            after: { state: job.state, attempt: job.attempt },
             reason,
             correlationId: correlation,
             outcome: "ALLOWED",
@@ -279,11 +265,11 @@ export function registerAdminMutation(
           });
           return [
             path.endsWith("/cancel") ? 202 : 201,
-            { state: job.state, version: job.version },
+            { state: job.state, etag: job.etag },
           ];
         }
         if (path.includes("/quarantine/")) {
-          const item = store.quarantine.get(request.params.itemId ?? "");
+          const item = store.uploads?.uploads.get(request.params.itemId ?? "");
           if (
             !item ||
             item.tenantId !== tenantId ||
@@ -291,8 +277,9 @@ export function registerAdminMutation(
             body.confirmItemId !== item.id
           )
             throw new Error("QUARANTINE_RELEASE_BLOCKED");
-          requireVersion(request, item.version);
-          const before = { state: item.state, version: item.version };
+          if (requestHeader(request, "if-match") !== quarantineVersion(item.id, item.state))
+            throw new Error("VERSION_CONFLICT");
+          const before = { state: item.state };
           if (path.endsWith("/release")) {
             if (item.state !== "QUARANTINED")
               throw new Error("QUARANTINE_RELEASE_BLOCKED");
@@ -300,9 +287,10 @@ export function registerAdminMutation(
           } else {
             if (item.state !== "QUARANTINED")
               throw new Error("VERSION_CONFLICT");
-            item.state = "REJECTED";
+            // UploadState has no distinct "REJECTED" value; EXPIRED is the
+            // closest existing terminal state for "will never be accepted."
+            item.state = "EXPIRED";
           }
-          item.version += 1;
           store.auditEvents.push({
             id: id("audit"),
             tenantId,
@@ -313,7 +301,7 @@ export function registerAdminMutation(
             targetType: "quarantine",
             targetId: item.id,
             before,
-            after: { state: item.state, version: item.version },
+            after: { state: item.state },
             reason,
             correlationId: correlation,
             outcome: "ALLOWED",

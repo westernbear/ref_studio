@@ -248,7 +248,7 @@ const validateProbe = (
     probe.durationSeconds > MEDIA_LIMITS.maxDurationSeconds
   )
     throw new MediaValidationFailure("MEDIA_DURATION_INVALID");
-  if (probe.container !== "mp4")
+  if (!["mp4", "webm"].includes(probe.container))
     throw new MediaValidationFailure("MEDIA_CONTAINER_INVALID");
   if (!["h264", "hevc", "vp9", "av1"].includes(probe.codec))
     throw new MediaValidationFailure("MEDIA_CODEC_INVALID");
@@ -424,7 +424,14 @@ export async function inspectUploadedMedia(
     const rotation = Number(video?.tags.rotate ?? 0);
     const normalizedRotation = ((rotation % 360) + 360) % 360;
     const { probe, fps } = validateProbe({
-      container: raw.format.format_name.includes("mp4") ? "mp4" : "invalid",
+      // mov/m4a/3gp share ffmpeg's ISO-BMFF demuxer with mp4 and report the
+      // same format_name family; matroska covers .webm's container family.
+      container: raw.format.format_name.includes("mp4")
+        ? "mp4"
+        : raw.format.format_name.includes("matroska") ||
+            raw.format.format_name.includes("webm")
+          ? "webm"
+          : "invalid",
       codec: video?.codec_name ?? "",
       durationSeconds: Number(raw.format.duration),
       avgFrameRate: fraction(video?.avg_frame_rate),

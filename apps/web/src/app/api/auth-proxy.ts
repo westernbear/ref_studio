@@ -175,21 +175,42 @@ export async function proxyV1(
   });
 }
 
+// Each entry is [method, path segment pattern] where "*" matches exactly one
+// path segment (e.g. an id). Extend this list, not the route handler, when a
+// new admin mutation endpoint needs a browser-reachable proxy.
+const ADMIN_MUTATION_ROUTES: readonly (readonly [string, readonly string[]])[] =
+  [
+    ["POST", ["audit-exports"]],
+    ["POST", ["receipt-exports"]],
+    ["POST", ["workers", "*", "offline"]],
+    ["POST", ["jobs", "*", "cancel"]],
+    ["POST", ["jobs", "*", "retry"]],
+    ["POST", ["quarantine", "*", "release"]],
+    ["POST", ["quarantine", "*", "reject"]],
+    ["POST", ["tenants", "*", "suspend"]],
+    ["PATCH", ["tenants", "*", "members"]],
+    ["PATCH", ["billing", "*"]],
+  ];
+const matchesAdminRoute = (
+  method: string,
+  path: readonly string[],
+): boolean =>
+  ADMIN_MUTATION_ROUTES.some(
+    ([routeMethod, pattern]) =>
+      routeMethod === method &&
+      pattern.length === path.length &&
+      pattern.every(
+        (segment, index) =>
+          segment === "*" ||
+          (segment === path[index] && path[index]!.length > 0),
+      ),
+  );
+
 export async function proxyAdmin(
   request: Request,
   path: readonly string[],
 ): Promise<Response> {
-  const target = path.join("/");
-  const isWorkerOffline =
-    path.length === 3 &&
-    path[0] === "workers" &&
-    path[1] !== undefined &&
-    path[1].length > 0 &&
-    path[2] === "offline";
-  if (
-    request.method !== "POST" ||
-    (!["audit-exports", "receipt-exports"].includes(target) && !isWorkerOffline)
-  )
+  if (!matchesAdminRoute(request.method, path))
     return Response.json(
       { error: { code: "RESOURCE_NOT_FOUND", message: "Not found." } },
       { status: 404 },
@@ -200,14 +221,19 @@ export async function proxyAdmin(
     origin: expectedOrigin(),
     "x-csrf-token": "web-proxy",
   });
-  for (const name of ["cookie", "idempotency-key", "x-correlation-id"]) {
+  for (const name of [
+    "cookie",
+    "idempotency-key",
+    "if-match",
+    "x-correlation-id",
+  ]) {
     const value = request.headers.get(name);
     if (value) headers.set(name, value);
   }
   const response = await fetch(
     internalApiUrl(`/admin/${path.map(encodeURIComponent).join("/")}`),
     {
-      method: "POST",
+      method: request.method,
       headers,
       body: await request.arrayBuffer(),
       redirect: "manual",

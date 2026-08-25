@@ -97,8 +97,8 @@ describe("idempotency boundary", () => {
   });
 });
 
-describe("release review boundary", () => {
-  it("excludes only release review from the tenant header hook and replays its key", async () => {
+describe("tenant action idempotency boundary", () => {
+  it("replays idempotency keys and fences tenant actions by header", async () => {
     const events: Array<{
       readonly action: string;
       readonly tenantId: string | null;
@@ -109,9 +109,7 @@ describe("release review boundary", () => {
         users: [{ id: "usr_a", email: "a@invalid" }],
         credentials: [],
         memberships: [{ userId: "usr_a", tenantId: "ten_a", role: "OWNER" }],
-        assignments: [
-          { reviewerId: "usr_a", tenantId: null, gate: "T6", scope: "RELEASE" },
-        ],
+        assignments: [],
         sessions: [],
         apiTokens: [
           {
@@ -136,18 +134,6 @@ describe("release review boundary", () => {
       },
       now: () => 1_000,
     });
-    const release = await app.inject({
-      method: "POST",
-      url: "/v1/release-reviews",
-      headers: { authorization: "Bearer raw", "idempotency-key": "review-1" },
-    });
-    const replay = await app.inject({
-      method: "POST",
-      url: "/v1/release-reviews",
-      headers: { authorization: "Bearer raw", "idempotency-key": "review-1" },
-    });
-    expect(release.statusCode).toBe(200);
-    expect(replay.body).toBe(release.body);
     const action = await app.inject({
       method: "POST",
       url: "/v1/tenant-actions",
@@ -206,7 +192,7 @@ describe("release review boundary", () => {
       headers: { authorization: "Bearer raw" },
     });
     expect(tenantMissing.json().error.code).toBe("TENANT_BOUNDARY_BYPASS");
-    expect(release.headers["x-correlation-id"]).toMatch(/^cor_/);
+    expect(action.headers["x-correlation-id"]).toMatch(/^cor_/);
     await app.close();
   });
 });

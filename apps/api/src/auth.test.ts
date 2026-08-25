@@ -242,7 +242,7 @@ describe("auth flows", () => {
     expect(fixture.sessions).toHaveLength(0);
     await app.close();
   });
-  it("protects direct identity and release review routes", async () => {
+  it("protects direct identity routes from tenant header forgery", async () => {
     const fixture = store();
     const app = buildAuthApp({
       store: fixture,
@@ -266,27 +266,11 @@ describe("auth flows", () => {
         "x-tenant-id": "ten_other",
       },
     });
-    const release = await app.inject({
-      method: "POST",
-      url: "/v1/release-reviews",
-      headers: { authorization: "Bearer bearer-secret" },
-    });
-    const releaseHeader = await app.inject({
-      method: "POST",
-      url: "/v1/release-reviews",
-      headers: {
-        authorization: "Bearer bearer-secret",
-        "x-tenant-id": "ten_demo",
-      },
-    });
     expect(identity.statusCode).toBe(200);
     expect(forged.json().error.code).toBe("TENANT_BOUNDARY_BYPASS");
-    expect(release.statusCode).toBe(200);
-    expect(releaseHeader.json().error.code).toBe("TENANT_HEADER_FORBIDDEN");
     expect(fixture.events).toEqual(
       expect.arrayContaining([
         { action: "AUTH_TENANT_DENIED", decision: "DENIED" },
-        { action: "RELEASE_TENANT_HEADER", decision: "DENIED" },
       ]),
     );
     await app.close();
@@ -361,5 +345,23 @@ describe("auth flows", () => {
     });
     const login = signIn(fixture, "reviewer@example.invalid", "correct", 1_000);
     if (login.session) revokeSession(fixture, login.session.id, 1_001);
+  });
+  it("honors a configured admin session timeout instead of the 30-minute default", async () => {
+    const fixture = store();
+    const app = buildAuthApp({
+      store: fixture,
+      expectedOrigin: "https://studio.invalid",
+      introspectSecret: "service-secret",
+      now: () => 1_000,
+      adminSessionTimeoutMs: 5 * 60 * 1000,
+    });
+    const login = await app.inject({
+      method: "POST",
+      url: "/sign-in",
+      headers: { origin: "https://studio.invalid" },
+      payload: { email: "reviewer@example.invalid", password: "correct" },
+    });
+    expect(login.headers["set-cookie"]).toContain("Max-Age=300");
+    await app.close();
   });
 });

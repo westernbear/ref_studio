@@ -93,7 +93,7 @@ export function ProgressTracker({ initialJob }: Props) {
             Workflow
           </a>
           <a className="button button-primary" href={sceneReviewHref}>
-            {nextGate ? `Review and approve ${nextGate}` : "Scene Review"}
+            Scene Review
           </a>
         </nav>
       </header>
@@ -150,23 +150,17 @@ export function ProgressTracker({ initialJob }: Props) {
           <div className="progress-side-panel">
             <div className="section-heading">
               <div>
-                <h2>Next action</h2>
+                <h2>Pipeline stage</h2>
                 <p>
                   {nextGate
-                    ? `${nextGate} review is ready.`
-                    : "No approval action is waiting."}
+                    ? `${nextGate} is auto-verifying.`
+                    : "No stage is waiting."}
                 </p>
               </div>
             </div>
-            {nextGate ? (
-              <a className="button button-primary" href={sceneReviewHref}>
-                Review and approve {nextGate}
-              </a>
-            ) : (
-              <a className="button" href="/workflow">
-                Back to workflow
-              </a>
-            )}
+            <a className="button" href={sceneReviewHref}>
+              View job
+            </a>
             <ol className="progress-gate-grid">
               {approvalGates.map((gate) => {
                 const approved = job.approvedGates.includes(gate);

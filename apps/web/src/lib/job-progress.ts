@@ -126,7 +126,8 @@ export const jobStatusCopy = (job: JobProgress): string => {
   if (state === "CANCELLED") return "Compiler job was cancelled.";
   if (state === "FAILED") return "Compiler job failed.";
   if (state === "RETRYABLE_ERROR") return "Compiler job needs retry.";
-  if (state === "STALE_APPROVAL") return "Approval is stale.";
+  if (state === "STALE_APPROVAL")
+    return "Automatic verification is stale; recompiling.";
   if (state === "RENDERING")
     return job.progressStage
       ? `Renderer active: ${job.progressStage}.`
@@ -137,19 +138,19 @@ export const jobStatusCopy = (job: JobProgress): string => {
       AWAITING_T1: "Waiting for worker runtime preflight.",
       ANALYSIS_QUEUED: "Reference analysis is queued.",
       ANALYSIS_RUNNING: "Reference analysis is running.",
-      AWAITING_T2: "Measured evidence is awaiting T2 review.",
+      AWAITING_T2: "Measured evidence is auto-verifying (T2).",
       COMPILATION_QUEUED: "Scene compilation is queued.",
       COMPILATION_RUNNING: "Scene compilation is running.",
-      AWAITING_T3: "Authoring IR is awaiting T3 review.",
+      AWAITING_T3: "Authoring IR is auto-verifying (T3).",
       PREVIEW_QUEUED: "Animatic preview is queued.",
       PREVIEW_RUNNING: "Animatic preview is rendering.",
-      AWAITING_T4: "Animatic preview is awaiting T4 review.",
+      AWAITING_T4: "Animatic preview is auto-verifying (T4).",
     };
     return stageCopy[job.preparationStage] ?? "Preparing compiler inputs.";
   }
   if (state === "READY") return "Ready for queue admission.";
   if (state === "ASSEMBLING") return "Assembling compiler output.";
-  if (state === "AWAITING_T5") return "Awaiting final delivery gate.";
+  if (state === "AWAITING_T5") return "Final delivery is auto-verifying (T5).";
   return "Waiting for worker update.";
 };
 

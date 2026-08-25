@@ -129,6 +129,10 @@ const owns = (
   }
   return upload;
 };
+// MP4/MOV (ISO-BMFF) carry an "ftyp" box; WebM/Matroska instead open with the
+// fixed 4-byte EBML magic number. Recognize either signature, matching the
+// mp4/webm containers media-validation.ts's ffprobe pass also accepts.
+const EBML_MAGIC = [0x1a, 0x45, 0xdf, 0xa3];
 const hasFtyp = (chunks: readonly Uint8Array[]): boolean => {
   const prefix = new Uint8Array(
     Math.min(
@@ -143,6 +147,7 @@ const hasFtyp = (chunks: readonly Uint8Array[]): boolean => {
     cursor += copy.length;
     if (cursor === prefix.length) break;
   }
+  if (EBML_MAGIC.every((byte, index) => prefix[index] === byte)) return true;
   for (let offset = 4; offset + 8 <= prefix.length; offset += 1)
     if (String.fromCharCode(...prefix.subarray(offset, offset + 4)) === "ftyp")
       return true;
@@ -165,11 +170,16 @@ export function createUpload(
     );
   const now = store.now();
   const uploadId = id("upl");
+  const acceptedContentTypes = ["video/mp4", "video/quicktime", "video/webm"];
+  const contentType =
+    parsed.data.mimeHint && acceptedContentTypes.includes(parsed.data.mimeHint)
+      ? parsed.data.mimeHint
+      : "video/mp4";
   const upload: UploadRecord = {
     id: uploadId,
     tenantId,
     filename,
-    contentType: "video/mp4",
+    contentType,
     sizeBytes: parsed.data.sizeBytes,
     state: "PENDING",
     createdAt: new Date(now).toISOString(),

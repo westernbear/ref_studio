@@ -5,10 +5,10 @@ import { describe, expect, it } from "vitest";
 import { buildAuthApp } from "./app.js";
 import { hashBearer, type Assignment, type AuthStore } from "./auth.js";
 import {
+  autoApproveT2T3,
+  autoApproveT4,
   createCreatorWorkflowStore,
-  RELEASE_BASELINE_DIGEST,
   RUNTIME_DIGEST,
-  type Job,
 } from "./creator-workflow.js";
 import { createReviewStore } from "./reviews.js";
 import { createUpload, finalizeUpload, type UploadStore } from "./uploads.js";
@@ -135,34 +135,6 @@ const jobPayload = (uploadId: string, startFrame = 0) => ({
   startFrame,
   outputProfile: "vertical-1080p30",
 });
-const approveGate = async (
-  state: ReturnType<typeof fixture>,
-  job: Job,
-  gate: "T1" | "T2" | "T3" | "T4",
-  predecessorReceiptId: string | null,
-  artifactRefs: readonly string[] = [],
-): Promise<string> => {
-  const response = await state.app.inject({
-    method: "POST",
-    url: "/v1/reviews",
-    headers: reviewerHeaders,
-    payload: {
-      jobId: job.id,
-      attempt: job.attempt,
-      gate,
-      decision: "APPROVED",
-      predecessorReceiptId,
-      evidenceDigest: job.evidenceDigest,
-      irDigest: job.irDigest,
-      runtimeDigest: RUNTIME_DIGEST,
-      releaseBaselineDigest: RELEASE_BASELINE_DIGEST,
-      reason: `approve ${gate}`,
-      artifactRefs,
-    },
-  });
-  expect(response.statusCode, response.body).toBe(201);
-  return String(response.json().receipt.id);
-};
 const assertSafe = (value: unknown): void => {
   if (Array.isArray(value)) {
     value.forEach(assertSafe);
@@ -308,8 +280,6 @@ describe("creator workflow API", () => {
       (receipt) => receipt.jobId === job.id && receipt.gate === "T1",
     );
     expect(t1Receipt).toBeDefined();
-    if (!t1Receipt) throw new Error("T1 receipt was not auto-approved");
-    const t1 = t1Receipt.id;
     job.evidence = {
       state: "NEEDS_CHOICE",
       needsChoice: [
@@ -403,10 +373,7 @@ describe("creator workflow API", () => {
     job.pendingCompilation = compilation;
     job.irDigest = compilation.browserPassSpec.digest;
     job.preparationStage = "AWAITING_T2";
-    const t2 = await approveGate(state, job, "T2", t1);
-    const t3 = await approveGate(state, job, "T3", t2, [
-      compilation.authoring.versionId,
-    ]);
+    autoApproveT2T3(state.reviews, job, job.creatorId, 1_000);
     state.workflow.previews.set(job.id, {
       id: "preview-ready",
       jobId: job.id,
@@ -435,7 +402,7 @@ describe("creator workflow API", () => {
     });
     expect(beforeT4.statusCode).toBe(409);
     expect(beforeT4.json().error.code).toBe("JOB_NOT_READY");
-    await approveGate(state, job, "T4", t3, ["preview-ready"]);
+    autoApproveT4(state.reviews, state.workflow, job, job.creatorId, 1_000);
     const readyEtag = job.etag;
     const detail = await state.app.inject({
       method: "GET",

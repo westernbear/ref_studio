@@ -61,7 +61,9 @@ export type ApiToken = {
 };
 
 export const SAFE_LOGIN_ERROR = "AUTHENTICATION_REQUIRED" as const;
-const IDLE_MS = 30 * 60 * 1000;
+// Default session idle timeout; callers may override via the `idleMs` param
+// (wired from RVS_ADMIN_SESSION_TIMEOUT_MINUTES in server.ts).
+export const DEFAULT_IDLE_MS = 30 * 60 * 1000;
 const hash = (value: string): string =>
   createHash("sha256").update(value).digest("hex");
 export const hashBearer = hash;
@@ -100,6 +102,7 @@ export function signIn(
   email: string,
   password: string,
   now = Date.now(),
+  idleMs = DEFAULT_IDLE_MS,
 ): {
   readonly session: Session | null;
   readonly error: typeof SAFE_LOGIN_ERROR | null;
@@ -122,7 +125,7 @@ export function signIn(
     id: randomBytes(24).toString("base64url"),
     userId: credential.userId,
     tenantId: membership.tenantId,
-    expiresAt: now + IDLE_MS,
+    expiresAt: now + idleMs,
     revokedAt: null,
   };
   store.sessions.push(session);
@@ -143,6 +146,7 @@ export function rotateSessionTenant(
   id: string,
   tenantId: string,
   now = Date.now(),
+  idleMs = DEFAULT_IDLE_MS,
 ): Session | AuthFailure {
   const session = store.sessions.find(
     (item) => item.id === id && item.revokedAt === null && item.expiresAt > now,
@@ -158,14 +162,17 @@ export function rotateSessionTenant(
     id: randomBytes(24).toString("base64url"),
     userId: session.userId,
     tenantId,
-    expiresAt: now + IDLE_MS,
+    expiresAt: now + idleMs,
     revokedAt: null,
   };
   store.sessions.push(rotated);
   return rotated;
 }
-export const sessionCookie = (id: string): string =>
-  `rvs_session=${encodeURIComponent(id)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=1800`;
+export const sessionCookie = (
+  id: string,
+  maxAgeSeconds = DEFAULT_IDLE_MS / 1000,
+): string =>
+  `rvs_session=${encodeURIComponent(id)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAgeSeconds}`;
 export const clearSessionCookie = (): string =>
   "rvs_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0";
 export function authenticateBearer(
