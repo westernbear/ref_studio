@@ -142,7 +142,7 @@ function WorkerCard({ worker }: { readonly worker: unknown }) {
             return (
               <a
                 key={jobId}
-                href={`/progress?jobId=${encodeURIComponent(jobId)}`}
+                href={`/scene-review?jobId=${encodeURIComponent(jobId)}`}
               >
                 <span>{jobId}</span>
                 <small>{text(field(lease, "phase"), "Working")}</small>

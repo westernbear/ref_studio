@@ -177,21 +177,28 @@ export async function uploadMp4(
 
 export async function createCompilerJob(
   media: AcceptedMedia,
-  startFrame: number,
+  options: { readonly startFrame?: number; readonly prompt?: string },
   signal: AbortSignal,
 ): Promise<string> {
+  const idempotencyKey =
+    options.startFrame !== undefined
+      ? `job:${media.uploadId}:${options.startFrame}`
+      : `job:${media.uploadId}:${requestId()}`;
   const body = await request(
     "/api/v1/jobs",
     {
       method: "POST",
       body: JSON.stringify({
         uploadId: media.uploadId,
-        startFrame,
         sourceFps: media.fps,
         outputProfile: "vertical-1080p30",
+        ...(options.startFrame !== undefined
+          ? { startFrame: options.startFrame }
+          : {}),
+        ...(options.prompt ? { prompt: options.prompt } : {}),
       }),
       headers: {
-        ...commandHeaders(`job:${media.uploadId}:${startFrame}`),
+        ...commandHeaders(idempotencyKey),
       },
     },
     signal,
@@ -199,4 +206,25 @@ export async function createCompilerJob(
   const jobId = text(body.id).trim();
   if (!jobId) throw new Error("NETWORK_INTERRUPTED");
   return jobId;
+}
+
+export async function uploadJobAttachment(
+  jobId: string,
+  file: File,
+  signal: AbortSignal,
+): Promise<void> {
+  const response = await fetch(
+    `/api/v1/jobs/${encodeURIComponent(jobId)}/attachments`,
+    {
+      method: "POST",
+      credentials: "include",
+      signal,
+      headers: {
+        "content-type": file.type || "application/octet-stream",
+        "x-filename": encodeURIComponent(file.name),
+      },
+      body: file,
+    },
+  );
+  if (!response.ok) throw new Error("NETWORK_INTERRUPTED");
 }

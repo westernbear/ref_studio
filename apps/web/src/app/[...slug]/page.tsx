@@ -498,14 +498,9 @@ const formatQuota = (row: unknown): string =>
 function jobDetailActions(row: unknown): ReactNode {
   const jobId = encodeURIComponent(text(field(row, "id")));
   return (
-    <>
-      <a className="button button-primary" href={`/progress?jobId=${jobId}`}>
-        Progress
-      </a>
-      <a className="button" href={`/jobs/${jobId}/review`}>
-        Review
-      </a>
-    </>
+    <a className="button button-primary" href={`/scene-review?jobId=${jobId}`}>
+      Scene Review
+    </a>
   );
 }
 const CANCELLABLE_STATES = ["QUEUED", "PREPARING", "RENDERING"];
@@ -574,7 +569,9 @@ const jobColumns: readonly Column[] = [
   {
     label: "Job",
     value: (row) => (
-      <a href={`/progress?jobId=${encodeURIComponent(text(field(row, "id")))}`}>
+      <a
+        href={`/scene-review?jobId=${encodeURIComponent(text(field(row, "id")))}`}
+      >
         {text(field(row, "id"))}
       </a>
     ),

@@ -471,6 +471,7 @@ export function createApiServer(config: ApiServerConfig) {
   const db = openApiDatabase(config.databasePath);
   const dataRoot = path.join(path.dirname(config.databasePath), "objects");
   const artifactRoot = path.join(dataRoot, "artifacts");
+  const attachmentsRoot = path.join(dataRoot, "attachments");
   const uploads: UploadStore = {
     uploads: new Map(),
     cas: new Map(),
@@ -552,6 +553,7 @@ export function createApiServer(config: ApiServerConfig) {
     persist: durable.persist,
     db,
     aiSecretKey: config.introspectSecret,
+    attachmentsRoot,
   });
   app.addHook("onClose", async () => db.close());
   app.get("/health", async () => ({ ok: true }));

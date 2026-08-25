@@ -10,7 +10,6 @@ import {
 } from "../../lib/server-api";
 import type { AcceptedMedia } from "../../lib/upload-client";
 import { CompilerDialogue } from "./CompilerDialogue";
-import { ChoiceResolver } from "./ChoiceResolver";
 import { RenderJobButton } from "./RenderJobButton";
 
 const gates = approvalGates;
@@ -83,9 +82,8 @@ export default async function SceneReviewPage({
         </main>
       </div>
     );
-  const [result, evidenceResult, receiptsResult] = await Promise.all([
+  const [result, receiptsResult] = await Promise.all([
     liveApiGet(`/v1/jobs/${encodeURIComponent(jobId)}`),
-    liveApiGet(`/v1/jobs/${encodeURIComponent(jobId)}/evidence`),
     liveApiGet(`/v1/receipts?jobId=${encodeURIComponent(jobId)}`),
   ]);
   if (!result.ok)
@@ -122,14 +120,18 @@ export default async function SceneReviewPage({
   const uploadResult = uploadId
     ? await liveApiGet(`/v1/uploads/${encodeURIComponent(uploadId)}`)
     : null;
-  const media = field(uploadResult?.ok ? uploadResult.body : null, "media");
+  // GET /v1/uploads/:id spreads the media fields directly onto the response
+  // body ({ uploadId, state, fps, frameCount, durationSeconds }) -- there is
+  // no nested `.media` object.
   const acceptedMedia: AcceptedMedia | null =
-    uploadResult?.ok && field(media, "fps")
+    uploadResult?.ok && field(uploadResult.body, "fps")
       ? {
           uploadId,
-          fps: numberValue(field(media, "fps")),
-          frameCount: numberValue(field(media, "frameCount")),
-          durationSeconds: numberValue(field(media, "durationSeconds")),
+          fps: numberValue(field(uploadResult.body, "fps")),
+          frameCount: numberValue(field(uploadResult.body, "frameCount")),
+          durationSeconds: numberValue(
+            field(uploadResult.body, "durationSeconds"),
+          ),
         }
       : null;
 
@@ -140,24 +142,12 @@ export default async function SceneReviewPage({
   const approvedGates = stringList(field(result.body, "approvedGates"));
   const receipts = receiptsResult.ok ? items(receiptsResult.body) : [];
   const previewArtifactId = text(field(result.body, "previewArtifactId"), "");
-  const evidence = evidenceResult.ok ? evidenceResult.body : null;
-  const sceneInput = field(evidence, "sceneInput");
-  const owners = list(field(sceneInput, "owners"));
-  const needsChoice = list(field(evidence, "needsChoice"));
-  const pendingChoice = needsChoice[0];
-  const choiceId = text(field(pendingChoice, "choiceId"), "");
-  const ownerIds = owners
-    .map((owner) => text(field(owner, "ownerId"), ""))
-    .filter(Boolean);
   const startFrame = numberValue(field(result.body, "startFrame"));
   const sourceFps = numberValue(field(result.body, "sourceFps"));
   const sourceStart = sourceFps > 0 ? startFrame / sourceFps : 0;
   const sourceUrl = `/api/v1/jobs/${encodeURIComponent(
     jobId,
   )}/source-download#t=${sourceStart},${sourceStart + 4}`;
-  const previewUrl = previewArtifactId
-    ? `/api/v1/jobs/${encodeURIComponent(jobId)}/preview-download`
-    : null;
   const initialJob = parseJobProgress(result.body) ?? {
     id: jobId,
     state,
@@ -165,6 +155,7 @@ export default async function SceneReviewPage({
     attempt,
     updatedAt: "",
     artifactId: "",
+    previewArtifactId,
     progressPhase: "",
     progressStage: "",
     progressFraction: 0,
@@ -181,7 +172,6 @@ export default async function SceneReviewPage({
           initialJob={initialJob}
           media={acceptedMedia}
           sourceUrl={sourceUrl}
-          previewUrl={previewUrl}
         />
         <div className="stitch-review-actions" data-landmark="gate-action">
           {state === "READY" && etag && approvedGates.includes("T4") ? (
@@ -231,15 +221,6 @@ export default async function SceneReviewPage({
             })}
           </ol>
         </section>
-        {preparationStage === "AWAITING_T2" && choiceId && etag ? (
-          <ChoiceResolver
-            jobId={jobId}
-            etag={etag}
-            choiceId={choiceId}
-            choiceReason={text(field(pendingChoice, "reason"), "")}
-            ownerIds={ownerIds}
-          />
-        ) : null}
       </main>
     </div>
   );

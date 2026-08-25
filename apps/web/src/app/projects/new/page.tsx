@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { BrandLogo } from "../../../components/Shells";
 import {
   createCompilerJob,
+  uploadJobAttachment,
   uploadMp4,
   type AcceptedMedia,
   type UploadProgress,
@@ -54,7 +55,9 @@ export default function NewProjectPage() {
   });
   const [state, setState] = useState<WorkflowState>("idle");
   const [reason, setReason] = useState("Select an MP4 source to begin.");
-  const [startFrame, setStartFrame] = useState(0);
+  const [prompt, setPrompt] = useState("");
+  const [attachments, setAttachments] = useState<readonly File[]>([]);
+  const attachmentInputRef = useRef<HTMLInputElement>(null);
   const [jobId, setJobId] = useState<string | null>(null);
 
   const acceptFile = async (candidate: File | undefined) => {
@@ -107,7 +110,9 @@ export default function NewProjectPage() {
         throw new Error("MEDIA_DURATION_INVALID");
       setMedia(result);
       setState("accepted");
-      setReason("Accepted normalized media. Select a four-second interval.");
+      setReason(
+        "Accepted normalized media. Describe your intent, then proceed.",
+      );
     } catch (error) {
       if (controller.signal.aborted) {
         setState("idle");
@@ -138,27 +143,35 @@ export default function NewProjectPage() {
     setProgress({ uploadPercent: 0, validationPercent: 0 });
     setState("idle");
     setReason("Select an MP4 source to begin.");
+    setPrompt("");
+    setAttachments([]);
     if (inputRef.current) inputRef.current.value = "";
+    if (attachmentInputRef.current) attachmentInputRef.current.value = "";
   };
-  const intervalValid = Boolean(
-    media && startFrame >= 0 && startFrame + media.fps * 4 <= media.frameCount,
-  );
   const proceed = async () => {
-    if (!media || !intervalValid) return;
+    if (!media) return;
     const controller = new AbortController();
     abortRef.current = controller;
     setState("creating");
     try {
       const createdJobId = await createCompilerJob(
         media,
-        startFrame,
+        prompt ? { prompt } : {},
         controller.signal,
       );
+      // Attachments upload after job creation (they're associated by job
+      // id); best-effort -- a failed attachment doesn't block the job the
+      // creator already asked to create.
+      for (const attachment of attachments) {
+        await uploadJobAttachment(createdJobId, attachment, controller.signal).catch(
+          () => undefined,
+        );
+      }
       setJobId(createdJobId);
       setState("created");
-      setReason("Compiler job created. Opening progress.");
+      setReason("Compiler job created. Opening Compiler Dialogue.");
       window.location.assign(
-        `/progress?jobId=${encodeURIComponent(createdJobId)}`,
+        `/scene-review?jobId=${encodeURIComponent(createdJobId)}`,
       );
     } catch (error) {
       setState("error");
@@ -288,27 +301,55 @@ export default function NewProjectPage() {
                 </span>
               </div>
             )}
-            {media && (
-              <div className="interval">
-                <label htmlFor="interval">
-                  Start frame{" "}
-                  <input
-                    id="interval"
-                    type="number"
-                    min="0"
-                    max={Math.max(0, media.frameCount - media.fps * 4)}
-                    step="1"
-                    value={startFrame}
-                    onChange={(event) =>
-                      setStartFrame(Number(event.target.value))
-                    }
-                  />
-                </label>
-                <span>
-                  Exact interval: [{startFrame}, {startFrame + media.fps * 4})
-                  · 4 seconds
-                </span>
+            <div className="creative-intent">
+              <label htmlFor="creative-prompt">Creative Intent / Prompt</label>
+              <textarea
+                id="creative-prompt"
+                placeholder="Describe your creative intent or specific constraints..."
+                value={prompt}
+                onChange={(event) => setPrompt(event.target.value)}
+              />
+            </div>
+            <div className="supplementary-data">
+              <div>
+                <span>SUPPLEMENTARY_DATA</span>
+                <small>Optional reference files</small>
               </div>
+              <input
+                ref={attachmentInputRef}
+                id="attachment-file"
+                type="file"
+                multiple
+                className="visually-hidden"
+                onChange={(event) =>
+                  setAttachments([
+                    ...attachments,
+                    ...Array.from(event.target.files ?? []),
+                  ])
+                }
+              />
+              <label className="button" htmlFor="attachment-file">
+                Add Attachments
+              </label>
+            </div>
+            {attachments.length > 0 && (
+              <ul className="attachment-list">
+                {attachments.map((attachment, index) => (
+                  <li key={`${attachment.name}-${index}`}>
+                    <span>{attachment.name}</span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setAttachments(
+                          attachments.filter((_, i) => i !== index),
+                        )
+                      }
+                    >
+                      Remove
+                    </button>
+                  </li>
+                ))}
+              </ul>
             )}
             <p
               className={`reason ${state === "accepted" || state === "created" ? "success" : ""}`}
@@ -351,7 +392,7 @@ export default function NewProjectPage() {
               type="button"
               onClick={() => void proceed()}
               disabled={
-                !intervalValid ||
+                !media ||
                 state === "uploading" ||
                 state === "creating" ||
                 state === "created"

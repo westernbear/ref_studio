@@ -238,7 +238,7 @@ describe("automatic gate receipts", () => {
     expect(state.job.pendingCompilation).toBeNull();
     expect(state.job.preparationStage).toBe("PREVIEW_QUEUED");
   });
-  it("does not auto-approve T2/T3 while a choice is unresolved", () => {
+  it("auto-resolves an unresolved choice (no owner candidate) and re-queues compilation instead of waiting on a human", () => {
     const state = setup();
     autoApproveT1(state.reviews, state.job, state.job.creatorId, 1_000);
     state.job.evidence = {
@@ -246,6 +246,45 @@ describe("automatic gate receipts", () => {
       needsChoice: [{ choiceId: "choice_font_family", options: ["Inter"] }],
       sceneInput: {
         owners: [],
+        editableAssets: [],
+        geometry: {},
+        tracks: [],
+        passes: [],
+        needsChoice: [{ choiceId: "choice_font_family", options: ["Inter"] }],
+      },
+    };
+    state.job.pendingCompilation = compilation;
+    state.job.preparationStage = "AWAITING_T2";
+    autoApproveT2T3(state.reviews, state.job, state.job.creatorId, 1_000);
+    // Resolving requeues compilation rather than granting T2/T3 in the same
+    // call -- the requeued compile pass is what eventually lands back at
+    // AWAITING_T2 with no pending choice, at which point autoApproveT2T3
+    // proceeds normally on its next invocation.
+    expect(
+      state.reviews.receipts.map((receipt) => receipt.gate),
+    ).toEqual(["T1"]);
+    expect(state.job.preparationStage).toBe("COMPILATION_QUEUED");
+    expect(state.job.compilation).toBeNull();
+    expect(state.job.evidence).toMatchObject({
+      state: "MAPPED",
+      needsChoice: [],
+    });
+  });
+  it("auto-resolves an unresolved choice by picking the first candidate owner when one exists", () => {
+    const state = setup();
+    autoApproveT1(state.reviews, state.job, state.job.creatorId, 1_000);
+    state.job.evidence = {
+      state: "NEEDS_CHOICE",
+      needsChoice: [{ choiceId: "choice_font_family", options: ["Inter"] }],
+      sceneInput: {
+        owners: [
+          {
+            ownerId: "owner-a",
+            kind: "foreground-subject",
+            editable: true,
+            confidence: 0.9,
+          },
+        ],
         tracks: [],
         needsChoice: [{ choiceId: "choice_font_family", options: ["Inter"] }],
       },
@@ -253,11 +292,13 @@ describe("automatic gate receipts", () => {
     state.job.pendingCompilation = compilation;
     state.job.preparationStage = "AWAITING_T2";
     autoApproveT2T3(state.reviews, state.job, state.job.creatorId, 1_000);
-    expect(
-      state.reviews.receipts.map((receipt) => receipt.gate),
-    ).toEqual(["T1"]);
-    expect(state.job.preparationStage).toBe("AWAITING_T2");
-    expect(state.job.compilation).toBeNull();
+    expect(state.job.preparationStage).toBe("COMPILATION_QUEUED");
+    const resolutions = (
+      state.job.evidence as { choiceResolutions?: readonly unknown[] }
+    ).choiceResolutions;
+    expect(resolutions).toMatchObject([
+      { polygonOrOwner: { ownerId: "owner-a" } },
+    ]);
   });
   it("does not auto-approve T4 when the preview is stale relative to the current compilation", () => {
     const state = setup();

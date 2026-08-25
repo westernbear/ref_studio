@@ -122,4 +122,10 @@ describe("admin surface contracts", () => {
     // and forget this half, which 404s the form silently.
     expect(authProxy).toContain('["PATCH", ["ai-provider-settings"]]');
   });
+  it("forwards the attachment filename header through the /v1 proxy", () => {
+    // Job attachment uploads set x-filename; the proxy's header allowlist
+    // silently drops anything not listed here, which previously made every
+    // uploaded attachment land server-side as the generic "attachment".
+    expect(authProxy).toContain('"x-filename"');
+  });
 });

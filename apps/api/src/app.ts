@@ -51,6 +51,7 @@ import {
   registerAdminMutation,
   type AdminMutationStore,
 } from "./admin-mutation.js";
+import { registerJobAttachments } from "./job-attachments.js";
 import { registerRefinePrompt } from "./refine-prompt.js";
 import { registerReviews, type ReviewStore } from "./reviews.js";
 import {
@@ -89,6 +90,7 @@ export type AppOptions = {
   readonly adminSessionTimeoutMs?: number;
   readonly db?: Database.Database;
   readonly aiSecretKey?: string;
+  readonly attachmentsRoot?: string;
   readonly refinePromptGenerate?: Parameters<
     typeof registerRefinePrompt
   >[5];
@@ -165,6 +167,16 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
     app.addContentTypeParser(contentType, (_request, body, done) => {
       done(null, body);
     });
+  // Job attachments accept arbitrary reference-file mime types (images,
+  // PDFs, etc); anything not already claimed by a specific parser above
+  // (or by fastify's built-in application/json) is treated as a raw body.
+  app.addContentTypeParser(
+    "*",
+    { parseAs: "buffer" },
+    (_request, body, done) => {
+      done(null, body);
+    },
+  );
   const now = (): number => options.now?.() ?? Date.now();
   const idempotency = options.idempotency ?? new IdempotencyStore();
   app.addHook("onSend", async (request, _reply, payload) => {
@@ -673,6 +685,15 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
       options.reviews,
       options.workers,
       now,
+      options.db && options.aiSecretKey
+        ? {
+            db: options.db,
+            aiSecretKey: options.aiSecretKey,
+            ...(options.refinePromptGenerate
+              ? { generate: options.refinePromptGenerate }
+              : {}),
+          }
+        : undefined,
     );
   if (options.adminReads)
     registerAdminRead(
@@ -701,6 +722,13 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
       ...(options.refinePromptGenerate
         ? [options.refinePromptGenerate]
         : []),
+    );
+  if (options.creatorWorkflow && options.db && options.attachmentsRoot)
+    registerJobAttachments(
+      app,
+      options.creatorWorkflow,
+      options.db,
+      options.attachmentsRoot,
     );
   if (options.workers)
     registerWorkers(app, options.workers, {

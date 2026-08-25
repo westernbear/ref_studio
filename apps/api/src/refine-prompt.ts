@@ -94,6 +94,69 @@ function heuristicProposals(
   ];
 }
 
+export type InitialFrameSelection = {
+  readonly startFrame: number;
+  readonly plannerKind: "ai" | "heuristic" | "none";
+};
+
+// Used at job-creation time when the creator describes intent instead of
+// picking a start frame manually. Reuses the same AI provider settings and
+// proposal schema as the post-creation refine-prompt chat -- just keeps the
+// first of the 2-3 returned candidates. No prompt at all skips planning
+// entirely and starts at frame 0, matching the old manual input's default.
+export async function selectInitialStartFrame(params: {
+  readonly prompt: string | null;
+  readonly min: number;
+  readonly max: number;
+  readonly db: Database.Database;
+  readonly aiSecretKey: string;
+  readonly generate?: GenerateProposals;
+}): Promise<InitialFrameSelection> {
+  if (!params.prompt)
+    return { startFrame: clamp(0, params.min, params.max), plannerKind: "none" };
+  const settings = getAiProviderSettingsWithSecret(params.db, params.aiSecretKey);
+  if (!settings.enabled || !settings.apiKey)
+    return {
+      startFrame: clamp(
+        params.min + (params.max - params.min) / 2,
+        params.min,
+        params.max,
+      ),
+      plannerKind: "heuristic",
+    };
+  // A misconfigured or unreachable AI provider must never block job
+  // creation over what is meant to be a best-effort enhancement -- fall
+  // back to the same heuristic used when no provider is configured at all.
+  try {
+    const model = createAiModel({
+      providerKind: settings.providerKind,
+      model: settings.model,
+      baseUrl: settings.baseUrl,
+      apiKey: settings.apiKey,
+    });
+    const generate = params.generate ?? generateObject;
+    const generated = await generate({
+      model,
+      schema: ProposalsSchema,
+      prompt: `You select which 4-second window of an existing reference video best matches a creator's described intent. You cannot generate new video content -- you only choose a start frame within the accepted range.\nValid start frame range: ${params.min} to ${params.max} (inclusive).\nCreator's request: ${params.prompt}\nPropose 2 or 3 candidate start frames with a short rationale for each; the first one should be your best single recommendation.`,
+    });
+    const best = generated.object.proposals[0];
+    return {
+      startFrame: clamp(best?.startFrame ?? 0, params.min, params.max),
+      plannerKind: "ai",
+    };
+  } catch {
+    return {
+      startFrame: clamp(
+        params.min + (params.max - params.min) / 2,
+        params.min,
+        params.max,
+      ),
+      plannerKind: "heuristic",
+    };
+  }
+}
+
 export function registerRefinePrompt(
   app: FastifyInstance,
   store: CreatorWorkflowStore,

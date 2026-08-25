@@ -661,29 +661,81 @@ progress {
   width: 100%;
   accent-color: var(--color-sunset);
 }
-.interval {
+.creative-intent {
   display: grid;
   gap: var(--space-sm);
   margin-top: var(--space-lg);
-  padding: var(--space-lg);
-  background: var(--color-canvas-soft);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--color-hairline);
+}
+.creative-intent label {
+  color: var(--color-ink);
+  font: var(--type-caption-mono);
+  text-transform: uppercase;
+}
+.creative-intent textarea {
+  min-height: 100px;
+  resize: none;
+  border: 1px solid var(--color-hairline);
   border-radius: var(--radius-md);
+  background: var(--color-canvas-soft);
+  color: var(--color-ink);
+  font: var(--type-body-sm);
+  padding: var(--space-md);
+}
+.supplementary-data {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin-top: var(--space-lg);
+}
+.supplementary-data > div {
+  display: grid;
+  gap: var(--space-xxs);
+}
+.supplementary-data span {
+  color: var(--color-ink);
+  font: var(--type-caption-mono-sm);
+}
+.supplementary-data small {
+  color: var(--color-outline, var(--color-body-mid));
+  font: var(--type-caption-mono-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.attachment-list {
+  display: grid;
+  gap: var(--space-xs);
+  margin: var(--space-sm) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.attachment-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  padding: var(--space-xs) var(--space-md);
   color: var(--color-body);
   font: var(--type-caption-mono-sm);
 }
-.interval label {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
+.attachment-list button {
+  background: transparent;
+  border: none;
+  color: var(--color-body-mid);
+  cursor: pointer;
+  text-decoration: underline;
 }
-.interval input {
-  width: 120px;
-  min-height: 44px;
-  border: 1px solid var(--color-hairline);
-  border-radius: var(--radius-md);
-  background: var(--color-canvas);
-  color: var(--color-ink);
-  padding: var(--space-sm);
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
 }
 .reason {
   min-height: 24px;

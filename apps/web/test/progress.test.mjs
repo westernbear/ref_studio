@@ -39,6 +39,7 @@ describe("compiler progress projection", () => {
       attempt: 2,
       updatedAt: "2026-08-23T07:01:00.000Z",
       artifactId: "art_1",
+      previewArtifactId: "",
       progressPhase: "prepare",
       progressStage: "preview-render",
       progressFraction: 0.48,

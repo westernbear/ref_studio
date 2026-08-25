@@ -26,16 +26,15 @@ type Props = {
   readonly initialJob: JobProgress;
   readonly media: AcceptedMedia | null;
   readonly sourceUrl: string;
-  readonly previewUrl: string | null;
 };
 
-export function CompilerDialogue({
-  initialJob,
-  media,
-  sourceUrl,
-  previewUrl,
-}: Props) {
+export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
   const [job, setJob] = useState(initialJob);
+  // Derived from the live-polled job, not a static prop -- otherwise the
+  // preview never appears once rendering finishes after initial page load.
+  const previewUrl = job.previewArtifactId
+    ? `/api/v1/jobs/${encodeURIComponent(job.id)}/preview-download`
+    : null;
   const [messages, setMessages] = useState<readonly ChatMessage[]>([
     {
       role: "system",
@@ -48,6 +47,7 @@ export function CompilerDialogue({
   const [applying, setApplying] = useState<number | null>(null);
   const [applyError, setApplyError] = useState("");
   const [rateStatus, setRateStatus] = useState("");
+  const [pollError, setPollError] = useState("");
   const historyRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -63,11 +63,18 @@ export function CompilerDialogue({
           if (error instanceof Error) return null;
           throw error;
         });
-        if (!response.ok) return;
+        if (!active) return;
+        if (!response.ok) {
+          setPollError(liveJobStatusError(body, response.status));
+          return;
+        }
         const parsed = parseJobProgress(body);
-        if (active && parsed) setJob(parsed);
-      } catch (error) {
-        if (!active && error instanceof Error) return;
+        if (parsed) {
+          setJob(parsed);
+          setPollError("");
+        }
+      } catch {
+        if (active) setPollError("Network update failed. Retrying.");
       }
     };
     void load();
@@ -140,7 +147,7 @@ export function CompilerDialogue({
     try {
       const newJobId = await createCompilerJob(
         media,
-        proposal.startFrame,
+        { startFrame: proposal.startFrame },
         new AbortController().signal,
       );
       window.location.assign(
@@ -256,6 +263,7 @@ export function CompilerDialogue({
             </div>
           ) : null}
           {applyError ? <p className="dialogue-error">{applyError}</p> : null}
+          {pollError ? <p className="dialogue-error">{pollError}</p> : null}
         </div>
         <form
           className="dialogue-input"
@@ -268,6 +276,15 @@ export function CompilerDialogue({
           <textarea
             value={prompt}
             onChange={(event) => setPrompt(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                if (!sending && prompt) {
+                  void send(prompt);
+                  setPrompt("");
+                }
+              }
+            }}
             placeholder="Refine generation parameters..."
             rows={1}
             aria-label="Refine generation parameters"

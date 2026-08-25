@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import { createReadStream } from "node:fs";
+import type Database from "better-sqlite3";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import {
@@ -8,6 +9,7 @@ import {
 } from "../../../packages/contracts/src/lifecycle.js";
 import { IdempotencyStore, requestHash, safeEnvelope } from "./boundary.js";
 import type { Principal } from "./auth.js";
+import { selectInitialStartFrame } from "./refine-prompt.js";
 import type { Gate, ReviewReceipt, ReviewStore } from "./reviews.js";
 import { uploadSourcePath, type UploadStore } from "./uploads.js";
 import type { WorkerStore } from "./workers.js";
@@ -81,6 +83,7 @@ export type Job = {
   startFrame: number;
   sourceFps: number;
   frameCount: number;
+  creativePrompt: string | null;
   evidence: Record<string, unknown> | null;
   candidateEvidence: Record<string, unknown> | null;
   candidateEvidenceDigest: string | null;
@@ -466,6 +469,7 @@ const projection = (
   startFrame: job.startFrame,
   sourceFps: job.sourceFps,
   frameCount: job.frameCount,
+  creativePrompt: job.creativePrompt,
   preparationStage: job.preparationStage,
   failureCode: job.failureCode,
   automaticRetries: job.automaticRetries,
@@ -601,10 +605,183 @@ const findApprovedReceiptId = (
       receipt.gate === gate &&
       receipt.decision === "APPROVED",
   )?.id ?? null;
+// Shared by the /v1/jobs/:jobId/choices route and autoResolveChoice below,
+// so a manual override and the automatic path apply identical evidence
+// mutations. Throws CHOICE_NOT_CURRENT on any state mismatch.
+function applyChoiceResolution(
+  job: Job,
+  resolution: {
+    readonly choiceId: string;
+    readonly polygonOrOwner:
+      | { readonly ownerId: string }
+      | { readonly polygon: readonly { x: number; y: number }[] };
+    readonly reason: string;
+  },
+  now: number,
+): void {
+  const sceneInput = jobSceneInput(job);
+  const choices = sceneInput.needsChoice ?? [];
+  if (choices.length !== 1 || choices[0]?.choiceId !== resolution.choiceId)
+    throw new Error("CHOICE_NOT_CURRENT");
+  const resolvedOwner =
+    "ownerId" in resolution.polygonOrOwner
+      ? resolution.polygonOrOwner.ownerId
+      : null;
+  if (
+    resolvedOwner &&
+    !sceneInput.owners.some((owner) => owner.ownerId === resolvedOwner)
+  )
+    throw new Error("CHOICE_NOT_CURRENT");
+  if (
+    job.state !== "PREPARING" ||
+    job.preparationStage !== "AWAITING_T2" ||
+    !job.evidence
+  )
+    throw new Error("CHOICE_NOT_CURRENT");
+  const nextEvidence = structuredClone(job.evidence);
+  const rawSceneInput = nextEvidence["sceneInput"];
+  if (!isRecord(rawSceneInput)) throw new Error("CHOICE_NOT_CURRENT");
+  const resolvedAt = new Date(now).toISOString();
+  nextEvidence["state"] = "MAPPED";
+  nextEvidence["needsChoice"] = [];
+  rawSceneInput["needsChoice"] = [];
+  if ("polygon" in resolution.polygonOrOwner) {
+    const points = resolution.polygonOrOwner.polygon;
+    const x = Math.min(...points.map((point) => point.x));
+    const y = Math.min(...points.map((point) => point.y));
+    const width = Math.max(1, Math.max(...points.map((point) => point.x)) - x);
+    const height = Math.max(
+      1,
+      Math.max(...points.map((point) => point.y)) - y,
+    );
+    const ownerId = "foreground-subject";
+    const owners = rawSceneInput["owners"];
+    const assets = rawSceneInput["editableAssets"];
+    const geometry = rawSceneInput["geometry"];
+    const tracks = rawSceneInput["tracks"];
+    const passes = rawSceneInput["passes"];
+    if (
+      !Array.isArray(owners) ||
+      !Array.isArray(assets) ||
+      !isRecord(geometry) ||
+      !Array.isArray(tracks) ||
+      !Array.isArray(passes) ||
+      owners.some((owner) => isRecord(owner) && owner["ownerId"] === ownerId)
+    )
+      throw new Error("CHOICE_NOT_CURRENT");
+    owners.push({
+      ownerId,
+      kind: "foreground-subject",
+      editable: true,
+      assetRef: "asset-foreground-subject",
+      confidence: 1,
+    });
+    assets.push({
+      assetId: "asset-foreground-subject",
+      kind: "manual-matte",
+      editable: true,
+      owner: ownerId,
+    });
+    geometry[ownerId] = {
+      boundsPerFrame: Array.from({ length: job.frameCount }, (_, frame) => ({
+        frame,
+        x,
+        y,
+        width,
+        height,
+      })),
+      fixedWidth: true,
+      fixedX: true,
+    };
+    tracks.push({
+      trackId: "track-foreground-subject",
+      owner: ownerId,
+      lifecycle: {
+        enter: { start: 0 },
+        stable: { start: 0, end: job.frameCount - 1 },
+        exit: { start: job.frameCount },
+      },
+      geometryRef: ownerId,
+      effects: [],
+    });
+    const finalIndex = passes.findIndex(
+      (pass) => isRecord(pass) && pass["passId"] === "final-composite",
+    );
+    passes.splice(finalIndex < 0 ? passes.length : finalIndex, 0, {
+      passId: "foreground-subject-dom",
+      owner: ownerId,
+      kind: "DOM/SVG",
+      shader: null,
+      reads: ["manual choice polygon"],
+      writes: "semantic-ui-layer",
+    });
+  }
+  nextEvidence["choiceResolutions"] = [
+    ...(Array.isArray(nextEvidence["choiceResolutions"])
+      ? nextEvidence["choiceResolutions"]
+      : []),
+    { ...resolution, resolvedAt },
+  ];
+  job.evidence = nextEvidence;
+  job.evidenceDigest = digest(nextEvidence);
+  job.irDigest = digest({
+    evidenceDigest: job.evidenceDigest,
+    choice: resolution,
+  });
+  job.approved = false;
+  job.candidateEvidence = null;
+  job.candidateEvidenceDigest = null;
+  job.pendingCompilation = null;
+  job.compilation = null;
+  job.previewSpecDigest = null;
+  job.approvedSpecDigest = null;
+  job.preparationStage = "COMPILATION_QUEUED";
+  job.eligibleAt = now;
+  job.progress = null;
+  job.failureCode = null;
+  job.updatedAt = resolvedAt;
+  job.etag = `\"${digest({ jobId: job.id, resolvedAt })}\"`;
+}
+// Automatically resolves a pending T2 foreground-subject choice instead of
+// waiting on a human pick: prefers the first candidate owner the compiler
+// already detected, falling back to a centered default region only when no
+// owner candidates exist at all. Re-queues compilation exactly like a
+// manual resolution would, so the next compile pass picks up the choice.
+function autoResolveChoice(job: Job, now: number): void {
+  const parsed = z
+    .object({ sceneInput: EvidenceSceneInput })
+    .safeParse(reviewEvidence(job));
+  if (!parsed.success) return;
+  const sceneInput = parsed.data.sceneInput;
+  const choices = sceneInput.needsChoice ?? [];
+  const choice = choices[0];
+  if (choices.length !== 1 || !choice) return;
+  const firstOwner = sceneInput.owners[0];
+  applyChoiceResolution(
+    job,
+    {
+      choiceId: choice.choiceId,
+      polygonOrOwner: firstOwner
+        ? { ownerId: firstOwner.ownerId }
+        : {
+            polygon: [
+              { x: 270, y: 480 },
+              { x: 810, y: 480 },
+              { x: 810, y: 1440 },
+              { x: 270, y: 1440 },
+            ],
+          },
+      reason: "Automatic: resolved without human review.",
+    },
+    now,
+  );
+}
 // T2 and T3 previously required two separate human clicks over the same
 // compiled artifact; since nothing new is produced between them, both are
 // auto-approved in one step once compilation succeeds and no choice is
 // pending (mirrors the old decide() T2/T3 branches, minus the HTTP round-trip).
+// An unresolved foreground-subject choice is auto-resolved first (see
+// autoResolveChoice) instead of waiting on ChoiceResolver's human input.
 export function autoApproveT2T3(
   reviews: ReviewStore | undefined,
   job: Job,
@@ -614,10 +791,13 @@ export function autoApproveT2T3(
   if (
     !reviews ||
     job.preparationStage !== "AWAITING_T2" ||
-    !job.pendingCompilation ||
-    hasUnresolvedChoices(job)
+    !job.pendingCompilation
   )
     return;
+  if (hasUnresolvedChoices(job)) {
+    autoResolveChoice(job, now);
+    return;
+  }
   const t1 = findApprovedReceiptId(reviews, job, "T1");
   const t2 = writeAutoReceipt(reviews, job, "T2", actorId, now, [], t1);
   if (job.candidateEvidence) {
@@ -864,6 +1044,11 @@ export function registerCreatorWorkflow(
   reviews?: ReviewStore,
   workers?: WorkerStore,
   now: () => number = store.now,
+  aiFrameSelection?: {
+    readonly db: Database.Database;
+    readonly aiSecretKey: string;
+    readonly generate?: Parameters<typeof selectInitialStartFrame>[0]["generate"];
+  },
 ): void {
   const tenant = (request: FastifyRequest): string =>
     header(request, "x-tenant-id") ?? "";
@@ -876,11 +1061,37 @@ export function registerCreatorWorkflow(
           startFrame?: number;
           sourceFps?: number;
           outputProfile?: string;
+          prompt?: string;
         };
       }>,
       reply,
     ) => {
       try {
+        // Frame selection can call out to an AI provider, so it runs before
+        // the synchronous command()/idempotency block below rather than
+        // inside it -- command()'s action callback is not async.
+        let resolvedStart = Number(request.body.startFrame);
+        const prompt =
+          typeof request.body.prompt === "string"
+            ? request.body.prompt.slice(0, 2000) || null
+            : null;
+        if (!Number.isInteger(resolvedStart) && aiFrameSelection) {
+          const upload = uploads.uploads.get(request.body.uploadId);
+          if (upload?.media) {
+            const windowFrames = upload.media.fps * 4;
+            const selection = await selectInitialStartFrame({
+              prompt,
+              min: 0,
+              max: Math.max(0, upload.media.frameCount - windowFrames),
+              db: aiFrameSelection.db,
+              aiSecretKey: aiFrameSelection.aiSecretKey,
+              ...(aiFrameSelection.generate
+                ? { generate: aiFrameSelection.generate }
+                : {}),
+            });
+            resolvedStart = selection.startFrame;
+          }
+        }
         const response = command(
           store,
           request,
@@ -899,7 +1110,7 @@ export function registerCreatorWorkflow(
             ).authenticatedPrincipal;
             if (!principal) throw new Error("AUTHENTICATION_REQUIRED");
             const requestedFps = Number(request.body.sourceFps);
-            const start = Number(request.body.startFrame);
+            const start = resolvedStart;
             const fps = upload.media?.fps;
             const frames = upload.media?.frameCount;
             if (
@@ -928,6 +1139,7 @@ export function registerCreatorWorkflow(
               startFrame: start,
               sourceFps: fps,
               frameCount: fps * 4,
+              creativePrompt: prompt,
               evidence: null,
               candidateEvidence: null,
               candidateEvidenceDigest: null,

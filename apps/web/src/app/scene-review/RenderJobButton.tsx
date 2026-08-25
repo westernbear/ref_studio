@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { errorCode } from "../../lib/api-error";
 
@@ -10,6 +11,7 @@ export function RenderJobButton({
   readonly jobId: string;
   readonly etag: string;
 }) {
+  const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -42,7 +44,7 @@ export function RenderJobButton({
         );
         return;
       }
-      window.location.assign(`/progress?jobId=${encodeURIComponent(jobId)}`);
+      router.refresh();
     } catch {
       setError("The connection was interrupted. Retry.");
     } finally {

@@ -226,6 +226,117 @@ describe("refine-prompt", () => {
   });
 });
 
+describe("prompt-driven job creation", () => {
+  it("auto-selects a start frame from creative intent when startFrame is omitted", async () => {
+    const state = fixture();
+    try {
+      const response = await state.app.inject({
+        method: "POST",
+        url: "/v1/jobs",
+        headers: { ...headersFor("ten_a"), "idempotency-key": "create-1" },
+        payload: {
+          uploadId: state.uploadId,
+          sourceFps: 30,
+          outputProfile: "vertical-1080p30",
+          prompt: "focus on the dramatic reveal",
+        },
+      });
+      expect(response.statusCode, response.body).toBe(201);
+      const body = response.json();
+      expect(body.creativePrompt).toBe("focus on the dramatic reveal");
+      expect(body.startFrame).toBeGreaterThanOrEqual(0);
+      expect(body.startFrame).toBeLessThanOrEqual(1200 - 30 * 4);
+    } finally {
+      state.db.close();
+      rmSync(state.directory, { recursive: true, force: true });
+    }
+  });
+
+  it("falls back to the heuristic instead of failing job creation when the AI call throws", async () => {
+    const failing: GenerateProposals = async () => {
+      throw new Error("upstream provider unreachable");
+    };
+    const state = fixture(failing);
+    try {
+      updateAiProviderSettings(
+        state.db,
+        {
+          providerKind: "openai",
+          model: "gpt-4o",
+          apiKey: "sk-test",
+          enabled: true,
+        },
+        "admin",
+        1_000,
+        "test-secret-key-material",
+      );
+      const response = await state.app.inject({
+        method: "POST",
+        url: "/v1/jobs",
+        headers: { ...headersFor("ten_a"), "idempotency-key": "create-fallback" },
+        payload: {
+          uploadId: state.uploadId,
+          sourceFps: 30,
+          outputProfile: "vertical-1080p30",
+          prompt: "focus on the dramatic reveal",
+        },
+      });
+      expect(response.statusCode, response.body).toBe(201);
+      const body = response.json();
+      expect(body.startFrame).toBeGreaterThanOrEqual(0);
+      expect(body.startFrame).toBeLessThanOrEqual(1200 - 30 * 4);
+    } finally {
+      state.db.close();
+      rmSync(state.directory, { recursive: true, force: true });
+    }
+  });
+
+  it("defaults to frame 0 when neither startFrame nor prompt is given", async () => {
+    const state = fixture();
+    try {
+      const response = await state.app.inject({
+        method: "POST",
+        url: "/v1/jobs",
+        headers: { ...headersFor("ten_a"), "idempotency-key": "create-2" },
+        payload: {
+          uploadId: state.uploadId,
+          sourceFps: 30,
+          outputProfile: "vertical-1080p30",
+        },
+      });
+      expect(response.statusCode, response.body).toBe(201);
+      const body = response.json();
+      expect(body.startFrame).toBe(0);
+      expect(body.creativePrompt).toBeNull();
+    } finally {
+      state.db.close();
+      rmSync(state.directory, { recursive: true, force: true });
+    }
+  });
+
+  it("still honors an explicit startFrame when one is provided", async () => {
+    const state = fixture();
+    try {
+      const response = await state.app.inject({
+        method: "POST",
+        url: "/v1/jobs",
+        headers: { ...headersFor("ten_a"), "idempotency-key": "create-3" },
+        payload: {
+          uploadId: state.uploadId,
+          sourceFps: 30,
+          startFrame: 42,
+          outputProfile: "vertical-1080p30",
+        },
+      });
+      expect(response.statusCode, response.body).toBe(201);
+      expect(response.json().startFrame).toBe(42);
+    } finally {
+      state.db.close();
+      rmSync(state.directory, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("job rating", () => {
   it("records a rating without requiring a review screen", async () => {
     const state = fixture();

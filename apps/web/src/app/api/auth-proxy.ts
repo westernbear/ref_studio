@@ -125,6 +125,7 @@ export async function proxyV1(
     "range",
     "x-chunk-sha256",
     "x-correlation-id",
+    "x-filename",
   ]) {
     const value = request.headers.get(name);
     if (value) headers.set(name, value);
