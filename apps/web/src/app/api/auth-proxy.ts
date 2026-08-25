@@ -185,6 +185,7 @@ const ADMIN_MUTATION_ROUTES: readonly (readonly [string, readonly string[]])[] =
     ["POST", ["workers", "*", "offline"]],
     ["POST", ["jobs", "*", "cancel"]],
     ["POST", ["jobs", "*", "retry"]],
+    ["POST", ["jobs", "*", "force-terminate"]],
     ["POST", ["quarantine", "*", "release"]],
     ["POST", ["quarantine", "*", "reject"]],
     ["POST", ["tenants", "*", "suspend"]],

@@ -26,7 +26,11 @@ import { inspectUploadedMedia } from "./media-validation.js";
 import { createDurableState, openApiDatabase } from "./durable-state.js";
 import { createReviewStore, type ReviewStore } from "./reviews.js";
 import type { UploadStore } from "./uploads.js";
-import { createWorkerStore, hashWorkerToken } from "./workers.js";
+import {
+  createWorkerStore,
+  hashWorkerToken,
+  type WorkerStore,
+} from "./workers.js";
 
 const APP_PATH_MARKER = `${path.sep}apps${path.sep}api${path.sep}`;
 const ServerEnv = z.object({
@@ -279,6 +283,7 @@ export function loadAdminReadStore(
   workflow: CreatorWorkflowStore,
   uploads: UploadStore,
   reviews: ReviewStore,
+  workers: WorkerStore,
 ): AdminReadStore {
   const db = new Database(databasePath, {
     readonly: true,
@@ -381,6 +386,7 @@ export function loadAdminReadStore(
         .all(),
     );
     return {
+      workers,
       get tenants(): readonly AdminTenant[] {
         return tenants;
       },
@@ -483,15 +489,18 @@ export function createApiServer(config: ApiServerConfig) {
     artifactRoot,
   );
   durable.hydrate();
-  const adminReads = {
-    ...loadAdminReadStore(
-      config.databasePath,
-      creatorWorkflow,
-      uploads,
-      reviews,
-    ),
+  // NOTE: do not spread the result of loadAdminReadStore() — it returns
+  // getter properties (live views over `workflow`/`uploads`), and `{...obj}`
+  // evaluates each getter once and freezes the result as a static value.
+  // Pass `workers` straight into the function so it's a plain property on
+  // the same object, not merged in afterward.
+  const adminReads = loadAdminReadStore(
+    config.databasePath,
+    creatorWorkflow,
+    uploads,
+    reviews,
     workers,
-  };
+  );
   const app = buildAuthApp({
     store: auth,
     expectedOrigin: config.expectedOrigin,

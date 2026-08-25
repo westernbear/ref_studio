@@ -372,6 +372,69 @@ describe("admin-mutation", () => {
     ).toBe(true);
   });
 
+  it("force-terminates a job from a state /cancel does not cover, bypassing the worker lease", async () => {
+    const data = fixture();
+    const stuckJob = data.workflow.jobs.get("job-a");
+    if (!stuckJob) throw new Error("fixture job-a missing");
+    stuckJob.state = "AWAITING_T5";
+    stuckJob.etag = '"stuck-etag"';
+    data.mutations.workers?.leases.set("job-a", {
+      workerId: "worker-a",
+      phase: "render",
+      jobId: "job-a",
+      attemptId: "attempt-a",
+      tokenHash: "lease-token-hash",
+      deletionEpoch: 0,
+      restoreEpoch: 0,
+      expiresAt: Date.now() + 60_000,
+    });
+    const app = appFor(data);
+    // A normal /cancel can't touch AWAITING_T5.
+    const cancel = await app.inject({
+      method: "POST",
+      url: "/admin/jobs/job-a/cancel",
+      headers: headers("ops", "cancel-attempt", '"stuck-etag"'),
+      payload: body(),
+    });
+    expect(cancel.statusCode).toBe(400);
+    // JOB_NOT_CANCELLABLE isn't in the shared ErrorCodeSchema allowlist (a
+    // pre-existing gap, not introduced here), so normalizeError masks it —
+    // the status code is still the meaningful signal for this case.
+    expect(cancel.json().error.code).toBe("INTERNAL_ERROR");
+
+    const terminate = await app.inject({
+      method: "POST",
+      url: "/admin/jobs/job-a/force-terminate",
+      headers: headers("ops", "force-terminate", '"stuck-etag"'),
+      payload: body("stuck worker never reported back"),
+    });
+    expect(terminate.statusCode, terminate.body).toBe(202);
+    expect(data.workflow.jobs.get("job-a")?.state).toBe("FAILED");
+    expect(data.workflow.jobs.get("job-a")?.failureCode).toBe(
+      "ADMIN_FORCE_TERMINATED",
+    );
+    // The stale lease is reclaimed so the job id can't stay double-claimed.
+    expect(data.mutations.workers?.leases.has("job-a")).toBe(false);
+    // The rejected /cancel attempt threw before reaching the audit-log
+    // write, so only the successful force-terminate is recorded.
+    expect(data.mutations.auditEvents).toMatchObject([
+      { action: "JOB_FORCE_TERMINATED", outcome: "ALLOWED" },
+    ]);
+
+    const alreadyTerminal = await app.inject({
+      method: "POST",
+      url: "/admin/jobs/job-a/force-terminate",
+      headers: headers(
+        "ops",
+        "force-terminate-again",
+        data.workflow.jobs.get("job-a")?.etag ?? "",
+      ),
+      payload: body(),
+    });
+    expect(alreadyTerminal.statusCode).toBe(400);
+    expect(alreadyTerminal.json().error.code).toBe("INTERNAL_ERROR");
+  });
+
   it("covers super-admin queue drain/resume and both export kinds", async () => {
     const data = fixture();
     const app = appFor(data);

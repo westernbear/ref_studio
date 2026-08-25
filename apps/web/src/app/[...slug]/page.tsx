@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { notFound, redirect } from "next/navigation";
 import { AdminExportButton } from "../../components/AdminExportButton";
 import { AdminJobCancelButton } from "../../components/AdminJobCancelButton";
+import { AdminJobForceTerminateButton } from "../../components/AdminJobForceTerminateButton";
 import { AdminJobRetryButton } from "../../components/AdminJobRetryButton";
 import { AdminQuarantineReleaseButton } from "../../components/AdminQuarantineReleaseButton";
 import { AdminQuarantineRejectButton } from "../../components/AdminQuarantineRejectButton";
@@ -507,6 +508,7 @@ function jobDetailActions(row: unknown): ReactNode {
 }
 const CANCELLABLE_STATES = ["QUEUED", "PREPARING", "RENDERING"];
 const RETRYABLE_STATES = ["FAILED", "CANCELLED"];
+const TERMINAL_STATES = ["COMPLETED", "CANCELLED", "FAILED"];
 function adminJobDetailActions(row: unknown): ReactNode {
   const jobId = text(field(row, "id"));
   const state = text(field(row, "state"));
@@ -519,6 +521,9 @@ function adminJobDetailActions(row: unknown): ReactNode {
       ) : null}
       {etag && RETRYABLE_STATES.includes(state) ? (
         <AdminJobRetryButton jobId={jobId} etag={etag} />
+      ) : null}
+      {etag && !TERMINAL_STATES.includes(state) ? (
+        <AdminJobForceTerminateButton jobId={jobId} etag={etag} />
       ) : null}
     </>
   );

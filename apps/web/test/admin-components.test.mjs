@@ -31,6 +31,10 @@ const quarantineRejectButton = readFileSync(
   resolve(root, "apps/web/src/components/AdminQuarantineRejectButton.tsx"),
   "utf8",
 );
+const jobForceTerminateButton = readFileSync(
+  resolve(root, "apps/web/src/components/AdminJobForceTerminateButton.tsx"),
+  "utf8",
+);
 
 describe("admin surface contracts", () => {
   it("uses live API-backed surfaces instead of static admin screens", () => {
@@ -75,10 +79,11 @@ describe("admin surface contracts", () => {
     expect(exportButton).toContain("requestId()");
     expect(exportButton).not.toContain("crypto.randomUUID()");
   });
-  it("wires job cancel/retry and quarantine release/reject with If-Match", () => {
+  it("wires job cancel/retry/force-terminate and quarantine release/reject with If-Match", () => {
     for (const [file, path] of [
       [jobCancelButton, "/cancel"],
       [jobRetryButton, "/retry"],
+      [jobForceTerminateButton, "/force-terminate"],
       [quarantineReleaseButton, "/release"],
       [quarantineRejectButton, "/reject"],
     ]) {

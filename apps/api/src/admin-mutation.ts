@@ -10,6 +10,7 @@ import { IdempotencyStore, safeEnvelope, requestHash } from "./boundary.js";
 import {
   cancelJob,
   retryJob,
+  transitionJob,
   type CreatorWorkflowStore,
 } from "./creator-workflow.js";
 import type { ReviewStore } from "./reviews.js";
@@ -233,7 +234,11 @@ export function registerAdminMutation(
       const result = command(request, tenantId, (principal, correlation) => {
         const reason = requireReason(body);
         const path = request.url.split("?")[0] ?? "";
-        if (path.endsWith("/cancel") || path.endsWith("/retry")) {
+        if (
+          path.endsWith("/cancel") ||
+          path.endsWith("/retry") ||
+          path.endsWith("/force-terminate")
+        ) {
           const job = store.workflow?.jobs.get(request.params.jobId ?? "");
           if (!job || job.tenantId !== tenantId || !store.workflow)
             throw new Error("RESOURCE_NOT_FOUND");
@@ -244,8 +249,19 @@ export function registerAdminMutation(
             if (!["QUEUED", "PREPARING", "RENDERING"].includes(job.state))
               throw new Error("JOB_NOT_CANCELLABLE");
             cancelJob(store.workflow, store.workers, job, store.now);
-          } else {
+          } else if (path.endsWith("/retry")) {
             retryJob(store.workflow, store.reviews, job);
+          } else {
+            // Force-terminate: unlike /cancel, this works from any
+            // non-terminal state and does not wait on the worker lease —
+            // every non-terminal JobState legally transitions to FAILED
+            // (see packages/contracts/src/lifecycle.ts), so this is always
+            // a same-step, immediate failure, for stuck/orphaned jobs.
+            if (["COMPLETED", "CANCELLED", "FAILED"].includes(job.state))
+              throw new Error("JOB_NOT_CANCELLABLE");
+            store.workers?.leases.delete(job.id);
+            transitionJob(job, "FAILED", store.now);
+            job.failureCode = "ADMIN_FORCE_TERMINATED";
           }
           store.auditEvents.push({
             id: id("audit"),
@@ -253,7 +269,9 @@ export function registerAdminMutation(
             actorId: principal.userId,
             action: path.endsWith("/cancel")
               ? "JOB_CANCEL_REQUESTED"
-              : "JOB_RETRY_REQUESTED",
+              : path.endsWith("/retry")
+                ? "JOB_RETRY_REQUESTED"
+                : "JOB_FORCE_TERMINATED",
             targetType: "job",
             targetId: job.id,
             before,
@@ -264,7 +282,7 @@ export function registerAdminMutation(
             createdAt: new Date(store.now()).toISOString(),
           });
           return [
-            path.endsWith("/cancel") ? 202 : 201,
+            path.endsWith("/retry") ? 201 : 202,
             { state: job.state, etag: job.etag },
           ];
         }
@@ -425,6 +443,7 @@ export function registerAdminMutation(
   };
   app.post("/admin/jobs/:jobId/cancel", mutate);
   app.post("/admin/jobs/:jobId/retry", mutate);
+  app.post("/admin/jobs/:jobId/force-terminate", mutate);
   app.post("/admin/workers/:workerId/offline", mutate);
   app.post("/admin/quarantine/:itemId/release", mutate);
   app.post("/admin/quarantine/:itemId/reject", mutate);

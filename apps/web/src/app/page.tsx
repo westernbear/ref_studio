@@ -1,4 +1,5 @@
 import { liveApiGet } from "../lib/server-api";
+import { BrandLogo } from "../components/Shells";
 
 const projectReturnTo = encodeURIComponent("/projects/new");
 const featureCards = [
@@ -18,8 +19,12 @@ export default async function HomePage() {
       <header className="landing-nav">
         <div className="landing-nav-inner">
           <div className="landing-nav-left">
-            <a className="landing-brand" href="/">
-              REF_STUDIO
+            <a
+              className="landing-brand"
+              href="/"
+              aria-label="Reference Video Studio home"
+            >
+              <BrandLogo />
             </a>
             <nav className="landing-links" aria-label="Primary navigation">
               <a href="/workflow">Workflow</a>
