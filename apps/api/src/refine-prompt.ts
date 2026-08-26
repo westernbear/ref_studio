@@ -44,6 +44,11 @@ export type RefineResponse = {
   readonly proposals: readonly RefineProposal[];
 };
 
+// REQUEST_CHANGES did the same thing as NEEDS_CHANGES -- the only branch below
+// is against LOOKS_GOOD -- so the review screen offered a third choice that
+// changed nothing and left the reader working out a distinction that did not
+// exist. It no longer sends it. Still accepted here so a client that has not
+// reloaded during a deploy is not answered with a validation error.
 const FeedbackDecisionSchema = z.enum([
   "LOOKS_GOOD",
   "NEEDS_CHANGES",
@@ -54,7 +59,7 @@ export type FeedbackDecision = z.infer<typeof FeedbackDecisionSchema>;
 const DEFAULT_FEEDBACK_PROMPT: Readonly<Record<FeedbackDecision, string>> = {
   LOOKS_GOOD: "",
   NEEDS_CHANGES: "Creator marked this preview as needing changes.",
-  REQUEST_CHANGES: "Creator requested changes to this preview.",
+  REQUEST_CHANGES: "Creator marked this preview as needing changes.",
 };
 
 const ProposalsSchema = z.object({

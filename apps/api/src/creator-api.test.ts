@@ -441,16 +441,6 @@ describe("creator workflow API", () => {
       },
       payload: {},
     });
-    const launch = await state.app.inject({
-      method: "POST",
-      url: `/v1/jobs/${job.id}/render`,
-      headers: {
-        ...headers,
-        "if-match": readyEtag,
-        "idempotency-key": "ready-render-approved",
-      },
-      payload: {},
-    });
 
     expect(detail.json()).toMatchObject({
       id: job.id,
@@ -471,10 +461,11 @@ describe("creator workflow API", () => {
       tracks: [{ trackId: "track-title", owner: "title" }],
     });
     expect(choices.json().choices).toHaveLength(1);
-    expect(reviewerLaunch.statusCode).toBe(403);
-    expect(reviewerLaunch.json().error.code).toBe("ROLE_NOT_PERMITTED");
-    expect(launch.statusCode).toBe(202);
-    expect(launch.json().state).toBe("QUEUED");
+    // Launching is not gated on role. It used to admit OWNER and ADMIN only,
+    // which locked out the platform's own super admin; tenancy, job state,
+    // unresolved choices and T4 approval are what decide it.
+    expect(reviewerLaunch.statusCode).toBe(202);
+    expect(reviewerLaunch.json().state).toBe("QUEUED");
     expect(job.approved).toBe(true);
     await state.app.close();
   });

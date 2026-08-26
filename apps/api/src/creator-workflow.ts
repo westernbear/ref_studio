@@ -1981,17 +1981,12 @@ export function registerCreatorWorkflow(
             const job = owned(store, request.params.jobId, tenant(request));
             edit(job, request);
             if (job.state !== "READY") throw new Error("JOB_NOT_READY");
-            const principal = (
-              request as FastifyRequest & {
-                authenticatedPrincipal?: Principal;
-              }
-            ).authenticatedPrincipal;
-            if (
-              !principal?.roles.some((role) =>
-                ["OWNER", "ADMIN"].includes(role.toUpperCase()),
-              )
-            )
-              throw new Error("ROLE_NOT_PERMITTED");
+            // No role gate here. Whoever owns the job and has taken it through
+            // review is the person who queues it; the list this used to check
+            // was OWNER and ADMIN, which left the platform's own super admin
+            // -- the only account there is -- unable to launch a render at
+            // all. Tenancy still scopes the job (`owned` above), and the state,
+            // choice and approval checks below still hold.
             if (hasUnresolvedChoices(job))
               throw new Error("UNRESOLVED_CHOICE_SKIPPED");
             if (!currentT4Approval(reviews, job))
