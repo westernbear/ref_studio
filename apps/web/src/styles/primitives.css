@@ -1235,21 +1235,6 @@ progress {
 .dialogue-message-error p {
   color: var(--color-error, #ffb4ab);
 }
-.dialogue-stage-list {
-  display: grid;
-  gap: var(--space-xs);
-  border: 1px solid var(--color-hairline);
-  border-radius: var(--radius-lg);
-  background: var(--color-canvas-card);
-  padding: var(--space-md);
-}
-.dialogue-stage-row {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-md);
-  color: var(--color-body-mid);
-  font: var(--type-body-sm);
-}
 .dialogue-proposal-list {
   display: grid;
   gap: var(--space-sm);
@@ -1457,11 +1442,6 @@ progress {
 .dialogue-preview-footer > div:first-child {
   display: flex;
   gap: var(--space-md);
-}
-.dialogue-feedback {
-  display: flex;
-  align-items: center;
-  gap: var(--space-xs);
 }
 .dialogue-rate-status {
   margin: 0 var(--space-lg) var(--space-lg);

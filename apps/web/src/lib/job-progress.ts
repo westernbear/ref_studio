@@ -212,17 +212,6 @@ const STAGE_LABEL_KEYS: Readonly<Record<string, string>> = {
   "scene-render": "sceneRender",
   upload: "upload",
 };
-const PREPARE_STAGE_ORDER = [
-  "download",
-  "ffprobe",
-  "normalize",
-  "preflight",
-  "models",
-  "all-frame-analysis",
-  "audio-and-mapping",
-  "evidence",
-] as const;
-const RENDER_STAGE_ORDER = ["scene-render", "upload"] as const;
 const titleCase = (value: string): string =>
   value
     .replace(/[-_]/gu, " ")
@@ -276,41 +265,6 @@ export const runningStageIndex = (
 
 export const normalizeStage = (stage: string): string =>
   stage.replace(/^compiler:/u, "").replace("preview-upload", "upload");
-
-export type CompileStageRow = {
-  readonly key: string;
-  readonly labelKey: ReturnType<typeof stageLabelKey>;
-  readonly percent: number;
-  readonly status: "done" | "active" | "pending";
-};
-
-export const compileStageRows = (job: JobProgress): readonly CompileStageRow[] => {
-  const normalized = normalizeStage(job.progressStage);
-  const order = job.progressPhase === "render" ? RENDER_STAGE_ORDER : PREPARE_STAGE_ORDER;
-  const activeIndex = (order as readonly string[]).indexOf(normalized);
-  if (activeIndex === -1) {
-    if (!normalized) return [];
-    return [
-      {
-        key: normalized,
-        labelKey: stageLabelKey(normalized),
-        percent: Math.round(job.progressFraction * 100),
-        status: "active",
-      },
-    ];
-  }
-  return order.map((key, index) => ({
-    key,
-    labelKey: stageLabelKey(key),
-    percent:
-      index < activeIndex
-        ? 100
-        : index === activeIndex
-          ? Math.round(job.progressFraction * 100)
-          : 0,
-    status: index < activeIndex ? "done" : index === activeIndex ? "active" : "pending",
-  }));
-};
 
 export const liveJobStatusErrorCode = (value: unknown, status: number): string =>
   text(field(field(value, "error"), "code")) || `HTTP_${status}`;

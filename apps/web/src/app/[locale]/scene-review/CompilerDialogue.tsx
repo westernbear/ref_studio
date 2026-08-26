@@ -4,7 +4,6 @@ import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import { errorCode } from "../../../lib/api-error";
 import {
-  compileStageRows,
   isJobWorking,
   isTerminalJobState,
   jobStateKey,
@@ -92,7 +91,6 @@ export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
   const [lastPrompt, setLastPrompt] = useState("");
   const [applying, setApplying] = useState<number | null>(null);
   const [applyError, setApplyError] = useState("");
-  const [rateStatus, setRateStatus] = useState("");
   const [pollError, setPollError] = useState("");
   const [feedbackNote, setFeedbackNote] = useState("");
   const [feedbackSending, setFeedbackSending] = useState(false);
@@ -285,32 +283,22 @@ export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
     }
   };
 
+  // Rides along with the decision below and never speaks for itself: a failed
+  // thumbs is not something to stop a reviewer over, and the decision beside
+  // it reports its own outcome.
   const rate = async (thumbsUp: boolean) => {
-    setRateStatus("");
     try {
-      const response = await fetch(
-        `/api/v1/jobs/${encodeURIComponent(job.id)}/rate`,
-        {
-          method: "POST",
-          credentials: "include",
-          headers: {
-            "content-type": "application/json",
-            "idempotency-key": requestId(),
-          },
-          body: JSON.stringify({ thumbsUp }),
+      await fetch(`/api/v1/jobs/${encodeURIComponent(job.id)}/rate`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": requestId(),
         },
-      );
-      setRateStatus(
-        response.ok
-          ? t("thanksForFeedback")
-          : t("ratingFailed", {
-              code:
-                errorCode(await response.json().catch(() => null)) ||
-                "HTTP_" + response.status,
-            }),
-      );
+        body: JSON.stringify({ thumbsUp }),
+      });
     } catch {
-      setRateStatus(t("connectionInterrupted"));
+      // The decision is the durable record; this is a signal on top of it.
     }
   };
 
@@ -319,6 +307,11 @@ export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
   ) => {
     setFeedbackSending(true);
     setFeedbackStatus("");
+    // The screen used to carry a thumbs pair beside these two, asking the same
+    // question of the same person into a different endpoint. One control, both
+    // records: the decision is the durable one and reports its own failures,
+    // the rating rides along and is not worth interrupting anyone over.
+    void rate(decision === "LOOKS_GOOD");
     try {
       const response = await fetch(
         `/api/v1/jobs/${encodeURIComponent(job.id)}/feedback`,
@@ -366,7 +359,6 @@ export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
     }
   };
 
-  const stageRows = compileStageRows(job);
   const activeStageIndex = runningStageIndex(
     messages.map((message) => message.role),
     job.progressStage,
@@ -458,24 +450,6 @@ export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
               </div>
             );
           })}
-          {stageRows.length > 0 && isJobWorking(job.state) ? (
-            <div className="dialogue-message">
-              <span className="dialogue-message-label dialogue-message-label-active">
-                <span className="spinner" aria-hidden="true" />
-                {t("compilingScene")}
-              </span>
-              <div className="dialogue-stage-list">
-                {stageRows.map((row) => (
-                  <div className="dialogue-stage-row" key={row.key}>
-                    <span>
-                      {row.labelKey.known ? tStage(row.labelKey.key) : row.labelKey.fallback}
-                    </span>
-                    <span>{row.percent}%</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : null}
           {applyError ? <p className="dialogue-error">{applyError}</p> : null}
           {pollError ? <p className="dialogue-error">{pollError}</p> : null}
         </div>
@@ -591,29 +565,7 @@ export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
             <span>{t("job", { id: job.id })}</span>
             {framesLabel ? <span>{t("frames", { frames: framesLabel })}</span> : null}
           </div>
-          <div className="dialogue-feedback">
-            <span>{t("rateGeneration")}</span>
-            <button className="button" type="button" onClick={() => void rate(true)}>
-              👍
-            </button>
-            <button className="button" type="button" onClick={() => void rate(false)}>
-              👎
-            </button>
-            <button
-              className="button"
-              type="button"
-              disabled={sending}
-              onClick={() => void send(lastPrompt || t("proposeAlternateVariants"))}
-            >
-              {t("variations")}
-            </button>
-          </div>
         </div>
-        {rateStatus ? (
-          <p className="dialogue-rate-status" aria-live="polite">
-            {rateStatus}
-          </p>
-        ) : null}
         {translatedOwners.length > 0 ? (
           <div className="dialogue-translations" data-landmark="translations">
             <span className="status-chip">{t("translations")}</span>
@@ -651,6 +603,14 @@ export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
               onClick={() => void submitFeedback("NEEDS_CHANGES")}
             >
               {t("needsChanges")}
+            </button>
+            <button
+              type="button"
+              className="chip-toggle"
+              disabled={sending}
+              onClick={() => void send(lastPrompt || t("proposeAlternateVariants"))}
+            >
+              {t("variations")}
             </button>
           </div>
           <textarea
