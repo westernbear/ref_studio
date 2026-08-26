@@ -2,17 +2,13 @@ packages:
   - apps/*
   - packages/*
 
-allowBuilds:
-  "@tailwindcss/oxide": true
-  better-sqlite3: true
-  esbuild: true
-  sharp: true
-
 overrides:
   sharp: 0.35.2
   postcss: 8.5.18
 
 onlyBuiltDependencies:
+  - "@parcel/watcher"
+  - "@swc/core"
   - "@tailwindcss/oxide"
   - better-sqlite3
   - esbuild
@@ -41,3 +37,11 @@ minimumReleaseAgeExclude:
   - '@ai-sdk/openai-compatible@3.0.37'
   - '@ai-sdk/perplexity@4.0.32'
   - '@ai-sdk/togetherai@3.0.38'
+
+allowBuilds:
+  '@parcel/watcher': true
+  '@swc/core': true
+  '@tailwindcss/oxide': true
+  better-sqlite3: true
+  esbuild: true
+  sharp: true
