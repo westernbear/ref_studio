@@ -1203,12 +1203,25 @@ progress {
   text-align: right;
 }
 .dialogue-message-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
   color: var(--color-body-mid);
   font: var(--type-caption-mono-sm);
   text-transform: uppercase;
 }
 .dialogue-message-label-active {
   color: var(--color-primary);
+}
+/* A finished stage stays in the log; it just stops announcing itself. */
+.dialogue-message-stage .dialogue-message-label::before {
+  content: "";
+  inline-size: var(--space-sm);
+  block-size: 1px;
+  background: var(--color-hairline);
+}
+.dialogue-message-stage .dialogue-message-label-active::before {
+  display: none;
 }
 .dialogue-message p {
   margin: 0;
@@ -1295,12 +1308,23 @@ progress {
   border-color: var(--color-accent-sunset);
   color: var(--color-accent-sunset);
 }
+/* The comparison is the point of this screen, so the two clips are lit
+   plates on a recessed stage rather than two rectangles on a flat band:
+   one soft light from above, and the panel darker than the chrome around
+   it so the plates are the brightest thing here. */
 .dialogue-preview-frame {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: var(--space-lg);
-  padding: var(--space-lg);
-  background: var(--color-canvas-mid, var(--color-canvas-card));
+  gap: var(--space-xl);
+  padding: var(--space-xl) var(--space-lg);
+  background:
+    radial-gradient(
+      130% 90% at 50% -10%,
+      rgb(255 255 255 / 0.05),
+      transparent 62%
+    ),
+    var(--color-canvas);
+  box-shadow: inset 0 1px 0 0 var(--color-rim);
 }
 .dialogue-compare-pane {
   display: grid;
@@ -1329,20 +1353,75 @@ progress {
   width: 100%;
   max-height: 320px;
   border: 1px solid var(--color-hairline);
+  border-block-start-color: var(--color-rim);
   border-radius: var(--radius-lg);
+  background: var(--color-canvas);
+  box-shadow: var(--shadow-plate);
   object-fit: contain;
+  transition:
+    box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    translate 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.dialogue-preview-frame video:hover {
+  translate: 0 -2px;
+  box-shadow: var(--shadow-plate-raised);
+}
+.dialogue-preview-frame video:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dialogue-preview-frame video {
+    transition: none;
+  }
+  .dialogue-preview-frame video:hover {
+    translate: none;
+  }
 }
 .dialogue-preview-pending {
   display: grid;
   place-items: center;
+  align-content: center;
+  gap: var(--space-md);
   inline-size: 100%;
   min-block-size: 320px;
   margin: 0;
   border: 1px dashed var(--color-hairline);
+  border-block-start-color: var(--color-rim);
   border-radius: var(--radius-lg);
+  background: var(--color-canvas);
+  box-shadow: var(--shadow-plate);
   color: var(--color-on-surface-variant);
   font: var(--type-caption-mono);
   text-align: center;
+}
+/* Work that takes minutes has to look like work, not like a stalled screen.
+   The ring is the only moving thing on the surface, which is what DESIGN.md
+   reserves motion for: it stops the moment the state it reports stops. */
+.spinner {
+  inline-size: 1em;
+  block-size: 1em;
+  flex: none;
+  border: 2px solid var(--color-hairline);
+  border-block-start-color: var(--color-sunset);
+  border-radius: var(--radius-pill);
+  animation: spinner-rotate 900ms linear infinite;
+}
+.spinner-lg {
+  inline-size: 28px;
+  block-size: 28px;
+  border-width: 2px;
+}
+@keyframes spinner-rotate {
+  to {
+    transform: rotate(1turn);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* Slowed rather than stopped: a still ring reports nothing. */
+  .spinner {
+    animation-duration: 3s;
+  }
 }
 .dialogue-preview-footer {
   display: flex;

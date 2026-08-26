@@ -10,6 +10,7 @@ Reference Video Studio uses the Cosmic Engineering surface already encoded in `a
 - Text: `--color-ink`, `--color-body`, `--color-body-mid`, `--color-on-surface-variant`
 - Lines: `--color-hairline`, `--color-outline-variant`
 - Accent: `--color-sunset`
+- Depth: `--color-rim` (lit top edge), `--shadow-plate`, `--shadow-plate-raised`
 - Radii: `--radius-sm`, `--radius-md`, `--radius-lg`, `--radius-xl`, `--radius-pill`
 - Spacing: `--space-xxs` through `--space-4xl`
 - Type: `--type-display-*`, `--type-body-*`, `--type-caption-mono*`, `--type-button`
@@ -28,7 +29,7 @@ Creator and admin pages use bounded app shells with responsive wrapping navigati
 
 ## 6. Motion
 
-Motion is limited to state-bearing transitions: progress meter width, hover affordance, and live polling status. Animated decoration is not used.
+Motion is limited to state-bearing transitions: progress meter width, hover affordance, live polling status, and the indeterminate ring shown while a stage is actually running. Animated decoration is not used. Every animation is slowed under `prefers-reduced-motion`, never left running at full speed.
 
 ## 7. Anti-Patterns
 

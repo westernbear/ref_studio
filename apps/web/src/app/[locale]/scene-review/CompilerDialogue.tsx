@@ -7,6 +7,8 @@ import {
   compileStageRows,
   isTerminalJobState,
   jobStateKey,
+  normalizeStage,
+  stageLabelKey,
   liveJobStatusErrorCode,
   parseJobProgress,
   type JobProgress,
@@ -34,7 +36,11 @@ type ChatMessage =
       readonly plannerKind: "ai" | "heuristic";
       readonly proposals: readonly Proposal[];
     }
-  | { readonly role: "error"; readonly text: string };
+  | { readonly role: "error"; readonly text: string }
+  // One entry per stage the job actually reached. Kept after the run ends:
+  // the log is the record of what happened, not a spinner that tidies itself
+  // away and leaves the creator wondering what the compiler did.
+  | { readonly role: "stage"; readonly stage: string };
 
 type Props = {
   readonly initialJob: JobProgress;
@@ -182,6 +188,19 @@ export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialJob.id, job.state]);
+
+  useEffect(() => {
+    const stage = job.progressStage;
+    if (!stage) return;
+    setMessages((previous) => {
+      const lastStage = [...previous]
+        .reverse()
+        .find((message) => message.role === "stage");
+      if (lastStage?.role === "stage" && lastStage.stage === stage)
+        return previous;
+      return [...previous, { role: "stage", stage }];
+    });
+  }, [job.progressStage]);
 
   useEffect(() => {
     historyRef.current?.scrollTo({ top: historyRef.current.scrollHeight });
@@ -374,6 +393,28 @@ export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
                   <p>{message.text}</p>
                 </div>
               );
+            if (message.role === "stage") {
+              const label = stageLabelKey(normalizeStage(message.stage));
+              const active =
+                !isTerminalJobState(job.state) &&
+                message.stage === job.progressStage;
+              return (
+                <div className="dialogue-message dialogue-message-stage" key={index}>
+                  <span
+                    className={
+                      active
+                        ? "dialogue-message-label dialogue-message-label-active"
+                        : "dialogue-message-label"
+                    }
+                  >
+                    {active ? (
+                      <span className="spinner" aria-hidden="true" />
+                    ) : null}
+                    {label.known ? tStage(label.key) : label.fallback}
+                  </span>
+                </div>
+              );
+            }
             if (message.role === "error")
               return (
                 <div className="dialogue-message dialogue-message-error" key={index}>
@@ -413,6 +454,7 @@ export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
           {stageRows.length > 0 && !isTerminalJobState(job.state) ? (
             <div className="dialogue-message">
               <span className="dialogue-message-label dialogue-message-label-active">
+                <span className="spinner" aria-hidden="true" />
                 {t("compilingScene")}
               </span>
               <div className="dialogue-stage-list">
@@ -533,7 +575,10 @@ export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
             ) : (
               // Falling back to sourceUrl here put the reference clip in both
               // panes, the right one labelled "Preview".
-              <p className="dialogue-preview-pending">{t("previewPending")}</p>
+              <div className="dialogue-preview-pending" role="status">
+                <span className="spinner spinner-lg" aria-hidden="true" />
+                <span>{t("previewPending")}</span>
+              </div>
             )}
           </div>
         </div>

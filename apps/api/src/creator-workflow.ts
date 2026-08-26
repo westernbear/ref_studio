@@ -255,6 +255,18 @@ export const EvidenceBundleSchema = z
       .strict(),
     observed: z
       .object({
+        // Where the analysed content sits inside the normalized frame. Every
+        // sceneInput geometry is render-canvas coordinates derived from this
+        // window, so drawing them back onto the reference video requires it.
+        contentWindow: z
+          .object({
+            x: z.number().int().nonnegative(),
+            y: z.number().int().nonnegative(),
+            width: z.number().int().positive(),
+            height: z.number().int().positive(),
+          })
+          .strict()
+          .optional(),
         temporalVolume: z
           .object({
             profile: z.string().min(1),
