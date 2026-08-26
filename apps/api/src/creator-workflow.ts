@@ -22,6 +22,8 @@ export const PreparationStageSchema = z.enum([
   "COMPILATION_RUNNING",
   "AWAITING_T2",
   "AWAITING_T3",
+  "EVIDENCE_VIDEO_QUEUED",
+  "EVIDENCE_VIDEO_RUNNING",
   "PREVIEW_QUEUED",
   "PREVIEW_RUNNING",
   "AWAITING_T4",
@@ -128,9 +130,9 @@ export type StoredArtifact = {
   readonly id: string;
   readonly jobId: string;
   readonly tenantId: string;
-  readonly kind: "preview" | "delivery";
+  readonly kind: "preview" | "delivery" | "evidence-video" | "safety-sample";
   readonly filename: string;
-  readonly contentType: "video/mp4";
+  readonly contentType: "video/mp4" | "image/png";
   readonly bytes: Uint8Array;
   readonly storagePath?: string;
   readonly sha256: string;
@@ -150,6 +152,8 @@ export type CreatorWorkflowStore = {
   readonly attempts: Map<string, Attempt[]>;
   readonly stagedArtifacts: Map<string, StoredArtifact>;
   readonly previews: Map<string, StoredArtifact>;
+  readonly evidenceVideos: Map<string, StoredArtifact>;
+  readonly safetySamples: Map<string, StoredArtifact>;
   readonly artifacts: Map<string, StoredArtifact>;
   readonly releaseManifests: Map<string, ReleaseManifest>;
   readonly idempotency: IdempotencyStore;
@@ -163,6 +167,8 @@ export const createCreatorWorkflowStore = (
   attempts: new Map(),
   stagedArtifacts: new Map(),
   previews: new Map(),
+  evidenceVideos: new Map(),
+  safetySamples: new Map(),
   artifacts: new Map(),
   releaseManifests: new Map(),
   idempotency: new IdempotencyStore(),
@@ -480,6 +486,7 @@ const projection = (
   irDigest: job.irDigest,
   reviewArtifactId: store.stagedArtifacts.get(job.id)?.id ?? null,
   previewArtifactId: store.previews.get(job.id)?.id ?? null,
+  evidenceVideoArtifactId: store.evidenceVideos.get(job.id)?.id ?? null,
   authoringVersionId: job.compilation?.authoring.versionId ?? null,
   browserPassSpecDigest: job.compilation?.browserPassSpec.digest ?? null,
   runtimeDigest: job.runtimePreflight?.runtimeDigest ?? RUNTIME_DIGEST,
@@ -816,6 +823,27 @@ export function autoApproveT2T3(
     [job.compilation.authoring.versionId],
     t2.id,
   );
+  job.preparationStage = "EVIDENCE_VIDEO_QUEUED";
+  job.eligibleAt = now;
+  job.progress = null;
+  job.failureCode = null;
+  job.updatedAt = new Date(now).toISOString();
+  job.etag = `\"${id("etag")}\"`;
+}
+// The evidence-video step has no reviewer gate (see task A: gates were
+// replaced with plain automatic stages) -- it just waits for the worker's
+// artifact to land before advancing to the existing preview stage.
+export function autoApproveEvidenceVideo(
+  workflow: CreatorWorkflowStore,
+  job: Job,
+  now: number,
+): void {
+  if (
+    (job.state !== "PREPARING" && job.state !== "STALE_APPROVAL") ||
+    job.preparationStage !== "EVIDENCE_VIDEO_RUNNING"
+  )
+    return;
+  if (!workflow.evidenceVideos.get(job.id)) return;
   job.preparationStage = "PREVIEW_QUEUED";
   job.eligibleAt = now;
   job.progress = null;
@@ -1366,6 +1394,27 @@ export function registerCreatorWorkflow(
             `inline; filename="${preview.filename}"`,
           )
           .send(artifactBody(preview));
+      } catch {
+        fail(reply, "ARTIFACT_UNAVAILABLE", 404);
+      }
+    },
+  );
+  app.get(
+    "/v1/jobs/:jobId/evidence-video-download",
+    async (request: FastifyRequest<{ Params: { jobId: string } }>, reply) => {
+      try {
+        const job = owned(store, request.params.jobId, tenant(request));
+        const evidenceVideo = store.evidenceVideos.get(job.id);
+        if (!evidenceVideo || evidenceVideo.kind !== "evidence-video")
+          throw new Error("ARTIFACT_UNAVAILABLE");
+        return reply
+          .header("content-type", evidenceVideo.contentType)
+          .header("content-length", evidenceVideo.sizeBytes)
+          .header(
+            "content-disposition",
+            `inline; filename="${evidenceVideo.filename}"`,
+          )
+          .send(artifactBody(evidenceVideo));
       } catch {
         fail(reply, "ARTIFACT_UNAVAILABLE", 404);
       }

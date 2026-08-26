@@ -61,6 +61,7 @@ const setup = (): {
     tenantId: "ten_a",
     creatorId: "usr_owner",
     uploadId: "upl_a",
+    creativePrompt: null,
     state: "PREPARING" as const,
     attempt: 1,
     etag: '"etag"',
@@ -236,7 +237,7 @@ describe("automatic gate receipts", () => {
       authoring: { versionId: "artifact-T3" },
     });
     expect(state.job.pendingCompilation).toBeNull();
-    expect(state.job.preparationStage).toBe("PREVIEW_QUEUED");
+    expect(state.job.preparationStage).toBe("EVIDENCE_VIDEO_QUEUED");
   });
   it("auto-resolves an unresolved choice (no owner candidate) and re-queues compilation instead of waiting on a human", () => {
     const state = setup();

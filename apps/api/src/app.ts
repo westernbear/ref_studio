@@ -53,6 +53,8 @@ import {
 } from "./admin-mutation.js";
 import { registerJobAttachments } from "./job-attachments.js";
 import { registerRefinePrompt } from "./refine-prompt.js";
+import type { GenerateSafetyVerdict } from "./safety-check.js";
+import type { GenerateTranslation } from "./translate-evidence.js";
 import { registerReviews, type ReviewStore } from "./reviews.js";
 import {
   advanceDeletionEpoch,
@@ -94,6 +96,8 @@ export type AppOptions = {
   readonly refinePromptGenerate?: Parameters<
     typeof registerRefinePrompt
   >[5];
+  readonly safetyCheckGenerate?: GenerateSafetyVerdict;
+  readonly translateGenerate?: GenerateTranslation;
 } & WorkerAppOptions;
 const header = (request: FastifyRequest, name: string): string | undefined => {
   const value = request.headers[name];
@@ -738,6 +742,10 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
       uploads: options.uploads,
       artifactRoot: options.artifactRoot,
       persist: options.persist,
+      db: options.db,
+      aiSecretKey: options.aiSecretKey,
+      safetyCheckGenerate: options.safetyCheckGenerate,
+      translateGenerate: options.translateGenerate,
     });
   return app;
 }

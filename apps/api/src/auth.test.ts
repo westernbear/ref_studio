@@ -3,10 +3,8 @@ import { buildAuthApp } from "./app.js";
 import {
   authenticateBearer,
   authenticateSession,
-  authorizeReleaseReview,
   hashBearer,
   hashPassword,
-  revokeSession,
   signIn,
   type AuthStore,
 } from "./auth.js";
@@ -329,22 +327,6 @@ describe("auth flows", () => {
     expect(
       authenticateBearer(fixture, "bearer-secret", "ten_demo", 1_002),
     ).toEqual({ code: "AUTHENTICATION_REQUIRED" });
-  });
-  it("allows release-scope T6 only without a tenant header", () => {
-    const fixture = store();
-    const principal = authenticateBearer(
-      fixture,
-      "bearer-secret",
-      "ten_demo",
-      1_000,
-    );
-    if ("code" in principal) return;
-    expect(authorizeReleaseReview(fixture, principal, undefined)).toBeNull();
-    expect(authorizeReleaseReview(fixture, principal, "ten_demo")).toEqual({
-      code: "TENANT_HEADER_FORBIDDEN",
-    });
-    const login = signIn(fixture, "reviewer@example.invalid", "correct", 1_000);
-    if (login.session) revokeSession(fixture, login.session.id, 1_001);
   });
   it("honors a configured admin session timeout instead of the 30-minute default", async () => {
     const fixture = store();

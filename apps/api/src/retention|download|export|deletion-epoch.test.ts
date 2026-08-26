@@ -16,7 +16,6 @@ const principal = (tenantId: string): Principal => ({
   tenantId,
   roles: ["OWNER"],
   capabilities: [],
-  releaseReviewer: false,
 });
 const item = (
   id: string,

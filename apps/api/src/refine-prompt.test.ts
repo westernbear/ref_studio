@@ -359,3 +359,159 @@ describe("job rating", () => {
     }
   });
 });
+
+describe("job feedback", () => {
+  it("records LOOKS_GOOD without calling the AI planner", async () => {
+    const state = fixture();
+    try {
+      const jobId = await createJob(state.app, state.uploadId, "job-7");
+      const response = await state.app.inject({
+        method: "POST",
+        url: `/v1/jobs/${jobId}/feedback`,
+        headers: { ...headersFor("ten_a"), "idempotency-key": "feedback-1" },
+        payload: { decision: "LOOKS_GOOD" },
+      });
+      expect(response.statusCode, response.body).toBe(200);
+      const body = response.json();
+      expect(body.ok).toBe(true);
+      expect(body.proposals).toBeNull();
+      const row = state.db
+        .prepare(
+          "SELECT decision, planner_kind, proposals_json FROM job_feedback WHERE job_id = ?",
+        )
+        .get(jobId) as {
+        decision: string;
+        planner_kind: string | null;
+        proposals_json: string | null;
+      };
+      expect(row.decision).toBe("LOOKS_GOOD");
+      expect(row.planner_kind).toBeNull();
+      expect(row.proposals_json).toBeNull();
+    } finally {
+      state.db.close();
+      rmSync(state.directory, { recursive: true, force: true });
+    }
+  });
+
+  it("triggers heuristic refinement for NEEDS_CHANGES when no provider is configured", async () => {
+    const state = fixture();
+    try {
+      const jobId = await createJob(state.app, state.uploadId, "job-8");
+      const response = await state.app.inject({
+        method: "POST",
+        url: `/v1/jobs/${jobId}/feedback`,
+        headers: { ...headersFor("ten_a"), "idempotency-key": "feedback-2" },
+        payload: { decision: "NEEDS_CHANGES", note: "pacing feels off" },
+      });
+      expect(response.statusCode, response.body).toBe(200);
+      const body = response.json();
+      expect(body.proposals.plannerKind).toBe("heuristic");
+      expect(body.proposals.proposals.length).toBeGreaterThanOrEqual(2);
+      const row = state.db
+        .prepare(
+          "SELECT decision, note, planner_kind, proposals_json FROM job_feedback WHERE job_id = ?",
+        )
+        .get(jobId) as {
+        decision: string;
+        note: string;
+        planner_kind: string;
+        proposals_json: string;
+      };
+      expect(row.decision).toBe("NEEDS_CHANGES");
+      expect(row.note).toBe("pacing feels off");
+      expect(row.planner_kind).toBe("heuristic");
+      expect(JSON.parse(row.proposals_json).length).toBeGreaterThanOrEqual(2);
+    } finally {
+      state.db.close();
+      rmSync(state.directory, { recursive: true, force: true });
+    }
+  });
+
+  it("still records REQUEST_CHANGES feedback when the AI planner throws", async () => {
+    const failing: GenerateProposals = async () => {
+      throw new Error("upstream provider unreachable");
+    };
+    const state = fixture(failing);
+    try {
+      updateAiProviderSettings(
+        state.db,
+        {
+          providerKind: "openai",
+          model: "gpt-4o",
+          apiKey: "sk-test",
+          enabled: true,
+        },
+        "admin",
+        1_000,
+        "test-secret-key-material",
+      );
+      const jobId = await createJob(state.app, state.uploadId, "job-9");
+      const response = await state.app.inject({
+        method: "POST",
+        url: `/v1/jobs/${jobId}/feedback`,
+        headers: { ...headersFor("ten_a"), "idempotency-key": "feedback-3" },
+        payload: { decision: "REQUEST_CHANGES" },
+      });
+      expect(response.statusCode, response.body).toBe(200);
+      const body = response.json();
+      expect(body.ok).toBe(true);
+      expect(body.proposals).toBeNull();
+      const row = state.db
+        .prepare("SELECT decision, planner_kind FROM job_feedback WHERE job_id = ?")
+        .get(jobId) as { decision: string; planner_kind: string | null };
+      expect(row.decision).toBe("REQUEST_CHANGES");
+      expect(row.planner_kind).toBeNull();
+    } finally {
+      state.db.close();
+      rmSync(state.directory, { recursive: true, force: true });
+    }
+  });
+
+  it("is append-only: a second feedback call does not alter the first row", async () => {
+    const state = fixture();
+    try {
+      const jobId = await createJob(state.app, state.uploadId, "job-10");
+      await state.app.inject({
+        method: "POST",
+        url: `/v1/jobs/${jobId}/feedback`,
+        headers: { ...headersFor("ten_a"), "idempotency-key": "feedback-4" },
+        payload: { decision: "LOOKS_GOOD" },
+      });
+      await state.app.inject({
+        method: "POST",
+        url: `/v1/jobs/${jobId}/feedback`,
+        headers: { ...headersFor("ten_a"), "idempotency-key": "feedback-5" },
+        payload: { decision: "NEEDS_CHANGES", note: "second pass" },
+      });
+      const rows = state.db
+        .prepare(
+          "SELECT decision FROM job_feedback WHERE job_id = ? ORDER BY created_at",
+        )
+        .all(jobId) as Array<{ decision: string }>;
+      expect(rows.map((row) => row.decision)).toEqual([
+        "LOOKS_GOOD",
+        "NEEDS_CHANGES",
+      ]);
+    } finally {
+      state.db.close();
+      rmSync(state.directory, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects an unknown decision value", async () => {
+    const state = fixture();
+    try {
+      const jobId = await createJob(state.app, state.uploadId, "job-11");
+      const response = await state.app.inject({
+        method: "POST",
+        url: `/v1/jobs/${jobId}/feedback`,
+        headers: { ...headersFor("ten_a"), "idempotency-key": "feedback-6" },
+        payload: { decision: "MAYBE" },
+      });
+      expect(response.statusCode).toBe(400);
+    } finally {
+      state.db.close();
+      rmSync(state.directory, { recursive: true, force: true });
+    }
+  });
+});

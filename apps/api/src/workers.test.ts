@@ -22,6 +22,10 @@ import {
 import { createReviewStore, type ReviewStore } from "./reviews.js";
 import type { UploadStore } from "./uploads.js";
 import { createRetentionStore, type RetentionStore } from "./retention.js";
+import { updateAiProviderSettings } from "./ai-provider-settings.js";
+import { openApiDatabase } from "./durable-state.js";
+import type { GenerateSafetyVerdict } from "./safety-check.js";
+import type DatabaseType from "better-sqlite3";
 
 const sourceBytes = Uint8Array.from([
   0, 0, 0, 16, 102, 116, 121, 112, 105, 115, 111, 109,
@@ -288,6 +292,9 @@ type FixtureOptions = Readonly<{
   persist?: () => void;
   retention?: RetentionStore;
   reviews?: ReviewStore;
+  db?: DatabaseType.Database;
+  aiSecretKey?: string;
+  safetyCheckGenerate?: GenerateSafetyVerdict;
 }>;
 const appFixture = (
   workflow?: CreatorWorkflowStore,
@@ -328,6 +335,9 @@ const appFixture = (
     now: options.now ?? (() => 1_000),
     persist: options.persist,
     retention: options.retention,
+    db: options.db,
+    aiSecretKey: options.aiSecretKey,
+    safetyCheckGenerate: options.safetyCheckGenerate,
   });
   app.addHook("onClose", async () => {
     rmSync(artifactRoot, { recursive: true, force: true });
@@ -388,6 +398,7 @@ const addJob = (workflow: CreatorWorkflowStore, state: Job["state"]): Job => {
     tenantId: "ten_a",
     creatorId: "server",
     uploadId: "upl_a",
+    creativePrompt: null,
     state,
     attempt: 1,
     etag: '"etag"',
@@ -617,6 +628,100 @@ describe("worker registration API", () => {
       pendingCompilation: compilation,
       compilation: null,
     });
+    await fixture.app.close();
+  });
+
+  it("advances AWAITING_T2 through the evidence-video stage to PREVIEW_QUEUED", async () => {
+    const reviews = createReviewStore();
+    const workflow = createCreatorWorkflowStore();
+    const job = addJob(workflow, "PREPARING");
+    const fixture = appFixture(workflow, uploadFixture(), { reviews });
+    await registerWorker(fixture, ["compiler", "renderer"]);
+    await claimWorker(fixture);
+    const evidence = analysisEvidence(job.id, "attempt-a");
+    const analyzeComplete = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${job.id}/complete`,
+      headers: fixture.headers,
+      payload: {
+        result: {
+          protocol: "rvs.worker.v1",
+          phase: "analyze",
+          evidence,
+          evidenceDigest: sha256(JSON.stringify(evidence)),
+          compilation,
+          normalized: {
+            sha256: evidence.source.normalizedSha256,
+            durationMs: 4_000,
+            fps: 30,
+            frameCount: 120,
+          },
+        },
+      },
+    });
+    expect(analyzeComplete.statusCode).toBe(200);
+    expect(workflow.jobs.get(job.id)?.preparationStage).toBe(
+      "EVIDENCE_VIDEO_QUEUED",
+    );
+    const claim = await claimWorker(fixture);
+    expect(claim.json().job).toMatchObject({
+      jobId: job.id,
+      payload: { phase: "evidence-video" },
+    });
+    expect(workflow.jobs.get(job.id)?.preparationStage).toBe(
+      "EVIDENCE_VIDEO_RUNNING",
+    );
+    const upload = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${job.id}/evidence-video-artifact`,
+      headers: { ...fixture.headers, "content-type": "video/mp4" },
+      payload: Buffer.from("evidence-video-mp4-bytes"),
+    });
+    expect(upload.statusCode).toBe(201);
+    const evidenceVideoArtifactId = upload.json().artifactId;
+    expect(workflow.evidenceVideos.get(job.id)?.id).toBe(
+      evidenceVideoArtifactId,
+    );
+    const complete = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${job.id}/complete`,
+      headers: fixture.headers,
+      payload: {
+        result: {
+          protocol: "rvs.worker.v1",
+          phase: "evidence-video",
+          evidenceVideoArtifactId,
+        },
+      },
+    });
+    expect(complete.statusCode).toBe(200);
+    expect(workflow.jobs.get(job.id)?.preparationStage).toBe("PREVIEW_QUEUED");
+    await fixture.app.close();
+  });
+
+  it("requeues the evidence-video stage on a retryable worker failure", async () => {
+    const reviews = createReviewStore();
+    const workflow = createCreatorWorkflowStore();
+    const job = addJob(workflow, "PREPARING");
+    job.preparationStage = "EVIDENCE_VIDEO_QUEUED";
+    job.evidence = analysisEvidence(job.id, "attempt-a");
+    const fixture = appFixture(workflow, uploadFixture(), { reviews });
+    await registerWorker(fixture, ["compiler", "renderer"]);
+    await claimWorker(fixture);
+    expect(workflow.jobs.get(job.id)?.preparationStage).toBe(
+      "EVIDENCE_VIDEO_RUNNING",
+    );
+    const fail = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${job.id}/fail`,
+      headers: fixture.headers,
+      payload: { message: "WORKER_PROCESS_FAILED:ffmpeg:boom" },
+    });
+    expect(fail.statusCode).toBe(200);
+    expect(workflow.jobs.get(job.id)?.preparationStage).toBe(
+      "EVIDENCE_VIDEO_QUEUED",
+    );
+    expect(workflow.jobs.get(job.id)?.state).toBe("PREPARING");
     await fixture.app.close();
   });
 
@@ -1119,14 +1224,29 @@ describe("worker registration API", () => {
     await fixture.app.close();
   });
 
-  it("Given a rendered MP4, when the worker uploads and completes it, then stages it for T5 without publishing", async () => {
+  it("Given a rendered MP4 that passes the safety check, when the worker uploads and completes it, then stages it for T5 without publishing", async () => {
     const workflow = createCreatorWorkflowStore();
     const job = addJob(workflow, "QUEUED");
     job.sourceFps = 25;
     job.frameCount = 100;
     job.evidence = analysisEvidence(job.id, "attempt-a", 100, 25);
     job.evidenceDigest = sha256(JSON.stringify(job.evidence));
-    const fixture = appFixture(workflow);
+    const directory = mkdtempSync(join(tmpdir(), "rvs-workers-safety-db-"));
+    const db = openApiDatabase(join(directory, "app.sqlite"));
+    updateAiProviderSettings(
+      db,
+      { providerKind: "openai", model: "gpt-4o", apiKey: "sk-test", enabled: true },
+      "admin",
+      1_000,
+      "test-secret-key-material",
+    );
+    const fixture = appFixture(workflow, undefined, {
+      db,
+      aiSecretKey: "test-secret-key-material",
+      safetyCheckGenerate: async () => ({
+        object: { safe: true, reason: "no unsafe content detected" },
+      }),
+    });
     await registerWorker(fixture, ["renderer"]);
     const claim = await claimWorker(fixture);
     const artifactBytes = Buffer.from("real-mp4-bytes");
@@ -1139,6 +1259,16 @@ describe("worker registration API", () => {
       },
       payload: artifactBytes,
     });
+    const sampleBytes = Buffer.from([137, 80, 78, 71]);
+    const sampleUploaded = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${job.id}/safety-sample-artifact`,
+      headers: {
+        ...fixture.headers,
+        "content-type": "image/png",
+      },
+      payload: sampleBytes,
+    });
     const mismatched = await fixture.app.inject({
       method: "POST",
       url: `/v1/workers/worker-a/jobs/${job.id}/complete`,
@@ -1148,6 +1278,7 @@ describe("worker registration API", () => {
           protocol: "rvs.worker.v1",
           phase: "render",
           artifactId: uploaded.json().artifactId,
+          safetySampleArtifactId: sampleUploaded.json().artifactId,
           report: {
             ...renderReport(job, "attempt-a", artifactBytes),
             outputSha256: "f".repeat(64),
@@ -1164,6 +1295,7 @@ describe("worker registration API", () => {
           protocol: "rvs.worker.v1",
           phase: "render",
           artifactId: uploaded.json().artifactId,
+          safetySampleArtifactId: sampleUploaded.json().artifactId,
           report: renderReport(job, "attempt-a", artifactBytes),
         },
       },
@@ -1176,6 +1308,7 @@ describe("worker registration API", () => {
     });
     const stored = workflow.stagedArtifacts.get(job.id);
     expect(uploaded.statusCode).toBe(201);
+    expect(sampleUploaded.statusCode).toBe(201);
     expect(mismatched.statusCode).toBe(422);
     expect(uploaded.json()).toEqual({
       artifactId: stored?.id,
@@ -1196,6 +1329,121 @@ describe("worker registration API", () => {
       artifactFiles(fixture.artifactRoot).some((file) => file.endsWith(".tmp")),
     ).toBe(false);
     expect(complete.statusCode).toBe(200);
+    await fixture.app.close();
+    db.close();
+    rmSync(directory, { recursive: true, force: true });
+  });
+
+  it("Given a rendered MP4 that fails the safety check, when the worker completes it, then fails the job without publishing", async () => {
+    const workflow = createCreatorWorkflowStore();
+    const job = addJob(workflow, "QUEUED");
+    job.sourceFps = 25;
+    job.frameCount = 100;
+    job.evidence = analysisEvidence(job.id, "attempt-a", 100, 25);
+    job.evidenceDigest = sha256(JSON.stringify(job.evidence));
+    const directory = mkdtempSync(join(tmpdir(), "rvs-workers-safety-db-"));
+    const db = openApiDatabase(join(directory, "app.sqlite"));
+    updateAiProviderSettings(
+      db,
+      { providerKind: "openai", model: "gpt-4o", apiKey: "sk-test", enabled: true },
+      "admin",
+      1_000,
+      "test-secret-key-material",
+    );
+    const fixture = appFixture(workflow, undefined, {
+      db,
+      aiSecretKey: "test-secret-key-material",
+      safetyCheckGenerate: async () => ({
+        object: { safe: false, reason: "explicit content detected" },
+      }),
+    });
+    await registerWorker(fixture, ["renderer"]);
+    await claimWorker(fixture);
+    const artifactBytes = Buffer.from("real-mp4-bytes");
+    const uploaded = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${job.id}/artifact`,
+      headers: { ...fixture.headers, "content-type": "video/mp4" },
+      payload: artifactBytes,
+    });
+    const sampleUploaded = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${job.id}/safety-sample-artifact`,
+      headers: { ...fixture.headers, "content-type": "image/png" },
+      payload: Buffer.from([137, 80, 78, 71]),
+    });
+    const complete = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${job.id}/complete`,
+      headers: fixture.headers,
+      payload: {
+        result: {
+          protocol: "rvs.worker.v1",
+          phase: "render",
+          artifactId: uploaded.json().artifactId,
+          safetySampleArtifactId: sampleUploaded.json().artifactId,
+          report: renderReport(job, "attempt-a", artifactBytes),
+        },
+      },
+    });
+
+    expect(uploaded.statusCode).toBe(201);
+    expect(sampleUploaded.statusCode).toBe(201);
+    expect(complete.statusCode).toBe(200);
+    expect(workflow.jobs.get(job.id)?.state).toBe("FAILED");
+    expect(workflow.jobs.get(job.id)?.failureCode).toBe(
+      "CONTENT_SAFETY_REJECTED",
+    );
+    expect(workflow.jobs.get(job.id)?.artifact).toBeNull();
+    await fixture.app.close();
+    db.close();
+    rmSync(directory, { recursive: true, force: true });
+  });
+
+  it("Given a rendered MP4 with no AI provider configured, when the worker completes it, then fails closed without publishing", async () => {
+    const workflow = createCreatorWorkflowStore();
+    const job = addJob(workflow, "QUEUED");
+    job.sourceFps = 25;
+    job.frameCount = 100;
+    job.evidence = analysisEvidence(job.id, "attempt-a", 100, 25);
+    job.evidenceDigest = sha256(JSON.stringify(job.evidence));
+    const fixture = appFixture(workflow);
+    await registerWorker(fixture, ["renderer"]);
+    await claimWorker(fixture);
+    const artifactBytes = Buffer.from("real-mp4-bytes");
+    const uploaded = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${job.id}/artifact`,
+      headers: { ...fixture.headers, "content-type": "video/mp4" },
+      payload: artifactBytes,
+    });
+    const sampleUploaded = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${job.id}/safety-sample-artifact`,
+      headers: { ...fixture.headers, "content-type": "image/png" },
+      payload: Buffer.from([137, 80, 78, 71]),
+    });
+    const complete = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${job.id}/complete`,
+      headers: fixture.headers,
+      payload: {
+        result: {
+          protocol: "rvs.worker.v1",
+          phase: "render",
+          artifactId: uploaded.json().artifactId,
+          safetySampleArtifactId: sampleUploaded.json().artifactId,
+          report: renderReport(job, "attempt-a", artifactBytes),
+        },
+      },
+    });
+
+    expect(complete.statusCode).toBe(200);
+    expect(workflow.jobs.get(job.id)?.state).toBe("FAILED");
+    expect(workflow.jobs.get(job.id)?.failureCode).toBe(
+      "CONTENT_SAFETY_REJECTED",
+    );
+    expect(workflow.jobs.get(job.id)?.artifact).toBeNull();
     await fixture.app.close();
   });
 

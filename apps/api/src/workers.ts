@@ -4,12 +4,18 @@ import { mkdir, rename, rm } from "node:fs/promises";
 import path from "node:path";
 import { Readable, Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
+import type Database from "better-sqlite3";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
   assertLegalTransition,
   type JobState,
 } from "../../../packages/contracts/src/lifecycle.js";
 import { z } from "zod";
+import { runSafetyCheck, type GenerateSafetyVerdict } from "./safety-check.js";
+import {
+  enrichEvidenceTranslations,
+  type GenerateTranslation,
+} from "./translate-evidence.js";
 import {
   type PersistenceRequest,
   requestPersistence,
@@ -23,6 +29,7 @@ import type {
   RuntimePreflightEvidence,
 } from "./creator-workflow.js";
 import {
+  autoApproveEvidenceVideo,
   autoApproveT1,
   autoApproveT2T3,
   autoApproveT4,
@@ -59,7 +66,12 @@ export type WorkerSession = {
 };
 export type ClaimedJob = {
   readonly workerId: string;
-  readonly phase: "analyze" | "compile" | "preview" | "render";
+  readonly phase:
+    | "analyze"
+    | "compile"
+    | "evidence-video"
+    | "preview"
+    | "render";
   readonly jobId: string;
   readonly attemptId: string;
   readonly tokenHash: string;
@@ -224,6 +236,7 @@ const RenderResult = z
     protocol: z.literal("rvs.worker.v1"),
     phase: z.literal("render"),
     artifactId: z.string().min(1),
+    safetySampleArtifactId: z.string().min(1).nullable(),
     report: RenderReport,
   })
   .strict();
@@ -233,6 +246,13 @@ const PreviewResult = z
     phase: z.literal("preview"),
     previewArtifactId: z.string().min(1),
     report: RenderReport.extend({ mode: z.literal("preview") }),
+  })
+  .strict();
+const EvidenceVideoResult = z
+  .object({
+    protocol: z.literal("rvs.worker.v1"),
+    phase: z.literal("evidence-video"),
+    evidenceVideoArtifactId: z.string().min(1),
   })
   .strict();
 const ProgressBody = z
@@ -387,18 +407,22 @@ const queuedPhase = (job: Job): ClaimPhase | null => {
   if (job.state !== "PREPARING" && job.state !== "STALE_APPROVAL") return null;
   if (job.preparationStage === "ANALYSIS_QUEUED") return "analyze";
   if (job.preparationStage === "COMPILATION_QUEUED") return "compile";
+  if (job.preparationStage === "EVIDENCE_VIDEO_QUEUED")
+    return "evidence-video";
   if (job.preparationStage === "PREVIEW_QUEUED") return "preview";
   return null;
 };
 const runningStage = (phase: ClaimPhase): PreparationStage | null => {
   if (phase === "analyze") return "ANALYSIS_RUNNING";
   if (phase === "compile") return "COMPILATION_RUNNING";
+  if (phase === "evidence-video") return "EVIDENCE_VIDEO_RUNNING";
   if (phase === "preview") return "PREVIEW_RUNNING";
   return null;
 };
 const queuedStage = (phase: ClaimPhase): PreparationStage | null => {
   if (phase === "analyze") return "ANALYSIS_QUEUED";
   if (phase === "compile") return "COMPILATION_QUEUED";
+  if (phase === "evidence-video") return "EVIDENCE_VIDEO_QUEUED";
   if (phase === "preview") return "PREVIEW_QUEUED";
   return null;
 };
@@ -488,6 +512,7 @@ const claimWorkflowJob = (
       currentWorker.capabilities.includes(phaseCapability(phase)) &&
       !store.leases.has(item.id) &&
       (phase !== "compile" || item.evidence !== null) &&
+      (phase !== "evidence-video" || item.evidence !== null) &&
       (phase !== "preview" || item.compilation !== null) &&
       (phase !== "render" ||
         (item.approved &&
@@ -674,6 +699,20 @@ const finishWorkflowJob = (
     autoApproveT2T3(reviews, job, job.creatorId, now());
     return "QUEUED";
   }
+  if (lease.phase === "evidence-video") {
+    const parsed = EvidenceVideoResult.safeParse(result);
+    const evidenceVideo = workflow?.evidenceVideos.get(job.id);
+    if (
+      !parsed.success ||
+      !evidenceVideo ||
+      evidenceVideo.id !== parsed.data.evidenceVideoArtifactId
+    )
+      return null;
+    job.automaticRetries = 0;
+    job.failureCode = null;
+    if (workflow) autoApproveEvidenceVideo(workflow, job, now());
+    return "QUEUED";
+  }
   if (lease.phase === "preview") {
     const parsed = PreviewResult.safeParse(result);
     const preview = workflow?.previews.get(job.id);
@@ -736,7 +775,9 @@ const finishWorkflowJob = (
   };
   job.automaticRetries = 0;
   job.failureCode = null;
-  if (workflow) autoApproveT5(reviews, workflow, job, job.creatorId, now());
+  // T5 is deliberately NOT auto-approved here -- the async content-safety
+  // check must run first (see the render-phase branch of the `finish` route
+  // handler below), and finishWorkflowJob itself stays synchronous.
   return "QUEUED";
 };
 
@@ -747,6 +788,10 @@ type WorkerRouteOptions = Readonly<{
   uploads: UploadStore | undefined;
   artifactRoot: string | undefined;
   persist: (() => void) | undefined;
+  db: Database.Database | undefined;
+  aiSecretKey: string | undefined;
+  safetyCheckGenerate: GenerateSafetyVerdict | undefined;
+  translateGenerate: GenerateTranslation | undefined;
 }>;
 
 export function registerWorkers(
@@ -754,7 +799,18 @@ export function registerWorkers(
   store: WorkerStore,
   options: WorkerRouteOptions,
 ): void {
-  const { now, workflow, reviews, uploads, artifactRoot, persist } = options;
+  const {
+    now,
+    workflow,
+    reviews,
+    uploads,
+    artifactRoot,
+    persist,
+    db,
+    aiSecretKey,
+    safetyCheckGenerate,
+    translateGenerate,
+  } = options;
   const auth = (
     request: FastifyRequest,
     reply: FastifyReply,
@@ -999,7 +1055,7 @@ export function registerWorkers(
       Body: unknown;
     }>,
     reply: FastifyReply,
-    kind: "preview" | "delivery",
+    kind: "preview" | "delivery" | "evidence-video" | "safety-sample",
   ): Promise<void> => {
     const claimed = claimedJob(request, reply);
     if (!claimed) return;
@@ -1007,22 +1063,36 @@ export function registerWorkers(
     const contentLength = ArtifactContentLength.safeParse(
       request.headers["content-length"],
     );
-    const isPreview = kind === "preview";
-    const artifacts = isPreview
-      ? workflow?.previews
-      : workflow?.stagedArtifacts;
-    const stateValid = isPreview
-      ? lease.phase === "preview" &&
-        job.preparationStage === "PREVIEW_RUNNING" &&
-        (job.state === "PREPARING" || job.state === "STALE_APPROVAL")
-      : lease.phase === "render" && job.state === "RENDERING";
-    if (
-      !stateValid ||
-      !contentLength.success ||
-      !(request.body instanceof Readable) ||
-      !artifactRoot ||
-      !artifacts
-    ) {
+    const artifacts =
+      kind === "preview"
+        ? workflow?.previews
+        : kind === "evidence-video"
+          ? workflow?.evidenceVideos
+          : kind === "safety-sample"
+            ? workflow?.safetySamples
+            : workflow?.stagedArtifacts;
+    const stateValid =
+      kind === "preview"
+        ? lease.phase === "preview" &&
+          job.preparationStage === "PREVIEW_RUNNING" &&
+          (job.state === "PREPARING" || job.state === "STALE_APPROVAL")
+        : kind === "evidence-video"
+          ? lease.phase === "evidence-video" &&
+            job.preparationStage === "EVIDENCE_VIDEO_RUNNING" &&
+            (job.state === "PREPARING" || job.state === "STALE_APPROVAL")
+          : lease.phase === "render" && job.state === "RENDERING";
+    // Video kinds stream in as a Readable (raw content-type parsers
+    // registered in app.ts); the safety-sample image falls through to the
+    // generic buffer content-type parser shared with job attachments, so
+    // normalize it into a Readable here rather than adding another
+    // content-type-specific global parser.
+    const bodyStream =
+      request.body instanceof Readable
+        ? request.body
+        : request.body instanceof Uint8Array
+          ? Readable.from(request.body)
+          : null;
+    if (!stateValid || !contentLength.success || !bodyStream || !artifactRoot || !artifacts) {
       error(reply, "INVALID_REQUEST");
       return;
     }
@@ -1052,7 +1122,7 @@ export function registerWorkers(
     try {
       await mkdir(directory, { recursive: true, mode: 0o700 });
       await pipeline(
-        request.body,
+        bodyStream,
         meter,
         createWriteStream(temporary, {
           flags: "wx",
@@ -1073,13 +1143,19 @@ export function registerWorkers(
         error(reply, revalidated.code);
         return;
       }
-      const liveStateValid = isPreview
-        ? revalidated.lease.phase === "preview" &&
-          revalidated.job.preparationStage === "PREVIEW_RUNNING" &&
-          (revalidated.job.state === "PREPARING" ||
-            revalidated.job.state === "STALE_APPROVAL")
-        : revalidated.lease.phase === "render" &&
-          revalidated.job.state === "RENDERING";
+      const liveStateValid =
+        kind === "preview"
+          ? revalidated.lease.phase === "preview" &&
+            revalidated.job.preparationStage === "PREVIEW_RUNNING" &&
+            (revalidated.job.state === "PREPARING" ||
+              revalidated.job.state === "STALE_APPROVAL")
+          : kind === "evidence-video"
+            ? revalidated.lease.phase === "evidence-video" &&
+              revalidated.job.preparationStage === "EVIDENCE_VIDEO_RUNNING" &&
+              (revalidated.job.state === "PREPARING" ||
+                revalidated.job.state === "STALE_APPROVAL")
+            : revalidated.lease.phase === "render" &&
+              revalidated.job.state === "RENDERING";
       if (
         revalidated.job !== job ||
         revalidated.lease !== lease ||
@@ -1090,16 +1166,26 @@ export function registerWorkers(
         return;
       }
       const sha256 = hash.digest("hex");
-      const artifactId = `${isPreview ? "preview" : "artifact"}_${digest({ jobId: job.id, sha256 }).slice(0, 16)}`;
-      const storagePath = path.join(directory, `${artifactId}.mp4`);
+      const idPrefix =
+        kind === "preview"
+          ? "preview"
+          : kind === "evidence-video"
+            ? "evidencevideo"
+            : kind === "safety-sample"
+              ? "safetysample"
+              : "artifact";
+      const extension = kind === "safety-sample" ? "png" : "mp4";
+      const contentType = kind === "safety-sample" ? "image/png" : "video/mp4";
+      const artifactId = `${idPrefix}_${digest({ jobId: job.id, sha256 }).slice(0, 16)}`;
+      const storagePath = path.join(directory, `${artifactId}.${extension}`);
       const timestamp = now();
       const artifact = {
         id: artifactId,
         jobId: job.id,
         tenantId: job.tenantId,
         kind,
-        filename: `${job.id}-${kind}.mp4`,
-        contentType: "video/mp4",
+        filename: `${job.id}-${kind}.${extension}`,
+        contentType,
         bytes: new Uint8Array(),
         storagePath,
         sha256,
@@ -1107,7 +1193,7 @@ export function registerWorkers(
         createdAt: new Date(timestamp).toISOString(),
         expiresAt: new Date(
           timestamp +
-            (isPreview ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000),
+            (kind === "delivery" ? 24 * 60 * 60 * 1000 : 30 * 24 * 60 * 60 * 1000),
         ).toISOString(),
         report: null,
       } as const;
@@ -1137,25 +1223,35 @@ export function registerWorkers(
       throw cause;
     }
   };
-  const requireMp4 = async (
-    request: FastifyRequest,
-    reply: FastifyReply,
-  ): Promise<void> => {
-    const contentType = request.headers["content-type"];
-    if (
-      typeof contentType !== "string" ||
-      contentType.split(";", 1)[0]?.trim().toLowerCase() !== "video/mp4"
-    )
-      error(reply, "INVALID_REQUEST");
-  };
-  for (const [url, kind] of [
-    ["/v1/workers/:workerId/jobs/:jobId/preview-artifact", "preview"],
-    ["/v1/workers/:workerId/jobs/:jobId/artifact", "delivery"],
+  const requireContentType = (expected: string) =>
+    async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+      const contentType = request.headers["content-type"];
+      if (
+        typeof contentType !== "string" ||
+        contentType.split(";", 1)[0]?.trim().toLowerCase() !== expected
+      )
+        error(reply, "INVALID_REQUEST");
+    };
+  const requireMp4 = requireContentType("video/mp4");
+  const requirePng = requireContentType("image/png");
+  for (const [url, kind, onRequest] of [
+    ["/v1/workers/:workerId/jobs/:jobId/preview-artifact", "preview", requireMp4],
+    [
+      "/v1/workers/:workerId/jobs/:jobId/evidence-video-artifact",
+      "evidence-video",
+      requireMp4,
+    ],
+    ["/v1/workers/:workerId/jobs/:jobId/artifact", "delivery", requireMp4],
+    [
+      "/v1/workers/:workerId/jobs/:jobId/safety-sample-artifact",
+      "safety-sample",
+      requirePng,
+    ],
   ] as const)
     app.post<{
       Params: { workerId: string; jobId: string };
       Body: unknown;
-    }>(url, { onRequest: requireMp4 }, async (request, reply) => {
+    }>(url, { onRequest }, async (request, reply) => {
       await uploadArtifact(request, reply, kind);
     });
   const finish = async (
@@ -1177,12 +1273,53 @@ export function registerWorkers(
       request.body && typeof request.body === "object"
         ? Reflect.get(request.body, "result")
         : undefined;
-    const outcome = failed
+    let outcome = failed
       ? failWorkflowJob(workflow, lease, message, now)
       : finishWorkflowJob(workflow, lease, result, now, reviews);
     if (!outcome) {
       error(reply, "INVALID_REQUEST");
       return;
+    }
+    // Best-effort translation enrichment: never blocks or fails the job,
+    // unlike the safety-check gate below. Missing provider/AI error just
+    // means the evidence stays without translated fields.
+    if (!failed && lease.phase === "analyze" && job.evidence && db && aiSecretKey) {
+      await enrichEvidenceTranslations(
+        job.evidence,
+        db,
+        aiSecretKey,
+        translateGenerate,
+      );
+    }
+    // Content-safety gate: the render phase deliberately leaves the job at
+    // AWAITING_T5 without auto-approving (see finishWorkflowJob above) so
+    // this async check can run first. Safe -> normal T5 auto-approval path.
+    // Unsafe (including an unconfigured/failed check, which is fail-closed
+    // by design) -> the job fails instead of ever publishing the staged
+    // delivery artifact.
+    if (
+      !failed &&
+      lease.phase === "render" &&
+      workflow &&
+      job.state === "AWAITING_T5"
+    ) {
+      const sample = workflow.safetySamples.get(job.id);
+      const verdict =
+        sample && db && aiSecretKey
+          ? await runSafetyCheck({
+              imagePath: sample.storagePath ?? "",
+              db,
+              aiSecretKey,
+              ...(safetyCheckGenerate ? { generate: safetyCheckGenerate } : {}),
+            })
+          : { safe: false, reason: "AI_PROVIDER_NOT_CONFIGURED" };
+      if (verdict.safe) {
+        autoApproveT5(reviews, workflow, job, job.creatorId, now());
+      } else {
+        job.failureCode = "CONTENT_SAFETY_REJECTED";
+        transition(job, "FAILED", now);
+        outcome = "FAILED";
+      }
     }
     const attempt = workflow?.attempts
       .get(request.params.jobId)

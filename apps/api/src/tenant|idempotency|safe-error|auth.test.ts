@@ -14,7 +14,6 @@ const principal: Principal = {
   tenantId: "ten_a",
   roles: ["OWNER"],
   capabilities: [],
-  releaseReviewer: false,
 };
 
 describe("tenant boundary", () => {

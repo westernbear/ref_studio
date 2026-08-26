@@ -66,6 +66,7 @@ export function migrate(db) {
     [5, "./migrations/005_worker_lifecycle.sql", false],
     [6, "./migrations/006_ai_provider_settings.sql", false],
     [7, "./migrations/007_job_attachments.sql", false],
+    [8, "./migrations/008_job_feedback.sql", false],
   ];
   for (const [version, file, disableForeignKeys] of migrations) {
     if (

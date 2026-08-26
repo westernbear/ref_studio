@@ -41,6 +41,19 @@ export type RefineResponse = {
   readonly proposals: readonly RefineProposal[];
 };
 
+const FeedbackDecisionSchema = z.enum([
+  "LOOKS_GOOD",
+  "NEEDS_CHANGES",
+  "REQUEST_CHANGES",
+]);
+export type FeedbackDecision = z.infer<typeof FeedbackDecisionSchema>;
+
+const DEFAULT_FEEDBACK_PROMPT: Readonly<Record<FeedbackDecision, string>> = {
+  LOOKS_GOOD: "",
+  NEEDS_CHANGES: "Creator marked this preview as needing changes.",
+  REQUEST_CHANGES: "Creator requested changes to this preview.",
+};
+
 const ProposalsSchema = z.object({
   proposals: z
     .array(
@@ -92,6 +105,50 @@ function heuristicProposals(
       rationale: "Heuristic: shifted later within the accepted interval.",
     },
   ];
+}
+
+// Runs the same provider-settings -> model -> generateObject path used by
+// the refine-prompt chat, shared with the /feedback route below. Falls back
+// to the heuristic planner when no provider is configured; unlike
+// /refine-prompt itself, callers of this helper are expected to decide
+// their own AI-failure handling (the /feedback route wraps it in try/catch
+// so an unreachable provider never blocks recording the feedback).
+async function planProposals(params: {
+  readonly prompt: string;
+  readonly current: number;
+  readonly min: number;
+  readonly max: number;
+  readonly db: Database.Database;
+  readonly aiSecretKey: string;
+  readonly generate: GenerateProposals;
+}): Promise<RefineResponse> {
+  const settings = getAiProviderSettingsWithSecret(
+    params.db,
+    params.aiSecretKey,
+  );
+  if (!settings.enabled || !settings.apiKey)
+    return {
+      plannerKind: "heuristic",
+      proposals: heuristicProposals(params.current, params.min, params.max),
+    };
+  const model = createAiModel({
+    providerKind: settings.providerKind,
+    model: settings.model,
+    baseUrl: settings.baseUrl,
+    apiKey: settings.apiKey,
+  });
+  const generated = await params.generate({
+    model,
+    schema: ProposalsSchema,
+    prompt: `You select which 4-second window of an existing reference video best matches a creator's described intent. You cannot generate new video content -- you only choose a start frame within the accepted range.\nCurrent start frame: ${params.current}.\nValid start frame range: ${params.min} to ${params.max} (inclusive).\nCreator's request: ${params.prompt}\nPropose 2 or 3 candidate start frames with a short rationale for each.`,
+  });
+  return {
+    plannerKind: "ai",
+    proposals: generated.object.proposals.map((proposal) => ({
+      startFrame: clamp(proposal.startFrame, params.min, params.max),
+      rationale: proposal.rationale,
+    })),
+  };
 }
 
 export type InitialFrameSelection = {
@@ -198,32 +255,15 @@ export function registerRefinePrompt(
             const windowFrames = job.sourceFps * 4;
             const min = 0;
             const max = Math.max(0, upload.media.frameCount - windowFrames);
-            const settings = getAiProviderSettingsWithSecret(db, aiSecretKey);
-            if (!settings.enabled || !settings.apiKey) {
-              const response: RefineResponse = {
-                plannerKind: "heuristic",
-                proposals: heuristicProposals(job.startFrame, min, max),
-              };
-              return [200, response];
-            }
-            const model = createAiModel({
-              providerKind: settings.providerKind,
-              model: settings.model,
-              baseUrl: settings.baseUrl,
-              apiKey: settings.apiKey,
+            const response = await planProposals({
+              prompt,
+              current: job.startFrame,
+              min,
+              max,
+              db,
+              aiSecretKey,
+              generate,
             });
-            const generated = await generate({
-              model,
-              schema: ProposalsSchema,
-              prompt: `You select which 4-second window of an existing reference video best matches a creator's described intent. You cannot generate new video content -- you only choose a start frame within the accepted range.\nCurrent start frame: ${job.startFrame}.\nValid start frame range: ${min} to ${max} (inclusive).\nCreator's request: ${prompt}\nPropose 2 or 3 candidate start frames with a short rationale for each.`,
-            });
-            const response: RefineResponse = {
-              plannerKind: "ai",
-              proposals: generated.object.proposals.map((proposal) => ({
-                startFrame: clamp(proposal.startFrame, min, max),
-                rationale: proposal.rationale,
-              })),
-            };
             return [200, response];
           },
         );
@@ -275,6 +315,96 @@ export function registerRefinePrompt(
               new Date(store.now()).toISOString(),
             );
             return [200, { ok: true }];
+          },
+        );
+        reply.code(replay.response[0]).send(replay.response[1]);
+      } catch (error) {
+        const code = error instanceof Error ? error.message : "INTERNAL_ERROR";
+        fail(reply, code, statusFor(code));
+      }
+    },
+  );
+  app.post(
+    "/v1/jobs/:jobId/feedback",
+    async (
+      request: FastifyRequest<{
+        Params: { jobId: string };
+        Body: { decision?: string; note?: string };
+      }>,
+      reply,
+    ) => {
+      try {
+        const key = header(request, "idempotency-key");
+        if (!key) throw new Error("INVALID_REQUEST");
+        const principal = (
+          request as FastifyRequest & {
+            authenticatedPrincipal?: { userId: string };
+          }
+        ).authenticatedPrincipal;
+        const replay = await idempotency.executeAsync(
+          "job-feedback",
+          key,
+          requestHash(request.body ?? {}),
+          tenant(request),
+          async () => {
+            const job = store.jobs.get(request.params.jobId);
+            if (!job || job.tenantId !== tenant(request))
+              throw new Error("RESOURCE_NOT_FOUND");
+            if (!principal) throw new Error("AUTHENTICATION_REQUIRED");
+            const parsedDecision = FeedbackDecisionSchema.safeParse(
+              request.body?.decision,
+            );
+            if (!parsedDecision.success) throw new Error("INVALID_REQUEST");
+            const decision = parsedDecision.data;
+            const note = request.body?.note;
+            if (note !== undefined && (note.length < 1 || note.length > 2000))
+              throw new Error("INVALID_REQUEST");
+            let planned: RefineResponse | null = null;
+            if (decision !== "LOOKS_GOOD") {
+              const upload = uploads.uploads.get(job.uploadId);
+              // An AI failure here must never block recording the feedback
+              // itself -- the decision is the durable fact, the refinement
+              // is a best-effort enhancement on top of it.
+              try {
+                if (upload?.media) {
+                  const windowFrames = job.sourceFps * 4;
+                  const min = 0;
+                  const max = Math.max(
+                    0,
+                    upload.media.frameCount - windowFrames,
+                  );
+                  planned = await planProposals({
+                    prompt: note || DEFAULT_FEEDBACK_PROMPT[decision],
+                    current: job.startFrame,
+                    min,
+                    max,
+                    db,
+                    aiSecretKey,
+                    generate,
+                  });
+                }
+              } catch {
+                planned = null;
+              }
+            }
+            db.prepare(
+              `INSERT INTO job_feedback (id, job_id, tenant_id, creator_id, decision, note, planner_kind, proposals_json, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            ).run(
+              id("feedback"),
+              job.id,
+              job.tenantId,
+              principal.userId,
+              decision,
+              note ?? null,
+              planned?.plannerKind ?? null,
+              planned ? JSON.stringify(planned.proposals) : null,
+              new Date(store.now()).toISOString(),
+            );
+            return [
+              200,
+              { ok: true, proposals: planned },
+            ];
           },
         );
         reply.code(replay.response[0]).send(replay.response[1]);

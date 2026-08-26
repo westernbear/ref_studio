@@ -7,7 +7,6 @@ export const GATE_DAG = {
   T3: "T2",
   T4: "T3",
   T5: "T4",
-  T6: null,
 } as const;
 export type Gate = keyof typeof GATE_DAG;
 export type ReviewDecision = "APPROVED" | "REJECTED";

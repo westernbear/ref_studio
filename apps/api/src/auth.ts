@@ -24,7 +24,6 @@ export type Principal = {
   readonly roles: readonly string[];
   readonly capabilities: readonly string[];
   readonly sessionId?: string;
-  readonly releaseReviewer: boolean;
 };
 export type Credential = {
   readonly userId: string;
@@ -271,35 +270,11 @@ function principal(
     (item) => item.userId === userId && item.tenantId === tenantId,
   );
   const roles = membership ? [membership.role] : [];
-  const releaseReviewer = store.assignments.some(
-    (item) =>
-      item.reviewerId === userId &&
-      item.tenantId === null &&
-      item.gate === "T6" &&
-      item.scope === "RELEASE",
-  );
   return {
     userId,
     tenantId,
     roles,
-    capabilities: releaseReviewer ? ["RELEASE_REVIEW"] : [],
+    capabilities: [],
     ...(sessionId ? { sessionId } : {}),
-    releaseReviewer,
   };
-}
-export function authorizeReleaseReview(
-  store: AuthStore,
-  principalValue: Principal,
-  tenantHeader: string | undefined,
-): AuthFailure | null {
-  if (tenantHeader) {
-    store.audit({
-      action: "RELEASE_TENANT_HEADER",
-      userId: principalValue.userId,
-      tenantId: tenantHeader,
-      decision: "DENIED",
-    });
-    return { code: "TENANT_HEADER_FORBIDDEN" };
-  }
-  return principalValue.releaseReviewer ? null : { code: "ROLE_NOT_PERMITTED" };
 }

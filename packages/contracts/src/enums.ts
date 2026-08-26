@@ -4,7 +4,6 @@ export const Roles = [
   "OWNER",
   "ADMIN",
   "MEMBER",
-  "DESIGNATED_REVIEWER",
   "SUPER_ADMIN",
   "OPS_ADMIN",
   "VIEWER",
@@ -20,7 +19,6 @@ export const Capabilities = [
   "REVIEW_WRITE",
   "MEMBER_MANAGE",
   "QUOTA_MANAGE",
-  "RELEASE_REVIEW",
 ] as const;
 export const ScopeKinds = ["TENANT", "PLATFORM", "RELEASE"] as const;
 export const TenantKinds = ["PLATFORM", "ORGANIZATION"] as const;
@@ -50,4 +48,9 @@ export const ReviewDecisions = [
   "REJECTED",
   "CHANGES_REQUESTED",
 ] as const;
-export const GateNames = ["T1", "T2", "T3", "T4", "T5", "T6"] as const;
+export const GateNames = ["T1", "T2", "T3", "T4", "T5"] as const;
+export const FeedbackDecisions = [
+  "LOOKS_GOOD",
+  "NEEDS_CHANGES",
+  "REQUEST_CHANGES",
+] as const;
