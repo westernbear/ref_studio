@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { errorCode } from "../lib/api-error";
@@ -16,6 +17,7 @@ export function AdminQuarantineRejectButton({
   tenantId,
   version,
 }: Props) {
+  const t = useTranslations("AdminButtons.quarantineReject");
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
@@ -48,15 +50,14 @@ export function AdminQuarantineRejectButton({
       });
       if (!response.ok) {
         setStatus(
-          `Reject failed: ${errorCode(body) || `HTTP_${response.status}`}.`,
+          t("failed", { code: errorCode(body) || `HTTP_${response.status}` }),
         );
         return;
       }
-      setStatus("Upload permanently rejected. Refreshing live state.");
+      setStatus(t("requested"));
       router.refresh();
     } catch (error) {
-      if (error instanceof Error)
-        setStatus("The connection was interrupted. Retry.");
+      if (error instanceof Error) setStatus(t("connectionInterrupted"));
       else throw error;
     } finally {
       setBusy(false);
@@ -71,7 +72,7 @@ export function AdminQuarantineRejectButton({
         disabled={busy}
         onClick={() => void reject()}
       >
-        {busy ? "Rejecting..." : "Reject"}
+        {busy ? t("busy") : t("action")}
       </button>
       <p aria-live="polite">{status}</p>
     </div>

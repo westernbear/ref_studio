@@ -1,8 +1,9 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
-import { errorCode } from "../../lib/api-error";
+import { errorCode } from "../../../lib/api-error";
+import { useRouter } from "../../../i18n/navigation";
 
 export function RenderJobButton({
   jobId,
@@ -11,6 +12,7 @@ export function RenderJobButton({
   readonly jobId: string;
   readonly etag: string;
 }) {
+  const t = useTranslations("RenderJobButton");
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -37,16 +39,16 @@ export function RenderJobButton({
         const code = errorCode(body);
         setError(
           code === "ROLE_NOT_PERMITTED"
-            ? "An organization owner or admin must queue the final render."
+            ? t("roleNotPermitted")
             : code === "APPROVAL_REQUIRED"
-              ? "T4 approval is required before the final render."
-              : "This job changed or is not ready. Refresh and review it again.",
+              ? t("stillVerifying")
+              : t("jobChanged"),
         );
         return;
       }
       router.refresh();
     } catch {
-      setError("The connection was interrupted. Retry.");
+      setError(t("connectionInterrupted"));
     } finally {
       setSubmitting(false);
     }
@@ -60,7 +62,7 @@ export function RenderJobButton({
         disabled={submitting}
         onClick={() => void launch()}
       >
-        {submitting ? "Queuing render..." : "Queue Final Render"}
+        {submitting ? t("queuing") : t("queueFinalRender")}
       </button>
       <p className="review-action-status" aria-live="polite">
         {error}

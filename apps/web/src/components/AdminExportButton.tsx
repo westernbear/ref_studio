@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { errorCode } from "../lib/api-error";
 import { requestId } from "../lib/upload-client";
@@ -10,6 +11,7 @@ type Props = {
 };
 
 export function AdminExportButton({ kind, tenantId }: Props) {
+  const t = useTranslations("AdminButtons.export");
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
 
@@ -34,18 +36,19 @@ export function AdminExportButton({ kind, tenantId }: Props) {
       const body: unknown = await response.json().catch(() => null);
       if (!response.ok) {
         setStatus(
-          `Export failed: ${errorCode(body) || `HTTP_${response.status}`}.`,
+          t("failed", { code: errorCode(body) || `HTTP_${response.status}` }),
         );
         return;
       }
       const result = body && typeof body === "object" ? body : {};
       setStatus(
-        `Export ${String(Reflect.get(result, "exportId"))} is ${String(
-          Reflect.get(result, "state"),
-        ).toLowerCase()}.`,
+        t("created", {
+          id: String(Reflect.get(result, "exportId")),
+          state: String(Reflect.get(result, "state")).toLowerCase(),
+        }),
       );
     } catch {
-      setStatus("The connection was interrupted. Retry.");
+      setStatus(t("connectionInterrupted"));
     } finally {
       setBusy(false);
     }
@@ -59,7 +62,7 @@ export function AdminExportButton({ kind, tenantId }: Props) {
         disabled={busy}
         onClick={() => void createExport()}
       >
-        {busy ? "Creating export..." : "Create JSONL export"}
+        {busy ? t("busy") : t("action")}
       </button>
       <p aria-live="polite">{status}</p>
     </div>

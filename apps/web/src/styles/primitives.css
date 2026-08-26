@@ -1285,18 +1285,49 @@ progress {
   grid-template-rows: auto 1fr auto;
 }
 .dialogue-preview-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
   padding: var(--space-lg);
   border-bottom: 1px solid var(--color-hairline);
 }
+.status-chip.is-stale {
+  border-color: var(--color-accent-sunset);
+  color: var(--color-accent-sunset);
+}
 .dialogue-preview-frame {
   display: grid;
-  place-items: center;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-lg);
   padding: var(--space-lg);
   background: var(--color-canvas-mid, var(--color-canvas-card));
 }
+.dialogue-compare-pane {
+  display: grid;
+  gap: var(--space-sm);
+  align-content: start;
+  justify-items: center;
+}
+.dialogue-compare-toggle {
+  display: flex;
+  gap: var(--space-xs);
+}
+.chip-toggle {
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-pill);
+  padding: var(--space-xs) var(--space-sm);
+  background: none;
+  color: var(--color-body-mid);
+  font: var(--type-caption-mono-sm);
+  cursor: pointer;
+}
+.chip-toggle[data-active="true"] {
+  border-color: var(--color-primary);
+  color: var(--color-ink);
+}
 .dialogue-preview-frame video {
   width: 100%;
-  max-height: 420px;
+  max-height: 320px;
   border: 1px solid var(--color-hairline);
   border-radius: var(--radius-lg);
   object-fit: contain;
@@ -1326,6 +1357,45 @@ progress {
   margin: 0 var(--space-lg) var(--space-lg);
   color: var(--color-body-mid);
   font: var(--type-caption-mono-sm);
+}
+.dialogue-translations {
+  display: grid;
+  gap: var(--space-sm);
+  border-top: 1px solid var(--color-hairline);
+  padding: var(--space-lg);
+}
+.dialogue-translations ul {
+  display: grid;
+  gap: var(--space-xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.dialogue-translations li {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  font: var(--type-body-sm);
+}
+.dialogue-decision-row {
+  display: grid;
+  gap: var(--space-sm);
+  border-top: 1px solid var(--color-hairline);
+  padding: var(--space-lg);
+}
+.dialogue-decision-buttons {
+  display: flex;
+  gap: var(--space-xs);
+}
+.dialogue-decision-row textarea {
+  resize: none;
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-lg);
+  background: var(--color-canvas-soft);
+  color: var(--color-ink);
+  font: var(--type-body-sm);
+  padding: var(--space-sm) var(--space-md);
 }
 .ai-settings-status {
   display: grid;
@@ -1938,6 +2008,9 @@ progress {
     gap: var(--space-xs);
   }
   .dialogue-shell {
+    grid-template-columns: 1fr;
+  }
+  .dialogue-preview-frame {
     grid-template-columns: 1fr;
   }
   .stitch-review-actions {

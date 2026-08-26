@@ -1,25 +1,28 @@
 "use client";
 
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 import { useState, type ReactNode } from "react";
+import { Link } from "../i18n/navigation";
 
 const creatorLinks = [
-  { name: "Workflow", href: "/workflow" },
-  { name: "New Project", href: "/projects/new" },
+  { key: "workflow", href: "/workflow" },
+  { key: "newProject", href: "/projects/new" },
 ] as const;
 const adminLinks = [
-  { name: "Dashboard", href: "/admin" },
-  { name: "Tenants", href: "/admin/tenants" },
-  { name: "Jobs", href: "/admin/jobs" },
-  { name: "Workers", href: "/admin/workers" },
-  { name: "Receipts", href: "/admin/receipts" },
-  { name: "Quarantine", href: "/admin/quarantine" },
-  { name: "Billing", href: "/admin/billing" },
-  { name: "Audit", href: "/admin/audit" },
-  { name: "AI Settings", href: "/admin/ai-settings" },
+  { key: "dashboard", href: "/admin" },
+  { key: "tenants", href: "/admin/tenants" },
+  { key: "jobs", href: "/admin/jobs" },
+  { key: "workers", href: "/admin/workers" },
+  { key: "receipts", href: "/admin/receipts" },
+  { key: "quarantine", href: "/admin/quarantine" },
+  { key: "billing", href: "/admin/billing" },
+  { key: "audit", href: "/admin/audit" },
+  { key: "aiSettings", href: "/admin/ai-settings" },
 ] as const;
 
 export function BrandLogo({ ops = false }: { readonly ops?: boolean }) {
+  const t = useTranslations("Shells");
   return (
     <span className="brand-logo" data-testid="brand-logo">
       <span className="brand-logo-frame">
@@ -32,7 +35,7 @@ export function BrandLogo({ ops = false }: { readonly ops?: boolean }) {
           sizes="128px"
         />
       </span>
-      {ops ? <span className="brand-logo-scope">/ OPS</span> : null}
+      {ops ? <span className="brand-logo-scope">{t("opsScope")}</span> : null}
     </span>
   );
 }
@@ -40,42 +43,42 @@ export function BrandLogo({ ops = false }: { readonly ops?: boolean }) {
 function Navigation({
   links,
 }: {
-  readonly links: readonly { readonly name: string; readonly href: string }[];
+  readonly links: readonly { readonly key: string; readonly href: string }[];
 }) {
+  const t = useTranslations("Shells.nav");
   return (
-    <nav aria-label="Primary navigation">
+    <nav aria-label={t("ariaLabel")}>
       {links.map((link) => (
-        <a key={link.href} href={link.href}>
-          {link.name}
-        </a>
+        <Link key={link.href} href={link.href}>
+          {t(link.key)}
+        </Link>
       ))}
     </nav>
   );
 }
 
 export function CreatorShell({ children }: { readonly children: ReactNode }) {
+  const t = useTranslations("Shells");
   return (
     <div className="shell shell-creator">
       <header data-landmark="app-header">
-        <a
-          className="brand-link"
-          href="/"
-          aria-label="Reference Video Studio home"
-        >
+        <Link className="brand-link" href="/" aria-label={t("homeAriaLabel")}>
           <BrandLogo />
-        </a>
+        </Link>
         <Navigation links={creatorLinks} />
       </header>
       <main>{children}</main>
       <footer className="shell-footer" data-landmark="footer">
-        <span>Reference Video Studio</span>
-        <span>2026</span>
+        <span>{t("brandName")}</span>
+        <span>{t("year")}</span>
       </footer>
     </div>
   );
 }
 
 export function AdminShell({ children }: { readonly children: ReactNode }) {
+  const t = useTranslations("Shells");
+  const tAdmin = useTranslations("Shells.admin");
   const [menuOpen, setMenuOpen] = useState(false);
   const logout = async () => {
     await fetch("/api/logout", { method: "POST", credentials: "include" });
@@ -84,13 +87,13 @@ export function AdminShell({ children }: { readonly children: ReactNode }) {
   return (
     <div className="shell shell-admin">
       <header className="admin-mobile-header">
-        <a
+        <Link
           className="brand-link"
           href="/admin"
-          aria-label="Reference Video Studio admin home"
+          aria-label={t("adminHomeAriaLabel")}
         >
           <BrandLogo ops />
-        </a>
+        </Link>
         <button
           className="admin-menu-button"
           type="button"
@@ -98,7 +101,7 @@ export function AdminShell({ children }: { readonly children: ReactNode }) {
           aria-controls="admin-navigation"
           onClick={() => setMenuOpen((open) => !open)}
         >
-          Menu
+          {tAdmin("menu")}
         </button>
       </header>
       <aside
@@ -106,23 +109,26 @@ export function AdminShell({ children }: { readonly children: ReactNode }) {
         className={menuOpen ? "admin-navigation-open" : ""}
         data-landmark="sidebar"
       >
-        <a
+        <Link
           className="brand-link"
           href="/admin"
-          aria-label="Reference Video Studio admin home"
+          aria-label={t("adminHomeAriaLabel")}
         >
           <BrandLogo ops />
-        </a>
-        <p className="admin-scope">Platform scope · Operations</p>
-        <a className="button button-primary admin-new-project" href="/projects/new">
-          New Project
-        </a>
+        </Link>
+        <p className="admin-scope">{tAdmin("scope")}</p>
+        <Link
+          className="button button-primary admin-new-project"
+          href="/projects/new"
+        >
+          {tAdmin("newProject")}
+        </Link>
         <Navigation links={adminLinks} />
         <div className="admin-utility">
-          <a href="/docs">Docs</a>
-          <a href="/support">Support</a>
+          <a href="/docs">{tAdmin("docs")}</a>
+          <a href="/support">{tAdmin("support")}</a>
           <button type="button" onClick={() => void logout()}>
-            Log out
+            {tAdmin("logOut")}
           </button>
         </div>
       </aside>

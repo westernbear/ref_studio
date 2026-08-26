@@ -1,14 +1,16 @@
 import type { ReactNode } from "react";
 import { notFound, redirect } from "next/navigation";
-import { AdminExportButton } from "../../components/AdminExportButton";
-import { AiProviderSettingsForm } from "../../components/AiProviderSettingsForm";
-import { AdminJobCancelButton } from "../../components/AdminJobCancelButton";
-import { AdminJobForceTerminateButton } from "../../components/AdminJobForceTerminateButton";
-import { AdminJobRetryButton } from "../../components/AdminJobRetryButton";
-import { AdminQuarantineReleaseButton } from "../../components/AdminQuarantineReleaseButton";
-import { AdminQuarantineRejectButton } from "../../components/AdminQuarantineRejectButton";
-import { AdminShell, CreatorShell } from "../../components/Shells";
-import { Panel } from "../../components/Primitives";
+import { getTranslations } from "next-intl/server";
+import { AdminExportButton } from "../../../components/AdminExportButton";
+import { AiProviderSettingsForm } from "../../../components/AiProviderSettingsForm";
+import { AdminJobCancelButton } from "../../../components/AdminJobCancelButton";
+import { AdminJobForceTerminateButton } from "../../../components/AdminJobForceTerminateButton";
+import { AdminJobRetryButton } from "../../../components/AdminJobRetryButton";
+import { AdminQuarantineReleaseButton } from "../../../components/AdminQuarantineReleaseButton";
+import { AdminQuarantineRejectButton } from "../../../components/AdminQuarantineRejectButton";
+import { AdminShell, CreatorShell } from "../../../components/Shells";
+import { Panel } from "../../../components/Primitives";
+import { Link } from "../../../i18n/navigation";
 import {
   field,
   isAuthProblem,
@@ -16,7 +18,7 @@ import {
   liveApiGet,
   text,
   when,
-} from "../../lib/server-api";
+} from "../../../lib/server-api";
 
 type SearchState = Readonly<
   Record<string, string | readonly string[] | undefined>
@@ -25,6 +27,7 @@ type Column = {
   readonly label: string;
   readonly value: (row: unknown) => ReactNode;
 };
+type T = Awaited<ReturnType<typeof getTranslations<"AdminSlug">>>;
 
 const PAGE_SIZE = 20;
 const jobStates = [
@@ -39,15 +42,15 @@ const jobStates = [
   "CANCELLED",
   "RETRYABLE_ERROR",
 ] as const;
-const adminPages: Record<string, string> = {
-  admin: "Admin dashboard",
-  "admin/ai-settings": "AI provider settings",
-  "admin/audit": "Audit log",
-  "admin/billing": "Billing",
-  "admin/jobs": "Queue & Delivery",
-  "admin/quarantine": "Quarantine",
-  "admin/receipts": "Receipt chain",
-  "admin/tenants": "Tenants",
+const adminPageKeys: Record<string, string> = {
+  admin: "dashboard",
+  "admin/ai-settings": "aiSettings",
+  "admin/audit": "audit",
+  "admin/billing": "billing",
+  "admin/jobs": "jobs",
+  "admin/quarantine": "quarantine",
+  "admin/receipts": "receipts",
+  "admin/tenants": "tenants",
 };
 
 const count = (value: unknown): number =>
@@ -117,12 +120,16 @@ function Table({
   rows,
   selectedId,
   rowHref,
+  detailsLabel,
+  inspectLabel,
 }: {
   readonly columns: readonly Column[];
   readonly empty: string;
   readonly rows: readonly unknown[];
   readonly selectedId?: string;
   readonly rowHref?: (row: unknown) => string;
+  readonly detailsLabel: string;
+  readonly inspectLabel: string;
 }) {
   if (rows.length === 0) return <p className="empty-copy">{empty}</p>;
   return (
@@ -135,7 +142,7 @@ function Table({
                 {column.label}
               </th>
             ))}
-            {rowHref ? <th scope="col">Details</th> : null}
+            {rowHref ? <th scope="col">{detailsLabel}</th> : null}
           </tr>
         </thead>
         <tbody>
@@ -152,7 +159,7 @@ function Table({
                 {rowHref ? (
                   <td>
                     <a className="table-action" href={rowHref(row)}>
-                      Inspect
+                      {inspectLabel}
                     </a>
                   </td>
                 ) : null}
@@ -186,19 +193,21 @@ function DetailPanel({
   fields,
   landmark = "detail-panel",
   actions,
+  t,
 }: {
   readonly title: string;
   readonly row: unknown;
   readonly fields: readonly Column[];
   readonly landmark?: string | undefined;
   readonly actions?: ReactNode;
+  readonly t: T;
 }) {
   return (
     <aside className="panel record-detail" data-landmark={landmark}>
       <div className="section-heading">
         <div>
           <h2>{title}</h2>
-          <p>Selected live record</p>
+          <p>{t("selectedLiveRecord")}</p>
         </div>
       </div>
       {row ? (
@@ -214,7 +223,7 @@ function DetailPanel({
           {actions ? <div className="record-actions">{actions}</div> : null}
         </>
       ) : (
-        <p className="empty-copy">No live record is available to inspect.</p>
+        <p className="empty-copy">{t("noRecordToInspect")}</p>
       )}
     </aside>
   );
@@ -223,9 +232,11 @@ function DetailPanel({
 function FilterBar({
   action,
   children,
+  t,
 }: {
   readonly action: string;
   readonly children: ReactNode;
+  readonly t: T;
 }) {
   return (
     <form
@@ -237,10 +248,10 @@ function FilterBar({
       <div className="filter-fields">{children}</div>
       <div className="filter-actions">
         <button className="button button-primary" type="submit">
-          Apply filters
+          {t("applyFilters")}
         </button>
         <a className="button" href={action}>
-          Clear
+          {t("clear")}
         </a>
       </div>
     </form>
@@ -277,13 +288,13 @@ function FilterSelect({
   name,
   value,
   options,
-  allLabel = "All",
+  allLabel,
 }: {
   readonly label: string;
   readonly name: string;
   readonly value: string;
   readonly options: readonly SelectOption[];
-  readonly allLabel?: string;
+  readonly allLabel: string;
 }) {
   return (
     <label>
@@ -310,10 +321,12 @@ function Pagination({
   path,
   search,
   nextCursor,
+  t,
 }: {
   readonly path: string;
   readonly search: SearchState;
   readonly nextCursor: string | null;
+  readonly t: T;
 }) {
   const parsed = Number(single(search.after) || 0);
   const start = Number.isInteger(parsed) && parsed >= 0 ? parsed : 0;
@@ -321,7 +334,7 @@ function Pagination({
   return (
     <nav
       className="pagination"
-      aria-label="Record pages"
+      aria-label={t("recordPagesAriaLabel")}
       data-landmark="pagination"
     >
       {start > 0 ? (
@@ -332,14 +345,14 @@ function Pagination({
             selected: null,
           })}
         >
-          Previous
+          {t("previous")}
         </a>
       ) : (
         <span className="button is-disabled" aria-disabled="true">
-          Previous
+          {t("previous")}
         </span>
       )}
-      <span>Page {Math.floor(start / PAGE_SIZE) + 1}</span>
+      <span>{t("page", { number: Math.floor(start / PAGE_SIZE) + 1 })}</span>
       {nextCursor ? (
         <a
           className="button"
@@ -348,11 +361,11 @@ function Pagination({
             selected: null,
           })}
         >
-          Next
+          {t("next")}
         </a>
       ) : (
         <span className="button is-disabled" aria-disabled="true">
-          Next
+          {t("next")}
         </span>
       )}
     </nav>
@@ -372,6 +385,7 @@ function RecordSurface({
   detailLandmark,
   nextCursor,
   detailActions,
+  t,
 }: {
   readonly path: string;
   readonly search: SearchState;
@@ -385,6 +399,7 @@ function RecordSurface({
   readonly detailLandmark?: string | undefined;
   readonly nextCursor: string | null;
   readonly detailActions?: (row: unknown) => ReactNode;
+  readonly t: T;
 }) {
   const row = selectedRow(rows, single(search.selected));
   const selectedId = text(field(row, "id"), "");
@@ -395,7 +410,7 @@ function RecordSurface({
           <div className="section-heading">
             <div>
               <h2>{tableTitle}</h2>
-              <p>{rows.length} records on this page</p>
+              <p>{t("recordsOnThisPage", { count: rows.length })}</p>
             </div>
           </div>
           <Table
@@ -408,6 +423,8 @@ function RecordSurface({
                 selected: text(field(item, "id"), ""),
               })
             }
+            detailsLabel={t("details")}
+            inspectLabel={t("inspect")}
           />
         </Panel>
         <DetailPanel
@@ -416,9 +433,10 @@ function RecordSurface({
           fields={details}
           landmark={detailLandmark}
           actions={row && detailActions ? detailActions(row) : undefined}
+          t={t}
         />
       </div>
-      <Pagination path={path} search={search} nextCursor={nextCursor} />
+      <Pagination path={path} search={search} nextCursor={nextCursor} t={t} />
     </>
   );
 }
@@ -427,10 +445,12 @@ function ProblemPanel({
   admin,
   code,
   title,
+  t,
 }: {
   readonly admin: boolean;
   readonly code: string;
   readonly title: string;
+  readonly t: T;
 }) {
   const href = `${admin ? "/admin/sign-in" : "/sign-in"}?returnTo=${encodeURIComponent(
     admin ? "/admin" : "/workflow",
@@ -441,13 +461,13 @@ function ProblemPanel({
       <p>
         {isAuthProblem(code)
           ? admin
-            ? "Admin sign-in required."
-            : "Sign in to view workflow jobs."
-          : `Live records are unavailable: ${code}.`}
+            ? t("adminSignInRequired")
+            : t("signInToViewWorkflow")
+          : t("recordsUnavailable", { code })}
       </p>
       {isAuthProblem(code) ? (
         <a className="button button-primary" href={href}>
-          Sign in
+          {t("signIn")}
         </a>
       ) : null}
     </Panel>
@@ -476,14 +496,16 @@ function AdminView({
 function AdminProblem({
   code,
   title,
+  t,
 }: {
   readonly code: string;
   readonly title: string;
+  readonly t: T;
 }) {
   return (
     <AdminShell>
       <div className="admin-page">
-        <ProblemPanel admin code={code} title={title} />
+        <ProblemPanel admin code={code} title={title} t={t} />
       </div>
     </AdminShell>
   );
@@ -495,35 +517,39 @@ const formatQuota = (row: unknown): string =>
     "0",
   )}`;
 
-function jobDetailActions(row: unknown): ReactNode {
-  const jobId = encodeURIComponent(text(field(row, "id")));
-  return (
-    <a className="button button-primary" href={`/scene-review?jobId=${jobId}`}>
-      Scene Review
-    </a>
-  );
+function jobDetailActions(t: T): (row: unknown) => ReactNode {
+  return (row) => {
+    const jobId = encodeURIComponent(text(field(row, "id")));
+    return (
+      <a className="button button-primary" href={`/scene-review?jobId=${jobId}`}>
+        {t("sceneReview")}
+      </a>
+    );
+  };
 }
 const CANCELLABLE_STATES = ["QUEUED", "PREPARING", "RENDERING"];
 const RETRYABLE_STATES = ["FAILED", "CANCELLED"];
 const TERMINAL_STATES = ["COMPLETED", "CANCELLED", "FAILED"];
-function adminJobDetailActions(row: unknown): ReactNode {
-  const jobId = text(field(row, "id"));
-  const state = text(field(row, "state"));
-  const etag = text(field(row, "etag"), "");
-  return (
-    <>
-      {jobDetailActions(row)}
-      {etag && CANCELLABLE_STATES.includes(state) ? (
-        <AdminJobCancelButton jobId={jobId} etag={etag} />
-      ) : null}
-      {etag && RETRYABLE_STATES.includes(state) ? (
-        <AdminJobRetryButton jobId={jobId} etag={etag} />
-      ) : null}
-      {etag && !TERMINAL_STATES.includes(state) ? (
-        <AdminJobForceTerminateButton jobId={jobId} etag={etag} />
-      ) : null}
-    </>
-  );
+function adminJobDetailActions(t: T): (row: unknown) => ReactNode {
+  return (row) => {
+    const jobId = text(field(row, "id"));
+    const state = text(field(row, "state"));
+    const etag = text(field(row, "etag"), "");
+    return (
+      <>
+        {jobDetailActions(t)(row)}
+        {etag && CANCELLABLE_STATES.includes(state) ? (
+          <AdminJobCancelButton jobId={jobId} etag={etag} />
+        ) : null}
+        {etag && RETRYABLE_STATES.includes(state) ? (
+          <AdminJobRetryButton jobId={jobId} etag={etag} />
+        ) : null}
+        {etag && !TERMINAL_STATES.includes(state) ? (
+          <AdminJobForceTerminateButton jobId={jobId} etag={etag} />
+        ) : null}
+      </>
+    );
+  };
 }
 function quarantineDetailActions(row: unknown): ReactNode {
   const itemId = text(field(row, "id"));
@@ -547,27 +573,24 @@ function quarantineDetailActions(row: unknown): ReactNode {
   );
 }
 
-const tenantColumns: readonly Column[] = [
-  { label: "Tenant", value: (row) => <IdCell row={row} label="name" /> },
-  { label: "Status", value: (row) => text(field(row, "status")) },
-  { label: "Plan", value: (row) => text(field(row, "plan")) },
-  { label: "Active jobs", value: (row) => text(field(row, "activeJobs"), "0") },
-  {
-    label: "Quota",
-    value: formatQuota,
-  },
+const tenantColumns = (t: T): readonly Column[] => [
+  { label: t("fields.tenant"), value: (row) => <IdCell row={row} label="name" /> },
+  { label: t("fields.status"), value: (row) => text(field(row, "status")) },
+  { label: t("fields.plan"), value: (row) => text(field(row, "plan")) },
+  { label: t("fields.activeJobs"), value: (row) => text(field(row, "activeJobs"), "0") },
+  { label: t("fields.quota"), value: formatQuota },
 ];
-const tenantDetails: readonly Column[] = [
-  { label: "Tenant ID", value: (row) => text(field(row, "id")) },
-  { label: "Name", value: (row) => text(field(row, "name")) },
-  { label: "Status", value: (row) => text(field(row, "status")) },
-  { label: "Plan", value: (row) => text(field(row, "plan")) },
-  { label: "Active jobs", value: (row) => text(field(row, "activeJobs"), "0") },
-  { label: "Created", value: (row) => when(field(row, "createdAt")) },
+const tenantDetails = (t: T): readonly Column[] => [
+  { label: t("fields.tenantId"), value: (row) => text(field(row, "id")) },
+  { label: t("fields.name"), value: (row) => text(field(row, "name")) },
+  { label: t("fields.status"), value: (row) => text(field(row, "status")) },
+  { label: t("fields.plan"), value: (row) => text(field(row, "plan")) },
+  { label: t("fields.activeJobs"), value: (row) => text(field(row, "activeJobs"), "0") },
+  { label: t("fields.created"), value: (row) => when(field(row, "createdAt")) },
 ];
-const jobColumns: readonly Column[] = [
+const jobColumns = (t: T): readonly Column[] => [
   {
-    label: "Job",
+    label: t("fields.job"),
     value: (row) => (
       <a
         href={`/scene-review?jobId=${encodeURIComponent(text(field(row, "id")))}`}
@@ -576,177 +599,172 @@ const jobColumns: readonly Column[] = [
       </a>
     ),
   },
-  { label: "Tenant", value: (row) => text(field(row, "tenantId")) },
-  { label: "State", value: (row) => text(field(row, "state")) },
-  { label: "Attempt", value: (row) => text(field(row, "attempt"), "0") },
-  { label: "Created", value: (row) => when(field(row, "createdAt")) },
+  { label: t("fields.tenant"), value: (row) => text(field(row, "tenantId")) },
+  { label: t("fields.state"), value: (row) => text(field(row, "state")) },
+  { label: t("fields.attempt"), value: (row) => text(field(row, "attempt"), "0") },
+  { label: t("fields.created"), value: (row) => when(field(row, "createdAt")) },
 ];
-const adminJobDetails: readonly Column[] = [
-  { label: "Job ID", value: (row) => text(field(row, "id")) },
-  { label: "Tenant", value: (row) => text(field(row, "tenantId")) },
-  { label: "Creator", value: (row) => text(field(row, "creatorId")) },
-  { label: "State", value: (row) => text(field(row, "state")) },
-  { label: "Attempt", value: (row) => text(field(row, "attempt"), "0") },
-  { label: "Created", value: (row) => when(field(row, "createdAt")) },
+const adminJobDetails = (t: T): readonly Column[] => [
+  { label: t("fields.jobId"), value: (row) => text(field(row, "id")) },
+  { label: t("fields.tenant"), value: (row) => text(field(row, "tenantId")) },
+  { label: t("fields.creator"), value: (row) => text(field(row, "creatorId")) },
+  { label: t("fields.state"), value: (row) => text(field(row, "state")) },
+  { label: t("fields.attempt"), value: (row) => text(field(row, "attempt"), "0") },
+  { label: t("fields.created"), value: (row) => when(field(row, "createdAt")) },
 ];
-const creatorJobDetails: readonly Column[] = [
-  { label: "Job ID", value: (row) => text(field(row, "id")) },
-  { label: "Tenant", value: (row) => text(field(row, "tenantId")) },
-  { label: "State", value: (row) => text(field(row, "state")) },
-  { label: "Attempt", value: (row) => text(field(row, "attempt"), "0") },
+const creatorJobDetails = (t: T): readonly Column[] => [
+  { label: t("fields.jobId"), value: (row) => text(field(row, "id")) },
+  { label: t("fields.tenant"), value: (row) => text(field(row, "tenantId")) },
+  { label: t("fields.state"), value: (row) => text(field(row, "state")) },
+  { label: t("fields.attempt"), value: (row) => text(field(row, "attempt"), "0") },
   {
-    label: "Preparation",
+    label: t("fields.preparation"),
     value: (row) => text(field(row, "preparationStage")),
   },
-  { label: "Created", value: (row) => when(field(row, "createdAt")) },
-  { label: "Updated", value: (row) => when(field(row, "updatedAt")) },
+  { label: t("fields.created"), value: (row) => when(field(row, "createdAt")) },
+  { label: t("fields.updated"), value: (row) => when(field(row, "updatedAt")) },
 ];
-const quarantineColumns: readonly Column[] = [
-  { label: "Upload", value: (row) => <IdCell row={row} label="id" /> },
-  { label: "Tenant", value: (row) => text(field(row, "tenantId")) },
-  { label: "State", value: (row) => text(field(row, "state")) },
-  { label: "Declared type", value: (row) => text(field(row, "declaredType")) },
-  { label: "Reason", value: (row) => text(field(row, "reason")) },
-  { label: "Retention", value: (row) => when(field(row, "retentionUntil")) },
+const quarantineColumns = (t: T): readonly Column[] => [
+  { label: t("fields.upload"), value: (row) => <IdCell row={row} label="id" /> },
+  { label: t("fields.tenant"), value: (row) => text(field(row, "tenantId")) },
+  { label: t("fields.state"), value: (row) => text(field(row, "state")) },
+  { label: t("fields.declaredType"), value: (row) => text(field(row, "declaredType")) },
+  { label: t("fields.reason"), value: (row) => text(field(row, "reason")) },
+  { label: t("fields.retention"), value: (row) => when(field(row, "retentionUntil")) },
 ];
-const quarantineDetails: readonly Column[] = [
-  { label: "Upload ID", value: (row) => text(field(row, "id")) },
-  { label: "Tenant", value: (row) => text(field(row, "tenantId")) },
-  { label: "State", value: (row) => text(field(row, "state")) },
-  { label: "Declared type", value: (row) => text(field(row, "declaredType")) },
-  { label: "Magic bytes", value: (row) => text(field(row, "magicBytes")) },
+const quarantineDetails = (t: T): readonly Column[] => [
+  { label: t("fields.uploadId"), value: (row) => text(field(row, "id")) },
+  { label: t("fields.tenant"), value: (row) => text(field(row, "tenantId")) },
+  { label: t("fields.state"), value: (row) => text(field(row, "state")) },
+  { label: t("fields.declaredType"), value: (row) => text(field(row, "declaredType")) },
+  { label: t("fields.magicBytes"), value: (row) => text(field(row, "magicBytes")) },
   {
-    label: "Container parse",
+    label: t("fields.containerParse"),
     value: (row) => text(field(row, "containerParse")),
   },
-  { label: "Reason", value: (row) => text(field(row, "reason")) },
-  { label: "Created", value: (row) => when(field(row, "createdAt")) },
+  { label: t("fields.reason"), value: (row) => text(field(row, "reason")) },
+  { label: t("fields.created"), value: (row) => when(field(row, "createdAt")) },
 ];
-const auditColumns: readonly Column[] = [
-  { label: "Event", value: (row) => <IdCell row={row} label="eventType" /> },
-  { label: "Tenant", value: (row) => text(field(row, "tenantId")) },
-  { label: "Actor", value: (row) => text(field(row, "actorId")) },
-  { label: "Outcome", value: (row) => text(field(row, "outcome")) },
-  { label: "Created", value: (row) => when(field(row, "createdAt")) },
+const auditColumns = (t: T): readonly Column[] => [
+  { label: t("fields.event"), value: (row) => <IdCell row={row} label="eventType" /> },
+  { label: t("fields.tenant"), value: (row) => text(field(row, "tenantId")) },
+  { label: t("fields.actor"), value: (row) => text(field(row, "actorId")) },
+  { label: t("fields.outcome"), value: (row) => text(field(row, "outcome")) },
+  { label: t("fields.created"), value: (row) => when(field(row, "createdAt")) },
 ];
-const auditDetails: readonly Column[] = [
-  { label: "Event ID", value: (row) => text(field(row, "id")) },
-  { label: "Event type", value: (row) => text(field(row, "eventType")) },
-  { label: "Tenant", value: (row) => text(field(row, "tenantId")) },
-  { label: "Job", value: (row) => text(field(row, "jobId")) },
-  { label: "Actor", value: (row) => text(field(row, "actorId")) },
-  { label: "Authorization", value: (row) => text(field(row, "authorization")) },
-  { label: "Outcome", value: (row) => text(field(row, "outcome")) },
-  { label: "Correlation", value: (row) => text(field(row, "correlationId")) },
-  { label: "Created", value: (row) => when(field(row, "createdAt")) },
+const auditDetails = (t: T): readonly Column[] => [
+  { label: t("fields.eventId"), value: (row) => text(field(row, "id")) },
+  { label: t("fields.eventType"), value: (row) => text(field(row, "eventType")) },
+  { label: t("fields.tenant"), value: (row) => text(field(row, "tenantId")) },
+  { label: t("fields.job"), value: (row) => text(field(row, "jobId")) },
+  { label: t("fields.actor"), value: (row) => text(field(row, "actorId")) },
+  { label: t("fields.authorization"), value: (row) => text(field(row, "authorization")) },
+  { label: t("fields.outcome"), value: (row) => text(field(row, "outcome")) },
+  { label: t("fields.correlation"), value: (row) => text(field(row, "correlationId")) },
+  { label: t("fields.created"), value: (row) => when(field(row, "createdAt")) },
 ];
-const receiptDetails: readonly Column[] = [
-  { label: "Receipt ID", value: (row) => text(field(row, "id")) },
-  { label: "Job", value: (row) => text(field(row, "jobId")) },
-  { label: "Tenant", value: (row) => text(field(row, "tenantId")) },
-  { label: "Gate", value: (row) => text(field(row, "gate")) },
-  { label: "Decision", value: (row) => text(field(row, "decision")) },
-  { label: "Actor", value: (row) => text(field(row, "actorId")) },
-  { label: "Predecessor", value: (row) => text(field(row, "predecessorId")) },
-  { label: "Created", value: (row) => when(field(row, "createdAt")) },
+const receiptDetails = (t: T): readonly Column[] => [
+  { label: t("fields.receiptId"), value: (row) => text(field(row, "id")) },
+  { label: t("fields.job"), value: (row) => text(field(row, "jobId")) },
+  { label: t("fields.tenant"), value: (row) => text(field(row, "tenantId")) },
+  { label: t("fields.gate"), value: (row) => text(field(row, "gate")) },
+  { label: t("fields.decision"), value: (row) => text(field(row, "decision")) },
+  { label: t("fields.actor"), value: (row) => text(field(row, "actorId")) },
+  { label: t("fields.predecessor"), value: (row) => text(field(row, "predecessorId")) },
+  { label: t("fields.created"), value: (row) => when(field(row, "createdAt")) },
 ];
-const billingColumns: readonly Column[] = [
-  { label: "Tenant", value: (row) => text(field(row, "tenantId")) },
-  { label: "Plan", value: (row) => text(field(row, "plan")) },
-  { label: "Status", value: (row) => text(field(row, "billingStatus")) },
+const billingColumns = (t: T): readonly Column[] => [
+  { label: t("fields.tenant"), value: (row) => text(field(row, "tenantId")) },
+  { label: t("fields.plan"), value: (row) => text(field(row, "plan")) },
+  { label: t("fields.status"), value: (row) => text(field(row, "billingStatus")) },
+  { label: t("fields.quota"), value: formatQuota },
+  { label: t("fields.renewal"), value: (row) => when(field(row, "renewalAt")) },
+];
+const billingDetails = (t: T): readonly Column[] => [
+  { label: t("fields.tenant"), value: (row) => text(field(row, "tenantId")) },
+  { label: t("fields.plan"), value: (row) => text(field(row, "plan")) },
+  { label: t("fields.status"), value: (row) => text(field(row, "billingStatus")) },
   {
-    label: "Quota",
-    value: formatQuota,
-  },
-  { label: "Renewal", value: (row) => when(field(row, "renewalAt")) },
-];
-const billingDetails: readonly Column[] = [
-  { label: "Tenant", value: (row) => text(field(row, "tenantId")) },
-  { label: "Plan", value: (row) => text(field(row, "plan")) },
-  { label: "Status", value: (row) => text(field(row, "billingStatus")) },
-  {
-    label: "Quota reset",
+    label: t("fields.quotaReset"),
     value: (row) => when(field(field(row, "quota"), "resetAt")),
   },
-  { label: "Renewal", value: (row) => when(field(row, "renewalAt")) },
+  { label: t("fields.renewal"), value: (row) => when(field(row, "renewalAt")) },
 ];
 
-async function renderDashboard(title: string) {
+async function renderDashboard(title: string, t: T) {
   const result = await liveApiGet("/admin/tenants");
-  if (!result.ok) return <AdminProblem code={result.code} title={title} />;
+  if (!result.ok) return <AdminProblem code={result.code} title={title} t={t} />;
   const rows = items(result.body);
   const activeJobs = rows.reduce<number>(
     (total, row) => total + count(field(row, "activeJobs")),
     0,
   );
   return (
-    <AdminView
-      title={title}
-      description="Live platform activity and queue pressure."
-    >
+    <AdminView title={title} description={t("dashboardDescription")}>
       <dl className="metric-grid">
         <div>
-          <dt>Visible tenants</dt>
+          <dt>{t("visibleTenants")}</dt>
           <dd>{rows.length}</dd>
         </div>
         <div>
-          <dt>Active jobs</dt>
+          <dt>{t("fields.activeJobs")}</dt>
           <dd>{activeJobs}</dd>
         </div>
       </dl>
       <Panel>
         <Table
-          columns={tenantColumns}
-          empty="No live tenants are available."
+          columns={tenantColumns(t)}
+          empty={t("noLiveTenants")}
           rows={rows}
+          detailsLabel={t("details")}
+          inspectLabel={t("inspect")}
         />
       </Panel>
     </AdminView>
   );
 }
 
-async function renderTenants(title: string, search: SearchState) {
+async function renderTenants(title: string, search: SearchState, t: T) {
   const path = "/admin/tenants";
   const result = await liveApiGet(
     listPath(path, search, ["q", "status", "plan", "after"]),
   );
-  if (!result.ok) return <AdminProblem code={result.code} title={title} />;
+  if (!result.ok) return <AdminProblem code={result.code} title={title} t={t} />;
   const rows = items(result.body);
   return (
-    <AdminView
-      title={title}
-      description="Tenant status, plan, quota, and active work."
-    >
-      <FilterBar action={path}>
+    <AdminView title={title} description={t("tenantsDescription")}>
+      <FilterBar action={path} t={t}>
         <FilterInput
-          label="Search"
+          label={t("search")}
           name="q"
           value={single(search.q)}
-          placeholder="Tenant ID or name"
+          placeholder={t("tenantSearchPlaceholder")}
         />
         <FilterSelect
-          label="Status"
+          label={t("fields.status")}
           name="status"
           value={single(search.status)}
           options={["ACTIVE", "SUSPENDED"]}
+          allLabel={t("all")}
         />
         <FilterSelect
-          label="Plan"
+          label={t("fields.plan")}
           name="plan"
           value={single(search.plan)}
           options={["FREE", "PRO", "ENTERPRISE"]}
+          allLabel={t("all")}
         />
       </FilterBar>
       <RecordSurface
         path={path}
         search={search}
         rows={rows}
-        columns={tenantColumns}
-        details={tenantDetails}
-        empty="No live tenants match these filters."
-        tableTitle="Tenant directory"
+        columns={tenantColumns(t)}
+        details={tenantDetails(t)}
+        empty={t("noTenantsMatch")}
+        tableTitle={t("tenantDirectory")}
         tableLandmark="tenant-table"
-        detailTitle="Tenant detail"
+        detailTitle={t("tenantDetail")}
         detailLandmark="detail-drawer"
         nextCursor={cursor(result.body)}
         detailActions={(row) => (
@@ -754,106 +772,107 @@ async function renderTenants(title: string, search: SearchState) {
             className="button"
             href={`/admin/jobs?tenantId=${encodeURIComponent(text(field(row, "id")))}`}
           >
-            View jobs
+            {t("viewJobs")}
           </a>
         )}
+        t={t}
       />
     </AdminView>
   );
 }
 
-async function renderJobs(title: string, search: SearchState) {
+async function renderJobs(title: string, search: SearchState, t: T) {
   const path = "/admin/jobs";
   const result = await liveApiGet(
     listPath(path, search, ["q", "tenantId", "state", "after"]),
   );
-  if (!result.ok) return <AdminProblem code={result.code} title={title} />;
+  if (!result.ok) return <AdminProblem code={result.code} title={title} t={t} />;
   const rows = items(result.body);
   return (
-    <AdminView title={title} description="Compiler queue and delivery state.">
-      <FilterBar action={path}>
+    <AdminView title={title} description={t("jobsDescription")}>
+      <FilterBar action={path} t={t}>
         <FilterInput
-          label="Search"
+          label={t("search")}
           name="q"
           value={single(search.q)}
-          placeholder="Job, tenant, or creator"
+          placeholder={t("jobSearchPlaceholder")}
         />
         <FilterInput
-          label="Tenant"
+          label={t("fields.tenant")}
           name="tenantId"
           value={single(search.tenantId)}
-          placeholder="Tenant ID"
+          placeholder={t("tenantIdPlaceholder")}
         />
         <FilterSelect
-          label="State"
+          label={t("fields.state")}
           name="state"
           value={single(search.state)}
           options={jobStates}
+          allLabel={t("all")}
         />
       </FilterBar>
       <RecordSurface
         path={path}
         search={search}
         rows={rows}
-        columns={jobColumns}
-        details={adminJobDetails}
-        empty="No compiler jobs match these filters."
-        tableTitle="Queue and delivery"
+        columns={jobColumns(t)}
+        details={adminJobDetails(t)}
+        empty={t("noJobsMatch")}
+        tableTitle={t("queueAndDelivery")}
         tableLandmark="job-table"
-        detailTitle="Job detail"
+        detailTitle={t("jobDetail")}
         nextCursor={cursor(result.body)}
-        detailActions={adminJobDetailActions}
+        detailActions={adminJobDetailActions(t)}
+        t={t}
       />
     </AdminView>
   );
 }
 
-async function renderReceipts(title: string, search: SearchState) {
+async function renderReceipts(title: string, search: SearchState, t: T) {
   const path = "/admin/receipts";
   const result = await liveApiGet(
     listPath(path, search, ["q", "tenantId", "jobId", "eventType", "after"]),
   );
-  if (!result.ok) return <AdminProblem code={result.code} title={title} />;
+  if (!result.ok) return <AdminProblem code={result.code} title={title} t={t} />;
   const rows = items(result.body);
   const row = selectedRow(rows, single(search.selected));
   const selectedId = text(field(row, "id"), "");
   return (
-    <AdminView
-      title={title}
-      description="Append-only review decisions in chain order."
-    >
-      <FilterBar action={path}>
+    <AdminView title={title} description={t("receiptsDescription")}>
+      <FilterBar action={path} t={t}>
         <FilterInput
-          label="Search"
+          label={t("search")}
           name="q"
           value={single(search.q)}
-          placeholder="Receipt, job, or actor"
+          placeholder={t("receiptSearchPlaceholder")}
         />
         <FilterInput
-          label="Tenant"
+          label={t("fields.tenant")}
           name="tenantId"
           value={single(search.tenantId)}
-          placeholder="Tenant ID"
+          placeholder={t("tenantIdPlaceholder")}
         />
         <FilterInput
-          label="Job"
+          label={t("fields.job")}
           name="jobId"
           value={single(search.jobId)}
-          placeholder="Job ID"
+          placeholder={t("jobIdPlaceholder")}
         />
         <FilterSelect
-          label="Gate"
+          label={t("fields.gate")}
           name="eventType"
           value={single(search.eventType)}
-          options={["T1", "T2", "T3", "T4", "T5", "T6"]}
+          options={["T1", "T2", "T3", "T4", "T5"]}
+          allLabel={t("all")}
         />
       </FilterBar>
       <div className="record-layout receipt-layout">
         <Panel data-landmark="timeline">
           <div className="section-heading">
             <div>
-              <h2>Receipt timeline</h2>
-              <p>{rows.length} decisions on this page</p>
+              <h2>{t("receiptTimeline")}</h2>
+              <p>{t("decisionsOnThisPage", { count: rows.length })}</p>
             </div>
           </div>
           {rows.length > 0 ? (
@@ -876,86 +895,82 @@ async function renderReceipts(title: string, search: SearchState) {
               })}
             </ol>
           ) : (
-            <p className="empty-copy">No live receipts match these filters.</p>
+            <p className="empty-copy">{t("noReceiptsMatch")}</p>
           )}
         </Panel>
         <DetailPanel
-          title="Receipt detail"
+          title={t("receiptDetail")}
           row={row}
-          fields={receiptDetails}
+          fields={receiptDetails(t)}
           landmark="receipt-detail"
+          t={t}
         />
       </div>
       <section className="export-band">
         <div>
-          <h2>Receipt export</h2>
-          <p>Create a short-lived JSONL export request.</p>
+          <h2>{t("receiptExport")}</h2>
+          <p>{t("exportRequestHint")}</p>
         </div>
         <AdminExportButton
           kind="receipt"
           tenantId={single(search.tenantId) || undefined}
         />
       </section>
-      <Pagination
-        path={path}
-        search={search}
-        nextCursor={cursor(result.body)}
-      />
+      <Pagination path={path} search={search} nextCursor={cursor(result.body)} t={t} />
     </AdminView>
   );
 }
 
-async function renderQuarantine(title: string, search: SearchState) {
+async function renderQuarantine(title: string, search: SearchState, t: T) {
   const path = "/admin/quarantine";
   const result = await liveApiGet(
     listPath(path, search, ["q", "tenantId", "state", "reason", "after"]),
   );
-  if (!result.ok) return <AdminProblem code={result.code} title={title} />;
+  if (!result.ok) return <AdminProblem code={result.code} title={title} t={t} />;
   const rows = items(result.body);
   return (
-    <AdminView
-      title={title}
-      description="Upload admission evidence and disposition."
-    >
-      <FilterBar action={path}>
+    <AdminView title={title} description={t("quarantineDescription")}>
+      <FilterBar action={path} t={t}>
         <FilterInput
-          label="Search"
+          label={t("search")}
           name="q"
           value={single(search.q)}
-          placeholder="Upload, type, or reason"
+          placeholder={t("quarantineSearchPlaceholder")}
         />
         <FilterInput
-          label="Tenant"
+          label={t("fields.tenant")}
           name="tenantId"
           value={single(search.tenantId)}
-          placeholder="Tenant ID"
+          placeholder={t("tenantIdPlaceholder")}
         />
         <FilterSelect
-          label="State"
+          label={t("fields.state")}
           name="state"
           value={single(search.state)}
           options={["QUARANTINED", "VALIDATING", "REJECTED", "RELEASED"]}
+          allLabel={t("all")}
         />
       </FilterBar>
       <RecordSurface
         path={path}
         search={search}
         rows={rows}
-        columns={quarantineColumns}
-        details={quarantineDetails}
-        empty="No quarantined uploads match these filters."
-        tableTitle="Admission queue"
+        columns={quarantineColumns(t)}
+        details={quarantineDetails(t)}
+        empty={t("noQuarantineMatch")}
+        tableTitle={t("admissionQueue")}
         tableLandmark="quarantine-table"
-        detailTitle="Admission evidence"
+        detailTitle={t("admissionEvidence")}
         detailLandmark="evidence-drawer"
         nextCursor={cursor(result.body)}
         detailActions={quarantineDetailActions}
+        t={t}
       />
     </AdminView>
   );
 }
 
-async function renderAudit(title: string, search: SearchState) {
+async function renderAudit(title: string, search: SearchState, t: T) {
   const path = "/admin/audit";
   const result = await liveApiGet(
     listPath("/admin/audit-log", search, [
@@ -968,68 +983,66 @@ async function renderAudit(title: string, search: SearchState) {
       "after",
     ]),
   );
-  if (!result.ok) return <AdminProblem code={result.code} title={title} />;
+  if (!result.ok) return <AdminProblem code={result.code} title={title} t={t} />;
   const rows = items(result.body);
   return (
-    <AdminView
-      title={title}
-      description="Immutable operator and workflow events."
-    >
-      <FilterBar action={path}>
+    <AdminView title={title} description={t("auditDescription")}>
+      <FilterBar action={path} t={t}>
         <FilterInput
-          label="Search"
+          label={t("search")}
           name="q"
           value={single(search.q)}
-          placeholder="Event, job, or correlation"
+          placeholder={t("auditSearchPlaceholder")}
         />
         <FilterInput
-          label="Tenant"
+          label={t("fields.tenant")}
           name="tenantId"
           value={single(search.tenantId)}
-          placeholder="Tenant ID"
+          placeholder={t("tenantIdPlaceholder")}
         />
         <FilterInput
-          label="Actor"
+          label={t("fields.actor")}
           name="actorId"
           value={single(search.actorId)}
-          placeholder="Actor ID"
+          placeholder={t("actorIdPlaceholder")}
         />
         <FilterSelect
-          label="Event type"
+          label={t("fields.eventType")}
           name="eventType"
           value={single(search.eventType)}
-          allLabel="All Event Types"
+          allLabel={t("allEventTypes")}
           options={[
-            { value: "auth", label: "Authentication" },
-            { value: "data", label: "Data Access" },
-            { value: "job", label: "Job Execution" },
-            { value: "config", label: "System Config" },
+            { value: "auth", label: t("eventTypes.auth") },
+            { value: "data", label: t("eventTypes.data") },
+            { value: "job", label: t("eventTypes.job") },
+            { value: "config", label: t("eventTypes.config") },
           ]}
         />
         <FilterInput
-          label="Outcome"
+          label={t("fields.outcome")}
           name="outcome"
           value={single(search.outcome)}
-          placeholder="Outcome"
+          placeholder={t("fields.outcome")}
         />
       </FilterBar>
       <RecordSurface
         path={path}
         search={search}
         rows={rows}
-        columns={auditColumns}
-        details={auditDetails}
-        empty="No audit events match these filters."
-        tableTitle="Audit events"
+        columns={auditColumns(t)}
+        details={auditDetails(t)}
+        empty={t("noAuditMatch")}
+        tableTitle={t("auditEvents")}
         tableLandmark="audit-table"
-        detailTitle="Event detail"
+        detailTitle={t("eventDetail")}
         detailLandmark="detail-drawer"
         nextCursor={cursor(result.body)}
+        t={t}
       />
       <section className="export-band">
         <div>
-          <h2>Audit export</h2>
-          <p>Create a short-lived JSONL export request.</p>
+          <h2>{t("auditExport")}</h2>
+          <p>{t("exportRequestHint")}</p>
         </div>
         <AdminExportButton
           kind="audit"
@@ -1040,10 +1053,10 @@ async function renderAudit(title: string, search: SearchState) {
   );
 }
 
-async function renderBilling(title: string, search: SearchState) {
+async function renderBilling(title: string, search: SearchState, t: T) {
   const tenantResult = await liveApiGet("/admin/tenants?limit=100");
   if (!tenantResult.ok)
-    return <AdminProblem code={tenantResult.code} title={title} />;
+    return <AdminProblem code={tenantResult.code} title={title} t={t} />;
   const billingResults = await Promise.all(
     items(tenantResult.body).map((tenant) =>
       liveApiGet(
@@ -1055,32 +1068,30 @@ async function renderBilling(title: string, search: SearchState) {
     result.ok ? [result.body] : [],
   );
   return (
-    <AdminView title={title} description="Quota and billing metadata.">
+    <AdminView title={title} description={t("billingDescription")}>
       <RecordSurface
         path="/admin/billing"
         search={search}
         rows={rows}
-        columns={billingColumns}
-        details={billingDetails}
-        empty="No live billing records are available."
-        tableTitle="Billing accounts"
+        columns={billingColumns(t)}
+        details={billingDetails(t)}
+        empty={t("noBillingRecords")}
+        tableTitle={t("billingAccounts")}
         tableLandmark="billing-table"
-        detailTitle="Billing detail"
+        detailTitle={t("billingDetail")}
         nextCursor={null}
+        t={t}
       />
     </AdminView>
   );
 }
 
-async function renderAiSettings(title: string) {
+async function renderAiSettings(title: string, t: T) {
   const result = await liveApiGet("/admin/ai-provider-settings");
-  if (!result.ok) return <AdminProblem code={result.code} title={title} />;
+  if (!result.ok) return <AdminProblem code={result.code} title={title} t={t} />;
   const body = result.body;
   return (
-    <AdminView
-      title={title}
-      description="Configure which AI provider powers Compiler Dialogue prompt refinement."
-    >
+    <AdminView title={title} description={t("aiSettingsDescription")}>
       <AiProviderSettingsForm
         providerKind={text(field(body, "providerKind"), "openai")}
         model={text(field(body, "model"), "")}
@@ -1094,20 +1105,21 @@ async function renderAiSettings(title: string) {
   );
 }
 
-async function renderAdmin(key: string, title: string, search: SearchState) {
-  if (key === "admin") return renderDashboard(title);
-  if (key === "admin/ai-settings") return renderAiSettings(title);
-  if (key === "admin/tenants") return renderTenants(title, search);
-  if (key === "admin/jobs") return renderJobs(title, search);
-  if (key === "admin/receipts") return renderReceipts(title, search);
-  if (key === "admin/quarantine") return renderQuarantine(title, search);
-  if (key === "admin/billing") return renderBilling(title, search);
-  return renderAudit(title, search);
+async function renderAdmin(key: string, title: string, search: SearchState, t: T) {
+  if (key === "admin") return renderDashboard(title, t);
+  if (key === "admin/ai-settings") return renderAiSettings(title, t);
+  if (key === "admin/tenants") return renderTenants(title, search, t);
+  if (key === "admin/jobs") return renderJobs(title, search, t);
+  if (key === "admin/receipts") return renderReceipts(title, search, t);
+  if (key === "admin/quarantine") return renderQuarantine(title, search, t);
+  if (key === "admin/billing") return renderBilling(title, search, t);
+  return renderAudit(title, search, t);
 }
 
 async function renderWorkflow(
   path: "/jobs" | "/workflow",
   search: SearchState,
+  t: T,
 ) {
   const result = await liveApiGet(
     listPath("/v1/jobs", search, ["q", "state", "after"]),
@@ -1115,7 +1127,7 @@ async function renderWorkflow(
   if (!result.ok)
     return (
       <CreatorShell>
-        <ProblemPanel admin={false} code={result.code} title="Workflow" />
+        <ProblemPanel admin={false} code={result.code} title={t("workflow")} t={t} />
       </CreatorShell>
     );
   const rows = items(result.body);
@@ -1123,40 +1135,42 @@ async function renderWorkflow(
     <CreatorShell>
       <div className="live-stack">
         <PageTitle
-          title="Workflow"
-          description="Compiler jobs for the current workspace."
+          title={t("workflow")}
+          description={t("workflowDescription")}
           action={
-            <a className="button button-primary" href="/projects/new">
-              New Project
-            </a>
+            <Link className="button button-primary" href="/projects/new">
+              {t("newProject")}
+            </Link>
           }
         />
-        <FilterBar action={path}>
+        <FilterBar action={path} t={t}>
           <FilterInput
-            label="Search"
+            label={t("search")}
             name="q"
             value={single(search.q)}
-            placeholder="Job, state, or upload"
+            placeholder={t("workflowSearchPlaceholder")}
           />
           <FilterSelect
-            label="State"
+            label={t("fields.state")}
             name="state"
             value={single(search.state)}
             options={jobStates}
+            allLabel={t("all")}
           />
         </FilterBar>
         <RecordSurface
           path={path}
           search={search}
           rows={rows}
-          columns={jobColumns}
-          details={creatorJobDetails}
-          empty="No compiler jobs match these filters."
-          tableTitle="Compiler jobs"
+          columns={jobColumns(t)}
+          details={creatorJobDetails(t)}
+          empty={t("noJobsMatch")}
+          tableTitle={t("compilerJobs")}
           tableLandmark="job-table"
-          detailTitle="Job detail"
+          detailTitle={t("jobDetail")}
           nextCursor={cursor(result.body)}
-          detailActions={jobDetailActions}
+          detailActions={jobDetailActions(t)}
+          t={t}
         />
       </div>
     </CreatorShell>
@@ -1167,15 +1181,16 @@ export default async function StaticDestination({
   params,
   searchParams,
 }: {
-  readonly params: Promise<{ readonly slug: string[] }>;
+  readonly params: Promise<{ readonly slug: string[]; readonly locale: string }>;
   readonly searchParams: Promise<SearchState>;
 }) {
   const [{ slug }, search] = await Promise.all([params, searchParams]);
+  const t = await getTranslations("AdminSlug");
   const key = slug.join("/");
-  const adminTitle = adminPages[key];
-  if (adminTitle) return renderAdmin(key, adminTitle, search);
+  const adminPageKey = adminPageKeys[key];
+  if (adminPageKey) return renderAdmin(key, t(`titles.${adminPageKey}`), search, t);
   if (key === "workflow" || key === "jobs")
-    return renderWorkflow(`/${key}`, search);
+    return renderWorkflow(`/${key}`, search, t);
   const review = key.match(/^jobs\/([^/]+)\/review$/u);
   if (review?.[1])
     redirect(`/scene-review?jobId=${encodeURIComponent(review[1])}`);

@@ -1,14 +1,16 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
-import { BrandLogo } from "../../../components/Shells";
+import { BrandLogo } from "../../../../components/Shells";
+import { Link } from "../../../../i18n/navigation";
 import {
   createCompilerJob,
   uploadJobAttachment,
   uploadMp4,
   type AcceptedMedia,
   type UploadProgress,
-} from "../../../lib/upload-client";
+} from "../../../../lib/upload-client";
 
 type WorkflowState =
   | "idle"
@@ -20,31 +22,60 @@ type WorkflowState =
   | "created";
 const MAX_BYTES = 2 * 1024 * 1024 * 1024;
 
-const safeReason = (error: unknown): string => {
+type ReasonKey =
+  | "selectSource"
+  | "onlyFormats"
+  | "fileTooLarge"
+  | "tooShort"
+  | "uploadCanceled"
+  | "accepted"
+  | "jobCreated"
+  | "videoTypeInvalid"
+  | "videoSizeLimitExceeded"
+  | "uploadQuarantined"
+  | "mediaVfrUnsupported"
+  | "mediaDurationInvalid"
+  | "mediaIntervalInvalid"
+  | "invalidRequest"
+  | "tenantBoundaryBypass"
+  | "resourceNotFound"
+  | "networkInterrupted"
+  | "requestFailed";
+
+const safeReasonKey = (error: unknown): ReasonKey => {
   const code = error instanceof Error ? error.message : "NETWORK_INTERRUPTED";
-  const reasons: Record<string, string> = {
-    VIDEO_TYPE_INVALID:
-      "This video could not be admitted. Choose a supported MP4, MOV, or WEBM file.",
-    VIDEO_SIZE_LIMIT_EXCEEDED:
-      "This file is larger than the 2 GB upload limit.",
-    UPLOAD_QUARANTINED:
-      "This upload is isolated for safety and cannot continue.",
-    MEDIA_VFR_UNSUPPORTED: "Variable frame rate video is not supported.",
-    MEDIA_DURATION_INVALID: "The video must be between 4 and 300 seconds.",
-    MEDIA_INTERVAL_INVALID:
-      "Choose a four-second interval inside the accepted media.",
-    INVALID_REQUEST: "The request could not be completed. Retry.",
-    TENANT_BOUNDARY_BYPASS: "This upload session is no longer available.",
-    RESOURCE_NOT_FOUND: "This upload session is no longer available.",
-    NETWORK_INTERRUPTED: "The connection was interrupted. Retry to continue.",
+  const reasons: Record<string, ReasonKey> = {
+    VIDEO_TYPE_INVALID: "videoTypeInvalid",
+    VIDEO_SIZE_LIMIT_EXCEEDED: "videoSizeLimitExceeded",
+    UPLOAD_QUARANTINED: "uploadQuarantined",
+    MEDIA_VFR_UNSUPPORTED: "mediaVfrUnsupported",
+    MEDIA_DURATION_INVALID: "mediaDurationInvalid",
+    MEDIA_INTERVAL_INVALID: "mediaIntervalInvalid",
+    INVALID_REQUEST: "invalidRequest",
+    TENANT_BOUNDARY_BYPASS: "tenantBoundaryBypass",
+    RESOURCE_NOT_FOUND: "resourceNotFound",
+    NETWORK_INTERRUPTED: "networkInterrupted",
   };
-  return reasons[code] ?? "The request could not be completed. Retry.";
+  return reasons[code] ?? "requestFailed";
 };
 
 const formatBytes = (bytes: number): string =>
   `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 
+const STATE_KEYS: Readonly<Record<WorkflowState, string>> = {
+  idle: "idle",
+  uploading: "uploading",
+  accepted: "ready",
+  quarantined: "quarantined",
+  error: "error",
+  creating: "creating",
+  created: "ready",
+};
+
+const PREFLIGHT_CHECKS = ["codecCheck", "fpsStability", "duration", "audioTrack"] as const;
+
 export default function NewProjectPage() {
+  const t = useTranslations("ProjectsNew");
   const inputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -54,7 +85,7 @@ export default function NewProjectPage() {
     validationPercent: 0,
   });
   const [state, setState] = useState<WorkflowState>("idle");
-  const [reason, setReason] = useState("Select an MP4 source to begin.");
+  const [reasonKey, setReasonKey] = useState<ReasonKey | null>("selectSource");
   const [prompt, setPrompt] = useState("");
   const [attachments, setAttachments] = useState<readonly File[]>([]);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
@@ -65,7 +96,7 @@ export default function NewProjectPage() {
     setFile(candidate);
     setMedia(null);
     setJobId(null);
-    setReason("");
+    setReasonKey(null);
     const acceptedTypes = ["video/mp4", "video/quicktime", "video/webm"];
     const acceptedExtensions = [".mp4", ".mov", ".webm"];
     const lowerName = candidate.name.toLowerCase();
@@ -74,12 +105,12 @@ export default function NewProjectPage() {
       !acceptedExtensions.some((extension) => lowerName.endsWith(extension))
     ) {
       setState("quarantined");
-      setReason("Only MP4, MOV, or WEBM video files can be admitted.");
+      setReasonKey("onlyFormats");
       return;
     }
     if (candidate.size > MAX_BYTES) {
       setState("error");
-      setReason("This file is larger than the 2 GB upload limit.");
+      setReasonKey("fileTooLarge");
       return;
     }
     const duration = await new Promise<number>((resolve) => {
@@ -98,7 +129,7 @@ export default function NewProjectPage() {
     });
     if (duration > 0 && duration < 4) {
       setState("quarantined");
-      setReason("The video is shorter than the required four-second interval.");
+      setReasonKey("tooShort");
       return;
     }
     const controller = new AbortController();
@@ -110,13 +141,11 @@ export default function NewProjectPage() {
         throw new Error("MEDIA_DURATION_INVALID");
       setMedia(result);
       setState("accepted");
-      setReason(
-        "Accepted normalized media. Describe your intent, then proceed.",
-      );
+      setReasonKey("accepted");
     } catch (error) {
       if (controller.signal.aborted) {
         setState("idle");
-        setReason("Upload canceled.");
+        setReasonKey("uploadCanceled");
         return;
       }
       setState(
@@ -130,7 +159,7 @@ export default function NewProjectPage() {
           ? "quarantined"
           : "error",
       );
-      setReason(safeReason(error));
+      setReasonKey(safeReasonKey(error));
     } finally {
       abortRef.current = null;
     }
@@ -142,7 +171,7 @@ export default function NewProjectPage() {
     setMedia(null);
     setProgress({ uploadPercent: 0, validationPercent: 0 });
     setState("idle");
-    setReason("Select an MP4 source to begin.");
+    setReasonKey("selectSource");
     setPrompt("");
     setAttachments([]);
     if (inputRef.current) inputRef.current.value = "";
@@ -169,13 +198,13 @@ export default function NewProjectPage() {
       }
       setJobId(createdJobId);
       setState("created");
-      setReason("Compiler job created. Opening Compiler Dialogue.");
+      setReasonKey("jobCreated");
       window.location.assign(
         `/scene-review?jobId=${encodeURIComponent(createdJobId)}`,
       );
     } catch (error) {
       setState("error");
-      setReason(safeReason(error));
+      setReasonKey(safeReasonKey(error));
     } finally {
       abortRef.current = null;
     }
@@ -184,19 +213,19 @@ export default function NewProjectPage() {
   return (
     <div className="upload-shell">
       <header className="upload-header">
-        <a className="brand" href="/" aria-label="Reference Video Studio home">
+        <Link className="brand" href="/" aria-label={t("homeAriaLabel")}>
           <BrandLogo />
-        </a>
-        <nav aria-label="Primary navigation">
-          <a data-control-id="upload_validation:1" href="/workflow">
-            Workflow
-          </a>
-          <a data-control-id="upload_validation:2" href="/admin">
-            Admin
-          </a>
+        </Link>
+        <nav aria-label={t("primaryNavAriaLabel")}>
+          <Link data-control-id="upload_validation:1" href="/workflow">
+            {t("workflow")}
+          </Link>
+          <Link data-control-id="upload_validation:2" href="/admin">
+            {t("admin")}
+          </Link>
         </nav>
         <div className="header-actions">
-          <a
+          <Link
             data-control-id="upload_validation:5"
             className="button button-primary"
             href="/projects/new"
@@ -207,33 +236,26 @@ export default function NewProjectPage() {
               }
             }}
           >
-            New Project
-          </a>
+            {t("newProject")}
+          </Link>
         </div>
       </header>
       <main className="upload-main">
-        <p className="eyebrow">SOURCE / VALIDATION</p>
+        <p className="eyebrow">{t("eyebrow")}</p>
         <h1>
-          Bring your reference video
+          {t("heading")}
           <br />
-          <span>into focus.</span>
+          <span>{t("headingAccent")}</span>
         </h1>
-        <p className="intro">
-          Upload one source. We’ll quarantine, validate, and normalize it before
-          anything reaches the compiler.
-        </p>
+        <p className="intro">{t("intro")}</p>
         <div className="upload-bento">
           <section className="upload-card" aria-labelledby="upload-title">
             <div className="card-heading">
               <div>
-                <p className="eyebrow">STEP 01</p>
-                <h2 id="upload-title">Video source</h2>
+                <p className="eyebrow">{t("step01")}</p>
+                <h2 id="upload-title">{t("videoSource")}</h2>
               </div>
-              <span className="status-chip">
-                {state === "accepted" || state === "created"
-                  ? "READY"
-                  : state.toUpperCase()}
-              </span>
+              <span className="status-chip">{t(`state.${STATE_KEYS[state]}`)}</span>
             </div>
             <label
               data-control-id="upload_validation:8"
@@ -257,13 +279,11 @@ export default function NewProjectPage() {
               <span className="drop-icon" aria-hidden="true">
                 ↑
               </span>
-              <strong>
-                {file ? file.name : "Drop a video here or browse"}
-              </strong>
+              <strong>{file ? file.name : t("dropHere")}</strong>
               <span>
                 {file
-                  ? `${formatBytes(file.size)} · ${state === "uploading" ? "Uploading and validating" : "Source selected"}`
-                  : "MAX_SIZE: 2GB · FORMATS: .MP4, .MOV, .WEBM"}
+                  ? `${formatBytes(file.size)} · ${state === "uploading" ? t("uploadingAndValidating") : t("sourceSelected")}`
+                  : t("sizeAndFormats")}
               </span>
             </label>
             {file && (
@@ -275,7 +295,7 @@ export default function NewProjectPage() {
             {state === "uploading" && (
               <div className="progress-stack">
                 <label htmlFor="upload-progress">
-                  Upload{" "}
+                  {t("upload")}{" "}
                   <progress
                     id="upload-progress"
                     max="100"
@@ -283,7 +303,7 @@ export default function NewProjectPage() {
                   />
                 </label>
                 <label htmlFor="validation-progress">
-                  Validation{" "}
+                  {t("validation")}{" "}
                   <progress
                     id="validation-progress"
                     max="100"
@@ -294,26 +314,29 @@ export default function NewProjectPage() {
             )}
             {media && (
               <div className="media-meta">
-                <span>Accepted normalized media</span>
+                <span>{t("acceptedNormalizedMedia")}</span>
                 <span>
-                  {media.fps} fps · {media.frameCount} frames ·{" "}
-                  {media.durationSeconds.toFixed(2)}s
+                  {t("mediaSummary", {
+                    fps: media.fps,
+                    frames: media.frameCount,
+                    seconds: media.durationSeconds.toFixed(2),
+                  })}
                 </span>
               </div>
             )}
             <div className="creative-intent">
-              <label htmlFor="creative-prompt">Creative Intent / Prompt</label>
+              <label htmlFor="creative-prompt">{t("creativeIntentLabel")}</label>
               <textarea
                 id="creative-prompt"
-                placeholder="Describe your creative intent or specific constraints..."
+                placeholder={t("creativeIntentPlaceholder")}
                 value={prompt}
                 onChange={(event) => setPrompt(event.target.value)}
               />
             </div>
             <div className="supplementary-data">
               <div>
-                <span>SUPPLEMENTARY_DATA</span>
-                <small>Optional reference files</small>
+                <span>{t("supplementaryData")}</span>
+                <small>{t("supplementaryDataHint")}</small>
               </div>
               <input
                 ref={attachmentInputRef}
@@ -329,7 +352,7 @@ export default function NewProjectPage() {
                 }
               />
               <label className="button" htmlFor="attachment-file">
-                Add Attachments
+                {t("addAttachments")}
               </label>
             </div>
             {attachments.length > 0 && (
@@ -345,7 +368,7 @@ export default function NewProjectPage() {
                         )
                       }
                     >
-                      Remove
+                      {t("remove")}
                     </button>
                   </li>
                 ))}
@@ -355,33 +378,26 @@ export default function NewProjectPage() {
               className={`reason ${state === "accepted" || state === "created" ? "success" : ""}`}
               role="status"
             >
-              {reason}
+              {reasonKey ? t(`reason.${reasonKey}`) : null}
             </p>
             <div className="card-actions">
               <button type="button" onClick={reset} disabled={state === "idle"}>
-                Cancel / choose another
+                {t("cancelChooseAnother")}
               </button>
             </div>
           </section>
           <section className="preflight-card" aria-labelledby="preflight-title">
-            <h3 id="preflight-title">Pre-flight Checks</h3>
+            <h3 id="preflight-title">{t("preflightChecks")}</h3>
             <ul className="preflight-list">
-              {(
-                [
-                  ["CODEC_CHECK", "codec"],
-                  ["FPS_STABILITY", "fps"],
-                  ["DURATION", "duration"],
-                  ["AUDIO_TRACK", "audio"],
-                ] as const
-              ).map(([label]) => (
-                <li key={label}>
-                  <span>{label}</span>
+              {PREFLIGHT_CHECKS.map((key) => (
+                <li key={key}>
+                  <span>{t(`preflight.${key}`)}</span>
                   <span>
                     {state === "accepted" || state === "created"
-                      ? "PASS"
+                      ? t("preflightStatus.pass")
                       : state === "quarantined" || state === "error"
-                        ? "FAILED"
-                        : "WAITING"}
+                        ? t("preflightStatus.failed")
+                        : t("preflightStatus.waiting")}
                   </span>
                 </li>
               ))}
@@ -399,10 +415,10 @@ export default function NewProjectPage() {
               }
             >
               {state === "creating"
-                ? "Creating job…"
+                ? t("creatingJob")
                 : state === "created"
-                  ? `Job ${jobId}`
-                  : "Proceed to Compiler →"}
+                  ? t("jobLabel", { id: jobId ?? "" })
+                  : t("proceedToCompiler")}
             </button>
           </section>
         </div>
@@ -413,7 +429,7 @@ export default function NewProjectPage() {
           href="https://github.com/singlerr/ref_studio"
           rel="noreferrer"
         >
-          GitHub
+          {t("github")}
         </a>
       </footer>
     </div>

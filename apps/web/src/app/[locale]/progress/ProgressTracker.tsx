@@ -1,17 +1,21 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
-import { BrandLogo } from "../../components/Shells";
+import { BrandLogo } from "../../../components/Shells";
+import { Link } from "../../../i18n/navigation";
 import {
   approvalGates,
+  decisionKey,
+  gateLabelKey,
   isTerminalJobState,
   jobProgressPercent,
-  jobStatusCopy,
+  jobStatusMessage,
   nextApprovalGate,
-  liveJobStatusError,
+  liveJobStatusErrorCode,
   parseJobProgress,
   type JobProgress,
-} from "../../lib/job-progress";
+} from "../../../lib/job-progress";
 
 type Props = {
   readonly initialJob: JobProgress;
@@ -20,6 +24,10 @@ type Props = {
 const displayPercent = (value: number): string => `${value.toFixed(1)}%`;
 
 export function ProgressTracker({ initialJob }: Props) {
+  const t = useTranslations("ProgressTracker");
+  const tStatus = useTranslations("JobStatus");
+  const tGates = useTranslations("Gates");
+  const tDecisions = useTranslations("Decisions");
   const [job, setJob] = useState(initialJob);
   const [error, setError] = useState("");
   const percent = jobProgressPercent(job);
@@ -29,11 +37,12 @@ export function ProgressTracker({ initialJob }: Props) {
   const approvedGateCount = approvalGates.filter((gate) =>
     job.approvedGates.includes(gate),
   ).length;
-  const workerCopy = job.progressStage || job.progressPhase || "Waiting";
+  const workerCopy = job.progressStage || job.progressPhase || t("waiting");
   const frameCopy =
     job.framesProcessed === null || job.framesTotal === null
-      ? "Pending"
+      ? t("pending")
       : `${job.framesProcessed}/${job.framesTotal}`;
+  const status = jobStatusMessage(job);
 
   useEffect(() => {
     if (!shouldPoll) return undefined;
@@ -49,7 +58,11 @@ export function ProgressTracker({ initialJob }: Props) {
           throw error;
         });
         if (!response.ok) {
-          setError(liveJobStatusError(body, response.status));
+          setError(
+            t("statusUpdateFailed", {
+              code: liveJobStatusErrorCode(body, response.status),
+            }),
+          );
           return;
         }
         const parsed = parseJobProgress(body);
@@ -59,8 +72,7 @@ export function ProgressTracker({ initialJob }: Props) {
         }
       } catch (error) {
         if (!active) return;
-        if (error instanceof Error)
-          setError("Network update failed. Retrying.");
+        if (error instanceof Error) setError(t("networkUpdateFailed"));
         else throw error;
       }
     };
@@ -70,31 +82,32 @@ export function ProgressTracker({ initialJob }: Props) {
       active = false;
       window.clearInterval(timer);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialJob.id, shouldPoll]);
 
   return (
     <div className="progress-shell">
       <header className="progress-topbar">
         <div className="progress-brand-row">
-          <a
+          <Link
             className="progress-wordmark brand-link"
             href="/"
-            aria-label="Reference Video Studio home"
+            aria-label={t("homeAriaLabel")}
           >
             <BrandLogo />
-          </a>
+          </Link>
           <span className="progress-divider" aria-hidden="true" />
           <span className="progress-kicker">
-            {job.state} JOB #{job.id}
+            {t("jobKicker", { state: job.state, id: job.id })}
           </span>
         </div>
-        <nav className="progress-actions" aria-label="Progress actions">
-          <a className="button" href="/workflow">
-            Workflow
-          </a>
-          <a className="button button-primary" href={sceneReviewHref}>
-            Scene Review
-          </a>
+        <nav className="progress-actions" aria-label={t("progressActionsAriaLabel")}>
+          <Link className="button" href="/workflow">
+            {t("workflow")}
+          </Link>
+          <Link className="button button-primary" href={sceneReviewHref}>
+            {t("sceneReview")}
+          </Link>
         </nav>
       </header>
       <main className="progress-main">
@@ -103,17 +116,17 @@ export function ProgressTracker({ initialJob }: Props) {
           aria-labelledby="progress-title"
         >
           <div>
-            <h1 id="progress-title">Job Progress</h1>
-            <p>{jobStatusCopy(job)}</p>
+            <h1 id="progress-title">{t("title")}</h1>
+            <p>{tStatus(status.key, status.values)}</p>
           </div>
           <span className="status-chip">{displayPercent(percent)}</span>
         </section>
-        <section className="progress-grid" aria-label="Live compiler status">
+        <section className="progress-grid" aria-label={t("liveStatusAriaLabel")}>
           <div className="progress-log-panel">
             <div className="section-heading">
               <div>
-                <h2>Current status</h2>
-                <p>Only the information needed to decide what to do next.</p>
+                <h2>{t("currentStatus")}</h2>
+                <p>{t("currentStatusHint")}</p>
               </div>
             </div>
             <div className="progress-meter-row">
@@ -121,7 +134,7 @@ export function ProgressTracker({ initialJob }: Props) {
               <div
                 className="progress-meter"
                 role="progressbar"
-                aria-label="Approval gate progress"
+                aria-label={t("gateProgressAriaLabel")}
                 aria-valuemin={0}
                 aria-valuemax={100}
                 aria-valuenow={Math.round(percent)}
@@ -131,15 +144,15 @@ export function ProgressTracker({ initialJob }: Props) {
             </div>
             <dl className="detail-grid progress-summary-grid">
               <div>
-                <dt>Worker</dt>
+                <dt>{t("worker")}</dt>
                 <dd>{workerCopy}</dd>
               </div>
               <div>
-                <dt>Frames</dt>
+                <dt>{t("frames")}</dt>
                 <dd>{frameCopy}</dd>
               </div>
               <div>
-                <dt>Approved</dt>
+                <dt>{t("approved")}</dt>
                 <dd>
                   {approvedGateCount}/{approvalGates.length}
                 </dd>
@@ -150,17 +163,17 @@ export function ProgressTracker({ initialJob }: Props) {
           <div className="progress-side-panel">
             <div className="section-heading">
               <div>
-                <h2>Pipeline stage</h2>
+                <h2>{t("pipelineStage")}</h2>
                 <p>
                   {nextGate
-                    ? `${nextGate} is auto-verifying.`
-                    : "No stage is waiting."}
+                    ? t("stageAutoVerifying", { gate: tGates(gateLabelKey(nextGate)) })
+                    : t("noStageWaiting")}
                 </p>
               </div>
             </div>
-            <a className="button" href={sceneReviewHref}>
-              View job
-            </a>
+            <Link className="button" href={sceneReviewHref}>
+              {t("viewJob")}
+            </Link>
             <ol className="progress-gate-grid">
               {approvalGates.map((gate) => {
                 const approved = job.approvedGates.includes(gate);
@@ -171,8 +184,8 @@ export function ProgressTracker({ initialJob }: Props) {
                       approved ? "progress-step is-complete" : "progress-step"
                     }
                   >
-                    <strong>{gate}</strong>
-                    <span>{approved ? "Done" : "Pending"}</span>
+                    <strong>{tGates(gateLabelKey(gate))}</strong>
+                    <span>{tDecisions(decisionKey(approved ? "APPROVED" : "PENDING"))}</span>
                   </li>
                 );
               })}

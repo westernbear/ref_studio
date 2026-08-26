@@ -6,6 +6,8 @@ export type JobProgress = {
   readonly updatedAt: string;
   readonly artifactId: string;
   readonly previewArtifactId: string;
+  readonly evidenceVideoArtifactId: string;
+  readonly failureCode: string | null;
   readonly progressPhase: string;
   readonly progressStage: string;
   readonly progressFraction: number;
@@ -14,46 +16,42 @@ export type JobProgress = {
   readonly approvedGates: readonly string[];
 };
 
+// Display text for all of the below lives in messages/*.json under the
+// "JobProgress" namespace -- these functions return translation keys (and
+// ICU interpolation values where needed), never literal strings, so this
+// file stays framework-agnostic and every caller localizes via useTranslations.
+
 export const progressStages = [
-  {
-    state: "PREPARING",
-    label: "Preparing",
-    description: "Validating source and building inputs.",
-  },
-  {
-    state: "READY",
-    label: "Review",
-    description: "Prepared output is ready for approval.",
-  },
-  {
-    state: "QUEUED",
-    label: "Queued",
-    description: "Waiting for renderer capacity.",
-  },
-  {
-    state: "RENDERING",
-    label: "Rendering",
-    description: "Compiler work is active.",
-  },
-  {
-    state: "ASSEMBLING",
-    label: "Assembling",
-    description: "Encoding and delivery checks are active.",
-  },
-  {
-    state: "AWAITING_T5",
-    label: "Final review",
-    description: "The exact final shot is awaiting T5.",
-  },
-  {
-    state: "COMPLETED",
-    label: "Completed",
-    description: "Output is ready for review.",
-  },
+  { state: "PREPARING", key: "preparing" },
+  { state: "READY", key: "review" },
+  { state: "QUEUED", key: "queued" },
+  { state: "RENDERING", key: "rendering" },
+  { state: "ASSEMBLING", key: "assembling" },
+  { state: "AWAITING_T5", key: "finalCheck" },
+  { state: "COMPLETED", key: "completed" },
 ] as const;
 
 export const approvalGates = ["T1", "T2", "T3", "T4", "T5"] as const;
 export type ApprovalGate = (typeof approvalGates)[number];
+
+// Friendly display labels for the raw gate/decision identifiers stored on
+// receipts -- keeps the wire values (matched against backend data) while
+// hiding gate numbering and approval wording from the UI.
+const GATE_LABEL_KEYS: Readonly<Record<ApprovalGate, string>> = {
+  T1: "workerPreflight",
+  T2: "evidenceVerified",
+  T3: "sceneVerified",
+  T4: "previewVerified",
+  T5: "deliveryVerified",
+};
+export const gateLabelKey = (gate: string): string =>
+  GATE_LABEL_KEYS[gate as ApprovalGate] ?? gate;
+export const decisionKey = (decision: string): string =>
+  decision === "APPROVED"
+    ? "verified"
+    : decision === "REJECTED"
+      ? "failed"
+      : "pending";
 
 const terminalStates = ["COMPLETED", "CANCELLED", "FAILED"] as const;
 
@@ -87,6 +85,8 @@ export const parseJobProgress = (value: unknown): JobProgress | null => {
     updatedAt: text(field(value, "updatedAt")),
     artifactId: text(field(artifact, "id")),
     previewArtifactId: text(field(value, "previewArtifactId")),
+    evidenceVideoArtifactId: text(field(value, "evidenceVideoArtifactId")),
+    failureCode: text(field(value, "failureCode")) || null,
     progressPhase: text(field(progress, "phase")),
     progressStage: text(field(progress, "stage")),
     progressFraction: Math.min(
@@ -122,56 +122,85 @@ export const nextApprovalGate = (
   return byStage[job.preparationStage] ?? null;
 };
 
-export const jobStatusCopy = (job: JobProgress): string => {
-  const state = job.state;
-  if (state === "COMPLETED") return "Compiler job completed.";
-  if (state === "CANCELLED") return "Compiler job was cancelled.";
-  if (state === "FAILED") return "Compiler job failed.";
-  if (state === "RETRYABLE_ERROR") return "Compiler job needs retry.";
-  if (state === "STALE_APPROVAL")
-    return "Automatic verification is stale; recompiling.";
-  if (state === "RENDERING")
-    return job.progressStage
-      ? `Renderer active: ${job.progressStage}.`
-      : "Reference renderer active.";
-  if (state === "PREPARING" || state === "STALE_APPROVAL") {
-    if (job.progressStage) return `Compiler active: ${job.progressStage}.`;
-    const stageCopy: Readonly<Record<string, string>> = {
-      AWAITING_T1: "Waiting for worker runtime preflight.",
-      ANALYSIS_QUEUED: "Reference analysis is queued.",
-      ANALYSIS_RUNNING: "Reference analysis is running.",
-      AWAITING_T2: "Measured evidence is auto-verifying (T2).",
-      COMPILATION_QUEUED: "Scene compilation is queued.",
-      COMPILATION_RUNNING: "Scene compilation is running.",
-      AWAITING_T3: "Authoring IR is auto-verifying (T3).",
-      PREVIEW_QUEUED: "Animatic preview is queued.",
-      PREVIEW_RUNNING: "Animatic preview is rendering.",
-      AWAITING_T4: "Animatic preview is auto-verifying (T4).",
-    };
-    return stageCopy[job.preparationStage] ?? "Preparing compiler inputs.";
-  }
-  if (state === "READY") return "Ready for queue admission.";
-  if (state === "ASSEMBLING") return "Assembling compiler output.";
-  if (state === "AWAITING_T5") return "Final delivery is auto-verifying (T5).";
-  return "Waiting for worker update.";
+const JOB_STATE_KEYS: Readonly<Record<string, string>> = {
+  PREPARING: "preparing",
+  READY: "ready",
+  QUEUED: "queued",
+  RENDERING: "rendering",
+  ASSEMBLING: "assembling",
+  AWAITING_T5: "awaitingT5",
+  COMPLETED: "completed",
+  CANCEL_REQUESTED: "cancelRequested",
+  CANCELLED: "cancelled",
+  RETRYABLE_ERROR: "retryableError",
+  FAILED: "failed",
+  STALE_APPROVAL: "staleApproval",
+};
+export const jobStateKey = (state: string): string =>
+  JOB_STATE_KEYS[state] ?? state;
+
+const PREPARATION_STAGE_KEYS: Readonly<Record<string, string>> = {
+  AWAITING_T1: "awaitingT1",
+  ANALYSIS_QUEUED: "analysisQueued",
+  ANALYSIS_RUNNING: "analysisRunning",
+  AWAITING_T2: "awaitingT2",
+  COMPILATION_QUEUED: "compilationQueued",
+  COMPILATION_RUNNING: "compilationRunning",
+  AWAITING_T3: "awaitingT3",
+  EVIDENCE_VIDEO_QUEUED: "evidenceVideoQueued",
+  EVIDENCE_VIDEO_RUNNING: "evidenceVideoRunning",
+  PREVIEW_QUEUED: "previewQueued",
+  PREVIEW_RUNNING: "previewRunning",
+  AWAITING_T4: "awaitingT4",
 };
 
-// Friendly labels for the real compiler/worker stage strings reported via
-// job.progress.stage (apps/worker/src/worker-job-handler.ts). Deliberately
+export type JobStatusMessage = Readonly<{
+  key: string;
+  values?: Readonly<Record<string, string>>;
+}>;
+
+export const jobStatusMessage = (job: JobProgress): JobStatusMessage => {
+  const state = job.state;
+  if (state === "COMPLETED") return { key: "completed" };
+  if (state === "CANCELLED") return { key: "cancelled" };
+  if (state === "FAILED")
+    return job.failureCode === "CONTENT_SAFETY_REJECTED"
+      ? { key: "failedSafety" }
+      : { key: "failed" };
+  if (state === "RETRYABLE_ERROR") return { key: "retryableError" };
+  if (state === "STALE_APPROVAL") return { key: "staleApproval" };
+  if (state === "RENDERING")
+    return job.progressStage
+      ? { key: "rendererActive", values: { stage: job.progressStage } }
+      : { key: "rendererActiveDefault" };
+  if (state === "PREPARING" || state === "STALE_APPROVAL") {
+    if (job.progressStage)
+      return { key: "compilerActive", values: { stage: job.progressStage } };
+    const key = PREPARATION_STAGE_KEYS[job.preparationStage];
+    return key ? { key } : { key: "preparingDefault" };
+  }
+  if (state === "READY") return { key: "readyForQueue" };
+  if (state === "ASSEMBLING") return { key: "assembling" };
+  if (state === "AWAITING_T5") return { key: "awaitingT5" };
+  return { key: "waitingForUpdate" };
+};
+
+// Friendly display labels for the real compiler/worker stage strings reported
+// via job.progress.stage (apps/worker/src/worker-job-handler.ts). Deliberately
 // mapped from real data -- no invented pass names -- per the honest-mapping
 // decision for the Compiler Dialogue screen.
-export const STAGE_LABELS: Readonly<Record<string, string>> = {
-  download: "Downloading Source",
-  ffprobe: "Inspecting Media",
-  normalize: "Normalizing Media",
-  preflight: "Preflight Check",
-  models: "Model Verification",
-  "all-frame-analysis": "Frame Analysis",
-  "audio-and-mapping": "Audio Mapping",
-  evidence: "Evidence Compilation",
-  "scene-compile": "Recompiling Scene",
-  "scene-render": "Rendering Frames",
-  upload: "Uploading Output",
+const STAGE_LABEL_KEYS: Readonly<Record<string, string>> = {
+  download: "download",
+  ffprobe: "ffprobe",
+  normalize: "normalize",
+  preflight: "preflight",
+  models: "models",
+  "all-frame-analysis": "allFrameAnalysis",
+  "audio-and-mapping": "audioAndMapping",
+  evidence: "evidence",
+  "scene-compile": "sceneCompile",
+  "scene-render": "sceneRender",
+  upload: "upload",
 };
 const PREPARE_STAGE_ORDER = [
   "download",
@@ -189,15 +218,23 @@ const titleCase = (value: string): string =>
     .replace(/[-_]/gu, " ")
     .replace(/\b\w/gu, (letter) => letter.toUpperCase());
 
-export const stageLabel = (stage: string): string =>
-  STAGE_LABELS[stage] ?? (stage ? titleCase(stage) : "Preparing");
+// Returns a StageLabels.* translation key for known stages, or the raw
+// title-cased stage string as a last-resort fallback for stages the worker
+// might report that this UI hasn't been told about yet.
+export const stageLabelKey = (
+  stage: string,
+): Readonly<{ known: true; key: string } | { known: false; fallback: string }> => {
+  const key = STAGE_LABEL_KEYS[stage];
+  if (key) return { known: true, key };
+  return { known: false, fallback: stage ? titleCase(stage) : "" };
+};
 
 const normalizeStage = (stage: string): string =>
   stage.replace(/^compiler:/u, "").replace("preview-upload", "upload");
 
 export type CompileStageRow = {
   readonly key: string;
-  readonly label: string;
+  readonly labelKey: ReturnType<typeof stageLabelKey>;
   readonly percent: number;
   readonly status: "done" | "active" | "pending";
 };
@@ -211,7 +248,7 @@ export const compileStageRows = (job: JobProgress): readonly CompileStageRow[] =
     return [
       {
         key: normalized,
-        label: stageLabel(normalized),
+        labelKey: stageLabelKey(normalized),
         percent: Math.round(job.progressFraction * 100),
         status: "active",
       },
@@ -219,7 +256,7 @@ export const compileStageRows = (job: JobProgress): readonly CompileStageRow[] =
   }
   return order.map((key, index) => ({
     key,
-    label: stageLabel(key),
+    labelKey: stageLabelKey(key),
     percent:
       index < activeIndex
         ? 100
@@ -230,12 +267,8 @@ export const compileStageRows = (job: JobProgress): readonly CompileStageRow[] =
   }));
 };
 
-export const liveJobStatusError = (value: unknown, status: number): string => {
-  const code = text(field(field(value, "error"), "code")) || `HTTP_${status}`;
-  return `Job status update failed: ${code}. Retrying.`;
-};
+export const liveJobStatusErrorCode = (value: unknown, status: number): string =>
+  text(field(field(value, "error"), "code")) || `HTTP_${status}`;
 
-export const formatJobStamp = (value: string): string =>
-  value.includes("T")
-    ? value.replace("T", " ").slice(0, 19)
-    : value || "Not set";
+export const formatJobStamp = (value: string): string | null =>
+  value ? (value.includes("T") ? value.replace("T", " ").slice(0, 19) : value) : null;

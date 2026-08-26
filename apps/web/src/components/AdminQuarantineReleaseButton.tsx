@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { errorCode } from "../lib/api-error";
@@ -16,6 +17,7 @@ export function AdminQuarantineReleaseButton({
   tenantId,
   version,
 }: Props) {
+  const t = useTranslations("AdminButtons.quarantineRelease");
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
@@ -48,15 +50,14 @@ export function AdminQuarantineReleaseButton({
       });
       if (!response.ok) {
         setStatus(
-          `Release failed: ${errorCode(body) || `HTTP_${response.status}`}.`,
+          t("failed", { code: errorCode(body) || `HTTP_${response.status}` }),
         );
         return;
       }
-      setStatus("Released for revalidation. Refreshing live state.");
+      setStatus(t("requested"));
       router.refresh();
     } catch (error) {
-      if (error instanceof Error)
-        setStatus("The connection was interrupted. Retry.");
+      if (error instanceof Error) setStatus(t("connectionInterrupted"));
       else throw error;
     } finally {
       setBusy(false);
@@ -71,7 +72,7 @@ export function AdminQuarantineReleaseButton({
         disabled={busy}
         onClick={() => void release()}
       >
-        {busy ? "Releasing..." : "Release"}
+        {busy ? t("busy") : t("action")}
       </button>
       <p aria-live="polite">{status}</p>
     </div>

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
-import { isAuthProblem, liveApiGet } from "../../../lib/server-api";
+import { isAuthProblem, liveApiGet } from "../../../../lib/server-api";
 
 export default async function NewProjectLayout({
   children,

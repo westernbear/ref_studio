@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 import type { ComponentProps } from "react";
 import { BrandLogo } from "./Shells";
@@ -8,8 +9,8 @@ type SignInMode = "creator" | "admin";
 type FormSubmitEvent = Parameters<
   NonNullable<ComponentProps<"form">["onSubmit"]>
 >[0];
+type ErrorKey = "missingIdentifier" | "missingSecret" | "safeError";
 
-const SAFE_ERROR = "The identifier or secret could not be verified.";
 const API_PREFIX = process.env.NEXT_PUBLIC_API_URL || "/api";
 
 const isSafeReturnUrl = (value: string | null): value is string =>
@@ -19,12 +20,13 @@ const isSafeReturnUrl = (value: string | null): value is string =>
   !value.includes("\\");
 
 export function SignInForm({ mode }: { readonly mode: SignInMode }) {
+  const t = useTranslations("SignInForm");
   const identifierRef = useRef<HTMLInputElement>(null);
   const secretRef = useRef<HTMLInputElement>(null);
   const [identifier, setIdentifier] = useState("");
   const [secret, setSecret] = useState("");
   const [showSecret, setShowSecret] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [errorKey, setErrorKey] = useState<ErrorKey | null>(null);
   const [busy, setBusy] = useState(false);
   const isAdmin = mode === "admin";
   const returnUrl =
@@ -40,14 +42,14 @@ export function SignInForm({ mode }: { readonly mode: SignInMode }) {
   const submit = async (event: FormSubmitEvent): Promise<void> => {
     event.preventDefault();
     if (busy) return;
-    setError(null);
+    setErrorKey(null);
     if (!identifier.trim()) {
-      setError("Enter your identifier.");
+      setErrorKey("missingIdentifier");
       identifierRef.current?.focus();
       return;
     }
     if (!secret) {
-      setError("Enter your secret.");
+      setErrorKey("missingSecret");
       secretRef.current?.focus();
       return;
     }
@@ -63,14 +65,14 @@ export function SignInForm({ mode }: { readonly mode: SignInMode }) {
         },
       );
       if (!response.ok) {
-        setError(SAFE_ERROR);
+        setErrorKey("safeError");
         setSecret("");
         secretRef.current?.focus();
         return;
       }
       window.location.assign(destination);
     } catch {
-      setError(SAFE_ERROR);
+      setErrorKey("safeError");
       setSecret("");
       secretRef.current?.focus();
     } finally {
@@ -83,16 +85,12 @@ export function SignInForm({ mode }: { readonly mode: SignInMode }) {
       <section className="auth-content">
         <header className="auth-heading">
           <BrandLogo />
-          <h1 id="sign-in-title">CREATOR STUDIO</h1>
-          <p>
-            {isAdmin
-              ? "Admin Authorization Required"
-              : "Creator workspace access"}
-          </p>
+          <h1 id="sign-in-title">{t("title")}</h1>
+          <p>{isAdmin ? t("adminSubtitle") : t("creatorSubtitle")}</p>
         </header>
         <section
           className="auth-card"
-          aria-label={`${isAdmin ? "Admin" : "Creator"} sign in`}
+          aria-label={isAdmin ? t("adminAriaLabel") : t("creatorAriaLabel")}
         >
           <form
             data-control-id={`${isAdmin ? "admin_sign_in" : "admin_sign_in"}:1`}
@@ -100,7 +98,7 @@ export function SignInForm({ mode }: { readonly mode: SignInMode }) {
             noValidate
           >
             <div className="auth-field">
-              <label htmlFor="identifier">Identifier</label>
+              <label htmlFor="identifier">{t("identifierLabel")}</label>
               <input
                 data-control-id="admin_sign_in:2"
                 ref={identifierRef}
@@ -110,11 +108,11 @@ export function SignInForm({ mode }: { readonly mode: SignInMode }) {
                 autoComplete="username"
                 value={identifier}
                 onChange={(event) => setIdentifier(event.target.value)}
-                aria-invalid={error !== null && !identifier.trim()}
+                aria-invalid={errorKey !== null && !identifier.trim()}
               />
             </div>
             <div className="auth-field">
-              <label htmlFor="secret">Secret</label>
+              <label htmlFor="secret">{t("secretLabel")}</label>
               <div className="secret-input">
                 <input
                   data-control-id="admin_sign_in:3"
@@ -125,7 +123,7 @@ export function SignInForm({ mode }: { readonly mode: SignInMode }) {
                   autoComplete="current-password"
                   value={secret}
                   onChange={(event) => setSecret(event.target.value)}
-                  aria-invalid={error !== null && !secret}
+                  aria-invalid={errorKey !== null && !secret}
                 />
                 <button
                   className="reveal-button"
@@ -133,17 +131,17 @@ export function SignInForm({ mode }: { readonly mode: SignInMode }) {
                   onClick={() => setShowSecret((visible) => !visible)}
                   aria-pressed={showSecret}
                 >
-                  {showSecret ? "Hide" : "Reveal"}
+                  {showSecret ? t("hide") : t("reveal")}
                 </button>
               </div>
             </div>
             <div
               className="auth-error"
-              aria-label="Sign-in error"
+              aria-label={t("errorAriaLabel")}
               aria-live="polite"
               role="alert"
             >
-              {error}
+              {errorKey ? t(errorKey) : null}
             </div>
             <button
               data-control-id="admin_sign_in:4"
@@ -151,22 +149,22 @@ export function SignInForm({ mode }: { readonly mode: SignInMode }) {
               type="submit"
               disabled={busy}
             >
-              {busy ? "Signing in..." : "Sign in"}
+              {busy ? t("signingIn") : t("signIn")}
             </button>
           </form>
           <div className="auth-card-links">
-            <a href="/forgot-secret">Forgot Secret?</a>
-            <a href="/support">Node Support</a>
+            <a href="/forgot-secret">{t("forgotSecret")}</a>
+            <a href="/support">{t("nodeSupport")}</a>
           </div>
         </section>
       </section>
       <footer className="auth-footer">
-        <span>© 2026 REFERENCE VIDEO STUDIO</span>
-        <nav aria-label="Legal and support links">
-          <a href="/privacy">Privacy</a>
-          <a href="/terms">Terms</a>
-          <a href="/status">API Status</a>
-          <a href="/security">Security</a>
+        <span>{t("copyright")}</span>
+        <nav aria-label={t("legalNavAriaLabel")}>
+          <a href="/privacy">{t("privacy")}</a>
+          <a href="/terms">{t("terms")}</a>
+          <a href="/status">{t("apiStatus")}</a>
+          <a href="/security">{t("security")}</a>
         </nav>
       </footer>
     </main>

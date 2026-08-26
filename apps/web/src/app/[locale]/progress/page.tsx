@@ -1,7 +1,9 @@
-import { CreatorShell } from "../../components/Shells";
-import { Panel } from "../../components/Primitives";
-import { parseJobProgress } from "../../lib/job-progress";
-import { isAuthProblem, liveApiGet } from "../../lib/server-api";
+import { getTranslations } from "next-intl/server";
+import { CreatorShell } from "../../../components/Shells";
+import { Panel } from "../../../components/Primitives";
+import { parseJobProgress } from "../../../lib/job-progress";
+import { isAuthProblem, liveApiGet } from "../../../lib/server-api";
+import { Link } from "../../../i18n/navigation";
 import { ProgressTracker } from "./ProgressTracker";
 
 export default async function ProgressPage({
@@ -11,6 +13,7 @@ export default async function ProgressPage({
     readonly jobId?: string | readonly string[];
   }>;
 }) {
+  const t = await getTranslations("ProgressPage");
   const params = await searchParams;
   const rawJobId = params.jobId;
   const jobId = Array.isArray(rawJobId) ? rawJobId[0] : rawJobId;
@@ -18,11 +21,11 @@ export default async function ProgressPage({
     return (
       <CreatorShell>
         <Panel>
-          <h1>Compiler Progress</h1>
-          <p>Choose a compiler job from Workflow to track progress.</p>
-          <a className="button button-primary" href="/workflow">
-            Workflow
-          </a>
+          <h1>{t("title")}</h1>
+          <p>{t("chooseJob")}</p>
+          <Link className="button button-primary" href="/workflow">
+            {t("workflow")}
+          </Link>
         </Panel>
       </CreatorShell>
     );
@@ -32,25 +35,25 @@ export default async function ProgressPage({
     return (
       <CreatorShell>
         <Panel>
-          <h1>Compiler Progress</h1>
+          <h1>{t("title")}</h1>
           <p>
             {isAuthProblem(result.code)
-              ? "Sign in to track this compiler job."
-              : `Compiler job is unavailable: ${result.code}.`}
+              ? t("signInToTrack")
+              : t("unavailable", { code: result.code })}
           </p>
           {isAuthProblem(result.code) ? (
-            <a
+            <Link
               className="button button-primary"
               href={`/sign-in?returnTo=${encodeURIComponent(
                 `/progress?jobId=${jobId}`,
               )}`}
             >
-              Sign in
-            </a>
+              {t("signIn")}
+            </Link>
           ) : (
-            <a className="button button-primary" href="/workflow">
-              Workflow
-            </a>
+            <Link className="button button-primary" href="/workflow">
+              {t("workflow")}
+            </Link>
           )}
         </Panel>
       </CreatorShell>
@@ -61,11 +64,11 @@ export default async function ProgressPage({
     return (
       <CreatorShell>
         <Panel>
-          <h1>Compiler Progress</h1>
-          <p>Compiler job returned an unreadable status payload.</p>
-          <a className="button button-primary" href="/workflow">
-            Workflow
-          </a>
+          <h1>{t("title")}</h1>
+          <p>{t("unreadable")}</p>
+          <Link className="button button-primary" href="/workflow">
+            {t("workflow")}
+          </Link>
         </Panel>
       </CreatorShell>
     );

@@ -1,16 +1,19 @@
 import { describe, expect, it } from "vitest";
 import {
   compileStageRows,
+  decisionKey,
   formatJobStamp,
+  gateLabelKey,
   isTerminalJobState,
-  liveJobStatusError,
   jobActivityPercent,
   jobProgressPercent,
-  jobStatusCopy,
+  jobStateKey,
+  jobStatusMessage,
+  liveJobStatusErrorCode,
   nextApprovalGate,
   parseJobProgress,
   progressStages,
-  stageLabel,
+  stageLabelKey,
 } from "../src/lib/job-progress.ts";
 
 describe("compiler progress projection", () => {
@@ -40,6 +43,8 @@ describe("compiler progress projection", () => {
       updatedAt: "2026-08-23T07:01:00.000Z",
       artifactId: "art_1",
       previewArtifactId: "",
+      evidenceVideoArtifactId: "",
+      failureCode: null,
       progressPhase: "prepare",
       progressStage: "preview-render",
       progressFraction: 0.48,
@@ -61,12 +66,13 @@ describe("compiler progress projection", () => {
     if (!job) throw new Error("job fixture did not parse");
     expect(jobProgressPercent(job)).toBe(40);
     expect(jobActivityPercent(job)).toBe(48);
-    expect(jobStatusCopy(job)).toBe("Scene compilation is running.");
+    expect(jobStatusMessage(job)).toEqual({ key: "compilationRunning" });
     expect(isTerminalJobState("COMPLETED")).toBe(true);
     expect(isTerminalJobState("PREPARING")).toBe(false);
     expect(formatJobStamp("2026-08-23T07:00:00.000Z")).toBe(
       "2026-08-23 07:00:00",
     );
+    expect(formatJobStamp("")).toBeNull();
     expect(progressStages.map((stage) => stage.state)).toContain("READY");
   });
 
@@ -80,22 +86,66 @@ describe("compiler progress projection", () => {
     expect(job).not.toBeNull();
     if (!job) throw new Error("job fixture did not parse");
     expect(nextApprovalGate(job)).toBeNull();
-    expect(jobStatusCopy(job)).toBe("Waiting for worker runtime preflight.");
+    expect(jobStatusMessage(job)).toEqual({ key: "awaitingT1" });
+  });
+
+  it("carries an interpolated stage name for active rendering/compiling", () => {
+    const rendering = parseJobProgress({
+      id: "job_r",
+      state: "RENDERING",
+      preparationStage: "",
+      progress: { phase: "render", stage: "scene-render", fraction: 0.5 },
+      approvedGates: [],
+    });
+    expect(jobStatusMessage(rendering)).toEqual({
+      key: "rendererActive",
+      values: { stage: "scene-render" },
+    });
+  });
+
+  it("returns a content-safety failure key distinct from a plain failure", () => {
+    const safetyFailed = parseJobProgress({
+      id: "job_s",
+      state: "FAILED",
+      failureCode: "CONTENT_SAFETY_REJECTED",
+      approvedGates: [],
+    });
+    expect(jobStatusMessage(safetyFailed)).toEqual({ key: "failedSafety" });
+    const plainFailed = parseJobProgress({
+      id: "job_p",
+      state: "FAILED",
+      approvedGates: [],
+    });
+    expect(jobStatusMessage(plainFailed)).toEqual({ key: "failed" });
   });
 
   it("shows live status API error codes instead of a generic failure", () => {
     expect(
-      liveJobStatusError({ error: { code: "CSRF_ORIGIN_INVALID" } }, 403),
-    ).toBe("Job status update failed: CSRF_ORIGIN_INVALID. Retrying.");
-    expect(liveJobStatusError(null, 502)).toBe(
-      "Job status update failed: HTTP_502. Retrying.",
-    );
+      liveJobStatusErrorCode({ error: { code: "CSRF_ORIGIN_INVALID" } }, 403),
+    ).toBe("CSRF_ORIGIN_INVALID");
+    expect(liveJobStatusErrorCode(null, 502)).toBe("HTTP_502");
   });
 
-  it("maps real compiler stage strings to friendly labels, not invented pass names", () => {
-    expect(stageLabel("all-frame-analysis")).toBe("Frame Analysis");
-    expect(stageLabel("totally-unknown-stage")).toBe("Totally Unknown Stage");
-    expect(stageLabel("")).toBe("Preparing");
+  it("maps real compiler stage strings to a known key, or a title-cased fallback", () => {
+    expect(stageLabelKey("all-frame-analysis")).toEqual({
+      known: true,
+      key: "allFrameAnalysis",
+    });
+    expect(stageLabelKey("totally-unknown-stage")).toEqual({
+      known: false,
+      fallback: "Totally Unknown Stage",
+    });
+    expect(stageLabelKey("")).toEqual({ known: false, fallback: "" });
+  });
+
+  it("maps gate ids, decisions, and job states to translation keys", () => {
+    expect(gateLabelKey("T1")).toBe("workerPreflight");
+    expect(gateLabelKey("T5")).toBe("deliveryVerified");
+    expect(decisionKey("APPROVED")).toBe("verified");
+    expect(decisionKey("REJECTED")).toBe("failed");
+    expect(decisionKey("PENDING")).toBe("pending");
+    expect(jobStateKey("READY")).toBe("ready");
+    expect(jobStateKey("SOME_FUTURE_STATE")).toBe("SOME_FUTURE_STATE");
   });
 
   it("builds an ordered checklist from the current prepare-phase stage", () => {
@@ -153,7 +203,12 @@ describe("compiler progress projection", () => {
       approvedGates: [],
     });
     expect(compileStageRows(unknownJob)).toEqual([
-      { key: "something-new", label: "Something New", percent: 30, status: "active" },
+      {
+        key: "something-new",
+        labelKey: { known: false, fallback: "Something New" },
+        percent: 30,
+        status: "active",
+      },
     ]);
   });
 });

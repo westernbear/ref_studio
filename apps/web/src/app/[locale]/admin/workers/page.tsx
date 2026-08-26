@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
-import { AdminWorkerOfflineButton } from "../../../components/AdminWorkerOfflineButton";
-import { Panel } from "../../../components/Primitives";
-import { AdminShell } from "../../../components/Shells";
+import { getTranslations } from "next-intl/server";
+import { AdminWorkerOfflineButton } from "../../../../components/AdminWorkerOfflineButton";
+import { Panel } from "../../../../components/Primitives";
+import { AdminShell } from "../../../../components/Shells";
+import { Link } from "../../../../i18n/navigation";
 import {
   field,
   isAuthProblem,
@@ -9,11 +11,12 @@ import {
   liveApiGet,
   text,
   when,
-} from "../../../lib/server-api";
+} from "../../../../lib/server-api";
 
 type SearchState = Readonly<
   Record<string, string | readonly string[] | undefined>
 >;
+type T = Awaited<ReturnType<typeof getTranslations<"AdminWorkers">>>;
 
 const single = (value: string | readonly string[] | undefined): string =>
   typeof value === "string" ? value : (value?.[0] ?? "");
@@ -51,28 +54,24 @@ function Metric({
   );
 }
 
-function ProblemPanel({ code }: { readonly code: string }) {
+function ProblemPanel({ code, t }: { readonly code: string; readonly t: T }) {
   return (
     <Panel>
-      <h1>Worker control</h1>
-      <p>
-        {isAuthProblem(code)
-          ? "Admin sign-in required."
-          : `Worker records are unavailable: ${code}.`}
-      </p>
+      <h1>{t("title")}</h1>
+      <p>{isAuthProblem(code) ? t("signInRequired") : t("unavailable", { code })}</p>
       {isAuthProblem(code) ? (
         <a
           className="button button-primary"
           href="/admin/sign-in?returnTo=%2Fadmin%2Fworkers"
         >
-          Sign in
+          {t("signIn")}
         </a>
       ) : null}
     </Panel>
   );
 }
 
-function FilterBar({ search }: { readonly search: SearchState }) {
+function FilterBar({ search, t }: { readonly search: SearchState; readonly t: T }) {
   return (
     <form
       className="filter-bar"
@@ -82,36 +81,36 @@ function FilterBar({ search }: { readonly search: SearchState }) {
     >
       <div className="filter-fields">
         <label>
-          <span>Search</span>
+          <span>{t("search")}</span>
           <input
             type="search"
             name="q"
             defaultValue={single(search.q)}
-            placeholder="Worker ID or capability"
+            placeholder={t("searchPlaceholder")}
           />
         </label>
         <label>
-          <span>Status</span>
+          <span>{t("status")}</span>
           <select name="status" defaultValue={single(search.status)}>
-            <option value="">All</option>
-            <option value="ONLINE">ONLINE</option>
-            <option value="OFFLINE">OFFLINE</option>
+            <option value="">{t("all")}</option>
+            <option value="ONLINE">{t("online")}</option>
+            <option value="OFFLINE">{t("offline")}</option>
           </select>
         </label>
       </div>
       <div className="filter-actions">
         <button className="button button-primary" type="submit">
-          Apply filters
+          {t("applyFilters")}
         </button>
-        <a className="button" href="/admin/workers">
-          Clear
-        </a>
+        <Link className="button" href="/admin/workers">
+          {t("clear")}
+        </Link>
       </div>
     </form>
   );
 }
 
-function WorkerCard({ worker }: { readonly worker: unknown }) {
+function WorkerCard({ worker, t }: { readonly worker: unknown; readonly t: T }) {
   const id = text(field(worker, "id"));
   const status = text(field(worker, "status"), "OFFLINE");
   const capabilities = strings(field(worker, "capabilities"));
@@ -121,17 +120,17 @@ function WorkerCard({ worker }: { readonly worker: unknown }) {
       <div className="section-heading">
         <div>
           <h2>{id}</h2>
-          <p>{capabilities.join(" / ") || "No capability reported"}</p>
+          <p>{capabilities.join(" / ") || t("noCapabilityReported")}</p>
         </div>
         <span className="status-chip">{status}</span>
       </div>
       <dl className="detail-grid worker-summary-grid">
         <Metric
-          label="Last heartbeat"
+          label={t("lastHeartbeat")}
           value={when(field(worker, "lastHeartbeatAt"))}
         />
         <Metric
-          label="Active jobs"
+          label={t("activeJobs")}
           value={text(field(worker, "activeLeaseCount"), "0")}
         />
       </dl>
@@ -145,13 +144,13 @@ function WorkerCard({ worker }: { readonly worker: unknown }) {
                 href={`/scene-review?jobId=${encodeURIComponent(jobId)}`}
               >
                 <span>{jobId}</span>
-                <small>{text(field(lease, "phase"), "Working")}</small>
+                <small>{text(field(lease, "phase"), t("working"))}</small>
               </a>
             );
           })}
         </div>
       ) : (
-        <p className="empty-copy">No active job.</p>
+        <p className="empty-copy">{t("noActiveJob")}</p>
       )}
       <div className="record-actions">
         <AdminWorkerOfflineButton
@@ -168,13 +167,14 @@ export default async function AdminWorkersPage({
 }: {
   readonly searchParams: Promise<SearchState>;
 }) {
+  const t = await getTranslations("AdminWorkers");
   const search = await searchParams;
   const result = await liveApiGet(queryPath(search));
   if (!result.ok)
     return (
       <AdminShell>
         <div className="admin-page">
-          <ProblemPanel code={result.code} />
+          <ProblemPanel code={result.code} t={t} />
         </div>
       </AdminShell>
     );
@@ -185,32 +185,26 @@ export default async function AdminWorkersPage({
       <div className="admin-page live-stack">
         <div className="page-title" data-landmark="scope-header">
           <div>
-            <h1>Worker control</h1>
-            <p>See which workers are online and remove stale ones.</p>
+            <h1>{t("title")}</h1>
+            <p>{t("subtitle")}</p>
           </div>
         </div>
         <dl className="metric-grid">
+          <Metric label={t("workers")} value={text(field(summary, "totalWorkers"), "0")} />
+          <Metric label={t("online")} value={text(field(summary, "onlineWorkers"), "0")} />
           <Metric
-            label="Workers"
-            value={text(field(summary, "totalWorkers"), "0")}
-          />
-          <Metric
-            label="Online"
-            value={text(field(summary, "onlineWorkers"), "0")}
-          />
-          <Metric
-            label="Active leases"
+            label={t("activeLeases")}
             value={text(field(summary, "activeLeases"), "0")}
           />
         </dl>
-        <FilterBar search={search} />
+        <FilterBar search={search} t={t} />
         {workers.length > 0 ? (
           workers.map((worker) => (
-            <WorkerCard key={text(field(worker, "id"))} worker={worker} />
+            <WorkerCard key={text(field(worker, "id"))} worker={worker} t={t} />
           ))
         ) : (
           <Panel>
-            <p className="empty-copy">No worker runtime has registered yet.</p>
+            <p className="empty-copy">{t("noWorkersRegistered")}</p>
           </Panel>
         )}
       </div>

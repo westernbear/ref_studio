@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { errorCode } from "../lib/api-error";
@@ -46,6 +47,7 @@ export function AiProviderSettingsForm({
   updatedAt,
   updatedBy,
 }: Props) {
+  const t = useTranslations("AiProviderSettingsForm");
   const router = useRouter();
   const [providerKind, setProviderKind] = useState(initialProviderKind);
   const [model, setModel] = useState(initialModel);
@@ -77,14 +79,16 @@ export function AiProviderSettingsForm({
       });
       const body: unknown = await response.json().catch(() => null);
       if (!response.ok) {
-        setStatus(`Save failed: ${errorCode(body) || `HTTP_${response.status}`}.`);
+        setStatus(
+          t("saveFailed", { code: errorCode(body) || `HTTP_${response.status}` }),
+        );
         return;
       }
       setApiKey("");
-      setStatus("Settings saved.");
+      setStatus(t("settingsSaved"));
       router.refresh();
     } catch {
-      setStatus("The connection was interrupted. Retry.");
+      setStatus(t("connectionInterrupted"));
     } finally {
       setSaving(false);
     }
@@ -95,33 +99,33 @@ export function AiProviderSettingsForm({
       <div className="ai-settings-status" data-landmark="ai-settings-status">
         <span
           className={enabled ? "status-chip is-live" : "status-chip"}
-          aria-label={enabled ? "Provider enabled" : "Provider disabled"}
+          aria-label={enabled ? t("providerEnabledAriaLabel") : t("providerDisabledAriaLabel")}
         >
-          {enabled ? "Enabled" : "Disabled"}
+          {enabled ? t("enabled") : t("disabled")}
         </span>
         <dl className="detail-grid ai-settings-summary">
           <div>
-            <dt>Provider</dt>
+            <dt>{t("provider")}</dt>
             <dd>
               {PROVIDERS.find((option) => option.value === initialProviderKind)
                 ?.label ?? initialProviderKind}
             </dd>
           </div>
           <div>
-            <dt>Model</dt>
-            <dd>{initialModel || "Not set"}</dd>
+            <dt>{t("model")}</dt>
+            <dd>{initialModel || t("notSet")}</dd>
           </div>
           <div>
-            <dt>API key</dt>
-            <dd>{hasApiKey ? "Configured" : "Not set"}</dd>
+            <dt>{t("apiKey")}</dt>
+            <dd>{hasApiKey ? t("configured") : t("notSet")}</dd>
           </div>
           <div>
-            <dt>Last updated</dt>
+            <dt>{t("lastUpdated")}</dt>
             <dd>
               {updatedAt.includes("T")
                 ? updatedAt.replace("T", " ").slice(0, 19)
                 : updatedAt}{" "}
-              by {updatedBy}
+              {t("by", { name: updatedBy })}
             </dd>
           </div>
         </dl>
@@ -135,7 +139,7 @@ export function AiProviderSettingsForm({
         }}
       >
         <label>
-          Provider
+          {t("provider")}
           <select
             value={providerKind}
             onChange={(event) => setProviderKind(event.target.value)}
@@ -148,7 +152,7 @@ export function AiProviderSettingsForm({
           </select>
         </label>
         <label>
-          Model
+          {t("model")}
           <input
             type="text"
             value={model}
@@ -159,7 +163,7 @@ export function AiProviderSettingsForm({
         </label>
         {providerKind === "openai-compatible" ? (
           <label>
-            Base URL
+            {t("baseUrl")}
             <input
               type="text"
               value={baseUrl}
@@ -170,16 +174,12 @@ export function AiProviderSettingsForm({
           </label>
         ) : null}
         <label>
-          API key
+          {t("apiKey")}
           <input
             type="password"
             value={apiKey}
             onChange={(event) => setApiKey(event.target.value)}
-            placeholder={
-              hasApiKey
-                ? "Enter to replace — leave blank to keep existing key"
-                : "Enter API key"
-            }
+            placeholder={hasApiKey ? t("apiKeyReplacePlaceholder") : t("apiKeyEnterPlaceholder")}
             autoComplete="off"
           />
         </label>
@@ -189,10 +189,10 @@ export function AiProviderSettingsForm({
             checked={enabled}
             onChange={(event) => setEnabled(event.target.checked)}
           />
-          Enabled
+          {t("enabled")}
         </label>
         <button className="button button-primary" type="submit" disabled={saving}>
-          {saving ? "Saving..." : "Save Settings"}
+          {saving ? t("saving") : t("saveSettings")}
         </button>
         <p aria-live="polite">{status}</p>
       </form>

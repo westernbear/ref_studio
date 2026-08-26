@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { errorCode } from "../lib/api-error";
@@ -11,6 +12,7 @@ type Props = {
 };
 
 export function AdminJobForceTerminateButton({ jobId, etag }: Props) {
+  const t = useTranslations("AdminButtons.jobForceTerminate");
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
@@ -41,15 +43,14 @@ export function AdminJobForceTerminateButton({ jobId, etag }: Props) {
       });
       if (!response.ok) {
         setStatus(
-          `Force terminate failed: ${errorCode(body) || `HTTP_${response.status}`}.`,
+          t("failed", { code: errorCode(body) || `HTTP_${response.status}` }),
         );
         return;
       }
-      setStatus("Job force-terminated. Refreshing live state.");
+      setStatus(t("requested"));
       router.refresh();
     } catch (error) {
-      if (error instanceof Error)
-        setStatus("The connection was interrupted. Retry.");
+      if (error instanceof Error) setStatus(t("connectionInterrupted"));
       else throw error;
     } finally {
       setBusy(false);
@@ -64,7 +65,7 @@ export function AdminJobForceTerminateButton({ jobId, etag }: Props) {
         disabled={busy}
         onClick={() => void forceTerminate()}
       >
-        {busy ? "Terminating..." : "Force Terminate"}
+        {busy ? t("busy") : t("action")}
       </button>
       <p aria-live="polite">{status}</p>
     </div>

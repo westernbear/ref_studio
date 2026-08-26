@@ -8,8 +8,11 @@ const shell = readFileSync(
   "utf8",
 );
 const routes = readFileSync(
-  resolve(root, "apps/web/src/app/[...slug]/page.tsx"),
+  resolve(root, "apps/web/src/app/[locale]/[...slug]/page.tsx"),
   "utf8",
+);
+const messages = JSON.parse(
+  readFileSync(resolve(root, "apps/web/messages/en-US.json"), "utf8"),
 );
 const exportButton = readFileSync(
   resolve(root, "apps/web/src/components/AdminExportButton.tsx"),
@@ -47,7 +50,9 @@ const authProxy = readFileSync(
 describe("admin surface contracts", () => {
   it("uses live API-backed surfaces instead of static admin screens", () => {
     expect(routes).toContain('liveApiGet("/admin/tenants")');
-    expect(routes).toContain("No compiler jobs match these filters.");
+    expect(messages.AdminSlug.noJobsMatch).toBe(
+      "No compiler jobs match these filters.",
+    );
     for (const landmark of [
       'data-landmark="filters"',
       'data-landmark="pagination"',
@@ -75,13 +80,13 @@ describe("admin surface contracts", () => {
   });
   it("keeps admin and creator job detail contracts separate", () => {
     const adminDetails = routes.match(
-      /const adminJobDetails:[\s\S]*?\n\];/u,
+      /const adminJobDetails[\s\S]*?\n\];/u,
     )?.[0];
     expect(adminDetails).toBeDefined();
     expect(adminDetails).toContain('field(row, "creatorId")');
     expect(adminDetails).not.toMatch(/preparationStage|updatedAt/u);
-    expect(routes).toContain("details={adminJobDetails}");
-    expect(routes).toContain("details={creatorJobDetails}");
+    expect(routes).toContain("details={adminJobDetails(t)}");
+    expect(routes).toContain("details={creatorJobDetails(t)}");
   });
   it("uses the HTTP-compatible request ID helper for exports", () => {
     expect(exportButton).toContain("requestId()");
@@ -99,11 +104,11 @@ describe("admin surface contracts", () => {
       expect(file).toContain('"if-match": ');
       expect(file).toContain("requestId()");
     }
-    expect(routes).toContain("detailActions={adminJobDetailActions}");
+    expect(routes).toContain("detailActions={adminJobDetailActions(t)}");
     expect(routes).toContain("detailActions={quarantineDetailActions}");
     // Cancel/retry buttons must never render for the creator-facing
     // Workflow page — only the admin Jobs table gets them.
-    expect(routes).toContain("detailActions={jobDetailActions}");
+    expect(routes).toContain("detailActions={jobDetailActions(t)}");
   });
   it("adds an AI Settings destination and never renders a plaintext key", () => {
     expect(shell).toContain('href: "/admin/ai-settings"');

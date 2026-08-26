@@ -1,19 +1,27 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
-import { errorCode } from "../../lib/api-error";
+import { errorCode } from "../../../lib/api-error";
 import {
   compileStageRows,
   isTerminalJobState,
-  liveJobStatusError,
+  jobStateKey,
+  liveJobStatusErrorCode,
   parseJobProgress,
   type JobProgress,
-} from "../../lib/job-progress";
-import { createCompilerJob, requestId, type AcceptedMedia } from "../../lib/upload-client";
+} from "../../../lib/job-progress";
+import { createCompilerJob, requestId, type AcceptedMedia } from "../../../lib/upload-client";
 
+type TranslatedOwner = Readonly<{
+  ownerId: string;
+  sourceLocale: string;
+  content: string;
+  translatedText: string;
+}>;
 type Proposal = { readonly startFrame: number; readonly rationale: string };
 type ChatMessage =
-  | { readonly role: "system"; readonly text: string }
+  | { readonly role: "system"; readonly textKey: string }
   | { readonly role: "user"; readonly text: string }
   | {
       readonly role: "proposals";
@@ -29,17 +37,25 @@ type Props = {
 };
 
 export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
+  const t = useTranslations("CompilerDialogue");
+  const tState = useTranslations("JobState");
+  const tStage = useTranslations("StageLabels");
   const [job, setJob] = useState(initialJob);
   // Derived from the live-polled job, not a static prop -- otherwise the
   // preview never appears once rendering finishes after initial page load.
   const previewUrl = job.previewArtifactId
     ? `/api/v1/jobs/${encodeURIComponent(job.id)}/preview-download`
     : null;
+  const evidenceVideoUrl = job.evidenceVideoArtifactId
+    ? `/api/v1/jobs/${encodeURIComponent(job.id)}/evidence-video-download`
+    : null;
+  const [compareSource, setCompareSource] = useState<"reference" | "evidence">(
+    "reference",
+  );
+  const compareUrl =
+    compareSource === "evidence" && evidenceVideoUrl ? evidenceVideoUrl : sourceUrl;
   const [messages, setMessages] = useState<readonly ChatMessage[]>([
-    {
-      role: "system",
-      text: "Compiler initialized. Ready for scene refinement directives.",
-    },
+    { role: "system", textKey: "initialized" },
   ]);
   const [prompt, setPrompt] = useState("");
   const [sending, setSending] = useState(false);
@@ -48,6 +64,12 @@ export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
   const [applyError, setApplyError] = useState("");
   const [rateStatus, setRateStatus] = useState("");
   const [pollError, setPollError] = useState("");
+  const [feedbackNote, setFeedbackNote] = useState("");
+  const [feedbackSending, setFeedbackSending] = useState(false);
+  const [feedbackStatus, setFeedbackStatus] = useState("");
+  const [translatedOwners, setTranslatedOwners] = useState<
+    readonly TranslatedOwner[]
+  >([]);
   const historyRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -65,7 +87,11 @@ export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
         });
         if (!active) return;
         if (!response.ok) {
-          setPollError(liveJobStatusError(body, response.status));
+          setPollError(
+            t("statusUpdateFailed", {
+              code: liveJobStatusErrorCode(body, response.status),
+            }),
+          );
           return;
         }
         const parsed = parseJobProgress(body);
@@ -74,7 +100,7 @@ export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
           setPollError("");
         }
       } catch {
-        if (active) setPollError("Network update failed. Retrying.");
+        if (active) setPollError(t("networkUpdateFailed"));
       }
     };
     void load();
@@ -83,6 +109,58 @@ export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
       active = false;
       window.clearInterval(timer);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialJob.id, job.state]);
+
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      try {
+        const response = await fetch(
+          `/api/v1/jobs/${encodeURIComponent(initialJob.id)}/evidence`,
+          { credentials: "include" },
+        );
+        if (!response.ok) return;
+        const body: unknown = await response.json().catch(() => null);
+        if (!active || typeof body !== "object" || body === null) return;
+        const sceneInput = (body as Record<string, unknown>)["sceneInput"];
+        const owners =
+          typeof sceneInput === "object" && sceneInput !== null
+            ? (sceneInput as Record<string, unknown>)["owners"]
+            : null;
+        if (!Array.isArray(owners)) return;
+        const translated = owners
+          .filter(
+            (owner): owner is Record<string, unknown> =>
+              typeof owner === "object" && owner !== null,
+          )
+          .filter(
+            (owner) =>
+              typeof owner["ownerId"] === "string" &&
+              typeof owner["sourceLocale"] === "string" &&
+              typeof owner["content"] === "string" &&
+              typeof owner["translatedText"] === "string",
+          )
+          .map((owner) => ({
+            ownerId: owner["ownerId"] as string,
+            sourceLocale: owner["sourceLocale"] as string,
+            content: owner["content"] as string,
+            translatedText: owner["translatedText"] as string,
+          }));
+        if (active) setTranslatedOwners(translated);
+      } catch {
+        // Translation is best-effort enrichment (task F2) -- absence is a
+        // normal state, not an error to surface.
+      }
+    };
+    void load();
+    if (isTerminalJobState(job.state)) return undefined;
+    const timer = window.setInterval(() => void load(), 3000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialJob.id, job.state]);
 
   useEffect(() => {
@@ -110,7 +188,12 @@ export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
       if (!response.ok) {
         setMessages((previous) => [
           ...previous,
-          { role: "error", text: liveJobStatusError(body, response.status) },
+          {
+            role: "error",
+            text: t("statusUpdateFailed", {
+              code: liveJobStatusErrorCode(body, response.status),
+            }),
+          },
         ]);
         return;
       }
@@ -130,7 +213,7 @@ export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
     } catch {
       setMessages((previous) => [
         ...previous,
-        { role: "error", text: "The connection was interrupted. Retry." },
+        { role: "error", text: t("connectionInterrupted") },
       ]);
     } finally {
       setSending(false);
@@ -139,7 +222,7 @@ export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
 
   const apply = async (proposal: Proposal, index: number) => {
     if (!media) {
-      setApplyError("Source media is unavailable for this job.");
+      setApplyError(t("sourceMediaUnavailable"));
       return;
     }
     setApplying(index);
@@ -154,7 +237,7 @@ export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
         `/scene-review?jobId=${encodeURIComponent(newJobId)}`,
       );
     } catch {
-      setApplyError("Could not create a job for this window. Retry.");
+      setApplyError(t("createJobFailed"));
       setApplying(null);
     }
   };
@@ -176,11 +259,66 @@ export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
       );
       setRateStatus(
         response.ok
-          ? "Thanks for the feedback."
-          : `Rating failed: ${errorCode(await response.json().catch(() => null)) || "HTTP_" + response.status}.`,
+          ? t("thanksForFeedback")
+          : t("ratingFailed", {
+              code:
+                errorCode(await response.json().catch(() => null)) ||
+                "HTTP_" + response.status,
+            }),
       );
     } catch {
-      setRateStatus("The connection was interrupted. Retry.");
+      setRateStatus(t("connectionInterrupted"));
+    }
+  };
+
+  const submitFeedback = async (
+    decision: "LOOKS_GOOD" | "NEEDS_CHANGES" | "REQUEST_CHANGES",
+  ) => {
+    setFeedbackSending(true);
+    setFeedbackStatus("");
+    try {
+      const response = await fetch(
+        `/api/v1/jobs/${encodeURIComponent(job.id)}/feedback`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "content-type": "application/json",
+            "idempotency-key": requestId(),
+          },
+          body: JSON.stringify({
+            decision,
+            ...(feedbackNote ? { note: feedbackNote } : {}),
+          }),
+        },
+      );
+      const body: unknown = await response.json().catch(() => null);
+      if (!response.ok) {
+        setFeedbackStatus(
+          t("feedbackFailed", { code: errorCode(body) || "HTTP_" + response.status }),
+        );
+        return;
+      }
+      const parsed = body as {
+        proposals: { plannerKind: "ai" | "heuristic"; proposals: readonly Proposal[] } | null;
+      };
+      const proposals = parsed.proposals;
+      if (proposals) {
+        setMessages((previous) => [
+          ...previous,
+          {
+            role: "proposals",
+            plannerKind: proposals.plannerKind,
+            proposals: proposals.proposals,
+          },
+        ]);
+      }
+      setFeedbackStatus(t("feedbackRecorded"));
+      setFeedbackNote("");
+    } catch {
+      setFeedbackStatus(t("connectionInterrupted"));
+    } finally {
+      setFeedbackSending(false);
     }
   };
 
@@ -195,8 +333,8 @@ export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
       <div className="dialogue-chat" data-landmark="compiler-dialogue">
         <div className="dialogue-chat-header">
           <div>
-            <h2>Compiler Dialogue</h2>
-            <p>Session ID: {job.id}</p>
+            <h2>{t("title")}</h2>
+            <p>{t("sessionId", { id: job.id })}</p>
           </div>
         </div>
         <div className="dialogue-chat-history" data-landmark="chat-history" ref={historyRef}>
@@ -204,14 +342,14 @@ export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
             if (message.role === "system")
               return (
                 <div className="dialogue-message" key={index}>
-                  <span className="dialogue-message-label">System Node</span>
-                  <p>{message.text}</p>
+                  <span className="dialogue-message-label">{t("systemNode")}</span>
+                  <p>{t(message.textKey)}</p>
                 </div>
               );
             if (message.role === "user")
               return (
                 <div className="dialogue-message dialogue-message-user" key={index}>
-                  <span className="dialogue-message-label">User Prompt</span>
+                  <span className="dialogue-message-label">{t("userPrompt")}</span>
                   <p>{message.text}</p>
                 </div>
               );
@@ -224,13 +362,13 @@ export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
             return (
               <div className="dialogue-message" key={index}>
                 <span className="dialogue-message-label">
-                  {message.plannerKind === "ai" ? "AI Proposal" : "Heuristic Proposal"}
+                  {message.plannerKind === "ai" ? t("aiProposal") : t("heuristicProposal")}
                 </span>
                 <ul className="dialogue-proposal-list">
                   {message.proposals.map((proposal, proposalIndex) => (
                     <li key={proposalIndex}>
                       <div>
-                        <strong>Start frame {proposal.startFrame}</strong>
+                        <strong>{t("startFrame", { frame: proposal.startFrame })}</strong>
                         <p>{proposal.rationale}</p>
                       </div>
                       <button
@@ -239,7 +377,7 @@ export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
                         disabled={applying !== null}
                         onClick={() => void apply(proposal, proposalIndex)}
                       >
-                        {applying === proposalIndex ? "Applying..." : "Apply"}
+                        {applying === proposalIndex ? t("applying") : t("apply")}
                       </button>
                     </li>
                   ))}
@@ -250,12 +388,14 @@ export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
           {stageRows.length > 0 && !isTerminalJobState(job.state) ? (
             <div className="dialogue-message">
               <span className="dialogue-message-label dialogue-message-label-active">
-                Compiling Scene...
+                {t("compilingScene")}
               </span>
               <div className="dialogue-stage-list">
                 {stageRows.map((row) => (
                   <div className="dialogue-stage-row" key={row.key}>
-                    <span>{row.label}</span>
+                    <span>
+                      {row.labelKey.known ? tStage(row.labelKey.key) : row.labelKey.fallback}
+                    </span>
                     <span>{row.percent}%</span>
                   </div>
                 ))}
@@ -285,33 +425,68 @@ export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
                 }
               }
             }}
-            placeholder="Refine generation parameters..."
+            placeholder={t("promptPlaceholder")}
             rows={1}
-            aria-label="Refine generation parameters"
+            aria-label={t("promptAriaLabel")}
           />
           <button className="button button-primary" type="submit" disabled={sending || !prompt}>
-            {sending ? "Sending..." : "Send"}
+            {sending ? t("sending") : t("send")}
           </button>
         </form>
       </div>
       <div className="dialogue-preview" data-landmark="preview-canvas">
         <div className="dialogue-preview-toolbar">
-          <span className="status-chip">{job.state}</span>
+          <span className="status-chip">{tState(jobStateKey(job.state))}</span>
+          {job.state === "STALE_APPROVAL" ? (
+            <span className="status-chip is-stale">{t("staleApproval")}</span>
+          ) : null}
         </div>
-        <div className="dialogue-preview-frame">
-          {previewUrl ? (
-            <video controls preload="metadata" playsInline src={previewUrl} />
-          ) : (
-            <video controls preload="metadata" playsInline src={sourceUrl} />
-          )}
+        <div className="dialogue-preview-frame" data-landmark="compare-row">
+          <div className="dialogue-compare-pane">
+            <div
+              className="dialogue-compare-toggle"
+              role="group"
+              aria-label={t("compareAgainstAriaLabel")}
+            >
+              <button
+                type="button"
+                className="chip-toggle"
+                aria-pressed={compareSource === "reference"}
+                data-active={compareSource === "reference"}
+                onClick={() => setCompareSource("reference")}
+              >
+                {t("reference")}
+              </button>
+              {evidenceVideoUrl ? (
+                <button
+                  type="button"
+                  className="chip-toggle"
+                  aria-pressed={compareSource === "evidence"}
+                  data-active={compareSource === "evidence"}
+                  onClick={() => setCompareSource("evidence")}
+                >
+                  {t("evidence")}
+                </button>
+              ) : null}
+            </div>
+            <video controls preload="metadata" playsInline src={compareUrl} />
+          </div>
+          <div className="dialogue-compare-pane">
+            <span className="status-chip">{t("preview")}</span>
+            {previewUrl ? (
+              <video controls preload="metadata" playsInline src={previewUrl} />
+            ) : (
+              <video controls preload="metadata" playsInline src={sourceUrl} />
+            )}
+          </div>
         </div>
         <div className="dialogue-preview-footer" data-landmark="preview-footer">
           <div>
-            <span>Job: {job.id}</span>
-            {framesLabel ? <span>Frames: {framesLabel}</span> : null}
+            <span>{t("job", { id: job.id })}</span>
+            {framesLabel ? <span>{t("frames", { frames: framesLabel })}</span> : null}
           </div>
           <div className="dialogue-feedback">
-            <span>Rate Generation:</span>
+            <span>{t("rateGeneration")}</span>
             <button className="button" type="button" onClick={() => void rate(true)}>
               👍
             </button>
@@ -322,9 +497,9 @@ export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
               className="button"
               type="button"
               disabled={sending}
-              onClick={() => void send(lastPrompt || "Propose alternate variants.")}
+              onClick={() => void send(lastPrompt || t("proposeAlternateVariants"))}
             >
-              Variations
+              {t("variations")}
             </button>
           </div>
         </div>
@@ -333,6 +508,66 @@ export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
             {rateStatus}
           </p>
         ) : null}
+        {translatedOwners.length > 0 ? (
+          <div className="dialogue-translations" data-landmark="translations">
+            <span className="status-chip">{t("translations")}</span>
+            <ul>
+              {translatedOwners.map((owner) => (
+                <li key={owner.ownerId}>
+                  <span className="chip-toggle" data-active="true">
+                    {owner.sourceLocale}
+                  </span>
+                  <span>{owner.content}</span>
+                  <span aria-hidden="true">{"→"}</span>
+                  <span className="chip-toggle" data-active="true">
+                    {owner.sourceLocale === "ko-KR" ? "en-US" : "ko-KR"}
+                  </span>
+                  <span>{owner.translatedText}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        <div className="dialogue-decision-row" data-landmark="feedback">
+          <div className="dialogue-decision-buttons">
+            <button
+              type="button"
+              className="chip-toggle"
+              disabled={feedbackSending}
+              onClick={() => void submitFeedback("LOOKS_GOOD")}
+            >
+              {t("looksGood")}
+            </button>
+            <button
+              type="button"
+              className="chip-toggle"
+              disabled={feedbackSending}
+              onClick={() => void submitFeedback("NEEDS_CHANGES")}
+            >
+              {t("needsChanges")}
+            </button>
+            <button
+              type="button"
+              className="chip-toggle"
+              disabled={feedbackSending}
+              onClick={() => void submitFeedback("REQUEST_CHANGES")}
+            >
+              {t("requestChanges")}
+            </button>
+          </div>
+          <textarea
+            value={feedbackNote}
+            onChange={(event) => setFeedbackNote(event.target.value)}
+            placeholder={t("feedbackNotePlaceholder")}
+            rows={1}
+            aria-label={t("feedbackNoteAriaLabel")}
+          />
+          {feedbackStatus ? (
+            <p className="dialogue-rate-status" aria-live="polite">
+              {feedbackStatus}
+            </p>
+          ) : null}
+        </div>
       </div>
     </div>
   );
