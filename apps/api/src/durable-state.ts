@@ -62,6 +62,7 @@ const ArtifactSlotSchema = z.enum([
   "STAGED",
   "PREVIEW",
   "PUBLISHED",
+  "PREVIEW_LABELED",
   "EVIDENCE_VIDEO",
   "SAFETY_SAMPLE",
 ]);
@@ -75,6 +76,7 @@ const artifactSlots = (
   STAGED: workflow.stagedArtifacts,
   PREVIEW: workflow.previews,
   PUBLISHED: workflow.artifacts,
+  PREVIEW_LABELED: workflow.previewsLabeled,
   EVIDENCE_VIDEO: workflow.evidenceVideos,
   SAFETY_SAMPLE: workflow.safetySamples,
 });

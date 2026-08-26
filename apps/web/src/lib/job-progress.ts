@@ -6,6 +6,7 @@ export type JobProgress = {
   readonly updatedAt: string;
   readonly artifactId: string;
   readonly previewArtifactId: string;
+  readonly previewLabeledArtifactId: string;
   readonly evidenceVideoArtifactId: string;
   readonly failureCode: string | null;
   readonly progressPhase: string;
@@ -85,6 +86,7 @@ export const parseJobProgress = (value: unknown): JobProgress | null => {
     updatedAt: text(field(value, "updatedAt")),
     artifactId: text(field(artifact, "id")),
     previewArtifactId: text(field(value, "previewArtifactId")),
+    previewLabeledArtifactId: text(field(value, "previewLabeledArtifactId")),
     evidenceVideoArtifactId: text(field(value, "evidenceVideoArtifactId")),
     failureCode: text(field(value, "failureCode")) || null,
     progressPhase: text(field(progress, "phase")),

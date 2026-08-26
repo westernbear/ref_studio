@@ -251,6 +251,7 @@ const PreviewResult = z
     protocol: z.literal("rvs.worker.v1"),
     phase: z.literal("preview"),
     previewArtifactId: z.string().min(1),
+    previewLabeledArtifactId: z.string().min(1),
     report: RenderReport.extend({ mode: z.literal("preview") }),
   })
   .strict();
@@ -731,6 +732,10 @@ const finishWorkflowJob = (
       !job.compilation ||
       !preview ||
       preview.id !== parsed.data.previewArtifactId ||
+      // Bind the captioned variant the same way, so a retry cannot leave the
+      // reviewer comparing against the previous attempt's labels.
+      workflow?.previewsLabeled.get(job.id)?.id !==
+        parsed.data.previewLabeledArtifactId ||
       parsed.data.report.outputSha256 !== preview.sha256 ||
       parsed.data.report.outputBytes !== preview.sizeBytes ||
       !compilationMatchesReport(job.compilation, parsed.data.report)
@@ -1070,7 +1075,12 @@ export function registerWorkers(
       Body: unknown;
     }>,
     reply: FastifyReply,
-    kind: "preview" | "delivery" | "evidence-video" | "safety-sample",
+    kind:
+      | "preview"
+      | "preview-labeled"
+      | "delivery"
+      | "evidence-video"
+      | "safety-sample",
   ): Promise<void> => {
     const claimed = claimedJob(request, reply);
     if (!claimed) return;
@@ -1081,13 +1091,15 @@ export function registerWorkers(
     const artifacts =
       kind === "preview"
         ? workflow?.previews
-        : kind === "evidence-video"
-          ? workflow?.evidenceVideos
-          : kind === "safety-sample"
-            ? workflow?.safetySamples
-            : workflow?.stagedArtifacts;
+        : kind === "preview-labeled"
+          ? workflow?.previewsLabeled
+          : kind === "evidence-video"
+            ? workflow?.evidenceVideos
+            : kind === "safety-sample"
+              ? workflow?.safetySamples
+              : workflow?.stagedArtifacts;
     const stateValid =
-      kind === "preview"
+      kind === "preview" || kind === "preview-labeled"
         ? lease.phase === "preview" &&
           job.preparationStage === "PREVIEW_RUNNING" &&
           (job.state === "PREPARING" || job.state === "STALE_APPROVAL")
@@ -1159,7 +1171,7 @@ export function registerWorkers(
         return;
       }
       const liveStateValid =
-        kind === "preview"
+        kind === "preview" || kind === "preview-labeled"
           ? revalidated.lease.phase === "preview" &&
             revalidated.job.preparationStage === "PREVIEW_RUNNING" &&
             (revalidated.job.state === "PREPARING" ||
@@ -1184,11 +1196,13 @@ export function registerWorkers(
       const idPrefix =
         kind === "preview"
           ? "preview"
-          : kind === "evidence-video"
-            ? "evidencevideo"
-            : kind === "safety-sample"
-              ? "safetysample"
-              : "artifact";
+          : kind === "preview-labeled"
+            ? "previewlabeled"
+            : kind === "evidence-video"
+              ? "evidencevideo"
+              : kind === "safety-sample"
+                ? "safetysample"
+                : "artifact";
       const extension = kind === "safety-sample" ? "png" : "mp4";
       const contentType = kind === "safety-sample" ? "image/png" : "video/mp4";
       const artifactId = `${idPrefix}_${digest({ jobId: job.id, sha256 }).slice(0, 16)}`;
@@ -1251,6 +1265,11 @@ export function registerWorkers(
   const requirePng = requireContentType("image/png");
   for (const [url, kind, onRequest] of [
     ["/v1/workers/:workerId/jobs/:jobId/preview-artifact", "preview", requireMp4],
+    [
+      "/v1/workers/:workerId/jobs/:jobId/preview-labeled-artifact",
+      "preview-labeled",
+      requireMp4,
+    ],
     [
       "/v1/workers/:workerId/jobs/:jobId/evidence-video-artifact",
       "evidence-video",

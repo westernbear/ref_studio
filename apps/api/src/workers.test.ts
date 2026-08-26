@@ -1138,6 +1138,60 @@ describe("worker registration API", () => {
     },
   );
 
+  it("advances to AWAITING_T4 only once both preview variants are bound", async () => {
+    const workflow = createCreatorWorkflowStore();
+    const job = addJob(workflow, "PREPARING");
+    job.preparationStage = "PREVIEW_QUEUED";
+    job.compilation = compilation;
+    const fixture = appFixture(workflow);
+    await registerWorker(fixture, ["renderer"]);
+    await claimWorker(fixture);
+    const previewBytes = Buffer.from("preview-report-bytes");
+    const upload = (kind: string, payload: Buffer) =>
+      fixture.app.inject({
+        method: "POST",
+        url: `/v1/workers/worker-a/jobs/${job.id}/${kind}`,
+        headers: { ...fixture.headers, "content-type": "video/mp4" },
+        payload,
+      });
+    const uploaded = await upload("preview-artifact", previewBytes);
+    const labeled = await upload(
+      "preview-labeled-artifact",
+      Buffer.from("preview-labeled-bytes"),
+    );
+    expect(labeled.statusCode).toBe(201);
+    const complete = (previewLabeledArtifactId: string) =>
+      fixture.app.inject({
+        method: "POST",
+        url: `/v1/workers/worker-a/jobs/${job.id}/complete`,
+        headers: fixture.headers,
+        payload: {
+          result: {
+            protocol: "rvs.worker.v1",
+            phase: "preview",
+            previewArtifactId: uploaded.json().artifactId,
+            previewLabeledArtifactId,
+            report: {
+              ...renderReport(job, "attempt-a", previewBytes),
+              mode: "preview",
+            },
+          },
+        },
+      });
+    // A labelled artifact from some other attempt must not be accepted.
+    const stale = await complete("preview_stale");
+    expect(stale.statusCode).toBe(422);
+    expect(job.preparationStage).toBe("PREVIEW_RUNNING");
+
+    const accepted = await complete(labeled.json().artifactId);
+    expect(accepted.statusCode).toBe(200);
+    expect(job.preparationStage).toBe("AWAITING_T4");
+    expect(workflow.previewsLabeled.get(job.id)?.id).toBe(
+      labeled.json().artifactId,
+    );
+    await fixture.app.close();
+  });
+
   it("keeps cancellation pending until the claimed worker acknowledges it", async () => {
     const workflow = createCreatorWorkflowStore();
     const job = addJob(workflow, "PREPARING");

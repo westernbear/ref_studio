@@ -209,6 +209,8 @@
     "evidence": "Evidence",
     "preview": "Preview",
     "previewPending": "Rendering preview...",
+    "previewLabeled": "With labels",
+    "previewVariantAriaLabel": "Preview variant",
     "translations": "Translations",
     "job": "Job: {id}",
     "frames": "Frames: {frames}",

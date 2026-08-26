@@ -209,6 +209,8 @@
     "evidence": "증거",
     "preview": "프리뷰",
     "previewPending": "프리뷰 만드는 중...",
+    "previewLabeled": "라벨 표시",
+    "previewVariantAriaLabel": "프리뷰 종류",
     "translations": "번역",
     "job": "작업: {id}",
     "frames": "프레임: {frames}",

@@ -168,6 +168,7 @@ export default async function SceneReviewPage({
     updatedAt: "",
     artifactId: "",
     previewArtifactId,
+    previewLabeledArtifactId: "",
     evidenceVideoArtifactId: "",
     failureCode: null,
     progressPhase: "",

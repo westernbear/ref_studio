@@ -130,7 +130,12 @@ export type StoredArtifact = {
   readonly id: string;
   readonly jobId: string;
   readonly tenantId: string;
-  readonly kind: "preview" | "delivery" | "evidence-video" | "safety-sample";
+  readonly kind:
+    | "preview"
+    | "preview-labeled"
+    | "delivery"
+    | "evidence-video"
+    | "safety-sample";
   readonly filename: string;
   readonly contentType: "video/mp4" | "image/png";
   readonly bytes: Uint8Array;
@@ -152,6 +157,7 @@ export type CreatorWorkflowStore = {
   readonly attempts: Map<string, Attempt[]>;
   readonly stagedArtifacts: Map<string, StoredArtifact>;
   readonly previews: Map<string, StoredArtifact>;
+  readonly previewsLabeled: Map<string, StoredArtifact>;
   readonly evidenceVideos: Map<string, StoredArtifact>;
   readonly safetySamples: Map<string, StoredArtifact>;
   readonly artifacts: Map<string, StoredArtifact>;
@@ -167,6 +173,7 @@ export const createCreatorWorkflowStore = (
   attempts: new Map(),
   stagedArtifacts: new Map(),
   previews: new Map(),
+  previewsLabeled: new Map(),
   evidenceVideos: new Map(),
   safetySamples: new Map(),
   artifacts: new Map(),
@@ -486,6 +493,7 @@ const projection = (
   irDigest: job.irDigest,
   reviewArtifactId: store.stagedArtifacts.get(job.id)?.id ?? null,
   previewArtifactId: store.previews.get(job.id)?.id ?? null,
+  previewLabeledArtifactId: store.previewsLabeled.get(job.id)?.id ?? null,
   evidenceVideoArtifactId: store.evidenceVideos.get(job.id)?.id ?? null,
   authoringVersionId: job.compilation?.authoring.versionId ?? null,
   browserPassSpecDigest: job.compilation?.browserPassSpec.digest ?? null,
@@ -1015,6 +1023,7 @@ export function retryJob(
   store.stagedArtifacts.delete(job.id);
   // Leaving these behind lets a retry reuse the previous attempt's
   // evidence video and, worse, its safety sample.
+  store.previewsLabeled.delete(job.id);
   store.evidenceVideos.delete(job.id);
   store.safetySamples.delete(job.id);
   job.evidenceDigest = digest({ upload: job.uploadId, attempt: job.attempt });
@@ -1398,6 +1407,27 @@ export function registerCreatorWorkflow(
             `inline; filename="${preview.filename}"`,
           )
           .send(artifactBody(preview));
+      } catch {
+        fail(reply, "ARTIFACT_UNAVAILABLE", 404);
+      }
+    },
+  );
+  app.get(
+    "/v1/jobs/:jobId/preview-labeled-download",
+    async (request: FastifyRequest<{ Params: { jobId: string } }>, reply) => {
+      try {
+        const job = owned(store, request.params.jobId, tenant(request));
+        const labeled = store.previewsLabeled.get(job.id);
+        if (!labeled || labeled.kind !== "preview-labeled")
+          throw new Error("ARTIFACT_UNAVAILABLE");
+        return reply
+          .header("content-type", labeled.contentType)
+          .header("content-length", labeled.sizeBytes)
+          .header(
+            "content-disposition",
+            `inline; filename="${labeled.filename}"`,
+          )
+          .send(artifactBody(labeled));
       } catch {
         fail(reply, "ARTIFACT_UNAVAILABLE", 404);
       }

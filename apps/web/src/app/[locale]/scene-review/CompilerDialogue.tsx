@@ -56,6 +56,16 @@ export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
   const previewUrl = job.previewArtifactId
     ? `/api/v1/jobs/${encodeURIComponent(job.id)}/preview-download`
     : null;
+  const previewLabeledUrl = job.previewLabeledArtifactId
+    ? `/api/v1/jobs/${encodeURIComponent(job.id)}/preview-labeled-download`
+    : null;
+  const [previewSource, setPreviewSource] = useState<"clean" | "labeled">(
+    "clean",
+  );
+  const shownPreviewUrl =
+    previewSource === "labeled" && previewLabeledUrl
+      ? previewLabeledUrl
+      : previewUrl;
   const evidenceVideoUrl = job.evidenceVideoArtifactId
     ? `/api/v1/jobs/${encodeURIComponent(job.id)}/evidence-video-download`
     : null;
@@ -487,9 +497,39 @@ export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
             <video controls preload="metadata" playsInline src={compareUrl} />
           </div>
           <div className="dialogue-compare-pane">
-            <span className="status-chip">{t("preview")}</span>
-            {previewUrl ? (
-              <video controls preload="metadata" playsInline src={previewUrl} />
+            <div
+              className="dialogue-compare-toggle"
+              role="group"
+              aria-label={t("previewVariantAriaLabel")}
+            >
+              <button
+                type="button"
+                className="chip-toggle"
+                aria-pressed={previewSource === "clean"}
+                data-active={previewSource === "clean"}
+                onClick={() => setPreviewSource("clean")}
+              >
+                {t("preview")}
+              </button>
+              {previewLabeledUrl ? (
+                <button
+                  type="button"
+                  className="chip-toggle"
+                  aria-pressed={previewSource === "labeled"}
+                  data-active={previewSource === "labeled"}
+                  onClick={() => setPreviewSource("labeled")}
+                >
+                  {t("previewLabeled")}
+                </button>
+              ) : null}
+            </div>
+            {shownPreviewUrl ? (
+              <video
+                controls
+                preload="metadata"
+                playsInline
+                src={shownPreviewUrl}
+              />
             ) : (
               // Falling back to sourceUrl here put the reference clip in both
               // panes, the right one labelled "Preview".
