@@ -8,6 +8,7 @@ import {
   isJobWorking,
   isTerminalJobState,
   jobStateKey,
+  nextStepKey,
   normalizeStage,
   runningStageIndex,
   stageLabelKey,
@@ -55,6 +56,7 @@ export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
   const tState = useTranslations("JobState");
   const tStage = useTranslations("StageLabels");
   const tRationale = useTranslations("ProposalRationales");
+  const tNext = useTranslations("NextStep");
   // AI rationales are free text: the server needs the reader's locale to
   // ask the model for the right language.
   const locale = useLocale();
@@ -512,6 +514,13 @@ export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
           {job.state === "STALE_APPROVAL" ? (
             <span className="status-chip is-stale">{t("staleApproval")}</span>
           ) : null}
+          {/* Everything else on this screen reports state. This is the only
+              line that says whose turn it is, which is what was missing the
+              moment the compiler went quiet and the reader was left with two
+              videos and no idea what came next. */}
+          <p className="dialogue-next-step" aria-live="polite">
+            {tNext(nextStepKey(job))}
+          </p>
         </div>
         <div className="dialogue-preview-frame" data-landmark="compare-row">
           {/* Each pane keeps its name on screen whatever it is showing. Two

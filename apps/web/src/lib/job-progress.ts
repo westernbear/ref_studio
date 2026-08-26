@@ -239,6 +239,24 @@ export const stageLabelKey = (
   return { known: false, fallback: stage ? titleCase(stage) : "" };
 };
 
+// What the person looking at this screen should do now. Every other thing on
+// the review screen reports state -- a chip, a stage log, a table of checks --
+// and none of it says whose turn it is, so the moment the compiler went quiet
+// there was nothing to read as "your move". Returns a NextStep.* key.
+export const nextStepKey = (job: JobProgress): string => {
+  if (job.state === "COMPLETED") return "collectDelivery";
+  if (job.state === "FAILED") return "startOver";
+  if (job.state === "CANCELLED") return "startOver";
+  if (job.state === "RETRYABLE_ERROR") return "retrying";
+  if (job.state === "STALE_APPROVAL") return "reviewAgain";
+  if (job.state === "AWAITING_T5") return "finalCheckRunning";
+  if (job.state === "QUEUED" || job.state === "RENDERING" || job.state === "ASSEMBLING")
+    return "buildingFinal";
+  if (job.state === "READY")
+    return job.approvedGates.includes("T4") ? "readyToRender" : "verifying";
+  return "building";
+};
+
 // Which of the accumulated chat messages is the stage currently being worked
 // on. It is the last stage recorded, not every message that happens to name
 // the same stage: a job that comes back to a stage it has already been through

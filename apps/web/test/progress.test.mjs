@@ -12,6 +12,7 @@ import {
   jobStatusMessage,
   liveJobStatusErrorCode,
   nextApprovalGate,
+  nextStepKey,
   parseJobProgress,
   runningStageIndex,
   progressStages,
@@ -243,5 +244,50 @@ describe("which accumulated stage message is running", () => {
 
   it("marks nothing when no stage has been logged yet", () => {
     expect(runningStageIndex(["system"], "download")).toBe(-1);
+  });
+});
+
+describe("what to do next", () => {
+  const at = (state, gates = []) => ({ state, approvedGates: gates });
+
+  it("asks for the render once the rebuild has passed its checks", () => {
+    expect(nextStepKey(at("READY", ["T1", "T2", "T3", "T4"]))).toBe("readyToRender");
+  });
+
+  it("does not ask for it while the checks are still running", () => {
+    expect(nextStepKey(at("READY", ["T1", "T2"]))).toBe("verifying");
+  });
+
+  it("says work is under way for every state a worker is busy in", () => {
+    expect(nextStepKey(at("PREPARING"))).toBe("building");
+    for (const state of ["QUEUED", "RENDERING", "ASSEMBLING"])
+      expect(nextStepKey(at(state))).toBe("buildingFinal");
+  });
+
+  it("points at the delivery when there is one, and at a fresh start when there is not", () => {
+    expect(nextStepKey(at("COMPLETED"))).toBe("collectDelivery");
+    expect(nextStepKey(at("FAILED"))).toBe("startOver");
+    expect(nextStepKey(at("CANCELLED"))).toBe("startOver");
+  });
+});
+
+describe("every next step has words in both catalogues", () => {
+  it("resolves each key nextStepKey can return", async () => {
+    const ko = (await import("../messages/ko-KR.json", { with: { type: "json" } })).default;
+    const en = (await import("../messages/en-US.json", { with: { type: "json" } })).default;
+    const states = [
+      "PREPARING", "READY", "QUEUED", "RENDERING", "ASSEMBLING", "AWAITING_T5",
+      "COMPLETED", "CANCELLED", "FAILED", "RETRYABLE_ERROR", "STALE_APPROVAL",
+    ];
+    const keys = new Set(
+      states.flatMap((state) => [
+        nextStepKey({ state, approvedGates: [] }),
+        nextStepKey({ state, approvedGates: ["T4"] }),
+      ]),
+    );
+    for (const key of keys) {
+      expect(ko.NextStep[key], `ko-KR NextStep.${key}`).toBeTruthy();
+      expect(en.NextStep[key], `en-US NextStep.${key}`).toBeTruthy();
+    }
   });
 });

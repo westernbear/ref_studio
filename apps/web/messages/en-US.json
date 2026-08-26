@@ -243,6 +243,17 @@
     "failed": "Failed",
     "staleApproval": "Out of date, rebuilding"
   },
+  "NextStep": {
+    "building": "Building it. The result will appear below, next to your reference.",
+    "verifying": "Checking the result. Nearly there.",
+    "readyToRender": "The rebuild is ready. Compare it with your reference, and start the final render when it looks right.",
+    "buildingFinal": "Building the final video.",
+    "finalCheckRunning": "Running the last check.",
+    "collectDelivery": "Done. Collect the final video below.",
+    "retrying": "Something went wrong, so it is being tried again.",
+    "reviewAgain": "Something changed, so this needs another look.",
+    "startOver": "This job has ended. Start again from a new project."
+  },
   "StageLabels": {
     "download": "Downloading Source",
     "ffprobe": "Inspecting Media",

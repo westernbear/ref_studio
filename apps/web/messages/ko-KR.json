@@ -243,6 +243,17 @@
     "failed": "실패",
     "staleApproval": "오래됨, 다시 만드는 중"
   },
+  "NextStep": {
+    "building": "만드는 중이에요. 다 되면 아래에 원본과 나란히 보여드릴게요.",
+    "verifying": "결과를 확인하는 중이에요. 곧 끝나요.",
+    "readyToRender": "재구성이 준비됐어요. 원본과 비교해 보고, 괜찮으면 최종 영상 만들기를 시작하세요.",
+    "buildingFinal": "최종 영상을 만드는 중이에요.",
+    "finalCheckRunning": "마지막 확인 중이에요.",
+    "collectDelivery": "다 됐어요. 아래에서 최종 영상을 받으세요.",
+    "retrying": "문제가 생겨서 다시 해보는 중이에요.",
+    "reviewAgain": "내용이 바뀌어서 다시 확인해야 해요.",
+    "startOver": "이 작업은 끝났어요. 새 프로젝트로 다시 시작하세요."
+  },
   "StageLabels": {
     "download": "소스 다운로드 중",
     "ffprobe": "미디어 검사 중",
