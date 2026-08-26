@@ -314,6 +314,34 @@ describe("SQLite runtime durability", () => {
       expiresAt: "2026-01-02T00:00:00.000Z",
       report: null,
     });
+    firstStores.workflow.evidenceVideos.set(job.id, {
+      id: "evidencevideo_restart",
+      jobId: job.id,
+      tenantId: job.tenantId,
+      kind: "evidence-video",
+      filename: "evidence.mp4",
+      contentType: "video/mp4",
+      bytes: Uint8Array.from([5, 6, 7, 8]),
+      sha256: sha256(Uint8Array.from([5, 6, 7, 8])),
+      sizeBytes: 4,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      expiresAt: "2026-01-02T00:00:00.000Z",
+      report: null,
+    });
+    firstStores.workflow.safetySamples.set(job.id, {
+      id: "safetysample_restart",
+      jobId: job.id,
+      tenantId: job.tenantId,
+      kind: "safety-sample",
+      filename: "sample.png",
+      contentType: "image/png",
+      bytes: Uint8Array.from([137, 80, 78, 71]),
+      sha256: sha256(Uint8Array.from([137, 80, 78, 71])),
+      sizeBytes: 4,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      expiresAt: "2026-01-02T00:00:00.000Z",
+      report: null,
+    });
     firstStores.auth.sessions.push({
       id: "session_restart",
       userId: "usr_platform",
@@ -385,6 +413,17 @@ describe("SQLite runtime durability", () => {
     expect(secondStores.workers.leases.get(job.id)?.workerId).toBe(
       "worker_restart",
     );
+    // Regression: these two slots were never persisted, so a restart 404'd
+    // the evidence-video download forever and dropped the safety sample,
+    // which then fail-closed a perfectly good render.
+    expect(secondStores.workflow.evidenceVideos.get(job.id)?.id).toBe(
+      "evidencevideo_restart",
+    );
+    const sample = secondStores.workflow.safetySamples.get(job.id);
+    expect(sample?.id).toBe("safetysample_restart");
+    // png must not be stored under a .mp4 name.
+    expect(sample?.storagePath).toMatch(/\.png$/u);
+    expect(existsSync(sample?.storagePath ?? "")).toBe(true);
     secondDb
       .prepare("UPDATE runtime_job_leases SET expires_at=0 WHERE job_id=?")
       .run(job.id);

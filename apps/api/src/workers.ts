@@ -769,6 +769,11 @@ const finishWorkflowJob = (
     parsed.data.report.ir.browserPassSpecDigest !== job.approvedSpecDigest ||
     parsed.data.report.runtime.frameSha256.length !== DELIVERY_FRAME_COUNT ||
     parsed.data.report.runtime.renderer !== job.runtimePreflight?.renderer ||
+    // The safety gate below judges whatever sample is in the store; without
+    // this binding a retry that uploads no sample inherits the previous
+    // attempt's frame and publishes an unreviewed delivery.
+    (workflow?.safetySamples.get(job.id)?.id ?? null) !==
+      parsed.data.safetySampleArtifactId ||
     new Set(parsed.data.report.runtime.passIds).size !==
       parsed.data.report.runtime.passIds.length
   )

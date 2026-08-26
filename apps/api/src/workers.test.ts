@@ -1305,6 +1305,53 @@ describe("worker registration API", () => {
     await fixture.app.close();
   });
 
+  it("rejects a render that does not name the safety sample in the store", async () => {
+    // Regression: safetySampleArtifactId was parsed but never compared, so a
+    // retry that uploaded no sample inherited the previous attempt's frame and
+    // the gate judged the wrong render.
+    const workflow = createCreatorWorkflowStore();
+    const job = addJob(workflow, "QUEUED");
+    job.sourceFps = 25;
+    job.frameCount = 100;
+    job.evidence = analysisEvidence(job.id, "attempt-a", 100, 25);
+    job.evidenceDigest = sha256(JSON.stringify(job.evidence));
+    const fixture = appFixture(workflow, undefined, {});
+    await registerWorker(fixture, ["renderer"]);
+    await claimWorker(fixture);
+    const artifactBytes = Buffer.from("real-mp4-bytes");
+    const uploaded = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${job.id}/artifact`,
+      headers: { ...fixture.headers, "content-type": "video/mp4" },
+      payload: artifactBytes,
+    });
+    const sampleUploaded = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${job.id}/safety-sample-artifact`,
+      headers: { ...fixture.headers, "content-type": "image/png" },
+      payload: Buffer.from([137, 80, 78, 71]),
+    });
+    expect(sampleUploaded.statusCode).toBe(201);
+    // A sample IS in the store, but this render claims it produced none.
+    const orphaned = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${job.id}/complete`,
+      headers: fixture.headers,
+      payload: {
+        result: {
+          protocol: "rvs.worker.v1",
+          phase: "render",
+          artifactId: uploaded.json().artifactId,
+          safetySampleArtifactId: null,
+          report: renderReport(job, "attempt-a", artifactBytes),
+        },
+      },
+    });
+    expect(orphaned.statusCode).toBe(422);
+    expect(workflow.jobs.get(job.id)?.state).toBe("RENDERING");
+    await fixture.app.close();
+  });
+
   it("Given a rendered MP4 that passes the safety check, when the worker uploads and completes it, then stages it for T5 without publishing", async () => {
     const workflow = createCreatorWorkflowStore();
     const job = addJob(workflow, "QUEUED");

@@ -68,6 +68,7 @@ export function migrate(db) {
     [7, "./migrations/007_job_attachments.sql", false],
     [8, "./migrations/008_job_feedback.sql", false],
     [9, "./migrations/009_evidence_video_stage.sql", true],
+    [10, "./migrations/010_evidence_video_artifact_slots.sql", true],
   ];
   for (const [version, file, disableForeignKeys] of migrations) {
     if (

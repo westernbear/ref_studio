@@ -58,9 +58,29 @@ const ChunkRows = z.array(
     sha256: z.string().regex(/^[a-f0-9]{64}$/u),
   }),
 );
+const ArtifactSlotSchema = z.enum([
+  "STAGED",
+  "PREVIEW",
+  "PUBLISHED",
+  "EVIDENCE_VIDEO",
+  "SAFETY_SAMPLE",
+]);
+type ArtifactSlot = z.infer<typeof ArtifactSlotSchema>;
+// One mapping for persist, hydrate, and clear. Splitting it is what left
+// evidenceVideos/safetySamples unsaved: they were added to the store but
+// only three of the four call sites knew about them.
+const artifactSlots = (
+  workflow: CreatorWorkflowStore,
+): Readonly<Record<ArtifactSlot, Map<string, StoredArtifact>>> => ({
+  STAGED: workflow.stagedArtifacts,
+  PREVIEW: workflow.previews,
+  PUBLISHED: workflow.artifacts,
+  EVIDENCE_VIDEO: workflow.evidenceVideos,
+  SAFETY_SAMPLE: workflow.safetySamples,
+});
 const ArtifactRows = z.array(
   z.object({
-    slot: z.enum(["STAGED", "PREVIEW", "PUBLISHED"]),
+    slot: ArtifactSlotSchema,
     mapKey: z.string(),
     storagePath: z.string(),
     valueJson: z.string(),
@@ -165,7 +185,12 @@ const writeArtifact = (
   if (artifact.bytes.byteLength !== artifact.sizeBytes)
     throw new Error("ARTIFACT_STORAGE_INCOMPLETE");
   const directory = path.join(root, segment(artifact.tenantId));
-  const storagePath = path.join(directory, `${segment(artifact.id)}.mp4`);
+  // Safety samples are png; everything else is mp4.
+  const extension = artifact.contentType === "image/png" ? "png" : "mp4";
+  const storagePath = path.join(
+    directory,
+    `${segment(artifact.id)}.${extension}`,
+  );
   const temporary = `${storagePath}.tmp`;
   mkdirSync(directory, { recursive: true, mode: 0o700 });
   writeFileSync(temporary, artifact.bytes, { mode: 0o600, flush: true });
@@ -318,11 +343,7 @@ export function createDurableState(
     const insertArtifact = db.prepare(
       "INSERT INTO runtime_artifacts(slot,map_key,id,job_id,tenant_id,storage_path,value_json) VALUES(?,?,?,?,?,?,?)",
     );
-    for (const [slot, map] of [
-      ["STAGED", stores.workflow.stagedArtifacts],
-      ["PREVIEW", stores.workflow.previews],
-      ["PUBLISHED", stores.workflow.artifacts],
-    ] as const)
+    for (const [slot, map] of Object.entries(artifactSlots(stores.workflow)))
       for (const [mapKey, artifact] of map) {
         const { bytes: _bytes, ...metadata } = artifact;
         if (!artifact.storagePath)
@@ -421,11 +442,7 @@ export function createDurableState(
   });
 
   const persist = (): void => {
-    for (const map of [
-      stores.workflow.stagedArtifacts,
-      stores.workflow.previews,
-      stores.workflow.artifacts,
-    ])
+    for (const map of Object.values(artifactSlots(stores.workflow)))
       for (const [key, artifact] of map)
         map.set(key, writeArtifact(artifactRoot, artifact));
     persistTransaction.immediate();
@@ -444,9 +461,7 @@ export function createDurableState(
     stores.uploads.casByTenantDigest.clear();
     stores.workflow.jobs.clear();
     stores.workflow.attempts.clear();
-    stores.workflow.stagedArtifacts.clear();
-    stores.workflow.previews.clear();
-    stores.workflow.artifacts.clear();
+    for (const map of Object.values(artifactSlots(stores.workflow))) map.clear();
     stores.workflow.releaseManifests.clear();
     stores.reviews.receipts.splice(0, stores.reviews.receipts.length);
     stores.reviews.current.clear();
@@ -556,13 +571,7 @@ export function createDurableState(
         bytes: new Uint8Array(),
         storagePath: row.storagePath,
       };
-      const target =
-        row.slot === "STAGED"
-          ? stores.workflow.stagedArtifacts
-          : row.slot === "PREVIEW"
-            ? stores.workflow.previews
-            : stores.workflow.artifacts;
-      target.set(row.mapKey, artifact);
+      artifactSlots(stores.workflow)[row.slot].set(row.mapKey, artifact);
     }
 
     for (const row of JsonRows.parse(

@@ -1013,6 +1013,10 @@ export function retryJob(
   job.artifact = null;
   store.previews.delete(job.id);
   store.stagedArtifacts.delete(job.id);
+  // Leaving these behind lets a retry reuse the previous attempt's
+  // evidence video and, worse, its safety sample.
+  store.evidenceVideos.delete(job.id);
+  store.safetySamples.delete(job.id);
   job.evidenceDigest = digest({ upload: job.uploadId, attempt: job.attempt });
   job.irDigest = digest({
     upload: job.uploadId,
