@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { errorCode } from "../../../lib/api-error";
 import {
   compileStageRows,
+  isJobWorking,
   isTerminalJobState,
   jobStateKey,
   normalizeStage,
@@ -396,8 +397,7 @@ export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
             if (message.role === "stage") {
               const label = stageLabelKey(normalizeStage(message.stage));
               const active =
-                !isTerminalJobState(job.state) &&
-                message.stage === job.progressStage;
+                isJobWorking(job.state) && message.stage === job.progressStage;
               return (
                 <div className="dialogue-message dialogue-message-stage" key={index}>
                   <span
@@ -451,7 +451,7 @@ export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
               </div>
             );
           })}
-          {stageRows.length > 0 && !isTerminalJobState(job.state) ? (
+          {stageRows.length > 0 && isJobWorking(job.state) ? (
             <div className="dialogue-message">
               <span className="dialogue-message-label dialogue-message-label-active">
                 <span className="spinner" aria-hidden="true" />

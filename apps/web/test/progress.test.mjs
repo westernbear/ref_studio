@@ -4,6 +4,7 @@ import {
   decisionKey,
   formatJobStamp,
   gateLabelKey,
+  isJobWorking,
   isTerminalJobState,
   jobActivityPercent,
   jobProgressPercent,
@@ -43,6 +44,7 @@ describe("compiler progress projection", () => {
       updatedAt: "2026-08-23T07:01:00.000Z",
       artifactId: "art_1",
       previewArtifactId: "",
+      previewLabeledArtifactId: "",
       evidenceVideoArtifactId: "",
       failureCode: null,
       progressPhase: "prepare",
@@ -210,5 +212,16 @@ describe("compiler progress projection", () => {
         status: "active",
       },
     ]);
+  });
+});
+
+describe("live stage checklist visibility", () => {
+  it("goes quiet once preparation finishes, even though READY is not terminal", () => {
+    expect(isTerminalJobState("READY")).toBe(false);
+    expect(isJobWorking("READY")).toBe(false);
+    expect(isJobWorking("AWAITING_T5")).toBe(false);
+    expect(isJobWorking("PREPARING")).toBe(true);
+    expect(isJobWorking("RENDERING")).toBe(true);
+    expect(isJobWorking("ASSEMBLING")).toBe(true);
   });
 });

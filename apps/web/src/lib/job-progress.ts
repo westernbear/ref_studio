@@ -112,6 +112,14 @@ export const jobActivityPercent = (job: JobProgress): number =>
 export const isTerminalJobState = (state: string): boolean =>
   terminalStates.some((candidate) => candidate === state);
 
+// States where a worker is actually running something. READY/AWAITING_T5 are
+// not terminal -- the job lives on -- but nothing is being compiled, so the
+// live stage checklist and its spinner must go quiet there instead of
+// freezing on whichever stage happened to report last.
+const workingStates = ["PREPARING", "RENDERING", "ASSEMBLING"] as const;
+export const isJobWorking = (state: string): boolean =>
+  workingStates.some((candidate) => candidate === state);
+
 export const nextApprovalGate = (
   job: Pick<JobProgress, "state" | "preparationStage">,
 ): ApprovalGate | null => {

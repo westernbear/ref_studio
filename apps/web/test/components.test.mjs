@@ -19,7 +19,7 @@ describe("shared control contract projection", () => {
     expect(routes).toContain('"admin/jobs": "jobs"');
     expect(routes).toContain('"admin/tenants": "tenants"');
     expect(messages.AdminSlug.titles.jobs).toBe("Queue & Delivery");
-    expect(messages.AdminSlug.titles.tenants).toBe("Tenants");
+    expect(messages.AdminSlug.titles.tenants).toBe("Organizations");
     expect(routes).toContain('liveApiGet("/admin/tenants")');
     expect(messages.AdminSlug.adminSignInRequired).toBe(
       "Admin sign-in required.",
