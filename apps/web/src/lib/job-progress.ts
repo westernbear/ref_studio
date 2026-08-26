@@ -239,6 +239,23 @@ export const stageLabelKey = (
   return { known: false, fallback: stage ? titleCase(stage) : "" };
 };
 
+// Which of the accumulated chat messages is the stage currently being worked
+// on. It is the last stage recorded, not every message that happens to name
+// the same stage: a job that comes back to a stage it has already been through
+// -- a retry, or a stage belonging to more than one phase -- records it twice,
+// and matching on the name alone put a spinner on both. Returns -1 when
+// nothing is running, which includes the moment after a retry clears progress.
+export const runningStageIndex = (
+  roles: readonly string[],
+  progressStage: string,
+): number =>
+  progressStage
+    ? roles.reduce(
+        (found, role, index) => (role === "stage" ? index : found),
+        -1,
+      )
+    : -1;
+
 export const normalizeStage = (stage: string): string =>
   stage.replace(/^compiler:/u, "").replace("preview-upload", "upload");
 

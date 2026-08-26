@@ -38,11 +38,7 @@ export function RenderJobButton({
         const body: unknown = await response.json().catch(() => null);
         const code = errorCode(body);
         setError(
-          code === "ROLE_NOT_PERMITTED"
-            ? t("roleNotPermitted")
-            : code === "APPROVAL_REQUIRED"
-              ? t("stillVerifying")
-              : t("jobChanged"),
+          code === "APPROVAL_REQUIRED" ? t("stillVerifying") : t("jobChanged"),
         );
         return;
       }

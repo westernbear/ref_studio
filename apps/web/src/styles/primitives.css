@@ -1332,9 +1332,20 @@ progress {
   align-content: start;
   justify-items: center;
 }
-.dialogue-compare-toggle {
+.dialogue-compare-head {
   display: flex;
-  gap: var(--space-xs);
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: 28px;
+}
+/* The pane's name outranks its overlay switch: it is the thing that tells a
+   reader which of the two videos they are looking at, so it reads as a label
+   and the switch beside it reads as a control. */
+.dialogue-compare-name {
+  color: var(--color-ink);
+  font: var(--type-caption-mono-sm);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 .chip-toggle {
   border: 1px solid var(--color-hairline);

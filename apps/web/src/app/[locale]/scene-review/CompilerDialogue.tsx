@@ -9,6 +9,7 @@ import {
   isTerminalJobState,
   jobStateKey,
   normalizeStage,
+  runningStageIndex,
   stageLabelKey,
   liveJobStatusErrorCode,
   parseJobProgress,
@@ -312,7 +313,7 @@ export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
   };
 
   const submitFeedback = async (
-    decision: "LOOKS_GOOD" | "NEEDS_CHANGES" | "REQUEST_CHANGES",
+    decision: "LOOKS_GOOD" | "NEEDS_CHANGES",
   ) => {
     setFeedbackSending(true);
     setFeedbackStatus("");
@@ -364,6 +365,10 @@ export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
   };
 
   const stageRows = compileStageRows(job);
+  const activeStageIndex = runningStageIndex(
+    messages.map((message) => message.role),
+    job.progressStage,
+  );
   const framesLabel =
     job.framesProcessed !== null && job.framesTotal !== null
       ? `${job.framesProcessed}/${job.framesTotal}`
@@ -397,7 +402,7 @@ export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
             if (message.role === "stage") {
               const label = stageLabelKey(normalizeStage(message.stage));
               const active =
-                isJobWorking(job.state) && message.stage === job.progressStage;
+                isJobWorking(job.state) && index === activeStageIndex;
               return (
                 <div className="dialogue-message dialogue-message-stage" key={index}>
                   <span
@@ -509,59 +514,49 @@ export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
           ) : null}
         </div>
         <div className="dialogue-preview-frame" data-landmark="compare-row">
+          {/* Each pane keeps its name on screen whatever it is showing. Two
+              panes that each offered a pair of chips looked like one row of
+              four, said nothing about which side was which, and -- once the
+              left pane was switched to the annotated cut -- put an annotated
+              video under both, so the reference could be read as the preview.
+              The name is fixed; the chip only turns that pane's overlay on. */}
           <div className="dialogue-compare-pane">
-            <div
-              className="dialogue-compare-toggle"
-              role="group"
-              aria-label={t("compareAgainstAriaLabel")}
-            >
-              <button
-                type="button"
-                className="chip-toggle"
-                aria-pressed={compareSource === "reference"}
-                data-active={compareSource === "reference"}
-                onClick={() => setCompareSource("reference")}
-              >
-                {t("reference")}
-              </button>
+            <div className="dialogue-compare-head">
+              <span className="dialogue-compare-name">{t("reference")}</span>
               {evidenceVideoUrl ? (
                 <button
                   type="button"
                   className="chip-toggle"
                   aria-pressed={compareSource === "evidence"}
                   data-active={compareSource === "evidence"}
-                  onClick={() => setCompareSource("evidence")}
+                  onClick={() =>
+                    setCompareSource(
+                      compareSource === "evidence" ? "reference" : "evidence",
+                    )
+                  }
                 >
-                  {t("evidence")}
+                  {t("showAnalysis")}
                 </button>
               ) : null}
             </div>
             <video controls preload="metadata" playsInline src={compareUrl} />
           </div>
           <div className="dialogue-compare-pane">
-            <div
-              className="dialogue-compare-toggle"
-              role="group"
-              aria-label={t("previewVariantAriaLabel")}
-            >
-              <button
-                type="button"
-                className="chip-toggle"
-                aria-pressed={previewSource === "clean"}
-                data-active={previewSource === "clean"}
-                onClick={() => setPreviewSource("clean")}
-              >
-                {t("preview")}
-              </button>
+            <div className="dialogue-compare-head">
+              <span className="dialogue-compare-name">{t("preview")}</span>
               {previewLabeledUrl ? (
                 <button
                   type="button"
                   className="chip-toggle"
                   aria-pressed={previewSource === "labeled"}
                   data-active={previewSource === "labeled"}
-                  onClick={() => setPreviewSource("labeled")}
+                  onClick={() =>
+                    setPreviewSource(
+                      previewSource === "labeled" ? "clean" : "labeled",
+                    )
+                  }
                 >
-                  {t("previewLabeled")}
+                  {t("showEffectNames")}
                 </button>
               ) : null}
             </div>
@@ -647,14 +642,6 @@ export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
               onClick={() => void submitFeedback("NEEDS_CHANGES")}
             >
               {t("needsChanges")}
-            </button>
-            <button
-              type="button"
-              className="chip-toggle"
-              disabled={feedbackSending}
-              onClick={() => void submitFeedback("REQUEST_CHANGES")}
-            >
-              {t("requestChanges")}
             </button>
           </div>
           <textarea

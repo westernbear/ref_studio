@@ -13,6 +13,7 @@ import {
   liveJobStatusErrorCode,
   nextApprovalGate,
   parseJobProgress,
+  runningStageIndex,
   progressStages,
   stageLabelKey,
 } from "../src/lib/job-progress.ts";
@@ -223,5 +224,24 @@ describe("live stage checklist visibility", () => {
     expect(isJobWorking("PREPARING")).toBe(true);
     expect(isJobWorking("RENDERING")).toBe(true);
     expect(isJobWorking("ASSEMBLING")).toBe(true);
+  });
+});
+
+describe("which accumulated stage message is running", () => {
+  const log = ["system", "stage", "stage", "user", "stage"];
+
+  it("marks only the last stage, not every message naming the same one", () => {
+    // A retry sends the job back through a stage it has already logged, so the
+    // same stage sits in the chat twice; matching on the stage name lit both.
+    expect(runningStageIndex(log, "normalize")).toBe(4);
+  });
+
+  it("marks nothing once progress is cleared", () => {
+    // A retry nulls the job's progress before the next stage reports.
+    expect(runningStageIndex(log, "")).toBe(-1);
+  });
+
+  it("marks nothing when no stage has been logged yet", () => {
+    expect(runningStageIndex(["system"], "download")).toBe(-1);
   });
 });
