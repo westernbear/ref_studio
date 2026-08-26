@@ -199,7 +199,7 @@
     "applying": "적용 중...",
     "apply": "적용",
     "compilingScene": "장면 컴파일 중...",
-    "promptPlaceholder": "생성 파라미터를 정제하세요...",
+    "promptPlaceholder": "어떻게 바꿀지 알려주세요...",
     "promptAriaLabel": "생성 파라미터 정제",
     "sending": "전송 중...",
     "send": "전송",
@@ -208,6 +208,7 @@
     "reference": "레퍼런스",
     "evidence": "증거",
     "preview": "프리뷰",
+    "previewPending": "프리뷰 만드는 중...",
     "translations": "번역",
     "job": "작업: {id}",
     "frames": "프레임: {frames}",
@@ -550,5 +551,10 @@
     "newProject": "새 프로젝트",
     "workflowSearchPlaceholder": "작업, 상태, 또는 업로드",
     "compilerJobs": "컴파일러 작업"
+  },
+  "ProposalRationales": {
+    "keptUnchanged": "현재 구간을 그대로 뒀습니다.",
+    "shiftedEarlier": "허용 범위 안에서 앞으로 당겼습니다.",
+    "shiftedLater": "허용 범위 안에서 뒤로 밀었습니다."
   }
 }

@@ -229,7 +229,7 @@ export const stageLabelKey = (
   return { known: false, fallback: stage ? titleCase(stage) : "" };
 };
 
-const normalizeStage = (stage: string): string =>
+export const normalizeStage = (stage: string): string =>
   stage.replace(/^compiler:/u, "").replace("preview-upload", "upload");
 
 export type CompileStageRow = {

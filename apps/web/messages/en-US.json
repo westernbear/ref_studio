@@ -208,6 +208,7 @@
     "reference": "Reference",
     "evidence": "Evidence",
     "preview": "Preview",
+    "previewPending": "Rendering preview...",
     "translations": "Translations",
     "job": "Job: {id}",
     "frames": "Frames: {frames}",
@@ -550,5 +551,10 @@
     "newProject": "New Project",
     "workflowSearchPlaceholder": "Job, state, or upload",
     "compilerJobs": "Compiler jobs"
+  },
+  "ProposalRationales": {
+    "keptUnchanged": "Kept the current window unchanged.",
+    "shiftedEarlier": "Shifted earlier within the accepted range.",
+    "shiftedLater": "Shifted later within the accepted range."
   }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import { errorCode } from "../../../lib/api-error";
 import {
@@ -19,7 +19,13 @@ type TranslatedOwner = Readonly<{
   content: string;
   translatedText: string;
 }>;
-type Proposal = { readonly startFrame: number; readonly rationale: string };
+type Proposal = {
+  readonly startFrame: number;
+  readonly rationale: string;
+  // Heuristic proposals carry a key so their fixed rationales can be
+  // translated; AI rationales are free text and only have `rationale`.
+  readonly rationaleKey?: string;
+};
 type ChatMessage =
   | { readonly role: "system"; readonly textKey: string }
   | { readonly role: "user"; readonly text: string }
@@ -40,6 +46,10 @@ export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
   const t = useTranslations("CompilerDialogue");
   const tState = useTranslations("JobState");
   const tStage = useTranslations("StageLabels");
+  const tRationale = useTranslations("ProposalRationales");
+  // AI rationales are free text: the server needs the reader's locale to
+  // ask the model for the right language.
+  const locale = useLocale();
   const [job, setJob] = useState(initialJob);
   // Derived from the live-polled job, not a static prop -- otherwise the
   // preview never appears once rendering finishes after initial page load.
@@ -181,7 +191,7 @@ export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
             "content-type": "application/json",
             "idempotency-key": requestId(),
           },
-          body: JSON.stringify({ prompt: text }),
+          body: JSON.stringify({ prompt: text, locale }),
         },
       );
       const body: unknown = await response.json().catch(() => null);
@@ -288,6 +298,7 @@ export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
           },
           body: JSON.stringify({
             decision,
+            locale,
             ...(feedbackNote ? { note: feedbackNote } : {}),
           }),
         },
@@ -369,7 +380,11 @@ export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
                     <li key={proposalIndex}>
                       <div>
                         <strong>{t("startFrame", { frame: proposal.startFrame })}</strong>
-                        <p>{proposal.rationale}</p>
+                        <p>
+                          {proposal.rationaleKey
+                            ? tRationale(proposal.rationaleKey)
+                            : proposal.rationale}
+                        </p>
                       </div>
                       <button
                         className="button"
@@ -476,7 +491,9 @@ export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
             {previewUrl ? (
               <video controls preload="metadata" playsInline src={previewUrl} />
             ) : (
-              <video controls preload="metadata" playsInline src={sourceUrl} />
+              // Falling back to sourceUrl here put the reference clip in both
+              // panes, the right one labelled "Preview".
+              <p className="dialogue-preview-pending">{t("previewPending")}</p>
             )}
           </div>
         </div>

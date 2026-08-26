@@ -10,10 +10,13 @@ import {
   gateLabelKey,
   isTerminalJobState,
   jobProgressPercent,
+  jobStateKey,
   jobStatusMessage,
   nextApprovalGate,
   liveJobStatusErrorCode,
+  normalizeStage,
   parseJobProgress,
+  stageLabelKey,
   type JobProgress,
 } from "../../../lib/job-progress";
 
@@ -28,6 +31,8 @@ export function ProgressTracker({ initialJob }: Props) {
   const tStatus = useTranslations("JobStatus");
   const tGates = useTranslations("Gates");
   const tDecisions = useTranslations("Decisions");
+  const tState = useTranslations("JobState");
+  const tStage = useTranslations("StageLabels");
   const [job, setJob] = useState(initialJob);
   const [error, setError] = useState("");
   const percent = jobProgressPercent(job);
@@ -37,12 +42,27 @@ export function ProgressTracker({ initialJob }: Props) {
   const approvedGateCount = approvalGates.filter((gate) =>
     job.approvedGates.includes(gate),
   ).length;
-  const workerCopy = job.progressStage || job.progressPhase || t("waiting");
+  // progressStage arrives raw ("compiler:scene-compile"); normalize it the
+  // same way compileStageRows does or the label lookup misses.
+  const stageLabel = stageLabelKey(normalizeStage(job.progressStage));
+  const workerCopy = job.progressStage
+    ? stageLabel.known
+      ? tStage(stageLabel.key)
+      : stageLabel.fallback
+    : job.progressPhase || t("waiting");
   const frameCopy =
     job.framesProcessed === null || job.framesTotal === null
       ? t("pending")
       : `${job.framesProcessed}/${job.framesTotal}`;
-  const status = jobStatusMessage(job);
+  const rawStatus = jobStatusMessage(job);
+  // rendererActive/compilerActive interpolate {stage}; without this the main
+  // status line reads "컴파일러 작동 중: all-frame-analysis."
+  const status = rawStatus.values?.["stage"]
+    ? {
+        ...rawStatus,
+        values: { ...rawStatus.values, stage: workerCopy },
+      }
+    : rawStatus;
 
   useEffect(() => {
     if (!shouldPoll) return undefined;
@@ -98,7 +118,10 @@ export function ProgressTracker({ initialJob }: Props) {
           </Link>
           <span className="progress-divider" aria-hidden="true" />
           <span className="progress-kicker">
-            {t("jobKicker", { state: job.state, id: job.id })}
+            {t("jobKicker", {
+              state: tState(jobStateKey(job.state)),
+              id: job.id,
+            })}
           </span>
         </div>
         <nav className="progress-actions" aria-label={t("progressActionsAriaLabel")}>
@@ -130,7 +153,7 @@ export function ProgressTracker({ initialJob }: Props) {
               </div>
             </div>
             <div className="progress-meter-row">
-              <span>{job.state}</span>
+              <span>{tState(jobStateKey(job.state))}</span>
               <div
                 className="progress-meter"
                 role="progressbar"

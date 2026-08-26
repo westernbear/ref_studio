@@ -1332,6 +1332,18 @@ progress {
   border-radius: var(--radius-lg);
   object-fit: contain;
 }
+.dialogue-preview-pending {
+  display: grid;
+  place-items: center;
+  inline-size: 100%;
+  min-block-size: 320px;
+  margin: 0;
+  border: 1px dashed var(--color-hairline);
+  border-radius: var(--radius-lg);
+  color: var(--color-on-surface-variant);
+  font: var(--type-caption-mono);
+  text-align: center;
+}
 .dialogue-preview-footer {
   display: flex;
   align-items: center;

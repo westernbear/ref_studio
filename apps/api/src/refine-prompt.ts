@@ -35,6 +35,9 @@ const statusFor = (code: string): number =>
 export type RefineProposal = {
   readonly startFrame: number;
   readonly rationale: string;
+  // Set only by the heuristic planner, whose rationales are fixed strings the
+  // client can translate. AI rationales are free text and stay in `rationale`.
+  readonly rationaleKey?: "keptUnchanged" | "shiftedEarlier" | "shiftedLater";
 };
 export type RefineResponse = {
   readonly plannerKind: "ai" | "heuristic";
@@ -81,6 +84,20 @@ export type GenerateProposals = (options: {
 const clamp = (value: number, min: number, max: number): number =>
   Math.min(max, Math.max(min, Math.round(value)));
 
+// Rationales are shown to the creator verbatim, so the model has to answer in
+// the language they are reading. Heuristic rationales are translated
+// client-side via rationaleKey; AI text can only be steered here.
+// Allow-listed rather than interpolated raw: this value reaches the prompt,
+// so an arbitrary client string would be an injection point.
+const SUPPORTED_LOCALES = ["en-US", "ko-KR"] as const;
+const localeOf = (value: unknown): string | undefined =>
+  typeof value === "string" &&
+  (SUPPORTED_LOCALES as readonly string[]).includes(value)
+    ? value
+    : undefined;
+const localeInstruction = (locale: string | undefined): string =>
+  locale ? `\nWrite every rationale in ${locale}.` : "";
+
 // Without a configured/enabled provider, propose the current window plus one
 // candidate shifted earlier and one shifted later, evenly spaced within the
 // accepted interval -- mirrors the design spec's documented behavior of
@@ -95,14 +112,17 @@ function heuristicProposals(
     {
       startFrame: clamp(current, min, max),
       rationale: "Heuristic: kept the current window unchanged.",
+      rationaleKey: "keptUnchanged",
     },
     {
       startFrame: clamp(min + span * 0.25, min, max),
       rationale: "Heuristic: shifted earlier within the accepted interval.",
+      rationaleKey: "shiftedEarlier",
     },
     {
       startFrame: clamp(min + span * 0.75, min, max),
       rationale: "Heuristic: shifted later within the accepted interval.",
+      rationaleKey: "shiftedLater",
     },
   ];
 }
@@ -121,6 +141,7 @@ async function planProposals(params: {
   readonly db: Database.Database;
   readonly aiSecretKey: string;
   readonly generate: GenerateProposals;
+  readonly locale?: string | undefined;
 }): Promise<RefineResponse> {
   const settings = getAiProviderSettingsWithSecret(
     params.db,
@@ -140,7 +161,7 @@ async function planProposals(params: {
   const generated = await params.generate({
     model,
     schema: ProposalsSchema,
-    prompt: `You select which 4-second window of an existing reference video best matches a creator's described intent. You cannot generate new video content -- you only choose a start frame within the accepted range.\nCurrent start frame: ${params.current}.\nValid start frame range: ${params.min} to ${params.max} (inclusive).\nCreator's request: ${params.prompt}\nPropose 2 or 3 candidate start frames with a short rationale for each.`,
+    prompt: `You select which 4-second window of an existing reference video best matches a creator's described intent. You cannot generate new video content -- you only choose a start frame within the accepted range.\nCurrent start frame: ${params.current}.\nValid start frame range: ${params.min} to ${params.max} (inclusive).\nCreator's request: ${params.prompt}\nPropose 2 or 3 candidate start frames with a short rationale for each.${localeInstruction(params.locale)}`,
   });
   return {
     plannerKind: "ai",
@@ -230,7 +251,7 @@ export function registerRefinePrompt(
     async (
       request: FastifyRequest<{
         Params: { jobId: string };
-        Body: { prompt?: string };
+        Body: { prompt?: string; locale?: string };
       }>,
       reply,
     ) => {
@@ -263,6 +284,7 @@ export function registerRefinePrompt(
               db,
               aiSecretKey,
               generate,
+              locale: localeOf(request.body?.locale),
             });
             return [200, response];
           },
@@ -329,7 +351,7 @@ export function registerRefinePrompt(
     async (
       request: FastifyRequest<{
         Params: { jobId: string };
-        Body: { decision?: string; note?: string };
+        Body: { decision?: string; note?: string; locale?: string };
       }>,
       reply,
     ) => {
@@ -381,6 +403,7 @@ export function registerRefinePrompt(
                     db,
                     aiSecretKey,
                     generate,
+                    locale: localeOf(request.body?.locale),
                   });
                 }
               } catch {
