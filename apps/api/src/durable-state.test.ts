@@ -67,6 +67,41 @@ const stores = (root: string) => {
   };
 };
 
+const baseJob: Job = {
+  id: "job_base",
+  tenantId: "ten_platform",
+  creatorId: "usr_platform",
+  uploadId: "upl_base",
+  state: "PREPARING",
+  attempt: 1,
+  etag: '"etag"',
+  createdAt: "2026-01-01T00:00:00.000Z",
+  updatedAt: "2026-01-01T00:00:00.000Z",
+  irDigest: "ir",
+  evidenceDigest: "evidence",
+  approved: false,
+  startFrame: 0,
+  sourceFps: 30,
+  frameCount: 120,
+  evidence: { state: "MAPPED" },
+  candidateEvidence: null,
+  candidateEvidenceDigest: null,
+  preparationStage: "AWAITING_T1",
+  pendingCompilation: null,
+  compilation: null,
+  previewSpecDigest: null,
+  approvedSpecDigest: null,
+  eligibleAt: 1_000,
+  automaticRetries: 0,
+  deletionEpoch: 0,
+  restoreEpoch: 0,
+  failureCode: null,
+  runtimePreflight: preflight,
+  progress: null,
+  creativePrompt: null,
+  artifact: null,
+};
+
 describe("SQLite runtime durability", () => {
   it("reconciles configured admin credentials in an existing database", () => {
     const root = mkdtempSync(join(tmpdir(), "rvs-admin-"));
@@ -118,6 +153,84 @@ describe("SQLite runtime durability", () => {
       else process.env["RVS_INITIAL_ADMIN_PASSWORD"] = previousPassword;
       rmSync(root, { recursive: true, force: true });
     }
+  });
+
+  it("round-trips an evidence-video lease and re-queues it on expiry", () => {
+    // Regression: the lease-row Zod enum was a hand-written duplicate that
+    // never gained "evidence-video", so such a lease persisted but threw on
+    // hydrate -- an unrecoverable boot crash-loop, since the row is durable.
+    const root = mkdtempSync(join(tmpdir(), "rvs-durable-evidence-"));
+    const databasePath = join(root, "app.sqlite");
+    const first = stores(join(root, "objects"));
+    const job: Job = {
+      ...baseJob,
+      id: "job_evidence_video",
+      state: "PREPARING",
+      preparationStage: "EVIDENCE_VIDEO_RUNNING",
+    };
+    first.workflow.jobs.set(job.id, job);
+    first.workflow.attempts.set(job.id, [
+      { id: "attempt_ev", number: 1, state: "RUNNING", immutable: true },
+    ]);
+    first.workers.workers.set("worker_ev", {
+      id: "worker_ev",
+      capabilities: ["renderer"],
+      lastHeartbeat: 1_000,
+      status: "ONLINE",
+      preflight,
+    });
+    first.workers.sessions.set("worker_ev", {
+      workerId: "worker_ev",
+      tokenHash: hashWorkerToken("session-token"),
+      expiresAt: Date.now() + 60_000,
+    });
+    first.workers.leases.set(job.id, {
+      jobId: job.id,
+      attemptId: "attempt_ev",
+      workerId: "worker_ev",
+      tokenHash: hashWorkerToken("lease-token"),
+      phase: "evidence-video",
+      deletionEpoch: 0,
+      restoreEpoch: 0,
+      expiresAt: Date.now() + 30_000,
+    });
+    const firstDb = openApiDatabase(databasePath);
+    createDurableState(
+      firstDb,
+      first,
+      join(root, "objects", "artifacts"),
+    ).persist();
+    firstDb.close();
+
+    // Boot must survive, and the lease must come back intact.
+    const second = stores(join(root, "objects"));
+    const secondDb = openApiDatabase(databasePath);
+    createDurableState(
+      secondDb,
+      second,
+      join(root, "objects", "artifacts"),
+    ).hydrate();
+    expect(second.workers.leases.get(job.id)?.phase).toBe("evidence-video");
+    secondDb
+      .prepare("UPDATE runtime_job_leases SET expires_at=0 WHERE job_id=?")
+      .run(job.id);
+    secondDb.close();
+
+    // An expired evidence-video lease must return to a *_QUEUED stage, or the
+    // job is never claimable again and sits in PREPARING forever.
+    const recovered = stores(join(root, "objects"));
+    const recoveredDb = openApiDatabase(databasePath);
+    createDurableState(
+      recoveredDb,
+      recovered,
+      join(root, "objects", "artifacts"),
+    ).hydrate();
+    expect(recovered.workers.leases.has(job.id)).toBe(false);
+    expect(recovered.workflow.jobs.get(job.id)?.preparationStage).toBe(
+      "EVIDENCE_VIDEO_QUEUED",
+    );
+    recoveredDb.close();
+    rmSync(root, { recursive: true, force: true });
   });
 
   it("restores jobs, uploads, artifacts, sessions, and lease recovery without DB blobs", () => {

@@ -64,14 +64,20 @@ export type WorkerSession = {
   readonly tokenHash: string;
   expiresAt: number;
 };
+// Single source of truth for worker phases. durable-state.ts parses persisted
+// leases with this same schema -- a hand-written duplicate there once let an
+// `evidence-video` lease persist but fail to re-read, crash-looping boot.
+export const WorkerPhaseSchema = z.enum([
+  "analyze",
+  "compile",
+  "evidence-video",
+  "preview",
+  "render",
+]);
+export type WorkerPhase = z.infer<typeof WorkerPhaseSchema>;
 export type ClaimedJob = {
   readonly workerId: string;
-  readonly phase:
-    | "analyze"
-    | "compile"
-    | "evidence-video"
-    | "preview"
-    | "render";
+  readonly phase: WorkerPhase;
   readonly jobId: string;
   readonly attemptId: string;
   readonly tokenHash: string;
@@ -680,7 +686,11 @@ const finishWorkflowJob = (
       framesProcessed: job.sourceFps * 4,
       framesTotal: job.sourceFps * 4,
     };
-    autoApproveT2T3(reviews, job, job.creatorId, now());
+    // Deliberately NOT auto-approving here: advancing to EVIDENCE_VIDEO_QUEUED
+    // makes the job claimable, and the route still has to await translation
+    // enrichment (which mutates the evidence and so changes its digest). The
+    // route calls autoApproveT2T3 once that is done -- same deferral the
+    // render phase uses for the safety gate below.
     return "QUEUED";
   }
   if (lease.phase === "compile") {
@@ -1283,13 +1293,25 @@ export function registerWorkers(
     // Best-effort translation enrichment: never blocks or fails the job,
     // unlike the safety-check gate below. Missing provider/AI error just
     // means the evidence stays without translated fields.
-    if (!failed && lease.phase === "analyze" && job.evidence && db && aiSecretKey) {
-      await enrichEvidenceTranslations(
-        job.evidence,
-        db,
-        aiSecretKey,
-        translateGenerate,
-      );
+    if (!failed && lease.phase === "analyze" && workflow) {
+      // Enrich whatever bundle the job will actually hand the worker
+      // (autoApproveT2T3 promotes candidateEvidence over evidence), then
+      // re-digest it: the worker re-hashes the bundle it receives and hard
+      // fails on WORKER_EVIDENCE_DIGEST_MISMATCH, so a mutation that skips
+      // the digest fails every text-bearing job.
+      const bundle = job.candidateEvidence ?? job.evidence;
+      if (bundle && db && aiSecretKey) {
+        await enrichEvidenceTranslations(
+          bundle,
+          db,
+          aiSecretKey,
+          translateGenerate,
+        );
+        const enriched = digest(bundle);
+        if (job.candidateEvidence) job.candidateEvidenceDigest = enriched;
+        job.evidenceDigest = enriched;
+      }
+      autoApproveT2T3(reviews, job, job.creatorId, now());
     }
     // Content-safety gate: the render phase deliberately leaves the job at
     // AWAITING_T5 without auto-approving (see finishWorkflowJob above) so

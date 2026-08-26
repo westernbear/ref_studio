@@ -15,14 +15,17 @@ import type { IdempotencyRecord, IdempotencyStore } from "./boundary.js";
 import type {
   CreatorWorkflowStore,
   Job,
+  PreparationStage,
   ReleaseManifest,
   StoredArtifact,
 } from "./creator-workflow.js";
 import type { ReviewReceipt, ReviewStore } from "./reviews.js";
 import type { CasRecord, UploadRecord, UploadStore } from "./uploads.js";
+import { WorkerPhaseSchema } from "./workers.js";
 import type {
   ClaimedJob,
   Worker,
+  WorkerPhase,
   WorkerSession,
   WorkerStore,
 } from "./workers.js";
@@ -76,7 +79,7 @@ const LeaseRows = z.array(
     attemptId: z.string(),
     workerId: z.string(),
     tokenHash: z.string().regex(/^[a-f0-9]{64}$/u),
-    phase: z.enum(["analyze", "compile", "preview", "render"]),
+    phase: WorkerPhaseSchema,
     deletionEpoch: z.number().int().nonnegative(),
     restoreEpoch: z.number().int().nonnegative(),
     expiresAt: z.number().int(),
@@ -170,6 +173,17 @@ const writeArtifact = (
   return { ...artifact, bytes: new Uint8Array(), storagePath };
 };
 
+// Which stage an interrupted lease returns to. `render` has no preparation
+// stage (the job state alone re-queues it), hence null. Keyed by WorkerPhase
+// so adding a phase without deciding its recovery is a type error.
+const RECOVERED_STAGE: Readonly<Record<WorkerPhase, PreparationStage | null>> = {
+  analyze: "ANALYSIS_QUEUED",
+  compile: "COMPILATION_QUEUED",
+  "evidence-video": "EVIDENCE_VIDEO_QUEUED",
+  preview: "PREVIEW_QUEUED",
+  render: null,
+};
+
 const recoverLease = (
   stores: RuntimeStores,
   jobId: string,
@@ -184,11 +198,8 @@ const recoverLease = (
   if (attempt?.state === "RUNNING") attempt.state = "QUEUED";
   const job = stores.workflow.jobs.get(jobId);
   if (job?.state === "RENDERING") job.state = "QUEUED";
-  if (job && lease.phase === "analyze")
-    job.preparationStage = "ANALYSIS_QUEUED";
-  if (job && lease.phase === "compile")
-    job.preparationStage = "COMPILATION_QUEUED";
-  if (job && lease.phase === "preview") job.preparationStage = "PREVIEW_QUEUED";
+  const requeued = RECOVERED_STAGE[lease.phase];
+  if (job && requeued) job.preparationStage = requeued;
   if (job) {
     job.updatedAt = new Date(timestamp).toISOString();
     job.eligibleAt = timestamp;

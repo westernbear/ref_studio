@@ -25,6 +25,7 @@ import { createRetentionStore, type RetentionStore } from "./retention.js";
 import { updateAiProviderSettings } from "./ai-provider-settings.js";
 import { openApiDatabase } from "./durable-state.js";
 import type { GenerateSafetyVerdict } from "./safety-check.js";
+import type { GenerateTranslation } from "./translate-evidence.js";
 import type DatabaseType from "better-sqlite3";
 
 const sourceBytes = Uint8Array.from([
@@ -295,6 +296,7 @@ type FixtureOptions = Readonly<{
   db?: DatabaseType.Database;
   aiSecretKey?: string;
   safetyCheckGenerate?: GenerateSafetyVerdict;
+  translateGenerate?: GenerateTranslation;
 }>;
 const appFixture = (
   workflow?: CreatorWorkflowStore,
@@ -338,6 +340,7 @@ const appFixture = (
     db: options.db,
     aiSecretKey: options.aiSecretKey,
     safetyCheckGenerate: options.safetyCheckGenerate,
+    translateGenerate: options.translateGenerate,
   });
   app.addHook("onClose", async () => {
     rmSync(artifactRoot, { recursive: true, force: true });
@@ -629,6 +632,84 @@ describe("worker registration API", () => {
       compilation: null,
     });
     await fixture.app.close();
+  });
+
+  it("re-digests the evidence after translation enrichment mutates it", async () => {
+    const reviews = createReviewStore();
+    const workflow = createCreatorWorkflowStore();
+    const job = addJob(workflow, "PREPARING");
+    const evidence = analysisEvidence(job.id, "attempt-a");
+    // A text owner is what triggers enrichment; the stock fixture has only
+    // global-residual, which is why this regression slipped through before.
+    (
+      evidence.sceneInput.owners as unknown as Record<string, unknown>[]
+    ).push({
+      ownerId: "text-00",
+      kind: "text-word",
+      editable: true,
+      assetRef: "asset-global-residual",
+      confidence: 0.9,
+      content: "안녕하세요",
+      sourceLocale: "ko-KR",
+    });
+    const directory = mkdtempSync(join(tmpdir(), "rvs-workers-translate-db-"));
+    const db = openApiDatabase(join(directory, "app.sqlite"));
+    updateAiProviderSettings(
+      db,
+      { providerKind: "openai", model: "gpt-4o", apiKey: "sk-test", enabled: true },
+      "admin",
+      1_000,
+      "test-secret-key-material",
+    );
+    const fixture = appFixture(workflow, uploadFixture(), {
+      reviews,
+      db,
+      aiSecretKey: "test-secret-key-material",
+      translateGenerate: async () => ({
+        object: { translatedText: "Hello", confidence: 0.9 },
+      }),
+    });
+    await registerWorker(fixture, ["compiler", "renderer"]);
+    await claimWorker(fixture);
+    const complete = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${job.id}/complete`,
+      headers: fixture.headers,
+      payload: {
+        result: {
+          protocol: "rvs.worker.v1",
+          phase: "analyze",
+          evidence,
+          evidenceDigest: sha256(JSON.stringify(evidence)),
+          compilation,
+          normalized: {
+            sha256: evidence.source.normalizedSha256,
+            durationMs: 4_000,
+            fps: 30,
+            frameCount: 120,
+          },
+        },
+      },
+    });
+    expect(complete.statusCode).toBe(200);
+    const stored = workflow.jobs.get(job.id);
+    const owners = (
+      stored?.evidence as unknown as {
+        sceneInput: { owners: Record<string, unknown>[] };
+      }
+    ).sceneInput.owners;
+    // Enrichment must have actually run...
+    expect(owners.at(-1)?.["translatedText"]).toBe("Hello");
+    // ...and the stored digest must match what the worker recomputes from the
+    // bundle it will receive, or every text-bearing job dies on
+    // WORKER_EVIDENCE_DIGEST_MISMATCH.
+    expect(stored?.evidenceDigest).toBe(sha256(JSON.stringify(stored?.evidence)));
+    // The stage must only advance once enrichment is done, so a worker can
+    // never claim a half-translated bundle.
+    expect(stored?.preparationStage).toBe("EVIDENCE_VIDEO_QUEUED");
+    await fixture.app.close();
+    db.close();
+    rmSync(directory, { recursive: true, force: true });
   });
 
   it("advances AWAITING_T2 through the evidence-video stage to PREVIEW_QUEUED", async () => {
