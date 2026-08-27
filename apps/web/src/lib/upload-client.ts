@@ -175,9 +175,21 @@ export async function uploadMp4(
   throw new Error("NETWORK_INTERRUPTED");
 }
 
+export type Aspect = "9:16" | "1:1" | "16:9";
+export type GenerationConfig = {
+  readonly brief: string;
+  readonly durationSec: number;
+  readonly aspect: Aspect;
+  readonly attachmentIds: readonly string[];
+};
+
 export async function createCompilerJob(
   media: AcceptedMedia,
-  options: { readonly startFrame?: number; readonly prompt?: string },
+  options: {
+    readonly startFrame?: number;
+    readonly prompt?: string;
+    readonly generation?: GenerationConfig;
+  },
   signal: AbortSignal,
 ): Promise<string> {
   const idempotencyKey =
@@ -196,6 +208,7 @@ export async function createCompilerJob(
           ? { startFrame: options.startFrame }
           : {}),
         ...(options.prompt ? { prompt: options.prompt } : {}),
+        ...(options.generation ? { generation: options.generation } : {}),
       }),
       headers: {
         ...commandHeaders(idempotencyKey),
@@ -206,6 +219,32 @@ export async function createCompilerJob(
   const jobId = text(body.id).trim();
   if (!jobId) throw new Error("NETWORK_INTERRUPTED");
   return jobId;
+}
+
+// Brand attachments (logos, fonts, brand video) a generation brief will
+// reference by id. These upload to the shared attachment store *before* the
+// job exists -- unlike uploadJobAttachment below, which attaches a file to
+// an already-created job.
+export async function uploadAttachment(
+  file: File,
+  signal: AbortSignal,
+): Promise<string> {
+  const buffer = await file.arrayBuffer();
+  const body = await request(
+    "/api/v1/attachments",
+    {
+      method: "POST",
+      body: buffer,
+      headers: {
+        ...commandHeaders(`attachment:${requestId()}`),
+        "content-type": file.type || "application/octet-stream",
+      },
+    },
+    signal,
+  );
+  const attachmentId = text(body.attachmentId).trim();
+  if (!attachmentId) throw new Error("NETWORK_INTERRUPTED");
+  return attachmentId;
 }
 
 export async function uploadJobAttachment(

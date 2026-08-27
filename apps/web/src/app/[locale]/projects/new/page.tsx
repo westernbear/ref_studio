@@ -6,9 +6,10 @@ import { BrandLogo } from "../../../../components/Shells";
 import { Link } from "../../../../i18n/navigation";
 import {
   createCompilerJob,
-  uploadJobAttachment,
+  uploadAttachment,
   uploadMp4,
   type AcceptedMedia,
+  type Aspect,
   type UploadProgress,
 } from "../../../../lib/upload-client";
 
@@ -73,6 +74,8 @@ const STATE_KEYS: Readonly<Record<WorkflowState, string>> = {
 };
 
 const PREFLIGHT_CHECKS = ["codecCheck", "fpsStability", "duration", "audioTrack"] as const;
+const DURATION_OPTIONS = [15, 20, 25, 30] as const;
+const ASPECT_OPTIONS: readonly Aspect[] = ["9:16", "1:1", "16:9"];
 
 export default function NewProjectPage() {
   const t = useTranslations("ProjectsNew");
@@ -87,6 +90,8 @@ export default function NewProjectPage() {
   const [state, setState] = useState<WorkflowState>("idle");
   const [reasonKey, setReasonKey] = useState<ReasonKey | null>("selectSource");
   const [prompt, setPrompt] = useState("");
+  const [durationSec, setDurationSec] = useState<number>(20);
+  const [aspect, setAspect] = useState<Aspect>("9:16");
   const [attachments, setAttachments] = useState<readonly File[]>([]);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
   const [jobId, setJobId] = useState<string | null>(null);
@@ -173,6 +178,8 @@ export default function NewProjectPage() {
     setState("idle");
     setReasonKey("selectSource");
     setPrompt("");
+    setDurationSec(20);
+    setAspect("9:16");
     setAttachments([]);
     if (inputRef.current) inputRef.current.value = "";
     if (attachmentInputRef.current) attachmentInputRef.current.value = "";
@@ -183,24 +190,35 @@ export default function NewProjectPage() {
     abortRef.current = controller;
     setState("creating");
     try {
+      const brief = prompt.trim();
+      // A generation brief carries brand attachments by id, so those upload
+      // to the shared attachment store first; the job is only created once
+      // every attachment has one.
+      const generation = brief
+        ? {
+            brief,
+            durationSec,
+            aspect,
+            attachmentIds: await Promise.all(
+              attachments.map((attachment) =>
+                uploadAttachment(attachment, controller.signal),
+              ),
+            ),
+          }
+        : undefined;
       const createdJobId = await createCompilerJob(
         media,
-        prompt ? { prompt } : {},
+        {
+          ...(prompt ? { prompt } : {}),
+          ...(generation ? { generation } : {}),
+        },
         controller.signal,
       );
-      // Attachments upload after job creation (they're associated by job
-      // id); best-effort -- a failed attachment doesn't block the job the
-      // creator already asked to create.
-      for (const attachment of attachments) {
-        await uploadJobAttachment(createdJobId, attachment, controller.signal).catch(
-          () => undefined,
-        );
-      }
       setJobId(createdJobId);
       setState("created");
       setReasonKey("jobCreated");
       window.location.assign(
-        `/scene-review?jobId=${encodeURIComponent(createdJobId)}`,
+        `/progress?jobId=${encodeURIComponent(createdJobId)}`,
       );
     } catch (error) {
       setState("error");
@@ -260,7 +278,7 @@ export default function NewProjectPage() {
             <label
               data-control-id="upload_validation:8"
               className={`dropzone ${state === "uploading" ? "is-busy" : ""}`}
-              htmlFor="upload-file"
+              htmlFor="reference-file"
               onDragOver={(event) => event.preventDefault()}
               onDrop={(event) => {
                 event.preventDefault();
@@ -269,8 +287,8 @@ export default function NewProjectPage() {
             >
               <input
                 ref={inputRef}
-                id="upload-file"
-                name="upload-file"
+                id="reference-file"
+                name="reference-file"
                 type="file"
                 accept="video/mp4,.mp4,video/quicktime,.mov,video/webm,.webm"
                 onChange={(event) => void acceptFile(event.target.files?.[0])}
@@ -332,6 +350,40 @@ export default function NewProjectPage() {
                 value={prompt}
                 onChange={(event) => setPrompt(event.target.value)}
               />
+              <div className="generation-fields">
+                <label htmlFor="duration">
+                  {t("durationLabel")}
+                  <select
+                    id="duration"
+                    value={durationSec}
+                    onChange={(event) =>
+                      setDurationSec(Number(event.target.value))
+                    }
+                  >
+                    {DURATION_OPTIONS.map((seconds) => (
+                      <option key={seconds} value={seconds}>
+                        {t("durationOption", { seconds })}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label htmlFor="aspect">
+                  {t("aspectLabel")}
+                  <select
+                    id="aspect"
+                    value={aspect}
+                    onChange={(event) =>
+                      setAspect(event.target.value as Aspect)
+                    }
+                  >
+                    {ASPECT_OPTIONS.map((ratio) => (
+                      <option key={ratio} value={ratio}>
+                        {ratio}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
             </div>
             <div className="supplementary-data">
               <div>
@@ -403,6 +455,7 @@ export default function NewProjectPage() {
               ))}
             </ul>
             <button
+              id="submit"
               data-control-id="upload_validation:9"
               className="button-primary"
               type="button"

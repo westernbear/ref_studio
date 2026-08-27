@@ -683,6 +683,27 @@ progress {
   font: var(--type-body-sm);
   padding: var(--space-md);
 }
+.generation-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--space-sm);
+}
+.generation-fields label {
+  display: grid;
+  gap: var(--space-xxs);
+  color: var(--color-ink);
+  font: var(--type-caption-mono);
+  text-transform: uppercase;
+}
+.generation-fields select {
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  background: var(--color-canvas-soft);
+  color: var(--color-ink);
+  font: var(--type-body-sm);
+  padding: 0 var(--space-md);
+  text-transform: none;
+}
 .supplementary-data {
   display: flex;
   align-items: center;
