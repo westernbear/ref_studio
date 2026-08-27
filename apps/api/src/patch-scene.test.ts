@@ -30,7 +30,7 @@ describe("diffChangedBeatIds", () => {
               ...beat,
               elements: beat.elements.map((element) => ({
                 ...element,
-                effects: [],
+                box: { ...element.box, x: element.box.x + 10 },
               })),
             }
           : beat,

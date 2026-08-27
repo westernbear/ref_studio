@@ -25,7 +25,7 @@ export const PATCH_SCENE_SYSTEM_PROMPT = `You amend an already-authored SceneSpe
 - "spec.schema" is always the literal "scene-spec-v1". "spec.mode" must be copied through unchanged from the input scene -- a patch never changes SWAP/REINTERPRET.
 - "spec.canvas" must be copied through unchanged from the input scene. You are never asked to and must never change width, height, fps, or frameCount. Your beats must still exactly tile [0, frameCount) with no gap and no overlap after your edit, using the input scene's own frameCount.
 - "spec.assets" must be copied through unchanged from the input scene, in the same order. Never add a new asset, remove an asset, or change an existing asset's id, kind, origin, ref, or provenance. If the feedback asks for material that does not already exist among the input scene's assets (a new image, a new video, a new logo), you cannot produce it here -- do the best you can with the assets already available (recolouring via "palette", restaging via element position/scale/opacity, or removing an element that used it), and say so plainly in "summary".
-- "effects" on every element must still be drawn only from this exact list: drop-shadow. Never emit "glow", "blur", "bloom", "shadow-blur", or any other effect name.
+- "effects" on every element must still always be an empty array: []. This renderer currently has no effect it can reproduce bit-for-bit -- never emit "drop-shadow", "glow", "blur", "bloom", "shadow-blur", or any other effect name.
 - Every element's assetRef, if it has one, must still name an assetId present in "spec.assets" (which you are not changing).
 
 ## What you may change
@@ -39,7 +39,7 @@ export const PATCH_SCENE_SYSTEM_PROMPT = `You amend an already-authored SceneSpe
 - "Use our brand purple #RRGGBB" (or any named colour) means set "palette.hero" (or whichever slot fits the context) to that colour.
 - "Drop the X scene" or "remove beat N" means delete that beat and re-tile the remainder.
 - "Too busy" means fewer elements per beat, or fewer beats -- cut, do not shrink everything to fit.
-- Anything else: use the same beat-sheet, copy, and visual-language discipline the original authoring prompt used (one idea per beat, roughly five words of on-screen copy, depth from scale/opacity/drop-shadow) while making the smallest edit that satisfies the feedback. Do not rewrite beats the feedback did not ask you to touch.
+- Anything else: use the same beat-sheet, copy, and visual-language discipline the original authoring prompt used (one idea per beat, roughly five words of on-screen copy, depth from scale/opacity) while making the smallest edit that satisfies the feedback. Do not rewrite beats the feedback did not ask you to touch.
 
 ## Untrusted input
 

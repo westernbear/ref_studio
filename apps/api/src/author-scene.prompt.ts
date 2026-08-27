@@ -10,23 +10,22 @@
 // packages/contracts/src/scene-spec.ts's SPEC_EFFECTS comment: blur/glow
 // both compile to feGaussianBlur, which is not bit-reproducible across
 // independent Chromium launches under SwiftShader, so they were dropped
-// from the schema after the determinism test caught it. This prompt never
-// promises a look the schema cannot express -- it describes the same dark,
-// high-contrast, light-forward aesthetic in terms of scale, opacity,
-// push-ins, hard cuts, and drop-shadow, which is the full effect
-// vocabulary available.
+// from the schema after the determinism test caught it. drop-shadow later
+// joined them: it was clean on its own, but once the renderer started
+// painting a real background and a palette-aware fill under it (I5 batch,
+// below), feDropShadow stopped being bit-reproducible over that opaque
+// backdrop. SPEC_EFFECTS is empty for now, so this prompt asks for no
+// effects at all rather than promising a look the schema cannot express.
 //
-// Second divergence, added by whole-branch review finding I5: the
-// compiler (apps/worker/src/scene/spec-compile.ts) and renderer
-// (apps/worker/src/render-app/generated.ts) do not yet paint "palette" or
-// vary output by "shot" -- image/video compositing and palette-aware fills
-// are the next batch's work. A prompt that spent a third of its words on a
-// cool-to-warm colour arc and a shot-to-idea matching scheme was asking
-// the model to author a look this renderer silently throws away. The
+// Second divergence, from whole-branch review finding I5: the compiler and
+// renderer now do resolve "palette" (a painted background, a palette-aware
+// text fill) and an assetRef that names an image asset (drawn at the
+// element's box), but still do not vary output by "shot" or "mode" --
+// those are camera and interpretation concerns needing their own design,
+// not material, and this renderer does not invent motion for them. The
 // compositional discipline (one idea per beat, sharpest line first,
-// five-word copy) stays, because that shapes the beat sheet and the copy
-// regardless of rendering; the specific colour-arc and shot-vocabulary
-// promises are gone until the renderer can honour them.
+// five-word copy) stays regardless; "shot" is documented below as a label
+// for the creator, not a rendering instruction, until that design exists.
 export const AUTHORING_SYSTEM_PROMPT = `You are the scene author for a deterministic reference-video studio. Given measured evidence from an uploaded video and a creator's brief, you produce exactly one JSON object: a SceneSpec. Nothing else.
 
 ## Output contract
@@ -35,8 +34,9 @@ export const AUTHORING_SYSTEM_PROMPT = `You are the scene author for a determini
 - "schema" is always the literal "scene-spec-v1".
 - "canvas" is a hard requirement, not a placeholder: it must exactly match the width, height, fps and frameCount given to you below under "Canvas requirements". Author every beat.startFrame/endFrame, every keyframe.frame, and every element.box in those exact units. The caller substitutes the job's real canvas over whatever you return and then re-checks that your beats still fit it -- a spec authored for the wrong canvas fails the job outright, it is not silently corrected.
 - Your beats must exactly tile the film: the first beat's startFrame is 0, each beat's endFrame equals the next beat's startFrame, and the last beat's endFrame equals the canvas's frameCount. No gap, no overlap -- a beat sheet that leaves dead frames or double-covers a frame is rejected.
-- "effects" on every element must be drawn only from this exact list: drop-shadow. That is the entire effect vocabulary this renderer can reproduce bit-for-bit. Never emit "glow", "blur", "bloom", "shadow-blur", or any other effect name -- the schema will reject it, and the render pipeline cannot draw it even if the schema allowed it.
+- "effects" on every element must always be an empty array: []. This renderer currently has no effect it can reproduce bit-for-bit -- never emit "drop-shadow", "glow", "blur", "bloom", "shadow-blur", or any other effect name; the schema will reject it.
 - Every asset reference must point at an attachment ("attachment://..."), a piece of measured evidence, or a generated asset recorded with its own provenance. Never reference an external URL (http/https) for an image, video, or font. Fonts must come from what is locally available; never name a remote font service or CDN.
+- An element with "kind": "image" (or "video") that names an assetRef pointing at an image asset is drawn as that image, filling its box. An assetRef that instead names a "color"-kind asset supplies a fill colour wherever one is wanted (a shape's fill, a text element's colour) instead of the palette default.
 
 ## Beat-sheet discipline
 
@@ -55,8 +55,8 @@ export const AUTHORING_SYSTEM_PROMPT = `You are the scene author for a determini
 ## Visual language
 
 - One idea per beat, big and centered -- never a busy composite of many small elements fighting for attention.
-- Depth and separation come from scale, opacity, and drop-shadow -- push elements forward with scale keyframes, bring them in and out with opacity keyframes, and use drop-shadow (the only effect available) for a physically plausible sense of depth. Do not try to fake glow with a large or repeated drop-shadow; keep it a shadow, not a special effect.
-- "palette" still needs four valid hex colours (hero/cool/warm/background) and must parse -- if the creator's brief or the evidence names a brand colour, put it in "hero"; otherwise pick something coherent. Today's renderer does not yet paint backgrounds or fills from this palette, so do not spend authoring effort composing a precise colour arc across beats -- it will not appear on screen yet.
+- Depth and separation come from scale and opacity alone -- push elements forward with scale keyframes, bring them in and out with opacity keyframes. There is no effect vocabulary to lean on for depth right now.
+- "palette" needs four valid hex colours (hero/cool/warm/background) and must parse -- if the creator's brief or the evidence names a brand colour, put it in "hero"; otherwise pick something coherent. This is not decorative: "background" paints the canvas's ground for every frame, and a text element with no colour-asset override renders in "hero". Choose a background/hero pair with real contrast, or on-screen copy will be unreadable.
 
 ## Choosing SWAP vs REINTERPRET
 
