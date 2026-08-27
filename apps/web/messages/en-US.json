@@ -207,7 +207,6 @@
     "showAnalysis": "Show analysis",
     "preview": "Preview",
     "previewPending": "Rendering preview...",
-    "showEffectNames": "Show effect names",
     "translations": "Translations",
     "job": "Job: {id}",
     "frames": "Frames: {frames}",

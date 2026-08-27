@@ -1213,6 +1213,12 @@ progress {
 .dialogue-message-label-active {
   color: var(--color-primary);
 }
+.dialogue-stage-progress {
+  margin-inline-start: auto;
+  color: var(--color-body-mid);
+  font: var(--type-caption-mono-sm);
+  font-variant-numeric: tabular-nums;
+}
 /* A finished stage stays in the log; it just stops announcing itself. */
 .dialogue-message-stage .dialogue-message-label::before {
   content: "";

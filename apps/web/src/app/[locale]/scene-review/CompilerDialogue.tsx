@@ -68,13 +68,12 @@ export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
   const previewLabeledUrl = job.previewLabeledArtifactId
     ? `/api/v1/jobs/${encodeURIComponent(job.id)}/preview-labeled-download`
     : null;
-  const [previewSource, setPreviewSource] = useState<"clean" | "labeled">(
-    "clean",
-  );
-  const shownPreviewUrl =
-    previewSource === "labeled" && previewLabeledUrl
-      ? previewLabeledUrl
-      : previewUrl;
+  // The captioned cut is the one worth looking at: it names the treatment on
+  // each surface, which is the whole question this screen asks. Offering the
+  // clean cut beside it was a second switch to work out for a difference the
+  // reader has no reason to care about, so the clean cut only stands in when
+  // the captioned one has not been made yet.
+  const shownPreviewUrl = previewLabeledUrl ?? previewUrl;
   const evidenceVideoUrl = job.evidenceVideoArtifactId
     ? `/api/v1/jobs/${encodeURIComponent(job.id)}/evidence-video-download`
     : null;
@@ -367,6 +366,12 @@ export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
     job.framesProcessed !== null && job.framesTotal !== null
       ? `${job.framesProcessed}/${job.framesTotal}`
       : null;
+  // Frames when the stage counts them, otherwise the fraction it reports.
+  // Either way it has to move, because a stage name on its own does not.
+  const stageProgress =
+    framesLabel ?? (job.progressFraction > 0
+      ? `${Math.round(job.progressFraction * 100)}%`
+      : null);
 
   return (
     <div className="dialogue-shell">
@@ -410,6 +415,16 @@ export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
                       <span className="spinner" aria-hidden="true" />
                     ) : null}
                     {label.known ? tStage(label.key) : label.fallback}
+                    {/* Rendering the scene reports frame by frame for two
+                        minutes under one stage name, and a stage only earns a
+                        new line when its name changes -- so without the count
+                        beside it the screen sits still long enough to read as
+                        stopped. */}
+                    {active && stageProgress ? (
+                      <span className="dialogue-stage-progress">
+                        {stageProgress}
+                      </span>
+                    ) : null}
                   </span>
                 </div>
               );
@@ -527,21 +542,6 @@ export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
           <div className="dialogue-compare-pane">
             <div className="dialogue-compare-head">
               <span className="dialogue-compare-name">{t("preview")}</span>
-              {previewLabeledUrl ? (
-                <button
-                  type="button"
-                  className="chip-toggle"
-                  aria-pressed={previewSource === "labeled"}
-                  data-active={previewSource === "labeled"}
-                  onClick={() =>
-                    setPreviewSource(
-                      previewSource === "labeled" ? "clean" : "labeled",
-                    )
-                  }
-                >
-                  {t("showEffectNames")}
-                </button>
-              ) : null}
             </div>
             {shownPreviewUrl ? (
               <video
