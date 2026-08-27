@@ -72,7 +72,11 @@ export function beatSheetFor(spec: SceneSpec): AuthoredScene["beatSheet"] {
 // generated-origin asset is gated separately, by validateSceneSpec's own
 // provenance check -- it is included here unconditionally so that check,
 // not this one, is what fails it.
-function resolvableAssetIds(
+// Exported for reuse by patch-scene.ts, which re-validates an amended spec
+// against the same resolvability rule authorScene() used originally -- the
+// scene's assets are pinned across a patch (see patch-scene.ts), so what
+// counts as resolvable does not change either.
+export function resolvableAssetIds(
   spec: SceneSpec,
   attachments: readonly { readonly attachmentId: string }[],
   evidenceOwners: ReadonlySet<string>,
