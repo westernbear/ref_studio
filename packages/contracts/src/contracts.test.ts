@@ -22,6 +22,15 @@ describe("canonical lifecycle", () => {
       "INVALID_JOB_TRANSITION",
     ),
   );
+  // A generate-track job's only edit surface is the chat: a creator can ask
+  // for a scene patch after the film has already completed, which has to
+  // route the job back through the render it already has (see
+  // apps/api/src/refine-prompt.ts). COMPLETED is otherwise terminal -- this
+  // is the one door back in, and only ever entered by that patch flow.
+  it("allows COMPLETED -> QUEUED for a re-render after a scene patch", () =>
+    expect(() =>
+      assertLegalTransition("COMPLETED", "QUEUED"),
+    ).not.toThrow());
 });
 describe("safe errors", () => {
   it("normalizes unknown errors", () => {
