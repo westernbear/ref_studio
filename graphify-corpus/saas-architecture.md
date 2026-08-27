@@ -38,7 +38,8 @@ The product is a multi-tenant Reference Video Studio. Each job belongs to exactl
 
 ### Non-goals
 
-- This is not a diffusion video generator.
+- The restore track is not a diffusion video generator. It rebuilds the reference from measurement alone.
+- The generate track authors a new scene with AI, but never renders pixels with a video model: generation produces a validated scene description and discrete assets, and the same deterministic browser renderer draws every frame.
 - This is not a captured-screen compositor.
 - This is not an Unreal, Fusion, Blender, or Remotion production pipeline.
 - This is not a user-supplied project-file or scene-graph product.
@@ -206,7 +207,7 @@ FFmpeg assembles the frame set, adds the approved audio, and runs delivery QC fo
 | Storage | Tenant-scoped CAS | Immutable source, checkpoint, frames, delivery, provenance |
 | Approval record | Append-only receipt store | T1-T6 decisions, predecessor paths, actor and artifact references |
 
-The resident AI control plane may interpret user intent and propose two or three variants using allowlisted knobs. It cannot write OBSERVED measurements, Motion IR, `uiBounds`, or VFX samples, and it cannot skip an unapproved gate. With `XAI_API_KEY`, the configured model is `grok-4.6`; without it, the planner is heuristic. Both paths feed the same compiler and renderer.
+The resident AI control plane may interpret user intent and propose two or three variants using allowlisted knobs. It cannot write OBSERVED measurements, uiBounds, or VFX samples in either track, and cannot write Motion IR in the restore track. In the generate track it authors a SceneSpec, which is validated fail-closed before it reaches the renderer. It cannot skip an unapproved gate. With `XAI_API_KEY`, the configured model is `grok-4.6`; without it, the planner is heuristic. Both paths feed the same compiler and renderer.
 
 ## 8. Security boundary / 보안 경계
 
@@ -252,6 +253,7 @@ The gate controller locks downstream work until the predecessor is approved by t
 The following are hard constraints, not style preferences.
 
 - Must not have diffusion or a second video model as the rendering authority.
+- Must not have a generated asset without recorded provenance (tool, prompt, seed, output hash).
 - Must not have a captured final UI screenshot in place of semantic editable UI.
 - Must not have flattened product UI that removes DOM/SVG ownership or text editability.
 - Must not have a generic cube or card layout substituted for measured reference structure.
