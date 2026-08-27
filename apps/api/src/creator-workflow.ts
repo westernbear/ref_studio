@@ -11,6 +11,7 @@ import {
   GenerationConfigSchema,
   type GenerationConfig,
 } from "../../../packages/contracts/src/generation.js";
+import type { AuthoredScene } from "./author-scene.js";
 import { IdempotencyStore, requestHash, safeEnvelope } from "./boundary.js";
 import type { Principal } from "./auth.js";
 import { selectInitialStartFrame } from "./refine-prompt.js";
@@ -36,6 +37,11 @@ export const PreparationStageSchema = z.enum([
   "PREVIEW_QUEUED",
   "PREVIEW_RUNNING",
   "AWAITING_T4",
+  // Only entered when job.generation is set (a scene the AI should author
+  // from the measured evidence + creator's brief) -- a restore-only job
+  // skips straight from AWAITING_T4 to READY, exactly as before.
+  "AUTHORING_QUEUED",
+  "AUTHORING_RUNNING",
   "READY",
 ]);
 export type PreparationStage = z.infer<typeof PreparationStageSchema>;
@@ -110,6 +116,8 @@ export type Job = {
   failureCode: string | null;
   runtimePreflight: RuntimePreflightEvidence | null;
   readonly generation?: GenerationConfig;
+  authoredScene: AuthoredScene | null;
+  sceneSpecDigest: string | null;
   progress: {
     phase: "prepare" | "render";
     stage: string;
@@ -908,6 +916,20 @@ export function autoApproveT4(
     [preview.id],
     findApprovedReceiptId(reviews, job, "T3"),
   );
+  // A job that asked for a generated scene (job.generation is set) is not
+  // done yet -- the AI still has to author a SceneSpec from this approved
+  // evidence plus the creator's brief before there is anything to deliver.
+  // Route it to AUTHORING_QUEUED instead of READY. A restore-only job (no
+  // job.generation) has nothing left to author, so it takes the exact path
+  // it always has -- straight to READY, unchanged.
+  if (job.generation) {
+    job.preparationStage = "AUTHORING_QUEUED";
+    job.eligibleAt = now;
+    job.failureCode = null;
+    job.updatedAt = new Date(now).toISOString();
+    job.etag = `\"${id("etag")}\"`;
+    return;
+  }
   assertLegalTransition(job.state, "READY");
   job.state = "READY";
   job.preparationStage = "READY";
@@ -1244,6 +1266,8 @@ export function registerCreatorWorkflow(
               failureCode: null,
               runtimePreflight: store.availablePreflight,
               ...(generation ? { generation } : {}),
+              authoredScene: null,
+              sceneSpecDigest: null,
               progress: null,
               artifact: null,
             };

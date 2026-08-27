@@ -43,7 +43,10 @@ function wordsFor(beat: SceneSpec["beats"][number]): string {
     .join(" ");
 }
 
-function beatSheetFor(spec: SceneSpec): AuthoredScene["beatSheet"] {
+// Exported for reuse by workers.ts, which builds the same AuthoredScene
+// shape when a worker submits a validated spec for the "author" phase
+// (Task 3.3) -- keeps beat-sheet derivation in one place.
+export function beatSheetFor(spec: SceneSpec): AuthoredScene["beatSheet"] {
   return spec.beats.map((beat) => ({
     beatId: beat.beatId,
     shot: beat.shot,

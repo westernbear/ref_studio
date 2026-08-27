@@ -208,6 +208,7 @@ const RECOVERED_STAGE: Readonly<Record<WorkerPhase, PreparationStage | null>> = 
   compile: "COMPILATION_QUEUED",
   "evidence-video": "EVIDENCE_VIDEO_QUEUED",
   preview: "PREVIEW_QUEUED",
+  author: "AUTHORING_QUEUED",
   render: null,
 };
 

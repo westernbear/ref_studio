@@ -13,7 +13,9 @@ import { Readable } from "node:stream";
 import { buildAuthApp } from "./app.js";
 import { hashWorkerToken, createWorkerStore } from "./workers.js";
 import { hashBearer, type AuthStore } from "./auth.js";
+import { fixtureSpec, type GenerationConfig } from "@rvs/contracts";
 import {
+  autoApproveT4,
   createCreatorWorkflowStore,
   RUNTIME_DIGEST,
   type CreatorWorkflowStore,
@@ -51,6 +53,26 @@ const registration = (capabilities: readonly string[]) => ({
 });
 const sha256 = (value: Uint8Array | string): string =>
   createHash("sha256").update(value).digest("hex");
+const generationConfig: GenerationConfig = {
+  brief: "Meridian finds meeting times nobody hates.",
+  durationSec: 20,
+  aspect: "9:16",
+  attachmentIds: [],
+};
+const previewArtifact = (jobId: string) => ({
+  id: `preview-${jobId}`,
+  jobId,
+  tenantId: "ten_a",
+  kind: "preview" as const,
+  filename: `${jobId}-preview.mp4`,
+  contentType: "video/mp4" as const,
+  bytes: Uint8Array.from([1, 2, 3]),
+  sha256: "d".repeat(64),
+  sizeBytes: 3,
+  createdAt: "2026-01-01T00:00:00.000Z",
+  expiresAt: "2026-01-02T00:00:00.000Z",
+  report: null,
+});
 const compilation = {
   authoring: {
     versionId: "air_a",
@@ -429,6 +451,8 @@ const addJob = (workflow: CreatorWorkflowStore, state: Job["state"]): Job => {
     restoreEpoch: 0,
     failureCode: null,
     runtimePreflight: state === "PREPARING" ? null : preflight,
+    authoredScene: null,
+    sceneSpecDigest: null,
     progress: null,
     artifact: null,
   };
@@ -1190,6 +1214,106 @@ describe("worker registration API", () => {
       labeled.json().artifactId,
     );
     await fixture.app.close();
+  });
+
+  describe("scene authoring stage", () => {
+    it("moves to AUTHORING after the preview is approved when the job requests generation", () => {
+      const reviews = createReviewStore();
+      const workflow = createCreatorWorkflowStore();
+      const job = addJob(workflow, "PREPARING");
+      job.generation = generationConfig;
+      job.preparationStage = "AWAITING_T4";
+      job.compilation = compilation;
+      job.previewSpecDigest = compilation.browserPassSpec.digest;
+      workflow.previews.set(job.id, previewArtifact(job.id));
+      autoApproveT4(reviews, workflow, job, "creator-a", 1_000);
+      expect(job.preparationStage).toBe("AUTHORING_QUEUED");
+      expect(job.state).toBe("PREPARING");
+    });
+
+    it("still goes straight to READY when the job has no generation config (restore-only, unchanged)", () => {
+      const reviews = createReviewStore();
+      const workflow = createCreatorWorkflowStore();
+      const job = addJob(workflow, "PREPARING");
+      job.preparationStage = "AWAITING_T4";
+      job.compilation = compilation;
+      job.previewSpecDigest = compilation.browserPassSpec.digest;
+      workflow.previews.set(job.id, previewArtifact(job.id));
+      autoApproveT4(reviews, workflow, job, "creator-a", 1_000);
+      expect(job.preparationStage).toBe("READY");
+      expect(job.state).toBe("READY");
+    });
+
+    it("stores the spec digest when authoring finishes", async () => {
+      const workflow = createCreatorWorkflowStore();
+      const job = addJob(workflow, "PREPARING");
+      job.generation = generationConfig;
+      job.preparationStage = "AUTHORING_QUEUED";
+      job.compilation = compilation;
+      job.evidence = analysisEvidence(job.id, "attempt-a");
+      const fixture = appFixture(workflow);
+      await registerWorker(fixture, ["author"]);
+      const claim = await claimWorker(fixture);
+      expect(claim.json().job).toMatchObject({
+        jobId: job.id,
+        payload: { phase: "author" },
+      });
+      expect(workflow.jobs.get(job.id)?.preparationStage).toBe(
+        "AUTHORING_RUNNING",
+      );
+      const complete = await fixture.app.inject({
+        method: "POST",
+        url: `/v1/workers/worker-a/jobs/${job.id}/complete`,
+        headers: fixture.headers,
+        payload: {
+          result: {
+            protocol: "rvs.worker.v1",
+            phase: "author",
+            spec: fixtureSpec,
+          },
+        },
+      });
+      expect(complete.statusCode).toBe(200);
+      const finished = workflow.jobs.get(job.id);
+      expect(finished?.sceneSpecDigest).toMatch(/^[a-f0-9]{64}$/);
+      expect(finished?.authoredScene?.beatSheet).toHaveLength(
+        fixtureSpec.beats.length,
+      );
+      // The canvas comes from the job's own generation config (9:16, 20s),
+      // never from whatever the fixture spec happened to carry.
+      expect(finished?.authoredScene?.spec.canvas).toEqual({
+        width: 1080,
+        height: 1920,
+        fps: 30,
+        frameCount: 600,
+      });
+      expect(finished?.preparationStage).toBe("READY");
+      expect(finished?.state).toBe("READY");
+      await fixture.app.close();
+    });
+
+    it("fails the job when authoring throws", async () => {
+      const workflow = createCreatorWorkflowStore();
+      const job = addJob(workflow, "PREPARING");
+      job.generation = generationConfig;
+      job.preparationStage = "AUTHORING_QUEUED";
+      job.compilation = compilation;
+      job.evidence = analysisEvidence(job.id, "attempt-a");
+      const fixture = appFixture(workflow);
+      await registerWorker(fixture, ["author"]);
+      await claimWorker(fixture);
+      const fail = await fixture.app.inject({
+        method: "POST",
+        url: `/v1/workers/worker-a/jobs/${job.id}/fail`,
+        headers: fixture.headers,
+        payload: { message: "SCENE_AUTHORING_FAILED" },
+      });
+      expect(fail.statusCode).toBe(200);
+      const finished = workflow.jobs.get(job.id);
+      expect(finished?.state).toBe("FAILED");
+      expect(finished?.failureCode).toBe("SCENE_AUTHORING_FAILED");
+      await fixture.app.close();
+    });
   });
 
   it("keeps cancellation pending until the claimed worker acknowledges it", async () => {
