@@ -149,6 +149,9 @@ importers:
 
   apps/worker:
     dependencies:
+      '@rvs/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       zod:
         specifier: 4.1.5
         version: 4.1.5

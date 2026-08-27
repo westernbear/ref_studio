@@ -7,3 +7,4 @@ export * from "./ir.js";
 export * from "./models.js";
 export * from "./generation.js";
 export * from "./scene-spec.js";
+export * from "./scene-spec.fixture.js";
