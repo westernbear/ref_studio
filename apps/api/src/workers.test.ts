@@ -471,6 +471,7 @@ const addJob = (
     runtimePreflight: state === "PREPARING" ? null : preflight,
     authoredScene: null,
     sceneSpecDigest: null,
+    lastPatchChangedBeatIds: null,
     ...(generation ? { generation } : {}),
     progress: null,
     artifact: null,

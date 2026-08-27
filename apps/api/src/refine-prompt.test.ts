@@ -558,6 +558,7 @@ const completeGenerateJob = (
     })),
   };
   job.sceneSpecDigest = "a".repeat(64);
+  job.lastPatchChangedBeatIds = null;
   job.approved = true;
   job.preparationStage = "READY";
   job.state = "COMPLETED";
@@ -608,6 +609,9 @@ describe("scene-patch chat (generate track)", () => {
       expect(job?.authoredScene?.spec.palette.hero).toBe("#6633ee");
       expect(job?.artifact).toBeNull();
       expect(job?.progress?.fraction).toBe(0);
+      // Left on the record, not only in this request's response -- see the
+      // `lastPatchChangedBeatIds` docstring on the Job type.
+      expect(job?.lastPatchChangedBeatIds).toEqual([]);
     } finally {
       state.db.close();
       rmSync(state.directory, { recursive: true, force: true });

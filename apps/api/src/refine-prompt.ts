@@ -304,6 +304,11 @@ async function applyScenePatch(params: {
   // leaves job.authoredScene exactly as it was.
   job.authoredScene = { spec: patched.spec, beatSheet: patched.beatSheet };
   job.sceneSpecDigest = sha256Hex(patched.spec);
+  // Kept on the job record (not only in this request's response) so a
+  // future partial-rerender optimisation has something to act on -- see the
+  // `ponytail:` comment at apps/worker/src/worker-job-handler.ts's
+  // gen-render call.
+  job.lastPatchChangedBeatIds = patched.changedBeatIds;
   job.automaticRetries = 0;
   job.failureCode = null;
   // The creator has just asked for a change -- the delivered artifact this

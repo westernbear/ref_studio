@@ -128,6 +128,14 @@ export type Job = {
   readonly generation?: GenerationConfig;
   authoredScene: AuthoredScene | null;
   sceneSpecDigest: string | null;
+  // Set by a chat-driven scene patch (apps/api/src/refine-prompt.ts) to the
+  // beats diffChangedBeatIds found actually different -- deterministic,
+  // never the model's own claim. Kept on the job record, not only in that
+  // request's response, so a future partial-rerender optimisation (see the
+  // `ponytail:` comment at apps/worker/src/worker-job-handler.ts's
+  // gen-render call) has something to act on without re-deriving it. Null
+  // until the first patch; a restore-track job never sets it.
+  lastPatchChangedBeatIds: readonly string[] | null;
   progress: {
     phase: "prepare" | "render";
     stage: string;
@@ -598,6 +606,7 @@ const projection = (
   runtimePreflight: job.runtimePreflight,
   ...(job.generation ? { generation: job.generation } : {}),
   beatSheet: job.authoredScene?.beatSheet ?? null,
+  lastPatchChangedBeatIds: job.lastPatchChangedBeatIds,
   evidenceDigest: job.evidenceDigest,
   irDigest: job.irDigest,
   reviewArtifactId: store.stagedArtifacts.get(job.id)?.id ?? null,
@@ -1143,6 +1152,7 @@ export function retryJob(
   job.runtimePreflight = store.availablePreflight;
   job.progress = null;
   job.artifact = null;
+  job.lastPatchChangedBeatIds = null;
   store.previews.delete(job.id);
   store.stagedArtifacts.delete(job.id);
   // Leaving these behind lets a retry reuse the previous attempt's
@@ -1355,6 +1365,7 @@ export function registerCreatorWorkflow(
               ...(generation ? { generation } : {}),
               authoredScene: null,
               sceneSpecDigest: null,
+              lastPatchChangedBeatIds: null,
               progress: null,
               artifact: null,
             };
