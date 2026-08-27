@@ -8,7 +8,15 @@ import { z } from "zod";
 // effects expressible as SVG filter primitives, not the owner-bound WebGL
 // shaders in apps/worker/src/render-app/webgl.ts (those consume measured
 // effect samples from evidence, which a generated scene does not have).
-export const SPEC_EFFECTS = ["blur", "glow", "drop-shadow"] as const;
+//
+// The bar for entry is stricter than "expressible as SVG": two independent
+// real-Chromium renders of a fixture using the effect must produce
+// identical frame hashes (apps/worker's gen-render-delivery.determinism
+// test is the gate). `blur` and `glow` were tried and dropped -- both
+// compile to feGaussianBlur, which is not bit-reproducible across
+// independent Chromium process launches under --use-angle=swiftshader.
+// `drop-shadow` (native feDropShadow) was clean across every trial.
+export const SPEC_EFFECTS = ["drop-shadow"] as const;
 
 export type Ease = "linear" | "easeIn" | "easeOut" | "easeInOut";
 export type Keyframe = {
@@ -103,7 +111,12 @@ const SpecElementSchema = z
     content: z.string().optional(),
     box: BoxSchema,
     keyframes: z.array(KeyframeSchema),
-    effects: z.array(z.enum(SPEC_EFFECTS)),
+    // Shape-only here (non-empty strings); membership in SPEC_EFFECTS is a
+    // semantic check owned by validateSceneSpec (EFFECT_NOT_ALLOWLISTED),
+    // alongside its other spec-content checks (asset resolution, external
+    // URLs, etc.) -- schema parsing shouldn't be the layer that decides
+    // whether an effect is currently deterministic enough to allow.
+    effects: z.array(z.string().min(1)),
   })
   .strict();
 
