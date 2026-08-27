@@ -1314,12 +1314,33 @@ describe("worker registration API", () => {
     it("stores the spec digest and reaches AUTHORING_COMPLETE when authoring finishes", async () => {
       const reviews = createReviewStore();
       const workflow = createCreatorWorkflowStore();
-      const job = addJob(workflow, "PREPARING", generationConfig);
+      // fixtureSpec's hero-image element references an "attachment"-origin
+      // asset (I2.2/C2.2): the job must actually carry that attachment, and
+      // the upload store must actually resolve it, or authorScene's own
+      // fail-closed asset-resolution gate rejects the spec.
+      const job = addJob(workflow, "PREPARING", {
+        ...generationConfig,
+        attachmentIds: ["att_1"],
+      });
       job.preparationStage = "PREVIEW_QUEUED";
       job.compilation = compilation;
       job.evidence = analysisEvidence(job.id, "attempt-a");
       const { db, aiSecretKey } = authorSceneDbFixture();
-      const fixture = appFixture(workflow, undefined, {
+      const uploads = uploadFixture();
+      uploads.attachments = new Map([
+        [
+          "att_1",
+          {
+            id: "att_1",
+            tenantId: "ten_a",
+            contentType: "image/png",
+            sizeBytes: 4,
+            bytes: Uint8Array.from([0x89, 0x50, 0x4e, 0x47]),
+            createdAt: "2026-01-01T00:00:00.000Z",
+          },
+        ],
+      ]);
+      const fixture = appFixture(workflow, uploads, {
         reviews,
         db,
         aiSecretKey,
@@ -1381,6 +1402,44 @@ describe("worker registration API", () => {
       const finished = workflow.jobs.get(job.id);
       expect(finished?.state).toBe("FAILED");
       expect(finished?.failureCode).toBe("SCENE_AUTHORING_FAILED");
+      await fixture.app.close();
+    });
+
+    // I2.2: an attachment id the job references but the store can't
+    // resolve (e.g. lost across an API restart -- see uploads.ts's
+    // attachment-store comment) must fail the job outright, never proceed
+    // with a kind: "unknown" placeholder that quietly drops the reference.
+    it("fails the job when a referenced attachment can't be resolved", async () => {
+      const reviews = createReviewStore();
+      const workflow = createCreatorWorkflowStore();
+      const job = addJob(workflow, "PREPARING", {
+        ...generationConfig,
+        attachmentIds: ["att_missing"],
+      });
+      job.preparationStage = "PREVIEW_QUEUED";
+      job.compilation = compilation;
+      job.evidence = analysisEvidence(job.id, "attempt-a");
+      const { db, aiSecretKey } = authorSceneDbFixture();
+      const fixture = appFixture(workflow, uploadFixture(), {
+        reviews,
+        db,
+        aiSecretKey,
+        authorSceneGenerate: async () => {
+          throw new Error("must not be called");
+        },
+      });
+      await registerWorker(fixture, ["renderer"]);
+      await claimWorker(fixture);
+      const complete = await completePreview(
+        fixture,
+        job,
+        Buffer.from("preview-report-bytes"),
+      );
+      expect(complete.statusCode).toBe(200);
+      const finished = workflow.jobs.get(job.id);
+      expect(finished?.state).toBe("FAILED");
+      expect(finished?.failureCode).toBe("SCENE_AUTHORING_FAILED");
+      expect(finished?.authoredScene).toBeNull();
       await fixture.app.close();
     });
   });

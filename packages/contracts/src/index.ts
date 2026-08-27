@@ -8,3 +8,5 @@ export * from "./models.js";
 export * from "./generation.js";
 export * from "./scene-spec.js";
 export * from "./scene-spec.fixture.js";
+export * from "./spec-validate.js";
+export * from "./canonical-json.js";

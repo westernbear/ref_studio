@@ -10,6 +10,7 @@ import {
   assertLegalTransition,
   type JobState,
 } from "../../../packages/contracts/src/lifecycle.js";
+import { sha256Hex } from "../../../packages/contracts/src/canonical-json.js";
 import { z } from "zod";
 import { authorScene, type GenerateScene } from "./author-scene.js";
 import { runSafetyCheck, type GenerateSafetyVerdict } from "./safety-check.js";
@@ -1394,14 +1395,28 @@ export function registerWorkers(
       try {
         if (!db || !aiSecretKey || !job.generation)
           throw new Error("AI_PROVIDER_NOT_CONFIGURED");
+        // Fail loudly on an attachment id the store can't resolve, rather
+        // than proceeding with kind: "unknown" (I2.2): a brief that
+        // referenced a logo by attachment id, where that attachment is no
+        // longer resolvable (see uploads.ts's attachment-store comment on
+        // why that can happen today), used to silently produce a film
+        // missing the logo with no error anywhere. Now it fails the job,
+        // same as any other authoring failure below.
         const attachments = job.generation.attachmentIds.map(
-          (attachmentId) => ({
-            attachmentId,
-            kind: uploads?.attachments?.get(attachmentId)?.contentType ?? "unknown",
-          }),
+          (attachmentId) => {
+            const record = uploads?.attachments?.get(attachmentId);
+            if (!record) throw new Error("ATTACHMENT_UNRESOLVED");
+            return { attachmentId, kind: record.contentType };
+          },
         );
         const authored = await authorScene({
-          evidence: job.candidateEvidence ?? job.evidence,
+          // M3: candidateEvidence is always null by the time a job reaches
+          // AUTHORING_RUNNING -- autoApproveT2T3 promotes it to job.evidence
+          // and nulls it back at AWAITING_T2, long before AWAITING_T4/
+          // AUTHORING_QUEUED. `job.candidateEvidence ?? job.evidence` here
+          // read as "the author may see unapproved evidence", which was
+          // never true; job.evidence is the only value this can ever be.
+          evidence: job.evidence,
           config: job.generation,
           attachments,
           db,
@@ -1409,7 +1424,11 @@ export function registerWorkers(
           ...(authorSceneGenerate ? { generate: authorSceneGenerate } : {}),
         });
         job.authoredScene = authored;
-        job.sceneSpecDigest = digest(authored.spec);
+        // I3: canonical (key-sorted) JSON, matching gen-render-delivery.ts's
+        // compileSceneSpec digest -- plain JSON.stringify here would depend
+        // on property insertion order and could never agree with the
+        // worker's canonicalJson-based digest of the same spec.
+        job.sceneSpecDigest = sha256Hex(authored.spec);
         job.automaticRetries = 0;
         job.failureCode = null;
         // The assets phase and the generate-track render do not exist yet
