@@ -57,6 +57,7 @@ import {
 import { registerJobAttachments } from "./job-attachments.js";
 import { registerRefinePrompt } from "./refine-prompt.js";
 import type { GenerateScene } from "./author-scene.js";
+import type { GeneratePatch } from "./patch-scene.js";
 import type { GenerateImage } from "./openai-image-material.js";
 import type { GenerateSafetyVerdict } from "./safety-check.js";
 import type { GenerateTranslation } from "./translate-evidence.js";
@@ -101,6 +102,7 @@ export type AppOptions = {
   readonly refinePromptGenerate?: Parameters<
     typeof registerRefinePrompt
   >[5];
+  readonly patchSceneGenerate?: GeneratePatch;
   readonly safetyCheckGenerate?: GenerateSafetyVerdict;
   readonly translateGenerate?: GenerateTranslation;
   readonly authorSceneGenerate?: GenerateScene;
@@ -816,9 +818,12 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
       options.uploads,
       options.db,
       options.aiSecretKey,
-      ...(options.refinePromptGenerate
-        ? [options.refinePromptGenerate]
-        : []),
+      // Passing `undefined` explicitly still lets registerRefinePrompt's
+      // own default parameter (the real generateObject) apply -- this just
+      // has to occupy the positional slot so patchSceneGenerate can follow
+      // it.
+      options.refinePromptGenerate,
+      options.patchSceneGenerate,
     );
   if (options.creatorWorkflow && options.db && options.attachmentsRoot)
     registerJobAttachments(

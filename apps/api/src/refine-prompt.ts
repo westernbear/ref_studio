@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import type Database from "better-sqlite3";
 import { generateObject, type LanguageModel } from "ai";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
@@ -6,8 +6,11 @@ import { z } from "zod";
 import { getAiProviderSettingsWithSecret } from "./ai-provider-settings.js";
 import { createAiModel } from "./ai-provider.js";
 import { IdempotencyStore, requestHash, safeEnvelope } from "./boundary.js";
-import type { CreatorWorkflowStore } from "./creator-workflow.js";
+import type { CreatorWorkflowStore, Job } from "./creator-workflow.js";
+import { patchScene, type GeneratePatch } from "./patch-scene.js";
 import type { UploadStore } from "./uploads.js";
+import { assertLegalTransition } from "../../../packages/contracts/src/lifecycle.js";
+import { sha256Hex } from "../../../packages/contracts/src/canonical-json.js";
 
 const id = (prefix: string): string =>
   `${prefix}_${randomBytes(12).toString("base64url")}`;
@@ -30,7 +33,9 @@ const statusFor = (code: string): number =>
     ? 404
     : code === "AUTHENTICATION_REQUIRED"
       ? 401
-      : 400;
+      : code === "JOB_NOT_READY_FOR_PATCH"
+        ? 409
+        : 400;
 
 export type RefineProposal = {
   readonly startFrame: number;
@@ -42,6 +47,21 @@ export type RefineProposal = {
 export type RefineResponse = {
   readonly plannerKind: "ai" | "heuristic";
   readonly proposals: readonly RefineProposal[];
+};
+
+// The generate track's chat response: a scene patch rather than a
+// start-frame proposal. Deliberately a different shape from RefineResponse
+// (no "plannerKind"/"proposals" fields) -- a restore-track job's response
+// must stay byte-for-byte what it always has been, so this never merges
+// into the same type.
+export type ScenePatchChatResponse = {
+  readonly changedBeatIds: readonly string[];
+  readonly beatSheet: readonly {
+    readonly beatId: string;
+    readonly shot: string;
+    readonly words: string;
+  }[];
+  readonly summary: string;
 };
 
 // REQUEST_CHANGES did the same thing as NEEDS_CHANGES -- the only branch below
@@ -240,6 +260,77 @@ export async function selectInitialStartFrame(params: {
   }
 }
 
+// A patch is only accepted from COMPLETED: the job's authored scene and its
+// render are otherwise mid-flight (PREPARING/QUEUED/RENDERING/ASSEMBLING/
+// AWAITING_T5, or one of the generate track's own AUTHORING_*/ASSETS_*
+// stages), and a worker may hold an active lease against exactly the
+// job.authoredScene/sceneSpecDigest fields a patch would overwrite.
+// Requiring COMPLETED avoids racing that lease entirely -- see this task's
+// report for why this was the narrower, safer scope rather than allowing a
+// patch to interrupt an in-flight render.
+function assertPatchable(job: Job): void {
+  if (job.state !== "COMPLETED" || !job.authoredScene || !job.sceneSpecDigest)
+    throw new Error("JOB_NOT_READY_FOR_PATCH");
+}
+
+// Runs a scene patch for the generate track's chat and re-queues the job
+// for the same gen-render phase it already has (Task: re-render after a
+// patch). Fail-closed, same as authorScene()/patchScene() themselves: any
+// failure here throws before job.authoredScene is ever touched, so a failed
+// patch never silently keeps stale state and never stores a broken scene.
+async function applyScenePatch(params: {
+  readonly store: CreatorWorkflowStore;
+  readonly job: Job;
+  readonly feedback: string;
+  readonly db: Database.Database;
+  readonly aiSecretKey: string;
+  readonly generate: GeneratePatch | undefined;
+}): Promise<ScenePatchChatResponse> {
+  const { store, job } = params;
+  assertPatchable(job);
+  const previous = job.authoredScene!.spec;
+  const patched = await patchScene({
+    previous,
+    feedback: params.feedback,
+    evidence: job.evidence,
+    attachmentIds: job.generation?.attachmentIds ?? [],
+    db: params.db,
+    aiSecretKey: params.aiSecretKey,
+    ...(params.generate ? { generate: params.generate } : {}),
+  });
+  // Only reachable once patchScene has already resolved successfully --
+  // nothing above this line mutates the job, so a throw anywhere in
+  // patchScene (AI failure, schema failure, validateSceneSpec failure)
+  // leaves job.authoredScene exactly as it was.
+  job.authoredScene = { spec: patched.spec, beatSheet: patched.beatSheet };
+  job.sceneSpecDigest = sha256Hex(patched.spec);
+  job.automaticRetries = 0;
+  job.failureCode = null;
+  // The creator has just asked for a change -- the delivered artifact this
+  // job used to point at is no longer the film this scene describes, and
+  // the progress the UI reads has to say a new render is starting, not
+  // repeat the finished render's own final progress record.
+  job.artifact = null;
+  job.progress = {
+    phase: "prepare",
+    stage: "scene-patch",
+    fraction: 0,
+    framesProcessed: null,
+    framesTotal: null,
+  };
+  const now = store.now();
+  job.eligibleAt = now;
+  assertLegalTransition(job.state, "QUEUED");
+  job.state = "QUEUED";
+  job.updatedAt = new Date(now).toISOString();
+  job.etag = `"${createHash("sha256").update(job.updatedAt).digest("hex")}"`;
+  return {
+    changedBeatIds: patched.changedBeatIds,
+    beatSheet: patched.beatSheet,
+    summary: patched.summary,
+  };
+}
+
 export function registerRefinePrompt(
   app: FastifyInstance,
   store: CreatorWorkflowStore,
@@ -247,6 +338,7 @@ export function registerRefinePrompt(
   db: Database.Database,
   aiSecretKey: string,
   generate: GenerateProposals = generateObject as unknown as GenerateProposals,
+  patchGenerate?: GeneratePatch,
 ): void {
   const tenant = (request: FastifyRequest): string =>
     header(request, "x-tenant-id") ?? "";
@@ -272,12 +364,28 @@ export function registerRefinePrompt(
             const job = store.jobs.get(request.params.jobId);
             if (!job || job.tenantId !== tenant(request))
               throw new Error("RESOURCE_NOT_FOUND");
-            const upload = uploads.uploads.get(job.uploadId);
-            if (!upload || upload.tenantId !== job.tenantId || !upload.media)
-              throw new Error("RESOURCE_NOT_FOUND");
             const prompt = request.body?.prompt;
             if (!prompt || prompt.length < 1 || prompt.length > 2000)
               throw new Error("INVALID_REQUEST");
+            // Routing (Task 2): a generate-track job (job.generation set)
+            // has no start frame to shift -- its only edit surface is the
+            // authored scene itself, so the chat asks for a scene patch
+            // instead. A restore-track job (no job.generation) takes
+            // exactly the path it always has, below, completely unchanged.
+            if (job.generation) {
+              const response = await applyScenePatch({
+                store,
+                job,
+                feedback: prompt,
+                db,
+                aiSecretKey,
+                generate: patchGenerate,
+              });
+              return [200, response];
+            }
+            const upload = uploads.uploads.get(job.uploadId);
+            if (!upload || upload.tenantId !== job.tenantId || !upload.media)
+              throw new Error("RESOURCE_NOT_FOUND");
             const windowFrames = job.sourceFps * 4;
             const min = 0;
             const max = Math.max(0, upload.media.frameCount - windowFrames);

@@ -1,12 +1,14 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fixtureSpec, type GenerationConfig, type SceneSpec } from "@rvs/contracts";
 import { describe, expect, it } from "vitest";
 import { buildAuthApp } from "./app.js";
 import { hashBearer, type AuthStore } from "./auth.js";
 import { updateAiProviderSettings } from "./ai-provider-settings.js";
 import { createCreatorWorkflowStore, RUNTIME_DIGEST } from "./creator-workflow.js";
 import { openApiDatabase } from "./durable-state.js";
+import type { GeneratePatch } from "./patch-scene.js";
 import type { GenerateProposals } from "./refine-prompt.js";
 import { createUpload, finalizeUpload, type UploadStore } from "./uploads.js";
 
@@ -24,7 +26,10 @@ const preflight = {
   runtimeDigest: RUNTIME_DIGEST,
 } as const;
 
-const fixture = (generate?: GenerateProposals) => {
+const fixture = (
+  generate?: GenerateProposals,
+  patchGenerate?: GeneratePatch,
+) => {
   const directory = mkdtempSync(join(tmpdir(), "rvs-refine-prompt-"));
   const db = openApiDatabase(join(directory, "app.sqlite"));
   const auth: AuthStore = {
@@ -87,6 +92,7 @@ const fixture = (generate?: GenerateProposals) => {
     db,
     aiSecretKey: "test-secret-key-material",
     ...(generate ? { refinePromptGenerate: generate } : {}),
+    ...(patchGenerate ? { patchSceneGenerate: patchGenerate } : {}),
   });
   return { app, uploads, workflow, db, directory, uploadId: upload.id };
 };
@@ -509,6 +515,250 @@ describe("job feedback", () => {
         payload: { decision: "MAYBE" },
       });
       expect(response.statusCode).toBe(400);
+    } finally {
+      state.db.close();
+      rmSync(state.directory, { recursive: true, force: true });
+    }
+  });
+});
+
+// Chat edit loop (Task: the creator's only way to change anything is the
+// chat). A generate-track job (job.generation set) routes /refine-prompt to
+// a scene patch instead of the restore track's start-frame proposals. Its
+// preconditions are set up by direct field mutation on the stored job, the
+// same pattern creator-api.test.ts uses for "retries from the compiler
+// boundary" -- driving a job all the way to COMPLETED through the worker
+// protocol is workers.test.ts's job, not this route's.
+// fixtureSpec's hero-image/logo elements are attachment-origin assets, so
+// job.generation.attachmentIds must be non-empty for validateSceneSpec to
+// consider them resolvable (see author-scene.ts's resolvableAssetIds) --
+// same requirement patchScene re-checks on every patch.
+const generation: GenerationConfig = {
+  brief: "Meridian finds meeting times nobody hates.",
+  durationSec: 20,
+  aspect: "9:16",
+  attachmentIds: ["att_1"],
+};
+
+const completeGenerateJob = (
+  workflow: ReturnType<typeof createCreatorWorkflowStore>,
+  jobId: string,
+  spec: SceneSpec = fixtureSpec,
+) => {
+  const job = workflow.jobs.get(jobId);
+  if (!job) throw new Error("fixture job missing");
+  job.generation = generation;
+  job.evidence = { sceneInput: { owners: [] } };
+  job.authoredScene = {
+    spec,
+    beatSheet: spec.beats.map((beat) => ({
+      beatId: beat.beatId,
+      shot: beat.shot,
+      words: "",
+    })),
+  };
+  job.sceneSpecDigest = "a".repeat(64);
+  job.approved = true;
+  job.preparationStage = "READY";
+  job.state = "COMPLETED";
+  job.artifact = { id: "genartifact_1", kind: "generated-delivery", expiresAt: "2099-01-01T00:00:00.000Z" };
+  job.progress = {
+    phase: "render",
+    stage: "delivery-qc",
+    fraction: 1,
+    framesProcessed: spec.canvas.frameCount,
+    framesTotal: spec.canvas.frameCount,
+  };
+  return job;
+};
+
+describe("scene-patch chat (generate track)", () => {
+  it("amends the scene, requeues the job for gen-render, and reports the changed beats", async () => {
+    const recolored: SceneSpec = {
+      ...fixtureSpec,
+      palette: { ...fixtureSpec.palette, hero: "#6633ee" },
+    };
+    const patchGenerate: GeneratePatch = async () => ({
+      object: { spec: recolored, summary: "Changed the hero colour to brand purple." },
+    });
+    const state = fixture(undefined, patchGenerate);
+    try {
+      updateAiProviderSettings(
+        state.db,
+        { providerKind: "openai", model: "gpt-4o", apiKey: "sk-test", enabled: true },
+        "admin",
+        1_000,
+        "test-secret-key-material",
+      );
+      const jobId = await createJob(state.app, state.uploadId, "job-patch-1");
+      completeGenerateJob(state.workflow, jobId);
+      const response = await state.app.inject({
+        method: "POST",
+        url: `/v1/jobs/${jobId}/refine-prompt`,
+        headers: { ...headersFor("ten_a"), "idempotency-key": "patch-1" },
+        payload: { prompt: "use our brand purple #6633ee" },
+      });
+      expect(response.statusCode, response.body).toBe(200);
+      const body = response.json();
+      expect(body.changedBeatIds).toEqual([]);
+      expect(body.summary).toBe("Changed the hero colour to brand purple.");
+      expect(body.beatSheet).toHaveLength(fixtureSpec.beats.length);
+      const job = state.workflow.jobs.get(jobId);
+      expect(job?.state).toBe("QUEUED");
+      expect(job?.authoredScene?.spec.palette.hero).toBe("#6633ee");
+      expect(job?.artifact).toBeNull();
+      expect(job?.progress?.fraction).toBe(0);
+    } finally {
+      state.db.close();
+      rmSync(state.directory, { recursive: true, force: true });
+    }
+  });
+
+  it("reports the beats the diff finds changed, not what the model claims", async () => {
+    const changedSpec: SceneSpec = {
+      ...fixtureSpec,
+      beats: fixtureSpec.beats.map((beat) =>
+        beat.beatId === "beat-close" ? { ...beat, shot: "type-flash" } : beat,
+      ),
+    };
+    const patchGenerate: GeneratePatch = async () => ({
+      object: { spec: changedSpec, summary: "No changes were necessary." },
+    });
+    const state = fixture(undefined, patchGenerate);
+    try {
+      updateAiProviderSettings(
+        state.db,
+        { providerKind: "openai", model: "gpt-4o", apiKey: "sk-test", enabled: true },
+        "admin",
+        1_000,
+        "test-secret-key-material",
+      );
+      const jobId = await createJob(state.app, state.uploadId, "job-patch-2");
+      completeGenerateJob(state.workflow, jobId);
+      const response = await state.app.inject({
+        method: "POST",
+        url: `/v1/jobs/${jobId}/refine-prompt`,
+        headers: { ...headersFor("ten_a"), "idempotency-key": "patch-2" },
+        payload: { prompt: "too busy" },
+      });
+      expect(response.statusCode, response.body).toBe(200);
+      expect(response.json().changedBeatIds).toEqual(["beat-close"]);
+    } finally {
+      state.db.close();
+      rmSync(state.directory, { recursive: true, force: true });
+    }
+  });
+
+  it("fails the patch, and leaves the job unchanged, when no AI provider is configured", async () => {
+    const state = fixture();
+    try {
+      const jobId = await createJob(state.app, state.uploadId, "job-patch-3");
+      completeGenerateJob(state.workflow, jobId);
+      const response = await state.app.inject({
+        method: "POST",
+        url: `/v1/jobs/${jobId}/refine-prompt`,
+        headers: { ...headersFor("ten_a"), "idempotency-key": "patch-3" },
+        payload: { prompt: "beat three is too fast" },
+      });
+      expect(response.statusCode).toBe(400);
+      const job = state.workflow.jobs.get(jobId);
+      expect(job?.state).toBe("COMPLETED");
+      expect(job?.authoredScene?.spec).toEqual(fixtureSpec);
+    } finally {
+      state.db.close();
+      rmSync(state.directory, { recursive: true, force: true });
+    }
+  });
+
+  it("fails the patch, and leaves the job unchanged, when the amended scene fails validation", async () => {
+    const broken: SceneSpec = { ...fixtureSpec, beats: fixtureSpec.beats.slice(0, 1) };
+    const patchGenerate: GeneratePatch = async () => ({
+      object: { spec: broken, summary: "dropped the rest" },
+    });
+    const state = fixture(undefined, patchGenerate);
+    try {
+      updateAiProviderSettings(
+        state.db,
+        { providerKind: "openai", model: "gpt-4o", apiKey: "sk-test", enabled: true },
+        "admin",
+        1_000,
+        "test-secret-key-material",
+      );
+      const jobId = await createJob(state.app, state.uploadId, "job-patch-4");
+      completeGenerateJob(state.workflow, jobId);
+      const response = await state.app.inject({
+        method: "POST",
+        url: `/v1/jobs/${jobId}/refine-prompt`,
+        headers: { ...headersFor("ten_a"), "idempotency-key": "patch-4" },
+        payload: { prompt: "drop the search bar scene" },
+      });
+      expect(response.statusCode).toBe(400);
+      const job = state.workflow.jobs.get(jobId);
+      expect(job?.state).toBe("COMPLETED");
+      expect(job?.authoredScene?.spec).toEqual(fixtureSpec);
+      expect(job?.artifact).not.toBeNull();
+    } finally {
+      state.db.close();
+      rmSync(state.directory, { recursive: true, force: true });
+    }
+  });
+
+  it("refuses a patch while the job is not in a stable, re-render-ready state", async () => {
+    const patchGenerate: GeneratePatch = async () => ({
+      object: { spec: fixtureSpec, summary: "no-op" },
+    });
+    const state = fixture(undefined, patchGenerate);
+    try {
+      updateAiProviderSettings(
+        state.db,
+        { providerKind: "openai", model: "gpt-4o", apiKey: "sk-test", enabled: true },
+        "admin",
+        1_000,
+        "test-secret-key-material",
+      );
+      const jobId = await createJob(state.app, state.uploadId, "job-patch-5");
+      const job = completeGenerateJob(state.workflow, jobId);
+      job.state = "RENDERING";
+      const response = await state.app.inject({
+        method: "POST",
+        url: `/v1/jobs/${jobId}/refine-prompt`,
+        headers: { ...headersFor("ten_a"), "idempotency-key": "patch-5" },
+        payload: { prompt: "too busy" },
+      });
+      expect(response.statusCode).toBe(409);
+    } finally {
+      state.db.close();
+      rmSync(state.directory, { recursive: true, force: true });
+    }
+  });
+});
+
+// Proves requirement 2 (routing): a restore-track job (no job.generation)
+// must behave exactly as it did before the chat edit loop existed -- same
+// {plannerKind, proposals} shape, same heuristic/AI planning path, nothing
+// about a scene patch leaks in even though the route now knows how to do
+// one.
+describe("restore-track chat is unaffected by the scene-patch route", () => {
+  it("still returns start-frame proposals, never a scene patch, for a job with no generation config", async () => {
+    const patchGenerate: GeneratePatch = async () => {
+      throw new Error("must not be called for a restore-track job");
+    };
+    const state = fixture(undefined, patchGenerate);
+    try {
+      const jobId = await createJob(state.app, state.uploadId, "job-restore-1");
+      expect(state.workflow.jobs.get(jobId)?.generation).toBeUndefined();
+      const response = await state.app.inject({
+        method: "POST",
+        url: `/v1/jobs/${jobId}/refine-prompt`,
+        headers: { ...headersFor("ten_a"), "idempotency-key": "restore-1" },
+        payload: { prompt: "make it more dramatic" },
+      });
+      expect(response.statusCode, response.body).toBe(200);
+      const body = response.json();
+      expect(Object.keys(body).sort()).toEqual(["plannerKind", "proposals"]);
+      expect(body.plannerKind).toBe("heuristic");
+      expect(body.proposals.length).toBeGreaterThanOrEqual(2);
+      expect(state.workflow.jobs.get(jobId)?.state).toBe("PREPARING");
     } finally {
       state.db.close();
       rmSync(state.directory, { recursive: true, force: true });
