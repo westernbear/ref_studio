@@ -7,6 +7,10 @@ import {
   assertLegalTransition,
   type JobState,
 } from "../../../packages/contracts/src/lifecycle.js";
+import {
+  GenerationConfigSchema,
+  type GenerationConfig,
+} from "../../../packages/contracts/src/generation.js";
 import { IdempotencyStore, requestHash, safeEnvelope } from "./boundary.js";
 import type { Principal } from "./auth.js";
 import { selectInitialStartFrame } from "./refine-prompt.js";
@@ -100,6 +104,7 @@ export type Job = {
   restoreEpoch: number;
   failureCode: string | null;
   runtimePreflight: RuntimePreflightEvidence | null;
+  readonly generation?: GenerationConfig;
   progress: {
     phase: "prepare" | "render";
     stage: string;
@@ -501,6 +506,7 @@ const projection = (
   artifact: job.artifact,
   progress: job.progress,
   runtimePreflight: job.runtimePreflight,
+  ...(job.generation ? { generation: job.generation } : {}),
   evidenceDigest: job.evidenceDigest,
   irDigest: job.irDigest,
   reviewArtifactId: store.stagedArtifacts.get(job.id)?.id ?? null,
@@ -1115,11 +1121,22 @@ export function registerCreatorWorkflow(
           sourceFps?: number;
           outputProfile?: string;
           prompt?: string;
+          generation?: unknown;
         };
       }>,
       reply,
     ) => {
       try {
+        const generationParsed = request.body.generation === undefined
+          ? undefined
+          : GenerationConfigSchema.safeParse(request.body.generation);
+        if (generationParsed && !generationParsed.success) {
+          fail(reply, "INVALID_REQUEST");
+          return;
+        }
+        const generation = generationParsed?.success
+          ? generationParsed.data
+          : undefined;
         // Frame selection can call out to an AI provider, so it runs before
         // the synchronous command()/idempotency block below rather than
         // inside it -- command()'s action callback is not async.
@@ -1207,6 +1224,7 @@ export function registerCreatorWorkflow(
               restoreEpoch: 0,
               failureCode: null,
               runtimePreflight: store.availablePreflight,
+              ...(generation ? { generation } : {}),
               progress: null,
               artifact: null,
             };
