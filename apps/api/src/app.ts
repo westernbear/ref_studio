@@ -57,6 +57,7 @@ import {
 import { registerJobAttachments } from "./job-attachments.js";
 import { registerRefinePrompt } from "./refine-prompt.js";
 import type { GenerateScene } from "./author-scene.js";
+import type { GenerateImage } from "./openai-image-material.js";
 import type { GenerateSafetyVerdict } from "./safety-check.js";
 import type { GenerateTranslation } from "./translate-evidence.js";
 import { registerReviews, type ReviewStore } from "./reviews.js";
@@ -103,6 +104,7 @@ export type AppOptions = {
   readonly safetyCheckGenerate?: GenerateSafetyVerdict;
   readonly translateGenerate?: GenerateTranslation;
   readonly authorSceneGenerate?: GenerateScene;
+  readonly materialGenerate?: GenerateImage;
 } & WorkerAppOptions;
 const header = (request: FastifyRequest, name: string): string | undefined => {
   const value = request.headers[name];
@@ -838,6 +840,7 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
       safetyCheckGenerate: options.safetyCheckGenerate,
       translateGenerate: options.translateGenerate,
       authorSceneGenerate: options.authorSceneGenerate,
+      materialGenerate: options.materialGenerate,
     });
   return app;
 }

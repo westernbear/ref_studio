@@ -32,8 +32,10 @@ import { createReviewStore, type ReviewStore } from "./reviews.js";
 import type { UploadStore } from "./uploads.js";
 import { createRetentionStore, type RetentionStore } from "./retention.js";
 import { updateAiProviderSettings } from "./ai-provider-settings.js";
+import { updateMaterialProviderSettings } from "./material-provider-settings.js";
 import { openApiDatabase } from "./durable-state.js";
 import type { GenerateScene } from "./author-scene.js";
+import type { GenerateImage } from "./openai-image-material.js";
 import type { GenerateSafetyVerdict } from "./safety-check.js";
 import type { GenerateTranslation } from "./translate-evidence.js";
 import type DatabaseType from "better-sqlite3";
@@ -328,6 +330,7 @@ type FixtureOptions = Readonly<{
   safetyCheckGenerate?: GenerateSafetyVerdict;
   translateGenerate?: GenerateTranslation;
   authorSceneGenerate?: GenerateScene;
+  materialGenerate?: GenerateImage;
 }>;
 const appFixture = (
   workflow?: CreatorWorkflowStore,
@@ -373,6 +376,7 @@ const appFixture = (
     safetyCheckGenerate: options.safetyCheckGenerate,
     translateGenerate: options.translateGenerate,
     authorSceneGenerate: options.authorSceneGenerate,
+    materialGenerate: options.materialGenerate,
   });
   app.addHook("onClose", async () => {
     rmSync(artifactRoot, { recursive: true, force: true });
@@ -2616,6 +2620,164 @@ describe("generate-track material and render phases", () => {
       sha256Hex(finished?.authoredScene?.spec),
     );
     expect(finished?.sceneSpecDigest).not.toBe(sha256Hex(spec));
+    await fixture.app.close();
+  });
+
+  const generatedAssetSpec = generatedSpec(
+    [
+      {
+        assetId: "backdrop",
+        kind: "image",
+        origin: "generated",
+        ref: "generated://backdrop",
+        provenance: {
+          tool: "author-declared",
+          prompt: "a dark studio backdrop",
+          seed: 7,
+          sha256: "0".repeat(64),
+        },
+      },
+    ],
+    ["backdrop"],
+  );
+  const materialFixture = (
+    workflow: CreatorWorkflowStore,
+    materialGenerate?: GenerateImage,
+  ) => {
+    const directory = mkdtempSync(join(tmpdir(), "rvs-material-endpoint-"));
+    const db = openApiDatabase(join(directory, "app.sqlite"));
+    updateMaterialProviderSettings(
+      db,
+      {
+        providerKind: "openai",
+        model: "gpt-image-2",
+        apiKey: "sk-test",
+        enabled: true,
+      },
+      "admin",
+      1_000,
+      "test-secret-key-material",
+    );
+    return appFixture(workflow, uploadFixture(), {
+      db,
+      aiSecretKey: "test-secret-key-material",
+      ...(materialGenerate ? { materialGenerate } : {}),
+    });
+  };
+  // A minimal (not fully valid) RGBA PNG: only the signature and IHDR
+  // header matter to the alpha check the provider runs.
+  const rgbaPngHeader = (): Buffer => {
+    const bytes = Buffer.alloc(33);
+    bytes.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], 0);
+    bytes.write("IHDR", 12, "ascii");
+    bytes.writeUInt8(6, 25);
+    return bytes;
+  };
+  const materialRequestPayload = {
+    assetId: "backdrop",
+    kind: "image",
+    prompt: "a dark studio backdrop",
+    seed: 7,
+    canvas: {
+      width: CANVAS["9:16"].width,
+      height: CANVAS["9:16"].height,
+      fps: DELIVERY_FPS,
+      frameCount: 60,
+    },
+  };
+
+  it("asks the OpenAI-backed endpoint for image material and returns bytes with provenance", async () => {
+    const workflow = createCreatorWorkflowStore();
+    generateJob(workflow, generatedAssetSpec, "ASSETS_QUEUED");
+    const png = rgbaPngHeader();
+    const fixture = materialFixture(workflow, async (options) => {
+      expect(options.model).toBe("gpt-image-2");
+      expect(options.prompt).toBe("a dark studio backdrop");
+      expect(options.size).toBe("1024x1536");
+      return { b64: png.toString("base64") };
+    });
+    await registerWorker(fixture, ["renderer"]);
+    const claim = await claimWorker(fixture);
+    const jobId = claim.json().job.jobId as string;
+
+    const response = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${jobId}/material`,
+      headers: fixture.headers,
+      payload: materialRequestPayload,
+    });
+
+    expect(response.statusCode, response.body).toBe(200);
+    const body = response.json();
+    expect(body.contentType).toBe("image/png");
+    expect(Buffer.from(body.bytesBase64, "base64")).toEqual(png);
+    expect(body.provenance).toEqual({
+      tool: "openai:gpt-image-2",
+      prompt: "a dark studio backdrop",
+      sha256: sha256(png),
+    });
+    await fixture.app.close();
+  });
+
+  it("refuses a material request for a kind it does not implement, naming the kind", async () => {
+    const workflow = createCreatorWorkflowStore();
+    generateJob(workflow, generatedAssetSpec, "ASSETS_QUEUED");
+    const fixture = materialFixture(workflow);
+    await registerWorker(fixture, ["renderer"]);
+    const claim = await claimWorker(fixture);
+    const jobId = claim.json().job.jobId as string;
+
+    const response = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${jobId}/material`,
+      headers: fixture.headers,
+      payload: { ...materialRequestPayload, kind: "video" },
+    });
+
+    expect(response.statusCode).toBe(422);
+    expect(response.json().error.message).toMatch(/"video".*not implemented/);
+    expect(response.json().error.message).toMatch(/"image"/);
+  });
+
+  it("refuses a material request when no image material provider is configured", async () => {
+    const workflow = createCreatorWorkflowStore();
+    generateJob(workflow, generatedAssetSpec, "ASSETS_QUEUED");
+    const fixture = appFixture(workflow, uploadFixture(), {});
+    await registerWorker(fixture, ["renderer"]);
+    const claim = await claimWorker(fixture);
+    const jobId = claim.json().job.jobId as string;
+
+    const response = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${jobId}/material`,
+      headers: fixture.headers,
+      payload: materialRequestPayload,
+    });
+
+    expect(response.statusCode).toBe(422);
+    expect(response.json().error.message).toMatch(
+      /MATERIAL_PROVIDER_NOT_CONFIGURED/,
+    );
+    await fixture.app.close();
+  });
+
+  it("refuses a material request outside the assets phase", async () => {
+    const workflow = createCreatorWorkflowStore();
+    const job = generateJob(workflow, generatedSpec(), "GENERATE_QUEUED");
+    const fixture = safetyFixture(workflow);
+    await registerWorker(fixture, ["renderer"]);
+    await claimWorker(fixture);
+    expect(workflow.jobs.get(job.id)?.state).toBe("RENDERING");
+
+    const response = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${job.id}/material`,
+      headers: fixture.headers,
+      payload: materialRequestPayload,
+    });
+
+    expect(response.statusCode).toBe(422);
+    expect(response.json().error.code).toBe("INVALID_REQUEST");
     await fixture.app.close();
   });
 

@@ -15,6 +15,11 @@ import { planSceneAssets } from "../../../packages/contracts/src/scene-assets.js
 import type { SceneSpec } from "../../../packages/contracts/src/scene-spec.js";
 import { z } from "zod";
 import { authorScene, type GenerateScene } from "./author-scene.js";
+import {
+  generateImageMaterial,
+  MaterialProviderError,
+  type GenerateImage,
+} from "./openai-image-material.js";
 import { runSafetyCheck, type GenerateSafetyVerdict } from "./safety-check.js";
 import {
   enrichEvidenceTranslations,
@@ -354,6 +359,25 @@ const GenRenderResult = z
     artifactId: z.string().min(1),
     safetySampleArtifactId: z.string().min(1).nullable(),
     report: GenRenderReport,
+  })
+  .strict();
+// The `assets` phase's one request for new material. `kind` accepts every
+// MaterialKind so an unsupported one gets a named refusal below rather than
+// failing zod validation indistinguishably from a malformed request.
+const MaterialRequestBody = z
+  .object({
+    assetId: z.string().min(1).max(200),
+    kind: z.enum(["image", "video", "font"]),
+    prompt: z.string().min(1).max(4000),
+    seed: z.number().int().nullable(),
+    canvas: z
+      .object({
+        width: z.number().int().positive(),
+        height: z.number().int().positive(),
+        fps: z.number().int().positive(),
+        frameCount: z.number().int().positive(),
+      })
+      .strict(),
   })
   .strict();
 const ProgressBody = z
@@ -1149,6 +1173,7 @@ type WorkerRouteOptions = Readonly<{
   safetyCheckGenerate: GenerateSafetyVerdict | undefined;
   translateGenerate: GenerateTranslation | undefined;
   authorSceneGenerate: GenerateScene | undefined;
+  materialGenerate: GenerateImage | undefined;
 }>;
 
 export function registerWorkers(
@@ -1168,6 +1193,7 @@ export function registerWorkers(
     safetyCheckGenerate,
     translateGenerate,
     authorSceneGenerate,
+    materialGenerate,
   } = options;
   const auth = (
     request: FastifyRequest,
@@ -1715,6 +1741,86 @@ export function registerWorkers(
         .send(createReadStream(artifact.storagePath));
     },
   );
+  // Message bodies here bypass the fixed AUTHENTICATION_REQUIRED /
+  // INVALID_REQUEST / RESOURCE_NOT_FOUND / CANCEL_REQUESTED envelope that
+  // `error()` produces (safeEnvelope's normalizeError collapses any other
+  // Error message to a generic INTERNAL_ERROR), because a worker needs the
+  // actual reason a material request was refused, not just "bad request".
+  const materialRefused = (reply: FastifyReply, message: string): void => {
+    reply.code(422).send({
+      error: {
+        code: "INVALID_REQUEST",
+        message,
+        correlationId: String(reply.getHeader("x-correlation-id")),
+        details: [],
+      },
+    });
+  };
+  // The worker's only way to get new material: it has no outbound network
+  // (docker-compose.yml keeps `worker` on worker-internal, which is
+  // `internal: true`), so the vendor call happens here, where the encrypted
+  // key lives, and the worker gets back finished bytes plus provenance. See
+  // material-provider.ts (apps/worker) for the seam this fills.
+  app.post<{
+    Params: { workerId: string; jobId: string };
+    Body: unknown;
+  }>("/v1/workers/:workerId/jobs/:jobId/material", async (request, reply) => {
+    const claimed = claimedJob(request, reply);
+    if (!claimed) return;
+    const { job, lease } = claimed;
+    if (
+      lease.phase !== "assets" ||
+      job.preparationStage !== "ASSETS_RUNNING" ||
+      !preparingJob(job) ||
+      !job.generation
+    ) {
+      error(reply, "INVALID_REQUEST");
+      return;
+    }
+    const parsed = MaterialRequestBody.safeParse(request.body);
+    if (!parsed.success) {
+      error(reply, "INVALID_REQUEST");
+      return;
+    }
+    // Only image material is implemented today. Refusing every other kind
+    // by name here (rather than falling through to a generic failure) is
+    // what keeps that refusal visibly narrow when video/3D providers land.
+    if (parsed.data.kind !== "image") {
+      materialRefused(
+        reply,
+        `material generation for kind "${parsed.data.kind}" is not implemented; only "image" material generation is available`,
+      );
+      return;
+    }
+    if (!db || !aiSecretKey) {
+      materialRefused(
+        reply,
+        "MATERIAL_PROVIDER_NOT_CONFIGURED: no image material provider is configured for this deployment",
+      );
+      return;
+    }
+    try {
+      const material = await generateImageMaterial({
+        db,
+        aiSecretKey,
+        prompt: parsed.data.prompt,
+        canvas: parsed.data.canvas,
+        ...(materialGenerate ? { generate: materialGenerate } : {}),
+      });
+      reply.send({
+        contentType: material.contentType,
+        bytesBase64: Buffer.from(material.bytes).toString("base64"),
+        provenance: material.provenance,
+      });
+    } catch (cause) {
+      materialRefused(
+        reply,
+        cause instanceof MaterialProviderError
+          ? `${cause.code}: the image material provider could not produce this asset`
+          : "MATERIAL_GENERATION_FAILED: the image material provider could not produce this asset",
+      );
+    }
+  });
   const finish = async (
     request: FastifyRequest<{
       Params: { workerId: string; jobId: string };
