@@ -13,17 +13,17 @@ export const SPEC_EFFECTS = ["blur", "glow", "drop-shadow"] as const;
 export type Ease = "linear" | "easeIn" | "easeOut" | "easeInOut";
 export type Keyframe = {
   readonly frame: number;
-  readonly opacity?: number;
-  readonly scale?: number;
-  readonly x?: number;
-  readonly y?: number;
+  readonly opacity?: number | undefined;
+  readonly scale?: number | undefined;
+  readonly x?: number | undefined;
+  readonly y?: number | undefined;
   readonly ease: Ease;
 };
 export type SpecElement = {
   readonly elementId: string;
   readonly kind: "text" | "image" | "shape" | "video";
-  readonly assetRef?: string;
-  readonly content?: string;
+  readonly assetRef?: string | undefined;
+  readonly content?: string | undefined;
   readonly box: {
     readonly x: number;
     readonly y: number;
@@ -45,12 +45,14 @@ export type SpecAsset = {
   readonly kind: "image" | "video" | "font" | "color";
   readonly origin: "attachment" | "evidence" | "generated";
   readonly ref: string;
-  readonly provenance?: {
-    readonly tool: string;
-    readonly prompt: string;
-    readonly seed?: number;
-    readonly sha256: string;
-  };
+  readonly provenance?:
+    | {
+        readonly tool: string;
+        readonly prompt: string;
+        readonly seed?: number | undefined;
+        readonly sha256: string;
+      }
+    | undefined;
 };
 export type SceneSpec = {
   readonly schema: "scene-spec-v1";
