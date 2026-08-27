@@ -200,6 +200,10 @@
     "aiProposal": "AI 제안",
     "heuristicProposal": "기본 제안",
     "beatSheetLabel": "장면 구성",
+    "patchLabel": "장면 수정",
+    "patchChangedBeats": "바뀐 장면: {beats}",
+    "patchNoBeatsChanged": "바뀐 장면이 없습니다.",
+    "patchRenderStarted": "새로 렌더링을 시작했습니다.",
     "startFrame": "시작 프레임 {frame}",
     "applying": "적용 중...",
     "apply": "적용",
@@ -267,7 +271,8 @@
     "sceneCompile": "장면 재컴파일 중",
     "sceneRender": "프레임 렌더링 중",
     "upload": "출력 업로드 중",
-    "authoring": "장면 계획 중"
+    "authoring": "장면 계획 중",
+    "scenePatch": "수정 적용 중"
   },
   "ShotLabels": {
     "pushIn": "푸시 인",

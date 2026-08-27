@@ -66,3 +66,84 @@ test("shows the beat sheet when authoring finishes", async ({ page }) => {
     page.getByTestId("beat-sheet").getByRole("listitem"),
   ).toHaveCount(3);
 });
+
+// Chat edit loop: on a generate-track job, POST /refine-prompt returns a
+// scene patch ({changedBeatIds, beatSheet, summary}) instead of start-frame
+// proposals (CompilerDialogue.tsx's send()). This proves the chat shows what
+// the AI understood (the summary), which beats changed, that a new render
+// started, and that the beat sheet updates in place rather than growing a
+// second stale copy.
+//
+// Same limitation as the test above (unauthenticated server-side first
+// render, no seeded backend job) -- this cannot be verified to pass in this
+// sandbox; see the batch report.
+const patchJobId = "job_scene_patch";
+
+test("shows what changed after a scene-patch chat reply, and updates the beat sheet in place", async ({
+  page,
+}) => {
+  let refineCalls = 0;
+  await page.route("**/api/v1/**", async (route) => {
+    const url = new URL(route.request().url());
+    if (
+      url.pathname === `/api/v1/jobs/${patchJobId}` &&
+      route.request().method() === "GET"
+    ) {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          id: patchJobId,
+          state: "COMPLETED",
+          preparationStage: "READY",
+          attempt: 1,
+          approvedGates: ["T1", "T2", "T3", "T4", "T5"],
+          beatSheet: [
+            { beatId: "beat-open", shot: "push-in", words: "REF STUDIO" },
+          ],
+        }),
+      });
+      return;
+    }
+    if (
+      url.pathname === `/api/v1/jobs/${patchJobId}/refine-prompt` &&
+      route.request().method() === "POST"
+    ) {
+      refineCalls += 1;
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          changedBeatIds: ["beat-open"],
+          beatSheet: [
+            { beatId: "beat-open", shot: "push-in", words: "MERIDIAN" },
+          ],
+          summary: "Changed the headline copy.",
+        }),
+      });
+      return;
+    }
+    if (url.pathname === `/api/v1/receipts`) {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ items: [] }),
+      });
+      return;
+    }
+    await route.continue();
+  });
+  await page.goto(`/en-US/scene-review?jobId=${patchJobId}`);
+  await expect(page.getByTestId("beat-sheet")).toContainText("REF STUDIO");
+  await page
+    .getByLabel("Change the result")
+    .fill("use MERIDIAN as the headline");
+  await page.getByRole("button", { name: "Send" }).click();
+  await expect(page.getByText("Changed the headline copy.")).toBeVisible();
+  await expect(page.getByText("Changed beats: beat-open")).toBeVisible();
+  await expect(page.getByText("A new render has started.")).toBeVisible();
+  // Updated in place -- one beat sheet, showing the new copy, not two.
+  await expect(page.getByTestId("beat-sheet")).toHaveCount(1);
+  await expect(page.getByTestId("beat-sheet")).toContainText("MERIDIAN");
+  await expect(page.getByTestId("beat-sheet")).not.toContainText(
+    "REF STUDIO",
+  );
+  expect(refineCalls).toBe(1);
+});

@@ -49,8 +49,17 @@ type ChatMessage =
   // (scene authoring runs in the API, not as a worker phase) -- the beat
   // sheet is the one place the creator can read what the AI actually
   // planned before the film gets built, so it belongs in the log next to
-  // everything else that happened.
-  | { readonly role: "beats"; readonly beats: readonly BeatSheetEntry[] };
+  // everything else that happened. Kept in sync (not just added once) as
+  // the scene changes -- see the effect that maintains it.
+  | { readonly role: "beats"; readonly beats: readonly BeatSheetEntry[] }
+  // A generate-track chat reply: what the AI understood it should change,
+  // and which beats diffChangedBeatIds actually found different (never the
+  // model's own claim -- see apps/api/src/patch-scene.ts).
+  | {
+      readonly role: "patch";
+      readonly summary: string;
+      readonly changedBeatIds: readonly string[];
+    };
 
 type Props = {
   readonly initialJob: JobProgress;
@@ -221,14 +230,27 @@ export function CompilerDialogue({
     });
   }, [job.progressStage]);
 
+  // Keeps the beat-sheet message current rather than letting it accumulate
+  // stale copies: a scene patch amends the same scene in place, so its beat
+  // sheet updates the one existing message (staying where it already is in
+  // the log) instead of appending a second copy underneath the chat that
+  // asked for the change.
   useEffect(() => {
     const beats = job.beatSheet;
     if (!beats) return;
-    setMessages((previous) =>
-      previous.some((message) => message.role === "beats")
-        ? previous
-        : [...previous, { role: "beats", beats }],
-    );
+    setMessages((previous) => {
+      const index = previous.findIndex((message) => message.role === "beats");
+      if (index === -1) return [...previous, { role: "beats", beats }];
+      const existing = previous[index];
+      if (
+        existing?.role === "beats" &&
+        JSON.stringify(existing.beats) === JSON.stringify(beats)
+      )
+        return previous;
+      const next = [...previous];
+      next[index] = { role: "beats", beats };
+      return next;
+    });
   }, [job.beatSheet]);
 
   useEffect(() => {
@@ -265,18 +287,55 @@ export function CompilerDialogue({
         ]);
         return;
       }
-      const parsed = body as {
-        plannerKind: "ai" | "heuristic";
-        proposals: readonly Proposal[];
-      };
-      setMessages((previous) => [
-        ...previous,
-        {
-          role: "proposals",
-          plannerKind: parsed.plannerKind,
-          proposals: parsed.proposals,
-        },
-      ]);
+      // Two distinct shapes come back from this one endpoint, deliberately
+      // never merged (see refine-prompt.ts's ScenePatchChatResponse
+      // docstring): a restore-track job's response is exactly what it has
+      // always been, {plannerKind, proposals}; a generate-track job's is a
+      // scene patch, {changedBeatIds, beatSheet, summary}. Which one the
+      // creator gets depends only on the job, not on anything this client
+      // decides.
+      const parsed = body as
+        | { plannerKind: "ai" | "heuristic"; proposals: readonly Proposal[] }
+        | {
+            changedBeatIds: readonly string[];
+            beatSheet: readonly BeatSheetEntry[];
+            summary: string;
+          };
+      if ("proposals" in parsed) {
+        setMessages((previous) => [
+          ...previous,
+          {
+            role: "proposals",
+            plannerKind: parsed.plannerKind,
+            proposals: parsed.proposals,
+          },
+        ]);
+      } else {
+        // Requirement: the creator has just asked for a change and should
+        // see that it is being made, not a stale "completed" -- update the
+        // locally-held job right away rather than waiting up to 3s for the
+        // next poll. This also re-arms the polling effects below (their
+        // dependency is job.state), which stopped once the job reached a
+        // terminal state.
+        setJob((previous) => ({
+          ...previous,
+          state: "QUEUED",
+          progressPhase: "prepare",
+          progressStage: "scene-patch",
+          progressFraction: 0,
+          framesProcessed: null,
+          framesTotal: null,
+          beatSheet: parsed.beatSheet,
+        }));
+        setMessages((previous) => [
+          ...previous,
+          {
+            role: "patch",
+            summary: parsed.summary,
+            changedBeatIds: parsed.changedBeatIds,
+          },
+        ]);
+      }
       setLastPrompt(text);
     } catch {
       setMessages((previous) => [
@@ -461,6 +520,25 @@ export function CompilerDialogue({
               return (
                 <div className="dialogue-message dialogue-message-error" key={index}>
                   <p>{message.text}</p>
+                </div>
+              );
+            if (message.role === "patch")
+              return (
+                <div className="dialogue-message" key={index}>
+                  <span className="dialogue-message-label">
+                    {t("patchLabel")}
+                  </span>
+                  <p>{message.summary}</p>
+                  <p className="dialogue-patch-changed">
+                    {message.changedBeatIds.length
+                      ? t("patchChangedBeats", {
+                          beats: message.changedBeatIds.join(", "),
+                        })
+                      : t("patchNoBeatsChanged")}
+                  </p>
+                  <p className="dialogue-patch-rendering">
+                    {t("patchRenderStarted")}
+                  </p>
                 </div>
               );
             if (message.role === "beats")

@@ -167,6 +167,17 @@ describe("compiler progress projection", () => {
     expect(stageLabelKey("")).toEqual({ known: false, fallback: "" });
   });
 
+  // The chat edit loop (apps/api/src/refine-prompt.ts's applyScenePatch)
+  // sets job.progress.stage to this exact string the instant a scene patch
+  // is accepted -- known here so the stage log reads as a real step, not an
+  // unrecognized fallback.
+  it("maps the scene-patch stage to a known key", () => {
+    expect(stageLabelKey("scene-patch")).toEqual({
+      known: true,
+      key: "scenePatch",
+    });
+  });
+
   it("maps SceneSpec shot names to a known key, or a title-cased fallback", () => {
     expect(shotLabelKey("push-in")).toEqual({ known: true, key: "pushIn" });
     expect(shotLabelKey("tile-grid")).toEqual({ known: true, key: "tileGrid" });

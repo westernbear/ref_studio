@@ -200,6 +200,10 @@
     "aiProposal": "AI Proposal",
     "heuristicProposal": "Basic Suggestion",
     "beatSheetLabel": "Scene Plan",
+    "patchLabel": "Scene Update",
+    "patchChangedBeats": "Changed beats: {beats}",
+    "patchNoBeatsChanged": "No beats needed to change.",
+    "patchRenderStarted": "A new render has started.",
     "startFrame": "Start frame {frame}",
     "applying": "Applying...",
     "apply": "Apply",
@@ -267,7 +271,8 @@
     "sceneCompile": "Recompiling Scene",
     "sceneRender": "Rendering Frames",
     "upload": "Uploading Output",
-    "authoring": "Planning Scene"
+    "authoring": "Planning Scene",
+    "scenePatch": "Applying Changes"
   },
   "ShotLabels": {
     "pushIn": "Push In",

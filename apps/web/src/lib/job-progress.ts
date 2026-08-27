@@ -246,6 +246,11 @@ const STAGE_LABEL_KEYS: Readonly<Record<string, string>> = {
   "scene-render": "sceneRender",
   upload: "upload",
   authoring: "authoring",
+  // Set locally by CompilerDialogue.tsx the instant a scene patch is
+  // accepted, before the worker has claimed the re-render and started
+  // reporting its own stage names -- see refine-prompt.ts's applyScenePatch,
+  // which sets job.progress.stage to this same string.
+  "scene-patch": "scenePatch",
 };
 const titleCase = (value: string): string =>
   value
