@@ -70,6 +70,7 @@ export function migrate(db) {
     [9, "./migrations/009_evidence_video_stage.sql", true],
     [10, "./migrations/010_evidence_video_artifact_slots.sql", true],
     [11, "./migrations/011_preview_labeled_slot.sql", true],
+    [12, "./migrations/012_material_provider_settings.sql", false],
   ];
   for (const [version, file, disableForeignKeys] of migrations) {
     if (
