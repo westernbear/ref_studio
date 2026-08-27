@@ -3,6 +3,7 @@ import { scryptSync } from "node:crypto";
 import {
   existsSync,
   mkdirSync,
+  readdirSync,
   mkdtempSync,
   rmSync,
   writeFileSync,
@@ -202,12 +203,18 @@ assert.equal(
     .all()[0],
   1,
 );
+// Derived from the migrations on disk rather than a hardcoded list: the
+// list was left at [1..5] while seven more migrations landed, so this
+// assertion had been failing for months and told nobody anything.
 assert.deepEqual(
   db
     .prepare("SELECT version FROM schema_migrations ORDER BY version")
     .pluck()
     .all(),
-  [1, 2, 3, 4, 5],
+  readdirSync(new URL("./migrations/", import.meta.url))
+    .filter((name) => name.endsWith(".sql"))
+    .map((name) => Number.parseInt(name.slice(0, 3), 10))
+    .sort((a, b) => a - b),
 );
 assert.equal(
   db
