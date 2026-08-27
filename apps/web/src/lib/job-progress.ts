@@ -188,22 +188,14 @@ const PREPARATION_STAGE_KEYS: Readonly<Record<string, string>> = {
   PREVIEW_RUNNING: "previewRunning",
   AWAITING_T4: "awaitingT4",
   // A generate-track job only reaches these -- see creator-workflow.ts's
-  // PreparationStageSchema comment. AUTHORING_COMPLETE is a deliberate
-  // terminal waypoint for this batch, not an unfinished stage still in
-  // flight: the copy at that key must say so plainly (I4), never read as
-  // "still working".
+  // PreparationStageSchema comment. All four are ordinary in-flight work:
+  // the job runs on through material generation to READY, the same READY
+  // the restore track reaches.
   AUTHORING_QUEUED: "authoringQueued",
   AUTHORING_RUNNING: "authoringRunning",
-  AUTHORING_COMPLETE: "authoringComplete",
+  ASSETS_QUEUED: "assetsQueued",
+  ASSETS_RUNNING: "assetsRunning",
 };
-
-// A generate-track job parked at AUTHORING_COMPLETE has nothing left to
-// wait for this release (material generation and the generate-track render
-// are a later batch) -- polling it forever would keep the UI looking like
-// work is in progress. Callers that poll on a timer should stop once this
-// is true, the same way they already stop on a terminal job state.
-export const isAuthoringParked = (preparationStage: string): boolean =>
-  preparationStage === "AUTHORING_COMPLETE";
 
 export type JobStatusMessage = Readonly<{
   key: string;
@@ -249,6 +241,7 @@ const STAGE_LABEL_KEYS: Readonly<Record<string, string>> = {
   "all-frame-analysis": "allFrameAnalysis",
   "audio-and-mapping": "audioAndMapping",
   evidence: "evidence",
+  "scene-assets": "sceneAssets",
   "scene-compile": "sceneCompile",
   "scene-render": "sceneRender",
   upload: "upload",
@@ -281,7 +274,6 @@ export const nextStepKey = (job: JobProgress): string => {
   if (job.state === "RETRYABLE_ERROR") return "retrying";
   if (job.state === "STALE_APPROVAL") return "reviewAgain";
   if (job.state === "AWAITING_T5") return "finalCheckRunning";
-  if (isAuthoringParked(job.preparationStage)) return "planNotBuilt";
   if (job.state === "QUEUED" || job.state === "RENDERING" || job.state === "ASSEMBLING")
     return "buildingFinal";
   if (job.state === "READY")

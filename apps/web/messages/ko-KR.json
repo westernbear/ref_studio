@@ -151,7 +151,8 @@
     "awaitingT4": "미리보기 영상을 확인하는 중입니다.",
     "authoringQueued": "미리보기가 승인됐습니다. AI가 요청 내용으로 생성 장면을 계획하려 합니다.",
     "authoringRunning": "AI가 요청 내용으로 생성 장면을 계획하는 중입니다.",
-    "authoringComplete": "영화 계획이 끝났습니다. 생성 영화를 실제로 만드는 기능은 이번 릴리스에 포함되지 않았습니다 -- 더 기다릴 일이 없습니다.",
+    "assetsQueued": "장면 계획이 끝났습니다. 이제 장면에 쓸 소재를 만들 차례입니다.",
+    "assetsRunning": "장면에 쓸 소재를 만드는 중입니다.",
     "preparingDefault": "컴파일러에 넣을 준비를 하는 중입니다.",
     "readyForQueue": "대기열에 넣을 준비가 됐습니다.",
     "assembling": "결과 영상을 합치는 중입니다.",
@@ -251,8 +252,7 @@
     "collectDelivery": "다 됐어요. 아래에서 최종 영상을 받으세요.",
     "retrying": "문제가 생겨서 다시 해보는 중이에요.",
     "reviewAgain": "내용이 바뀌어서 다시 확인해야 해요.",
-    "startOver": "이 작업은 끝났어요. 새 프로젝트로 다시 시작하세요.",
-    "planNotBuilt": "영화 계획이 끝났어요. 실제로 만드는 기능은 이번 릴리스에 없어요."
+    "startOver": "이 작업은 끝났어요. 새 프로젝트로 다시 시작하세요."
   },
   "StageLabels": {
     "download": "소스 다운로드 중",
@@ -263,6 +263,7 @@
     "allFrameAnalysis": "프레임 분석",
     "audioAndMapping": "오디오 매핑",
     "evidence": "증거 정리",
+    "sceneAssets": "소재 만드는 중",
     "sceneCompile": "장면 재컴파일 중",
     "sceneRender": "프레임 렌더링 중",
     "upload": "출력 업로드 중",
@@ -317,7 +318,6 @@
     },
     "creativeIntentLabel": "원하는 결과 설명",
     "creativeIntentPlaceholder": "어떤 영상을 원하는지, 꼭 지켜야 할 조건이 있는지 적어 주세요...",
-    "generateTrackNotice": "생성 영화 기능은 아직 완성되지 않았습니다. 이 작업은 AI로 장면을 계획한 뒤 멈춥니다 -- 이 트랙에서는 아직 완성된 영상을 기다릴 수 없습니다.",
     "durationLabel": "영상 길이",
     "durationOption": "{seconds}초",
     "aspectLabel": "화면 비율",

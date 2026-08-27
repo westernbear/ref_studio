@@ -93,7 +93,7 @@ const ASPECT_OPTIONS: readonly Aspect[] = ["9:16", "1:1", "16:9"];
 // the textarea used to double as a generate-track brief the moment it was
 // non-empty, which silently converted an existing restore-track creative
 // prompt (e.g. "keep the logo in the corner") into a generate-track job
-// that parks at AUTHORING_COMPLETE forever. Default is "restore" so an
+// whose scene the AI would then author. Default is "restore" so an
 // existing user who never touches this control keeps their old behaviour.
 type Track = "restore" | "generate";
 
@@ -389,11 +389,6 @@ export default function NewProjectPage() {
                 value={prompt}
                 onChange={(event) => setPrompt(event.target.value)}
               />
-              {track === "generate" && (
-                <p className="generate-track-notice" role="status">
-                  {t("generateTrackNotice")}
-                </p>
-              )}
               {track === "generate" && (
                 <div className="generation-fields">
                   <label htmlFor="duration">

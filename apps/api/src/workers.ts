@@ -1814,8 +1814,7 @@ export function registerWorkers(
       // fraction:1} and never touched here, so the UI kept reading
       // "compiler active: preview" (progressStage is checked before
       // preparationStage -- see job-progress.ts's jobStatusMessage) for as
-      // long as a generate-track job existed, including forever once it
-      // parked at AUTHORING_COMPLETE below.
+      // long as a generate-track job existed.
       job.progress = {
         phase: "prepare",
         stage: "authoring",

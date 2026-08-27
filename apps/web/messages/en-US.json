@@ -151,7 +151,8 @@
     "awaitingT4": "Checking the preview video.",
     "authoringQueued": "Preview approved. The AI is about to plan the generated scene from your brief.",
     "authoringRunning": "The AI is planning the generated scene from your brief.",
-    "authoringComplete": "The film has been planned. Building the generated film is not part of this release yet -- there is nothing left to wait for.",
+    "assetsQueued": "The scene is planned. Next it needs the material it draws.",
+    "assetsRunning": "Generating the material the scene draws.",
     "preparingDefault": "Getting things ready for the compiler.",
     "readyForQueue": "Ready to queue.",
     "assembling": "Putting the video together.",
@@ -251,8 +252,7 @@
     "collectDelivery": "Done. Collect the final video below.",
     "retrying": "Something went wrong, so it is being tried again.",
     "reviewAgain": "Something changed, so this needs another look.",
-    "startOver": "This job has ended. Start again from a new project.",
-    "planNotBuilt": "The film has been planned. Building it is not part of this release yet."
+    "startOver": "This job has ended. Start again from a new project."
   },
   "StageLabels": {
     "download": "Downloading Source",
@@ -263,6 +263,7 @@
     "allFrameAnalysis": "Frame Analysis",
     "audioAndMapping": "Audio Mapping",
     "evidence": "Collecting Evidence",
+    "sceneAssets": "Generating material",
     "sceneCompile": "Recompiling Scene",
     "sceneRender": "Rendering Frames",
     "upload": "Uploading Output",
@@ -317,7 +318,6 @@
     },
     "creativeIntentLabel": "What You Want",
     "creativeIntentPlaceholder": "Describe the video you want, and anything it has to keep...",
-    "generateTrackNotice": "The generated film isn't built yet. This job will plan the scene with AI and then stop -- there is no finished video to wait for on this track yet.",
     "durationLabel": "Duration",
     "durationOption": "{seconds}s",
     "aspectLabel": "Aspect Ratio",
