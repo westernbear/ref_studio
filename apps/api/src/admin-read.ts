@@ -6,6 +6,7 @@ import {
   isAdminPrincipal,
 } from "./admin-auth.js";
 import type { AiProviderSettingsPublic } from "./ai-provider-settings.js";
+import type { MaterialProviderSettingsPublic } from "./material-provider-settings.js";
 import { safeEnvelope } from "./boundary.js";
 import type { WorkerStore } from "./workers.js";
 
@@ -110,6 +111,7 @@ export type AdminReadStore = {
   readonly recordAudit?: AuthStore["audit"];
   readonly queryCount?: { value: number };
   readonly aiProviderSettings?: AiProviderSettingsPublic;
+  readonly materialProviderSettings?: MaterialProviderSettingsPublic;
 };
 type Query = {
   readonly q?: string;
@@ -560,6 +562,18 @@ export function registerAdminRead(
         reply.send(store.aiProviderSettings ?? null);
         return;
       }
+      if (path === "/admin/material-provider-settings") {
+        if (adminRole(principal) !== "SUPER_ADMIN")
+          throw new Error("ROLE_NOT_PERMITTED");
+        auth.audit({
+          action: "MATERIAL_PROVIDER_SETTINGS_VIEWED",
+          userId: principal.userId,
+          tenantId: null,
+          decision: "ALLOWED",
+        });
+        reply.send(store.materialProviderSettings ?? null);
+        return;
+      }
       throw new Error("RESOURCE_NOT_FOUND");
     } catch (error) {
       fail(reply, error);
@@ -574,4 +588,5 @@ export function registerAdminRead(
   app.get("/admin/quarantine", handler);
   app.get("/admin/billing/:tenantId", handler);
   app.get("/admin/ai-provider-settings", handler);
+  app.get("/admin/material-provider-settings", handler);
 }

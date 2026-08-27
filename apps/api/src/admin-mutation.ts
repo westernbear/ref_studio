@@ -12,6 +12,11 @@ import {
   updateAiProviderSettings,
   type AiProviderSettingsPatch,
 } from "./ai-provider-settings.js";
+import {
+  getMaterialProviderSettings,
+  updateMaterialProviderSettings,
+  type MaterialProviderSettingsPatch,
+} from "./material-provider-settings.js";
 import { IdempotencyStore, safeEnvelope, requestHash } from "./boundary.js";
 import {
   cancelJob,
@@ -602,6 +607,56 @@ export function registerAdminMutation(
     }
   };
   app.patch("/admin/ai-provider-settings", aiSettings);
+  const materialSettings = async (
+    request: FastifyRequest<{ Body: Body }>,
+    reply: FastifyReply,
+  ): Promise<void> => {
+    try {
+      const result = command(request, null, (principal, correlation) => {
+        if (adminRole(principal) !== "SUPER_ADMIN")
+          throw new Error("ADMIN_ACCESS_DENIED");
+        const db = store.db;
+        const aiSecretKey = store.aiSecretKey;
+        if (!db || !aiSecretKey) throw new Error("RESOURCE_NOT_FOUND");
+        const before = getMaterialProviderSettings(db);
+        const body = request.body ?? {};
+        const patch: MaterialProviderSettingsPatch = {
+          ...(body.providerKind !== undefined && {
+            providerKind: body.providerKind,
+          }),
+          ...(body.model !== undefined && { model: body.model }),
+          ...(body.apiKey !== undefined && { apiKey: body.apiKey }),
+          ...(body.enabled !== undefined && { enabled: body.enabled }),
+        };
+        const after = updateMaterialProviderSettings(
+          db,
+          patch,
+          principal.userId,
+          store.now(),
+          aiSecretKey,
+        );
+        store.auditEvents.push({
+          id: id("audit"),
+          tenantId: null,
+          actorId: principal.userId,
+          action: "MATERIAL_PROVIDER_SETTINGS_UPDATED",
+          targetType: "material-provider-settings",
+          targetId: "default",
+          before,
+          after,
+          reason: "Material provider settings updated from the admin console",
+          correlationId: correlation,
+          outcome: "ALLOWED",
+          createdAt: new Date(store.now()).toISOString(),
+        });
+        return [200, after as unknown as Record<string, unknown>];
+      });
+      reply.code(result[0]).send(result[1]);
+    } catch (error) {
+      fail(reply, error);
+    }
+  };
+  app.patch("/admin/material-provider-settings", materialSettings);
   app.all("/admin/jobs/:jobId/prioritize", async (_request, reply) => {
     reply
       .code(403)

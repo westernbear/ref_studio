@@ -237,6 +237,14 @@ const fixture = (): Fixture => {
       updatedAt: "2026-01-01T00:00:00.000Z",
       updatedBy: "super",
     },
+    materialProviderSettings: {
+      providerKind: "openai",
+      model: "gpt-image-2",
+      enabled: true,
+      hasApiKey: true,
+      updatedAt: "2026-01-01T00:00:00.000Z",
+      updatedBy: "super",
+    },
   };
   return { auth, reads, workers, events };
 };
@@ -491,5 +499,29 @@ describe("admin-read", () => {
       headers: headers("super"),
     });
     expect(fieldQuery.statusCode).toBe(403);
+  });
+
+  it("returns material provider settings for super admin without the key, and denies non-super-admins", async () => {
+    const data = fixture();
+    const app = appFor(data);
+    const superResponse = await app.inject({
+      method: "GET",
+      url: "/admin/material-provider-settings",
+      headers: headers("super"),
+    });
+    expect(superResponse.statusCode).toBe(200);
+    expect(superResponse.json()).toMatchObject({
+      providerKind: "openai",
+      model: "gpt-image-2",
+      hasApiKey: true,
+    });
+    expect(JSON.stringify(superResponse.json())).not.toMatch(/"apiKey"/i);
+    const opsResponse = await app.inject({
+      method: "GET",
+      url: "/admin/material-provider-settings",
+      headers: headers("ops"),
+    });
+    expect(opsResponse.statusCode).toBe(403);
+    expect(opsResponse.json().error.code).toBe("ROLE_NOT_PERMITTED");
   });
 });

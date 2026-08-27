@@ -737,4 +737,69 @@ describe("admin-mutation", () => {
       rmSync(directory, { recursive: true, force: true });
     }
   });
+
+  it("updates material provider settings for a super admin without leaking the key into the audit log", async () => {
+    const directory = mkdtempSync(
+      join(tmpdir(), "rvs-admin-material-settings-"),
+    );
+    const db = openApiDatabase(join(directory, "app.sqlite"));
+    try {
+      const data = fixture();
+      data.mutations.db = db;
+      data.mutations.aiSecretKey = "test-secret-key-material";
+      const app = appFor(data);
+      const response = await app.inject({
+        method: "PATCH",
+        url: "/admin/material-provider-settings",
+        headers: headers("super", "material-settings"),
+        payload: {
+          providerKind: "openai",
+          model: "gpt-image-2",
+          apiKey: "sk-material-secret",
+          enabled: true,
+        },
+      });
+      expect(response.statusCode, response.body).toBe(200);
+      expect(response.json()).toMatchObject({
+        providerKind: "openai",
+        model: "gpt-image-2",
+        hasApiKey: true,
+        enabled: true,
+      });
+      expect(JSON.stringify(response.json())).not.toContain(
+        "sk-material-secret",
+      );
+      const auditEvent = data.mutations.auditEvents.find(
+        (event) => event.action === "MATERIAL_PROVIDER_SETTINGS_UPDATED",
+      );
+      expect(auditEvent).toBeDefined();
+      expect(JSON.stringify(auditEvent)).not.toContain("sk-material-secret");
+    } finally {
+      db.close();
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("denies material provider settings updates from a non-super-admin", async () => {
+    const directory = mkdtempSync(
+      join(tmpdir(), "rvs-admin-material-settings-denied-"),
+    );
+    const db = openApiDatabase(join(directory, "app.sqlite"));
+    try {
+      const data = fixture();
+      data.mutations.db = db;
+      data.mutations.aiSecretKey = "test-secret-key-material";
+      const app = appFor(data);
+      const response = await app.inject({
+        method: "PATCH",
+        url: "/admin/material-provider-settings",
+        headers: headers("ops", "material-settings-denied"),
+        payload: { providerKind: "openai", model: "gpt-image-2" },
+      });
+      expect(response.statusCode).toBe(403);
+    } finally {
+      db.close();
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
 });

@@ -18,6 +18,8 @@ import {
 } from "./admin-mutation.js";
 import type { AiProviderSettingsPublic } from "./ai-provider-settings.js";
 import { getAiProviderSettings } from "./ai-provider-settings.js";
+import type { MaterialProviderSettingsPublic } from "./material-provider-settings.js";
+import { getMaterialProviderSettings } from "./material-provider-settings.js";
 import { buildAuthApp } from "./app.js";
 import type { AuthStore } from "./auth.js";
 import {
@@ -460,6 +462,9 @@ export function loadAdminReadStore(
       // matching the fix for the getter-freeze bug documented on `jobs`.
       get aiProviderSettings(): AiProviderSettingsPublic {
         return getAiProviderSettings(writableDb);
+      },
+      get materialProviderSettings(): MaterialProviderSettingsPublic {
+        return getMaterialProviderSettings(writableDb);
       },
     };
   } finally {
