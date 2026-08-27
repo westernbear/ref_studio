@@ -2,11 +2,13 @@ import {
   CANVAS,
   DELIVERY_FPS,
   frameCountFor,
-  SceneSpecSchema,
-  validateSceneSpec,
   type GenerationConfig,
+} from "../../../packages/contracts/src/generation.js";
+import {
+  SceneSpecSchema,
   type SceneSpec,
-} from "@rvs/contracts";
+} from "../../../packages/contracts/src/scene-spec.js";
+import { validateSceneSpec } from "../../../packages/contracts/src/spec-validate.js";
 import type Database from "better-sqlite3";
 import { generateObject, type LanguageModel } from "ai";
 import {
