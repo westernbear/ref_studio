@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 // so it cannot depend on packages/contracts through the workspace protocol:
 // a clean container build's `pnpm install --frozen-lockfile` has no
 // importer entry to resolve "workspace:*" against (apps/worker/Dockerfile).
-// Five pure modules are instead vendored, byte-for-byte, into
+// Six pure modules are instead vendored, byte-for-byte, into
 // apps/worker/src/contracts/. The submodule's own build context cannot see
 // packages/contracts, so a drift test cannot live inside apps/worker; this
 // suite is the one place both copies are visible. If this fails, the fix is
@@ -18,6 +18,7 @@ const VENDORED_MODULES = [
   "scene-spec.ts",
   "scene-spec.fixture.ts",
   "spec-validate.ts",
+  "scene-assets.ts",
   "canonical-json.ts",
 ] as const;
 
@@ -41,9 +42,13 @@ function stripVendorHeader(source: string, path: string): string {
 }
 
 const originalPath = (name: string): string =>
-  fileURLToPath(new URL(`../../../packages/contracts/src/${name}`, import.meta.url));
+  fileURLToPath(
+    new URL(`../../../packages/contracts/src/${name}`, import.meta.url),
+  );
 const vendoredPath = (name: string): string =>
-  fileURLToPath(new URL(`../../../apps/worker/src/contracts/${name}`, import.meta.url));
+  fileURLToPath(
+    new URL(`../../../apps/worker/src/contracts/${name}`, import.meta.url),
+  );
 
 describe("apps/worker's vendored copy of packages/contracts", () => {
   for (const name of VENDORED_MODULES) {
