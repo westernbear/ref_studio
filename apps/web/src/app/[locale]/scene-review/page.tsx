@@ -177,6 +177,7 @@ export default async function SceneReviewPage({
     framesProcessed: null,
     framesTotal: null,
     approvedGates: [],
+    beatSheet: null,
   };
 
   return (

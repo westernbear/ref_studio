@@ -10,9 +10,11 @@ import {
   nextStepKey,
   normalizeStage,
   runningStageIndex,
+  shotLabelKey,
   stageLabelKey,
   liveJobStatusErrorCode,
   parseJobProgress,
+  type BeatSheetEntry,
   type JobProgress,
 } from "../../../lib/job-progress";
 import { createCompilerJob, requestId, type AcceptedMedia } from "../../../lib/upload-client";
@@ -42,7 +44,12 @@ type ChatMessage =
   // One entry per stage the job actually reached. Kept after the run ends:
   // the log is the record of what happened, not a spinner that tidies itself
   // away and leaves the creator wondering what the compiler did.
-  | { readonly role: "stage"; readonly stage: string };
+  | { readonly role: "stage"; readonly stage: string }
+  // Shown once, the first time the job's authored scene (Task 3.3's
+  // "author" stage) shows up on a poll -- the beat sheet is the one place
+  // the creator can read what the AI actually planned before the film gets
+  // built, so it belongs in the log next to everything else that happened.
+  | { readonly role: "beats"; readonly beats: readonly BeatSheetEntry[] };
 
 type Props = {
   readonly initialJob: JobProgress;
@@ -63,6 +70,7 @@ export function CompilerDialogue({
   const t = useTranslations("CompilerDialogue");
   const tState = useTranslations("JobState");
   const tStage = useTranslations("StageLabels");
+  const tShot = useTranslations("ShotLabels");
   const tRationale = useTranslations("ProposalRationales");
   const tNext = useTranslations("NextStep");
   // AI rationales are free text: the server needs the reader's locale to
@@ -211,6 +219,16 @@ export function CompilerDialogue({
       return [...previous, { role: "stage", stage }];
     });
   }, [job.progressStage]);
+
+  useEffect(() => {
+    const beats = job.beatSheet;
+    if (!beats) return;
+    setMessages((previous) =>
+      previous.some((message) => message.role === "beats")
+        ? previous
+        : [...previous, { role: "beats", beats }],
+    );
+  }, [job.beatSheet]);
 
   useEffect(() => {
     historyRef.current?.scrollTo({ top: historyRef.current.scrollHeight });
@@ -442,6 +460,27 @@ export function CompilerDialogue({
               return (
                 <div className="dialogue-message dialogue-message-error" key={index}>
                   <p>{message.text}</p>
+                </div>
+              );
+            if (message.role === "beats")
+              return (
+                <div className="dialogue-message" key={index}>
+                  <span className="dialogue-message-label">
+                    {t("beatSheetLabel")}
+                  </span>
+                  <ul className="dialogue-beat-sheet" data-testid="beat-sheet">
+                    {message.beats.map((beat) => {
+                      const label = shotLabelKey(beat.shot);
+                      return (
+                        <li key={beat.beatId}>
+                          <strong>
+                            {label.known ? tShot(label.key) : label.fallback}
+                          </strong>
+                          {beat.words ? <p>{beat.words}</p> : null}
+                        </li>
+                      );
+                    })}
+                  </ul>
                 </div>
               );
             return (

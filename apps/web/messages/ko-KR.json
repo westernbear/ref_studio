@@ -195,6 +195,7 @@
     "userPrompt": "내 요청",
     "aiProposal": "AI 제안",
     "heuristicProposal": "기본 제안",
+    "beatSheetLabel": "장면 구성",
     "startFrame": "시작 프레임 {frame}",
     "applying": "적용 중...",
     "apply": "적용",
@@ -261,6 +262,13 @@
     "sceneCompile": "장면 재컴파일 중",
     "sceneRender": "프레임 렌더링 중",
     "upload": "출력 업로드 중"
+  },
+  "ShotLabels": {
+    "pushIn": "푸시 인",
+    "hardCut": "하드 컷",
+    "ringExpand": "링 확장",
+    "tileGrid": "아이콘 타일 그리드",
+    "typeFlash": "타이핑 플래시"
   },
   "RenderJobButton": {
     "stillVerifying": "최종 검증이 끝나야 렌더링을 시작할 수 있습니다.",

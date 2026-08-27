@@ -195,6 +195,7 @@
     "userPrompt": "Your Request",
     "aiProposal": "AI Proposal",
     "heuristicProposal": "Basic Suggestion",
+    "beatSheetLabel": "Scene Plan",
     "startFrame": "Start frame {frame}",
     "applying": "Applying...",
     "apply": "Apply",
@@ -261,6 +262,13 @@
     "sceneCompile": "Recompiling Scene",
     "sceneRender": "Rendering Frames",
     "upload": "Uploading Output"
+  },
+  "ShotLabels": {
+    "pushIn": "Push In",
+    "hardCut": "Hard Cut",
+    "ringExpand": "Expanding Ring",
+    "tileGrid": "Icon Tile Grid",
+    "typeFlash": "Type Flash"
   },
   "RenderJobButton": {
     "stillVerifying": "Final verification is still finishing before render can start.",

@@ -1286,6 +1286,26 @@ progress {
   color: var(--color-body-mid);
   font: var(--type-body-sm);
 }
+.dialogue-beat-sheet {
+  display: grid;
+  gap: var(--space-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.dialogue-beat-sheet li {
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-lg);
+  background: var(--color-canvas-card);
+  padding: var(--space-md);
+}
+.dialogue-beat-sheet p {
+  margin: var(--space-xxs) 0 0;
+  border: none;
+  padding: 0;
+  color: var(--color-body-mid);
+  font: var(--type-body-sm);
+}
 .dialogue-error {
   color: var(--color-error, #ffb4ab);
   font: var(--type-body-sm);

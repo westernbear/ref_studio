@@ -520,6 +520,7 @@ const projection = (
   progress: job.progress,
   runtimePreflight: job.runtimePreflight,
   ...(job.generation ? { generation: job.generation } : {}),
+  beatSheet: job.authoredScene?.beatSheet ?? null,
   evidenceDigest: job.evidenceDigest,
   irDigest: job.irDigest,
   reviewArtifactId: store.stagedArtifacts.get(job.id)?.id ?? null,

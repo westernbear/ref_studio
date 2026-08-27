@@ -15,6 +15,7 @@ import {
   parseJobProgress,
   runningStageIndex,
   progressStages,
+  shotLabelKey,
   stageLabelKey,
 } from "../src/lib/job-progress.ts";
 
@@ -54,7 +55,32 @@ describe("compiler progress projection", () => {
       framesProcessed: 58,
       framesTotal: 120,
       approvedGates: ["T1", "T2"],
+      beatSheet: null,
     });
+  });
+
+  it("parses a populated beat sheet and drops entries missing a beatId", () => {
+    const job = parseJobProgress({
+      id: "job_authored",
+      state: "READY",
+      beatSheet: [
+        { beatId: "beat-open", shot: "push-in", words: "REF STUDIO" },
+        { beatId: "beat-hero", shot: "hard-cut", words: "" },
+        { shot: "type-flash", words: "dropped, no beatId" },
+      ],
+    });
+    expect(job).not.toBeNull();
+    expect(job?.beatSheet).toEqual([
+      { beatId: "beat-open", shot: "push-in", words: "REF STUDIO" },
+      { beatId: "beat-hero", shot: "hard-cut", words: "" },
+    ]);
+  });
+
+  it("treats a missing or empty beat sheet as null", () => {
+    expect(parseJobProgress({ id: "job_no_beats" })?.beatSheet).toBeNull();
+    expect(
+      parseJobProgress({ id: "job_empty_beats", beatSheet: [] })?.beatSheet,
+    ).toBeNull();
   });
 
   it("keeps approval progress separate from worker activity", () => {
@@ -139,6 +165,15 @@ describe("compiler progress projection", () => {
       fallback: "Totally Unknown Stage",
     });
     expect(stageLabelKey("")).toEqual({ known: false, fallback: "" });
+  });
+
+  it("maps SceneSpec shot names to a known key, or a title-cased fallback", () => {
+    expect(shotLabelKey("push-in")).toEqual({ known: true, key: "pushIn" });
+    expect(shotLabelKey("tile-grid")).toEqual({ known: true, key: "tileGrid" });
+    expect(shotLabelKey("some-future-shot")).toEqual({
+      known: false,
+      fallback: "Some Future Shot",
+    });
   });
 
   it("maps gate ids, decisions, and job states to translation keys", () => {

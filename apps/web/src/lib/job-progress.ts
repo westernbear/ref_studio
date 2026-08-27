@@ -1,3 +1,8 @@
+export type BeatSheetEntry = Readonly<{
+  beatId: string;
+  shot: string;
+  words: string;
+}>;
 export type JobProgress = {
   readonly id: string;
   readonly state: string;
@@ -15,6 +20,10 @@ export type JobProgress = {
   readonly framesProcessed: number | null;
   readonly framesTotal: number | null;
   readonly approvedGates: readonly string[];
+  // Set once the AI has authored a scene for this job (Task 3.3's "author"
+  // stage) -- null until then, and for restore-only jobs that never ask for
+  // a generated scene at all.
+  readonly beatSheet: readonly BeatSheetEntry[] | null;
 };
 
 // Display text for all of the below lives in messages/*.json under the
@@ -72,6 +81,20 @@ const stringList = (value: unknown): readonly string[] =>
   Array.isArray(value)
     ? value.filter((item): item is string => typeof item === "string")
     : [];
+const beatSheet = (value: unknown): readonly BeatSheetEntry[] | null => {
+  if (!Array.isArray(value)) return null;
+  const beats = value
+    .filter((entry): entry is Record<string, unknown> =>
+      typeof entry === "object" && entry !== null,
+    )
+    .map((entry) => ({
+      beatId: text(field(entry, "beatId")),
+      shot: text(field(entry, "shot")),
+      words: text(field(entry, "words")),
+    }))
+    .filter((entry) => entry.beatId);
+  return beats.length ? beats : null;
+};
 
 export const parseJobProgress = (value: unknown): JobProgress | null => {
   const id = text(field(value, "id"));
@@ -98,6 +121,7 @@ export const parseJobProgress = (value: unknown): JobProgress | null => {
     framesProcessed: optionalNumber(field(progress, "framesProcessed")),
     framesTotal: optionalNumber(field(progress, "framesTotal")),
     approvedGates: stringList(field(value, "approvedGates")),
+    beatSheet: beatSheet(field(value, "beatSheet")),
   };
 };
 
@@ -265,6 +289,25 @@ export const runningStageIndex = (
 
 export const normalizeStage = (stage: string): string =>
   stage.replace(/^compiler:/u, "").replace("preview-upload", "upload");
+
+// The SceneSpec schema's five shot names (packages/contracts/src/scene-spec.ts)
+// are a closed set, but this is display code reading data an AI produced --
+// same known/fallback shape as stageLabelKey, so an unrecognized value still
+// renders something readable instead of a raw enum string.
+const SHOT_LABEL_KEYS: Readonly<Record<string, string>> = {
+  "push-in": "pushIn",
+  "hard-cut": "hardCut",
+  "ring-expand": "ringExpand",
+  "tile-grid": "tileGrid",
+  "type-flash": "typeFlash",
+};
+export const shotLabelKey = (
+  shot: string,
+): Readonly<{ known: true; key: string } | { known: false; fallback: string }> => {
+  const key = SHOT_LABEL_KEYS[shot];
+  if (key) return { known: true, key };
+  return { known: false, fallback: shot ? titleCase(shot) : "" };
+};
 
 export const liveJobStatusErrorCode = (value: unknown, status: number): string =>
   text(field(field(value, "error"), "code")) || `HTTP_${status}`;
