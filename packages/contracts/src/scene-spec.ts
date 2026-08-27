@@ -111,12 +111,12 @@ const SpecElementSchema = z
     content: z.string().optional(),
     box: BoxSchema,
     keyframes: z.array(KeyframeSchema),
-    // Shape-only here (non-empty strings); membership in SPEC_EFFECTS is a
-    // semantic check owned by validateSceneSpec (EFFECT_NOT_ALLOWLISTED),
-    // alongside its other spec-content checks (asset resolution, external
-    // URLs, etc.) -- schema parsing shouldn't be the layer that decides
-    // whether an effect is currently deterministic enough to allow.
-    effects: z.array(z.string().min(1)),
+    // Enforced right here via z.enum(SPEC_EFFECTS), not downstream as a
+    // policy check: in Phase 3 this schema doubles as the AI's
+    // structured-output schema, and a Zod enum becomes a JSON Schema enum
+    // -- the model literally cannot emit an effect outside the allowlist.
+    // Constraining generation beats validating it after the fact.
+    effects: z.array(z.enum(SPEC_EFFECTS)),
   })
   .strict();
 
