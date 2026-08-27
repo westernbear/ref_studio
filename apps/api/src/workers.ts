@@ -10,15 +10,8 @@ import {
   assertLegalTransition,
   type JobState,
 } from "../../../packages/contracts/src/lifecycle.js";
-import {
-  CANVAS,
-  DELIVERY_FPS as SCENE_DELIVERY_FPS,
-  frameCountFor,
-  SceneSpecSchema,
-  type SceneSpec,
-} from "@rvs/contracts";
 import { z } from "zod";
-import { beatSheetFor } from "./author-scene.js";
+import { authorScene, type GenerateScene } from "./author-scene.js";
 import { runSafetyCheck, type GenerateSafetyVerdict } from "./safety-check.js";
 import {
   enrichEvidenceTranslations,
@@ -80,7 +73,6 @@ export const WorkerPhaseSchema = z.enum([
   "compile",
   "evidence-video",
   "preview",
-  "author",
   "render",
 ]);
 export type WorkerPhase = z.infer<typeof WorkerPhaseSchema>;
@@ -271,17 +263,6 @@ const EvidenceVideoResult = z
     evidenceVideoArtifactId: z.string().min(1),
   })
   .strict();
-// The canvas on `spec` is untrusted -- overwritten below from
-// job.generation, never taken from the worker's submission (Task 3.2's
-// controller ruling: the canvas is a job-configuration fact, not a model
-// decision).
-const AuthorResult = z
-  .object({
-    protocol: z.literal("rvs.worker.v1"),
-    phase: z.literal("author"),
-    spec: SceneSpecSchema,
-  })
-  .strict();
 const ProgressBody = z
   .object({
     phase: z.enum(["prepare", "render"]),
@@ -437,7 +418,11 @@ const queuedPhase = (job: Job): ClaimPhase | null => {
   if (job.preparationStage === "EVIDENCE_VIDEO_QUEUED")
     return "evidence-video";
   if (job.preparationStage === "PREVIEW_QUEUED") return "preview";
-  if (job.preparationStage === "AUTHORING_QUEUED") return "author";
+  // AUTHORING_QUEUED/AUTHORING_RUNNING are intentionally not claimable here
+  // -- scene authoring runs synchronously inside the `finish` route handler
+  // below (same shape as enrichEvidenceTranslations/runSafetyCheck), not as
+  // a worker phase, because authorScene() needs the DB handle and decrypted
+  // AI provider secret that only this process holds.
   return null;
 };
 const runningStage = (phase: ClaimPhase): PreparationStage | null => {
@@ -445,7 +430,6 @@ const runningStage = (phase: ClaimPhase): PreparationStage | null => {
   if (phase === "compile") return "COMPILATION_RUNNING";
   if (phase === "evidence-video") return "EVIDENCE_VIDEO_RUNNING";
   if (phase === "preview") return "PREVIEW_RUNNING";
-  if (phase === "author") return "AUTHORING_RUNNING";
   return null;
 };
 const queuedStage = (phase: ClaimPhase): PreparationStage | null => {
@@ -453,15 +437,10 @@ const queuedStage = (phase: ClaimPhase): PreparationStage | null => {
   if (phase === "compile") return "COMPILATION_QUEUED";
   if (phase === "evidence-video") return "EVIDENCE_VIDEO_QUEUED";
   if (phase === "preview") return "PREVIEW_QUEUED";
-  if (phase === "author") return "AUTHORING_QUEUED";
   return null;
 };
-const phaseCapability = (phase: ClaimPhase): "compiler" | "renderer" | "author" =>
-  phase === "author"
-    ? "author"
-    : phase === "analyze" || phase === "compile"
-      ? "compiler"
-      : "renderer";
+const phaseCapability = (phase: ClaimPhase): "compiler" | "renderer" =>
+  phase === "analyze" || phase === "compile" ? "compiler" : "renderer";
 const compilationMatchesReport = (
   compilation: Compilation,
   report: z.infer<typeof RenderReport>,
@@ -548,8 +527,6 @@ const claimWorkflowJob = (
       (phase !== "compile" || item.evidence !== null) &&
       (phase !== "evidence-video" || item.evidence !== null) &&
       (phase !== "preview" || item.compilation !== null) &&
-      (phase !== "author" ||
-        (item.evidence !== null && item.generation !== undefined)) &&
       (phase !== "render" ||
         (item.approved &&
           item.evidence !== null &&
@@ -612,7 +589,6 @@ const claimWorkflowJob = (
             browserPassSpecDigest: job.compilation?.browserPassSpec.digest,
           }
         : {}),
-      ...(phase === "author" ? { generation: job.generation } : {}),
     },
     leaseToken,
     leaseExpiresAt: new Date(expiresAt).toISOString(),
@@ -632,10 +608,6 @@ const terminalFailure = (token: string): boolean =>
     "TEMPORAL_CONTRACT_INVALID",
     "UNRESOLVED_CHOICE",
     "WORKSPACE_BOUNDARY_VIOLATION",
-    // AI 실패는 잡 실패, 폴백 없음 -- an authoring failure never auto-retries
-    // into a hopeful second AI call; it fails the job outright, same
-    // fail-closed stance as authorScene() itself (Task 3.2).
-    "SCENE_AUTHORING_FAILED",
   ].includes(token);
 const failWorkflowJob = (
   workflow: CreatorWorkflowStore | undefined,
@@ -790,36 +762,6 @@ const finishWorkflowJob = (
     if (workflow) autoApproveT4(reviews, workflow, job, job.creatorId, now());
     return "QUEUED";
   }
-  if (lease.phase === "author") {
-    if (!job.generation) return null;
-    const parsed = AuthorResult.safeParse(result);
-    if (!parsed.success) return null;
-    // The canvas is the job's own configuration, never the worker's (or the
-    // model's) to decide -- overwrite it here the same way authorScene()
-    // does, so a stale or mismatched aspect/duration in the submitted spec
-    // can never leak into a delivered scene.
-    const canvasSize = CANVAS[job.generation.aspect];
-    const spec: SceneSpec = {
-      ...parsed.data.spec,
-      canvas: {
-        width: canvasSize.width,
-        height: canvasSize.height,
-        fps: SCENE_DELIVERY_FPS,
-        frameCount: frameCountFor(job.generation.durationSec),
-      },
-    };
-    job.authoredScene = { spec, beatSheet: beatSheetFor(spec) };
-    job.sceneSpecDigest = digest(spec);
-    job.automaticRetries = 0;
-    job.failureCode = null;
-    // Nothing downstream of authoring is in scope for this batch (Phase 4/5
-    // cover asset generation and the generation-track render); READY is the
-    // same terminal preparation state a restore-only job reaches once its
-    // preview is approved.
-    transition(job, "READY", now);
-    job.preparationStage = "READY";
-    return "QUEUED";
-  }
   if (job.state !== "RENDERING" || !job.approved || !job.compilation)
     return null;
   const parsed = RenderResult.safeParse(result);
@@ -876,6 +818,7 @@ type WorkerRouteOptions = Readonly<{
   aiSecretKey: string | undefined;
   safetyCheckGenerate: GenerateSafetyVerdict | undefined;
   translateGenerate: GenerateTranslation | undefined;
+  authorSceneGenerate: GenerateScene | undefined;
 }>;
 
 export function registerWorkers(
@@ -894,6 +837,7 @@ export function registerWorkers(
     aiSecretKey,
     safetyCheckGenerate,
     translateGenerate,
+    authorSceneGenerate,
   } = options;
   const auth = (
     request: FastifyRequest,
@@ -1427,6 +1371,58 @@ export function registerWorkers(
         autoApproveT5(reviews, workflow, job, job.creatorId, now());
       } else {
         job.failureCode = "CONTENT_SAFETY_REJECTED";
+        transition(job, "FAILED", now);
+        outcome = "FAILED";
+      }
+    }
+    // Scene authoring: autoApproveT4 (invoked from finishWorkflowJob's
+    // "preview" branch, above) routes a generate-track job (job.generation
+    // set) to AUTHORING_QUEUED instead of READY. authorScene() needs the DB
+    // handle and the decrypted AI provider secret, both of which live only
+    // in this process -- so, same shape as the translation/safety-check
+    // hooks above, it runs right here in the finish handler rather than as
+    // a claimable worker phase (see queuedPhase's comment for why no phase
+    // exists for this anymore). Fail-closed: any failure here fails the job
+    // outright, no fallback -- AI 실패는 잡 실패, 폴백 없음.
+    if (
+      !failed &&
+      lease.phase === "preview" &&
+      workflow &&
+      job.preparationStage === "AUTHORING_QUEUED"
+    ) {
+      job.preparationStage = "AUTHORING_RUNNING";
+      try {
+        if (!db || !aiSecretKey || !job.generation)
+          throw new Error("AI_PROVIDER_NOT_CONFIGURED");
+        const attachments = job.generation.attachmentIds.map(
+          (attachmentId) => ({
+            attachmentId,
+            kind: uploads?.attachments?.get(attachmentId)?.contentType ?? "unknown",
+          }),
+        );
+        const authored = await authorScene({
+          evidence: job.candidateEvidence ?? job.evidence,
+          config: job.generation,
+          attachments,
+          db,
+          aiSecretKey,
+          ...(authorSceneGenerate ? { generate: authorSceneGenerate } : {}),
+        });
+        job.authoredScene = authored;
+        job.sceneSpecDigest = digest(authored.spec);
+        job.automaticRetries = 0;
+        job.failureCode = null;
+        // The assets phase and the generate-track render do not exist yet
+        // (they are the next batch) -- a generate-track job legitimately
+        // waits here today. AUTHORING_COMPLETE is a deliberate waypoint,
+        // not an unfinished path: do not route to READY, which means the
+        // restore-track render is cleared to run, and that has not
+        // happened here.
+        job.preparationStage = "AUTHORING_COMPLETE";
+        job.updatedAt = new Date(now()).toISOString();
+        job.etag = `\"${digest(job.updatedAt)}\"`;
+      } catch {
+        job.failureCode = "SCENE_AUTHORING_FAILED";
         transition(job, "FAILED", now);
         outcome = "FAILED";
       }

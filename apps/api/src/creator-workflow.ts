@@ -42,6 +42,14 @@ export const PreparationStageSchema = z.enum([
   // skips straight from AWAITING_T4 to READY, exactly as before.
   "AUTHORING_QUEUED",
   "AUTHORING_RUNNING",
+  // Terminal for this batch, deliberately -- not an unfinished thought. A
+  // generate-track job stops here because the two stages that would consume
+  // an authored scene (material generation, and the generate-track render)
+  // do not exist yet; they are the next batch's work. AUTHORING_COMPLETE is
+  // never routed to READY: READY means the restore-track render is cleared
+  // to run, which has not happened for a job that only just got its scene
+  // authored.
+  "AUTHORING_COMPLETE",
   "READY",
 ]);
 export type PreparationStage = z.infer<typeof PreparationStageSchema>;

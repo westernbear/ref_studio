@@ -26,6 +26,7 @@ import type { UploadStore } from "./uploads.js";
 import { createRetentionStore, type RetentionStore } from "./retention.js";
 import { updateAiProviderSettings } from "./ai-provider-settings.js";
 import { openApiDatabase } from "./durable-state.js";
+import type { GenerateScene } from "./author-scene.js";
 import type { GenerateSafetyVerdict } from "./safety-check.js";
 import type { GenerateTranslation } from "./translate-evidence.js";
 import type DatabaseType from "better-sqlite3";
@@ -319,6 +320,7 @@ type FixtureOptions = Readonly<{
   aiSecretKey?: string;
   safetyCheckGenerate?: GenerateSafetyVerdict;
   translateGenerate?: GenerateTranslation;
+  authorSceneGenerate?: GenerateScene;
 }>;
 const appFixture = (
   workflow?: CreatorWorkflowStore,
@@ -363,6 +365,7 @@ const appFixture = (
     aiSecretKey: options.aiSecretKey,
     safetyCheckGenerate: options.safetyCheckGenerate,
     translateGenerate: options.translateGenerate,
+    authorSceneGenerate: options.authorSceneGenerate,
   });
   app.addHook("onClose", async () => {
     rmSync(artifactRoot, { recursive: true, force: true });
@@ -413,7 +416,11 @@ const claimWorker = async (fixture: Fixture, workerId = "worker-a") => {
   if (leaseToken) fixture.headers["x-worker-lease"] = String(leaseToken);
   return response;
 };
-const addJob = (workflow: CreatorWorkflowStore, state: Job["state"]): Job => {
+const addJob = (
+  workflow: CreatorWorkflowStore,
+  state: Job["state"],
+  generation?: GenerationConfig,
+): Job => {
   const evidence =
     state === "PREPARING"
       ? null
@@ -453,6 +460,7 @@ const addJob = (workflow: CreatorWorkflowStore, state: Job["state"]): Job => {
     runtimePreflight: state === "PREPARING" ? null : preflight,
     authoredScene: null,
     sceneSpecDigest: null,
+    ...(generation ? { generation } : {}),
     progress: null,
     artifact: null,
   };
@@ -1220,8 +1228,7 @@ describe("worker registration API", () => {
     it("moves to AUTHORING after the preview is approved when the job requests generation", () => {
       const reviews = createReviewStore();
       const workflow = createCreatorWorkflowStore();
-      const job = addJob(workflow, "PREPARING");
-      job.generation = generationConfig;
+      const job = addJob(workflow, "PREPARING", generationConfig);
       job.preparationStage = "AWAITING_T4";
       job.compilation = compilation;
       job.previewSpecDigest = compilation.browserPassSpec.digest;
@@ -1244,35 +1251,87 @@ describe("worker registration API", () => {
       expect(job.state).toBe("READY");
     });
 
-    it("stores the spec digest when authoring finishes", async () => {
+    // Scene authoring is not a claimable worker phase (see queuedPhase's
+    // comment in workers.ts) -- authorScene() runs inside the `finish`
+    // route handler itself, triggered the moment a "preview" completion
+    // routes the job to AUTHORING_QUEUED via autoApproveT4. These two tests
+    // drive the real preview-completion HTTP flow (claim "preview" as a
+    // renderer, upload both preview variants, complete) with `reviews` and
+    // a configured AI provider so that whole chain actually fires within
+    // the single `/complete` call.
+    const authorSceneDbFixture = () => {
+      const directory = mkdtempSync(
+        join(tmpdir(), "rvs-workers-author-scene-db-"),
+      );
+      const db = openApiDatabase(join(directory, "app.sqlite"));
+      updateAiProviderSettings(
+        db,
+        { providerKind: "openai", model: "gpt-4o", apiKey: "sk-test", enabled: true },
+        "admin",
+        1_000,
+        "test-secret-key-material",
+      );
+      return { db, aiSecretKey: "test-secret-key-material" };
+    };
+    const completePreview = (
+      fixture: Fixture,
+      job: Job,
+      previewBytes: Buffer,
+    ) => {
+      const upload = (kind: string, payload: Buffer) =>
+        fixture.app.inject({
+          method: "POST",
+          url: `/v1/workers/worker-a/jobs/${job.id}/${kind}`,
+          headers: { ...fixture.headers, "content-type": "video/mp4" },
+          payload,
+        });
+      return (async () => {
+        const uploaded = await upload("preview-artifact", previewBytes);
+        const labeled = await upload(
+          "preview-labeled-artifact",
+          Buffer.from("preview-labeled-bytes"),
+        );
+        return fixture.app.inject({
+          method: "POST",
+          url: `/v1/workers/worker-a/jobs/${job.id}/complete`,
+          headers: fixture.headers,
+          payload: {
+            result: {
+              protocol: "rvs.worker.v1",
+              phase: "preview",
+              previewArtifactId: uploaded.json().artifactId,
+              previewLabeledArtifactId: labeled.json().artifactId,
+              report: {
+                ...renderReport(job, "attempt-a", previewBytes),
+                mode: "preview",
+              },
+            },
+          },
+        });
+      })();
+    };
+
+    it("stores the spec digest and reaches AUTHORING_COMPLETE when authoring finishes", async () => {
+      const reviews = createReviewStore();
       const workflow = createCreatorWorkflowStore();
-      const job = addJob(workflow, "PREPARING");
-      job.generation = generationConfig;
-      job.preparationStage = "AUTHORING_QUEUED";
+      const job = addJob(workflow, "PREPARING", generationConfig);
+      job.preparationStage = "PREVIEW_QUEUED";
       job.compilation = compilation;
       job.evidence = analysisEvidence(job.id, "attempt-a");
-      const fixture = appFixture(workflow);
-      await registerWorker(fixture, ["author"]);
-      const claim = await claimWorker(fixture);
-      expect(claim.json().job).toMatchObject({
-        jobId: job.id,
-        payload: { phase: "author" },
+      const { db, aiSecretKey } = authorSceneDbFixture();
+      const fixture = appFixture(workflow, undefined, {
+        reviews,
+        db,
+        aiSecretKey,
+        authorSceneGenerate: async () => ({ object: fixtureSpec }),
       });
-      expect(workflow.jobs.get(job.id)?.preparationStage).toBe(
-        "AUTHORING_RUNNING",
+      await registerWorker(fixture, ["renderer"]);
+      await claimWorker(fixture);
+      const complete = await completePreview(
+        fixture,
+        job,
+        Buffer.from("preview-report-bytes"),
       );
-      const complete = await fixture.app.inject({
-        method: "POST",
-        url: `/v1/workers/worker-a/jobs/${job.id}/complete`,
-        headers: fixture.headers,
-        payload: {
-          result: {
-            protocol: "rvs.worker.v1",
-            phase: "author",
-            spec: fixtureSpec,
-          },
-        },
-      });
       expect(complete.statusCode).toBe(200);
       const finished = workflow.jobs.get(job.id);
       expect(finished?.sceneSpecDigest).toMatch(/^[a-f0-9]{64}$/);
@@ -1287,28 +1346,38 @@ describe("worker registration API", () => {
         fps: 30,
         frameCount: 600,
       });
-      expect(finished?.preparationStage).toBe("READY");
-      expect(finished?.state).toBe("READY");
+      // Terminal here for this batch -- the assets phase and the
+      // generate-track render do not exist yet. Not READY: that means the
+      // restore-track render is cleared to run, which has not happened.
+      expect(finished?.preparationStage).toBe("AUTHORING_COMPLETE");
+      expect(finished?.state).toBe("PREPARING");
       await fixture.app.close();
     });
 
     it("fails the job when authoring throws", async () => {
+      const reviews = createReviewStore();
       const workflow = createCreatorWorkflowStore();
-      const job = addJob(workflow, "PREPARING");
-      job.generation = generationConfig;
-      job.preparationStage = "AUTHORING_QUEUED";
+      const job = addJob(workflow, "PREPARING", generationConfig);
+      job.preparationStage = "PREVIEW_QUEUED";
       job.compilation = compilation;
       job.evidence = analysisEvidence(job.id, "attempt-a");
-      const fixture = appFixture(workflow);
-      await registerWorker(fixture, ["author"]);
-      await claimWorker(fixture);
-      const fail = await fixture.app.inject({
-        method: "POST",
-        url: `/v1/workers/worker-a/jobs/${job.id}/fail`,
-        headers: fixture.headers,
-        payload: { message: "SCENE_AUTHORING_FAILED" },
+      const { db, aiSecretKey } = authorSceneDbFixture();
+      const fixture = appFixture(workflow, undefined, {
+        reviews,
+        db,
+        aiSecretKey,
+        authorSceneGenerate: async () => {
+          throw new Error("model unreachable");
+        },
       });
-      expect(fail.statusCode).toBe(200);
+      await registerWorker(fixture, ["renderer"]);
+      await claimWorker(fixture);
+      const complete = await completePreview(
+        fixture,
+        job,
+        Buffer.from("preview-report-bytes"),
+      );
+      expect(complete.statusCode).toBe(200);
       const finished = workflow.jobs.get(job.id);
       expect(finished?.state).toBe("FAILED");
       expect(finished?.failureCode).toBe("SCENE_AUTHORING_FAILED");
