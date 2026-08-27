@@ -11,6 +11,8 @@ import {
   type JobState,
 } from "../../../packages/contracts/src/lifecycle.js";
 import { sha256Hex } from "../../../packages/contracts/src/canonical-json.js";
+import { planSceneAssets } from "../../../packages/contracts/src/scene-assets.js";
+import type { SceneSpec } from "../../../packages/contracts/src/scene-spec.js";
 import { z } from "zod";
 import { authorScene, type GenerateScene } from "./author-scene.js";
 import { runSafetyCheck, type GenerateSafetyVerdict } from "./safety-check.js";
@@ -31,6 +33,7 @@ import type {
   RuntimePreflightEvidence,
 } from "./creator-workflow.js";
 import {
+  ARTIFACT_CONTENT_TYPES,
   autoApproveEvidenceVideo,
   autoApproveT1,
   autoApproveT2T3,
@@ -38,9 +41,19 @@ import {
   autoApproveT5,
   CompilationSchema,
   EvidenceBundleSchema,
+  generatedAssetKey,
+  generatedAssetsForJob,
+  isArtifactContentType,
+  SAFE_ASSET_ID,
+  type ArtifactContentType,
+  type StoredArtifact,
 } from "./creator-workflow.js";
 import type { ReviewStore } from "./reviews.js";
-import { uploadSourcePath, type UploadStore } from "./uploads.js";
+import {
+  MAX_ATTACHMENT_BYTES,
+  uploadSourcePath,
+  type UploadStore,
+} from "./uploads.js";
 
 const MAX_ARTIFACT_BYTES = 512 * 1024 * 1024;
 const LEASE_MS = 90_000;
@@ -74,6 +87,11 @@ export const WorkerPhaseSchema = z.enum([
   "compile",
   "evidence-video",
   "preview",
+  // Generate track. `assets` turns an authored scene's asset list into real
+  // bytes; `gen-render` draws the scene those bytes belong to. Both need the
+  // "renderer" capability.
+  "assets",
+  "gen-render",
   "render",
 ]);
 export type WorkerPhase = z.infer<typeof WorkerPhaseSchema>;
@@ -264,6 +282,80 @@ const EvidenceVideoResult = z
     evidenceVideoArtifactId: z.string().min(1),
   })
   .strict();
+const MaterialProvenance = z
+  .object({
+    tool: z.string().min(1),
+    prompt: z.string().min(1),
+    seed: z.number().optional(),
+    sha256: z.string().regex(/^[a-f0-9]{64}$/u),
+  })
+  .strict();
+const AssetsResult = z
+  .object({
+    protocol: z.literal("rvs.worker.v1"),
+    phase: z.literal("assets"),
+    // The spec the worker actually resolved against. Bound to the job's own
+    // sceneSpecDigest below, so a report for a scene this job no longer has
+    // (a retry that re-authored, say) cannot be accepted.
+    specDigest: z.string().regex(/^[a-f0-9]{64}$/u),
+    assets: z
+      .array(
+        z
+          .object({
+            assetId: z.string().min(1),
+            artifactId: z.string().min(1),
+            sha256: z.string().regex(/^[a-f0-9]{64}$/u),
+            // Non-null only for generated material -- an attachment's
+            // provenance is the upload itself.
+            provenance: MaterialProvenance.nullable(),
+          })
+          .strict(),
+      )
+      .max(64),
+  })
+  .strict();
+const GenRenderReport = z
+  .object({
+    schema: z.literal("rvs.gen-render-report.v1"),
+    jobId: z.string().min(1),
+    attemptId: z.string().min(1),
+    specDigest: z.string().regex(/^[a-f0-9]{64}$/u),
+    outputSha256: z.string().regex(/^[a-f0-9]{64}$/u),
+    outputBytes: z.number().int().positive(),
+    frameSha256: z.array(z.string().regex(/^[a-f0-9]{64}$/u)).min(1),
+    runtime: z
+      .object({
+        chromiumVersion: z.literal("151.0.7922.138"),
+        renderer: z.string().regex(/swiftshader/iu),
+        fontReady: z.literal(true),
+        webgl2: z.literal(true),
+        // The generate track's material is produced in the `assets` phase;
+        // by the time frames are drawn the browser is sealed off, exactly
+        // as it is for a restore render.
+        networkPolicy: z.literal("external-blocked"),
+        repeatedFrameByteIdentity: z.literal(true),
+      })
+      .strict(),
+    qc: z
+      .object({
+        status: z.literal("PASS"),
+        width: z.number().int().positive(),
+        height: z.number().int().positive(),
+        fps: z.number().int().positive(),
+        frameCount: z.number().int().positive(),
+      })
+      .passthrough(),
+  })
+  .strict();
+const GenRenderResult = z
+  .object({
+    protocol: z.literal("rvs.worker.v1"),
+    phase: z.literal("gen-render"),
+    artifactId: z.string().min(1),
+    safetySampleArtifactId: z.string().min(1).nullable(),
+    report: GenRenderReport,
+  })
+  .strict();
 const ProgressBody = z
   .object({
     phase: z.enum(["prepare", "render"]),
@@ -410,15 +502,21 @@ export function fenceTenantJobs(
   }
 }
 type ClaimPhase = ClaimedJob["phase"];
+type SpecProvenance = NonNullable<SceneSpec["assets"][number]["provenance"]>;
 type FinishOutcome = "QUEUED" | "FAILED";
 const queuedPhase = (job: Job): ClaimPhase | null => {
-  if (job.state === "QUEUED") return "render";
+  // Both tracks queue their final render the same way -- the job reaches
+  // QUEUED and a renderer claims it. Which renderer differs: a job that
+  // asked for a generated scene has a SceneSpec to draw, not a compiled
+  // reference scene, so it is claimed as `gen-render`. A restore job has no
+  // job.generation and takes the branch it always has.
+  if (job.state === "QUEUED") return job.generation ? "gen-render" : "render";
   if (job.state !== "PREPARING" && job.state !== "STALE_APPROVAL") return null;
   if (job.preparationStage === "ANALYSIS_QUEUED") return "analyze";
   if (job.preparationStage === "COMPILATION_QUEUED") return "compile";
-  if (job.preparationStage === "EVIDENCE_VIDEO_QUEUED")
-    return "evidence-video";
+  if (job.preparationStage === "EVIDENCE_VIDEO_QUEUED") return "evidence-video";
   if (job.preparationStage === "PREVIEW_QUEUED") return "preview";
+  if (job.preparationStage === "ASSETS_QUEUED") return "assets";
   // AUTHORING_QUEUED/AUTHORING_RUNNING are intentionally not claimable here
   // -- scene authoring runs synchronously inside the `finish` route handler
   // below (same shape as enrichEvidenceTranslations/runSafetyCheck), not as
@@ -426,11 +524,14 @@ const queuedPhase = (job: Job): ClaimPhase | null => {
   // AI provider secret that only this process holds.
   return null;
 };
+// Null for both render phases: their job state (RENDERING/QUEUED) is what
+// carries them, not a preparation stage.
 const runningStage = (phase: ClaimPhase): PreparationStage | null => {
   if (phase === "analyze") return "ANALYSIS_RUNNING";
   if (phase === "compile") return "COMPILATION_RUNNING";
   if (phase === "evidence-video") return "EVIDENCE_VIDEO_RUNNING";
   if (phase === "preview") return "PREVIEW_RUNNING";
+  if (phase === "assets") return "ASSETS_RUNNING";
   return null;
 };
 const queuedStage = (phase: ClaimPhase): PreparationStage | null => {
@@ -438,10 +539,67 @@ const queuedStage = (phase: ClaimPhase): PreparationStage | null => {
   if (phase === "compile") return "COMPILATION_QUEUED";
   if (phase === "evidence-video") return "EVIDENCE_VIDEO_QUEUED";
   if (phase === "preview") return "PREVIEW_QUEUED";
+  if (phase === "assets") return "ASSETS_QUEUED";
   return null;
 };
 const phaseCapability = (phase: ClaimPhase): "compiler" | "renderer" =>
   phase === "analyze" || phase === "compile" ? "compiler" : "renderer";
+// Both render phases move the job through RENDERING; every other phase
+// stays inside PREPARING and moves its preparation stage instead.
+const isRenderPhase = (phase: ClaimPhase): boolean =>
+  phase === "render" || phase === "gen-render";
+type ArtifactKind = StoredArtifact["kind"];
+const ARTIFACT_ID_PREFIX: Readonly<Record<ArtifactKind, string>> = {
+  preview: "preview",
+  "preview-labeled": "previewlabeled",
+  "evidence-video": "evidencevideo",
+  "safety-sample": "safetysample",
+  "generated-asset": "genasset",
+  "generated-delivery": "genartifact",
+  delivery: "artifact",
+};
+const contentTypeOf = (request: FastifyRequest): string =>
+  String(request.headers["content-type"] ?? "")
+    .split(";", 1)[0]
+    ?.trim()
+    .toLowerCase() ?? "";
+const preparingJob = (job: Job): boolean =>
+  job.state === "PREPARING" || job.state === "STALE_APPROVAL";
+// One place deciding which lease may upload which artifact kind, checked
+// both before the body is streamed and again after (the lease can expire
+// mid-upload). Keyed by kind so a new artifact kind cannot be added without
+// deciding this.
+const uploadStateValid = (
+  kind: ArtifactKind,
+  lease: ClaimedJob,
+  job: Job,
+): boolean => {
+  if (kind === "preview" || kind === "preview-labeled")
+    return (
+      lease.phase === "preview" &&
+      job.preparationStage === "PREVIEW_RUNNING" &&
+      preparingJob(job)
+    );
+  if (kind === "evidence-video")
+    return (
+      lease.phase === "evidence-video" &&
+      job.preparationStage === "EVIDENCE_VIDEO_RUNNING" &&
+      preparingJob(job)
+    );
+  if (kind === "generated-asset")
+    return (
+      lease.phase === "assets" &&
+      job.preparationStage === "ASSETS_RUNNING" &&
+      preparingJob(job)
+    );
+  if (kind === "generated-delivery")
+    return lease.phase === "gen-render" && job.state === "RENDERING";
+  // A safety sample belongs to whichever render produced it -- both tracks
+  // hand one to the same content-safety gate.
+  if (kind === "safety-sample")
+    return isRenderPhase(lease.phase) && job.state === "RENDERING";
+  return lease.phase === "render" && job.state === "RENDERING";
+};
 const compilationMatchesReport = (
   compilation: Compilation,
   report: z.infer<typeof RenderReport>,
@@ -528,6 +686,13 @@ const claimWorkflowJob = (
       (phase !== "compile" || item.evidence !== null) &&
       (phase !== "evidence-video" || item.evidence !== null) &&
       (phase !== "preview" || item.compilation !== null) &&
+      // Nothing to resolve assets for, or to render, until a scene exists.
+      (phase !== "assets" ||
+        (item.authoredScene !== null && item.sceneSpecDigest !== null)) &&
+      (phase !== "gen-render" ||
+        (item.approved &&
+          item.authoredScene !== null &&
+          item.sceneSpecDigest !== null)) &&
       (phase !== "render" ||
         (item.approved &&
           item.evidence !== null &&
@@ -549,7 +714,7 @@ const claimWorkflowJob = (
   const attempt = workflow.attempts.get(job.id)?.at(-1);
   if (!attempt) return null;
   attempt.state = "RUNNING";
-  if (phase === "render") transition(job, "RENDERING", now);
+  if (isRenderPhase(phase)) transition(job, "RENDERING", now);
   else {
     const stage = runningStage(phase);
     if (!stage) return null;
@@ -580,7 +745,11 @@ const claimWorkflowJob = (
       phase,
       deletionEpoch: job.deletionEpoch,
       restoreEpoch: job.restoreEpoch,
-      ...(phase === "analyze"
+      // The generate track's two phases read the authored scene, not the
+      // measured evidence -- the spec is the whole input by then, and
+      // shipping a megabyte of evidence bundle they never open would be
+      // dishonest about what they depend on.
+      ...(phase === "analyze" || phase === "assets" || phase === "gen-render"
         ? {}
         : { evidence: job.candidateEvidence ?? job.evidence }),
       ...(phase === "preview" || phase === "render"
@@ -588,6 +757,27 @@ const claimWorkflowJob = (
             compilation: job.compilation,
             evidenceDigest: job.evidenceDigest,
             browserPassSpecDigest: job.compilation?.browserPassSpec.digest,
+          }
+        : {}),
+      ...(phase === "assets" || phase === "gen-render"
+        ? {
+            spec: job.authoredScene?.spec,
+            specDigest: job.sceneSpecDigest,
+            attachmentIds: job.generation?.attachmentIds ?? [],
+          }
+        : {}),
+      ...(phase === "gen-render"
+        ? {
+            // What the `assets` phase already stored, so the renderer can
+            // fetch each asset's bytes back rather than re-resolving them.
+            assets: generatedAssetsForJob(workflow, job.id).map(
+              ([key, artifact]) => ({
+                assetId: key.slice(job.id.length + 1),
+                artifactId: artifact.id,
+                sha256: artifact.sha256,
+                contentType: artifact.contentType,
+              }),
+            ),
           }
         : {}),
     },
@@ -628,7 +818,7 @@ const failWorkflowJob = (
     job.automaticRetries += 1;
     job.eligibleAt = now() + 1_000 * 2 ** (job.automaticRetries - 1);
     job.progress = null;
-    if (lease.phase === "render") {
+    if (isRenderPhase(lease.phase)) {
       transition(job, "RETRYABLE_ERROR", now);
       transition(job, "QUEUED", now);
     } else {
@@ -761,6 +951,145 @@ const finishWorkflowJob = (
       framesTotal: DELIVERY_FRAME_COUNT,
     };
     if (workflow) autoApproveT4(reviews, workflow, job, job.creatorId, now());
+    return "QUEUED";
+  }
+  if (lease.phase === "assets") {
+    const parsed = AssetsResult.safeParse(result);
+    const scene = job.authoredScene;
+    if (
+      !workflow ||
+      !parsed.success ||
+      !scene ||
+      !job.sceneSpecDigest ||
+      parsed.data.specDigest !== job.sceneSpecDigest
+    )
+      return null;
+    // The API recomputes the plan rather than trusting the worker's list.
+    // This is the same discipline the render phase uses on its report: what
+    // came back is checked against what this process independently knows,
+    // and a worker that resolved a different set of assets than the scene
+    // needs is rejected rather than believed.
+    let required;
+    try {
+      required = planSceneAssets(scene.spec, {
+        attachmentIds: job.generation?.attachmentIds ?? [],
+      }).required;
+    } catch {
+      return null;
+    }
+    const reported = new Map(
+      parsed.data.assets.map((asset) => [asset.assetId, asset] as const),
+    );
+    if (
+      reported.size !== parsed.data.assets.length ||
+      reported.size !== required.length
+    )
+      return null;
+    const provenanceById = new Map<string, SpecProvenance>();
+    for (const asset of required) {
+      const item = reported.get(asset.assetId);
+      const stored = workflow.generatedAssets.get(
+        generatedAssetKey(job.id, asset.assetId),
+      );
+      if (
+        !item ||
+        !stored ||
+        stored.kind !== "generated-asset" ||
+        stored.id !== item.artifactId ||
+        stored.sha256 !== item.sha256
+      )
+        return null;
+      if (asset.source.origin === "generated") {
+        // validateSceneSpec rejects a generated asset with no provenance,
+        // and the spec that goes on to be rendered carries this as fact --
+        // so the recorded hash has to be the hash of the bytes the API
+        // actually stored, and the recorded prompt the one the scene asked
+        // for. Anything else is a claim this process cannot verify.
+        if (
+          !item.provenance ||
+          item.provenance.sha256 !== stored.sha256 ||
+          item.provenance.prompt !== asset.source.prompt
+        )
+          return null;
+        provenanceById.set(asset.assetId, item.provenance);
+      } else if (item.provenance) return null;
+    }
+    if (provenanceById.size > 0) {
+      // The scene's author declared provenance it could not know (a hash of
+      // bytes that did not exist yet). Replace it with what was really
+      // produced, and re-digest: the spec is now a different document, and
+      // the gen-render phase binds against this digest.
+      const spec: SceneSpec = {
+        ...scene.spec,
+        assets: scene.spec.assets.map((asset) => {
+          const provenance = provenanceById.get(asset.assetId);
+          return provenance ? { ...asset, provenance } : asset;
+        }),
+      };
+      job.authoredScene = { spec, beatSheet: scene.beatSheet };
+      job.sceneSpecDigest = sha256Hex(spec);
+    }
+    // Every asset the scene draws is now backed by stored bytes, so the
+    // generated render is cleared to run. This is the same READY the
+    // restore track reaches from autoApproveT4 -- and, unlike the restore
+    // track, nothing further is left for the creator to compare, so the job
+    // queues itself rather than waiting on a button that would only ever
+    // have one answer.
+    const timestamp = now();
+    job.preparationStage = "READY";
+    job.approved = true;
+    job.automaticRetries = 0;
+    job.failureCode = null;
+    job.progress = null;
+    job.eligibleAt = timestamp;
+    transition(job, "READY", now);
+    transition(job, "QUEUED", now);
+    return "QUEUED";
+  }
+  if (lease.phase === "gen-render") {
+    const scene = job.authoredScene;
+    if (job.state !== "RENDERING" || !job.approved || !scene) return null;
+    const parsed = GenRenderResult.safeParse(result);
+    const artifact = workflow?.stagedArtifacts.get(job.id);
+    const attemptId = workflow?.attempts.get(job.id)?.at(-1)?.id;
+    const canvas = scene.spec.canvas;
+    if (
+      !parsed.success ||
+      !artifact ||
+      artifact.kind !== "generated-delivery" ||
+      artifact.id !== parsed.data.artifactId ||
+      parsed.data.report.jobId !== job.id ||
+      parsed.data.report.attemptId !== attemptId ||
+      parsed.data.report.outputSha256 !== artifact.sha256 ||
+      parsed.data.report.outputBytes !== artifact.sizeBytes ||
+      parsed.data.report.specDigest !== job.sceneSpecDigest ||
+      parsed.data.report.frameSha256.length !== canvas.frameCount ||
+      parsed.data.report.qc.width !== canvas.width ||
+      parsed.data.report.qc.height !== canvas.height ||
+      parsed.data.report.qc.fps !== canvas.fps ||
+      parsed.data.report.qc.frameCount !== canvas.frameCount ||
+      parsed.data.report.runtime.renderer !== job.runtimePreflight?.renderer ||
+      // Same binding as the restore render: without it a retry that
+      // uploads no sample inherits the previous attempt's frame and
+      // publishes a film the safety gate never looked at.
+      (workflow?.safetySamples.get(job.id)?.id ?? null) !==
+        parsed.data.safetySampleArtifactId
+    )
+      return null;
+    artifact.report = parsed.data.report;
+    transition(job, "ASSEMBLING", now);
+    transition(job, "AWAITING_T5", now);
+    job.progress = {
+      phase: "render",
+      stage: "delivery-qc",
+      fraction: 1,
+      framesProcessed: canvas.frameCount,
+      framesTotal: canvas.frameCount,
+    };
+    job.automaticRetries = 0;
+    job.failureCode = null;
+    // T5 is not auto-approved here either -- the content-safety check in
+    // the `finish` route runs first, for exactly the same reason.
     return "QUEUED";
   }
   if (job.state !== "RENDERING" || !job.approved || !job.compilation)
@@ -1064,7 +1393,7 @@ export function registerWorkers(
       return;
     }
     const parsed = ProgressBody.safeParse(request.body);
-    const expectedPhase = lease.phase === "render" ? "render" : "prepare";
+    const expectedPhase = isRenderPhase(lease.phase) ? "render" : "prepare";
     if (
       !parsed.success ||
       parsed.data.phase !== expectedPhase ||
@@ -1080,16 +1409,11 @@ export function registerWorkers(
   });
   const uploadArtifact = async (
     request: FastifyRequest<{
-      Params: { workerId: string; jobId: string };
+      Params: { workerId: string; jobId: string; assetId?: string };
       Body: unknown;
     }>,
     reply: FastifyReply,
-    kind:
-      | "preview"
-      | "preview-labeled"
-      | "delivery"
-      | "evidence-video"
-      | "safety-sample",
+    kind: ArtifactKind,
   ): Promise<void> => {
     const claimed = claimedJob(request, reply);
     if (!claimed) return;
@@ -1106,17 +1430,28 @@ export function registerWorkers(
             ? workflow?.evidenceVideos
             : kind === "safety-sample"
               ? workflow?.safetySamples
-              : workflow?.stagedArtifacts;
+              : kind === "generated-asset"
+                ? workflow?.generatedAssets
+                : workflow?.stagedArtifacts;
+    // A resolved scene asset is stored per (job, asset); everything else is
+    // one artifact per job.
+    const assetId =
+      kind === "generated-asset" ? (request.params.assetId ?? "") : "";
+    const mapKey =
+      kind === "generated-asset" ? generatedAssetKey(job.id, assetId) : job.id;
+    const declaredContentType = contentTypeOf(request);
+    const contentType: ArtifactContentType | null =
+      kind === "generated-asset"
+        ? isArtifactContentType(declaredContentType)
+          ? declaredContentType
+          : null
+        : kind === "safety-sample"
+          ? "image/png"
+          : "video/mp4";
     const stateValid =
-      kind === "preview" || kind === "preview-labeled"
-        ? lease.phase === "preview" &&
-          job.preparationStage === "PREVIEW_RUNNING" &&
-          (job.state === "PREPARING" || job.state === "STALE_APPROVAL")
-        : kind === "evidence-video"
-          ? lease.phase === "evidence-video" &&
-            job.preparationStage === "EVIDENCE_VIDEO_RUNNING" &&
-            (job.state === "PREPARING" || job.state === "STALE_APPROVAL")
-          : lease.phase === "render" && job.state === "RENDERING";
+      uploadStateValid(kind, lease, job) &&
+      (kind !== "generated-asset" || SAFE_ASSET_ID.test(assetId)) &&
+      contentType !== null;
     // Video kinds stream in as a Readable (raw content-type parsers
     // registered in app.ts); the safety-sample image falls through to the
     // generic buffer content-type parser shared with job attachments, so
@@ -1128,7 +1463,13 @@ export function registerWorkers(
         : request.body instanceof Uint8Array
           ? Readable.from(request.body)
           : null;
-    if (!stateValid || !contentLength.success || !bodyStream || !artifactRoot || !artifacts) {
+    if (
+      !stateValid ||
+      !contentLength.success ||
+      !bodyStream ||
+      !artifactRoot ||
+      !artifacts
+    ) {
       error(reply, "INVALID_REQUEST");
       return;
     }
@@ -1179,19 +1520,11 @@ export function registerWorkers(
         error(reply, revalidated.code);
         return;
       }
-      const liveStateValid =
-        kind === "preview" || kind === "preview-labeled"
-          ? revalidated.lease.phase === "preview" &&
-            revalidated.job.preparationStage === "PREVIEW_RUNNING" &&
-            (revalidated.job.state === "PREPARING" ||
-              revalidated.job.state === "STALE_APPROVAL")
-          : kind === "evidence-video"
-            ? revalidated.lease.phase === "evidence-video" &&
-              revalidated.job.preparationStage === "EVIDENCE_VIDEO_RUNNING" &&
-              (revalidated.job.state === "PREPARING" ||
-                revalidated.job.state === "STALE_APPROVAL")
-            : revalidated.lease.phase === "render" &&
-              revalidated.job.state === "RENDERING";
+      const liveStateValid = uploadStateValid(
+        kind,
+        revalidated.lease,
+        revalidated.job,
+      );
       if (
         revalidated.job !== job ||
         revalidated.lease !== lease ||
@@ -1202,27 +1535,17 @@ export function registerWorkers(
         return;
       }
       const sha256 = hash.digest("hex");
-      const idPrefix =
-        kind === "preview"
-          ? "preview"
-          : kind === "preview-labeled"
-            ? "previewlabeled"
-            : kind === "evidence-video"
-              ? "evidencevideo"
-              : kind === "safety-sample"
-                ? "safetysample"
-                : "artifact";
-      const extension = kind === "safety-sample" ? "png" : "mp4";
-      const contentType = kind === "safety-sample" ? "image/png" : "video/mp4";
-      const artifactId = `${idPrefix}_${digest({ jobId: job.id, sha256 }).slice(0, 16)}`;
+      const idPrefix = ARTIFACT_ID_PREFIX[kind];
+      const extension = ARTIFACT_CONTENT_TYPES[contentType];
+      const artifactId = `${idPrefix}_${digest({ jobId: job.id, mapKey, sha256 }).slice(0, 16)}`;
       const storagePath = path.join(directory, `${artifactId}.${extension}`);
       const timestamp = now();
-      const artifact = {
+      const artifact: StoredArtifact = {
         id: artifactId,
         jobId: job.id,
         tenantId: job.tenantId,
         kind,
-        filename: `${job.id}-${kind}.${extension}`,
+        filename: `${job.id}-${assetId || kind}.${extension}`,
         contentType,
         bytes: new Uint8Array(),
         storagePath,
@@ -1231,20 +1554,22 @@ export function registerWorkers(
         createdAt: new Date(timestamp).toISOString(),
         expiresAt: new Date(
           timestamp +
-            (kind === "delivery" ? 24 * 60 * 60 * 1000 : 30 * 24 * 60 * 60 * 1000),
+            (kind === "delivery" || kind === "generated-delivery"
+              ? 24 * 60 * 60 * 1000
+              : 30 * 24 * 60 * 60 * 1000),
         ).toISOString(),
         report: null,
-      } as const;
-      const previous = artifacts.get(job.id);
+      };
+      const previous = artifacts.get(mapKey);
       await rename(temporary, storagePath);
-      artifacts.set(job.id, artifact);
+      artifacts.set(mapKey, artifact);
       (request as FastifyRequest & PersistenceRequest)[requestPersistence] =
         true;
       try {
         persist?.();
       } catch (cause) {
-        if (previous) artifacts.set(job.id, previous);
-        else artifacts.delete(job.id);
+        if (previous) artifacts.set(mapKey, previous);
+        else artifacts.delete(mapKey);
         if (previous?.storagePath !== storagePath)
           await rm(storagePath, { force: true });
         throw cause;
@@ -1261,7 +1586,8 @@ export function registerWorkers(
       throw cause;
     }
   };
-  const requireContentType = (expected: string) =>
+  const requireContentType =
+    (expected: string) =>
     async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
       const contentType = request.headers["content-type"];
       if (
@@ -1272,8 +1598,22 @@ export function registerWorkers(
     };
   const requireMp4 = requireContentType("video/mp4");
   const requirePng = requireContentType("image/png");
+  // A resolved scene asset is whatever the brand attachment or the provider
+  // produced, so its content type is not fixed by the route -- only bounded
+  // by what the store and the renderer can read.
+  const requireAssetContentType = async (
+    request: FastifyRequest,
+    reply: FastifyReply,
+  ): Promise<void> => {
+    if (!isArtifactContentType(contentTypeOf(request)))
+      error(reply, "INVALID_REQUEST");
+  };
   for (const [url, kind, onRequest] of [
-    ["/v1/workers/:workerId/jobs/:jobId/preview-artifact", "preview", requireMp4],
+    [
+      "/v1/workers/:workerId/jobs/:jobId/preview-artifact",
+      "preview",
+      requireMp4,
+    ],
     [
       "/v1/workers/:workerId/jobs/:jobId/preview-labeled-artifact",
       "preview-labeled",
@@ -1286,6 +1626,11 @@ export function registerWorkers(
     ],
     ["/v1/workers/:workerId/jobs/:jobId/artifact", "delivery", requireMp4],
     [
+      "/v1/workers/:workerId/jobs/:jobId/generated-artifact",
+      "generated-delivery",
+      requireMp4,
+    ],
+    [
       "/v1/workers/:workerId/jobs/:jobId/safety-sample-artifact",
       "safety-sample",
       requirePng,
@@ -1297,6 +1642,79 @@ export function registerWorkers(
     }>(url, { onRequest }, async (request, reply) => {
       await uploadArtifact(request, reply, kind);
     });
+  // Separate registration: this is the one artifact addressed by asset as
+  // well as by job, so it carries a third route parameter.
+  app.post<{
+    Params: { workerId: string; jobId: string; assetId: string };
+    Body: unknown;
+  }>(
+    "/v1/workers/:workerId/jobs/:jobId/asset-artifact/:assetId",
+    {
+      onRequest: requireAssetContentType,
+      // Fonts and images are parsed into a buffer (app.ts's catch-all
+      // parser), so the app-wide chunk limit applies unless raised here. A
+      // resolved asset is attachment-sized, never delivery-sized.
+      bodyLimit: MAX_ATTACHMENT_BYTES + 1024,
+    },
+    async (request, reply) => {
+      await uploadArtifact(request, reply, "generated-asset");
+    },
+  );
+  // The `assets` phase reads a brand attachment's bytes from here: the
+  // attachment store lives in this process's memory, so a worker has no
+  // other way to see one. Fenced to the claiming lease, to the `assets`
+  // phase, to the job's own tenant, and to the attachment ids the job's own
+  // generation config named.
+  app.get<{
+    Params: { workerId: string; jobId: string; attachmentId: string };
+  }>(
+    "/v1/workers/:workerId/jobs/:jobId/attachments/:attachmentId",
+    async (request, reply) => {
+      const claimed = claimedJob(request, reply);
+      if (!claimed) return;
+      const { job, lease } = claimed;
+      const attachment = uploads?.attachments?.get(request.params.attachmentId);
+      if (
+        lease.phase !== "assets" ||
+        !attachment ||
+        attachment.tenantId !== job.tenantId ||
+        !job.generation?.attachmentIds.includes(request.params.attachmentId)
+      ) {
+        error(reply, "RESOURCE_NOT_FOUND");
+        return;
+      }
+      return reply
+        .header("content-type", attachment.contentType)
+        .header("content-length", attachment.sizeBytes)
+        .send(Buffer.from(attachment.bytes));
+    },
+  );
+  // And the `gen-render` phase reads back what the `assets` phase stored,
+  // so the two phases need not run on the same worker or the same disk.
+  app.get<{ Params: { workerId: string; jobId: string; assetId: string } }>(
+    "/v1/workers/:workerId/jobs/:jobId/asset-artifact/:assetId",
+    async (request, reply) => {
+      const claimed = claimedJob(request, reply);
+      if (!claimed) return;
+      const { job, lease } = claimed;
+      const artifact = workflow?.generatedAssets.get(
+        generatedAssetKey(job.id, request.params.assetId),
+      );
+      if (
+        lease.phase !== "gen-render" ||
+        !artifact ||
+        artifact.tenantId !== job.tenantId ||
+        !artifact.storagePath
+      ) {
+        error(reply, "RESOURCE_NOT_FOUND");
+        return;
+      }
+      return reply
+        .header("content-type", artifact.contentType)
+        .header("content-length", artifact.sizeBytes)
+        .send(createReadStream(artifact.storagePath));
+    },
+  );
   const finish = async (
     request: FastifyRequest<{
       Params: { workerId: string; jobId: string };
@@ -1354,7 +1772,7 @@ export function registerWorkers(
     // delivery artifact.
     if (
       !failed &&
-      lease.phase === "render" &&
+      isRenderPhase(lease.phase) &&
       workflow &&
       job.state === "AWAITING_T5"
     ) {
@@ -1415,13 +1833,11 @@ export function registerWorkers(
         // why that can happen today), used to silently produce a film
         // missing the logo with no error anywhere. Now it fails the job,
         // same as any other authoring failure below.
-        const attachments = job.generation.attachmentIds.map(
-          (attachmentId) => {
-            const record = uploads?.attachments?.get(attachmentId);
-            if (!record) throw new Error("ATTACHMENT_UNRESOLVED");
-            return { attachmentId, kind: record.contentType };
-          },
-        );
+        const attachments = job.generation.attachmentIds.map((attachmentId) => {
+          const record = uploads?.attachments?.get(attachmentId);
+          if (!record) throw new Error("ATTACHMENT_UNRESOLVED");
+          return { attachmentId, kind: record.contentType };
+        });
         const authored = await authorScene({
           // M3: candidateEvidence is always null by the time a job reaches
           // AUTHORING_RUNNING -- autoApproveT2T3 promotes it to job.evidence
@@ -1444,19 +1860,15 @@ export function registerWorkers(
         job.sceneSpecDigest = sha256Hex(authored.spec);
         job.automaticRetries = 0;
         job.failureCode = null;
-        // The assets phase and the generate-track render do not exist yet
-        // (they are the next batch) -- a generate-track job legitimately
-        // waits here today. AUTHORING_COMPLETE is a deliberate waypoint,
-        // not an unfinished path: do not route to READY, which means the
-        // restore-track render is cleared to run, and that has not
-        // happened here.
-        job.preparationStage = "AUTHORING_COMPLETE";
-        // Nulled, not left at fraction: 1 -- AUTHORING_COMPLETE is a
-        // finished-for-now waypoint, not a stage still in flight, and a
-        // non-null progress.stage is what made the UI's "compiler active"
-        // status line (and the scene-review chat's running-stage spinner)
-        // read as still working (I4). The next real worker phase this job
-        // reaches, whenever that batch ships, sets its own progress.
+        // Straight on to material generation: the scene names assets, and
+        // the ones it draws have to be backed by real bytes before there is
+        // anything to render.
+        job.preparationStage = "ASSETS_QUEUED";
+        job.eligibleAt = now();
+        // Nulled rather than left at the preview phase's {stage:"preview",
+        // fraction:1}: a non-null progress.stage is what made the UI's
+        // "compiler active" status line read as still working on the
+        // previous phase (I4). The assets phase reports its own.
         job.progress = null;
         job.updatedAt = new Date(now()).toISOString();
         job.etag = `\"${digest(job.updatedAt)}\"`;

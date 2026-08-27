@@ -13,7 +13,14 @@ import { Readable } from "node:stream";
 import { buildAuthApp } from "./app.js";
 import { hashWorkerToken, createWorkerStore } from "./workers.js";
 import { hashBearer, type AuthStore } from "./auth.js";
-import { fixtureSpec, type GenerationConfig } from "@rvs/contracts";
+import {
+  CANVAS,
+  DELIVERY_FPS,
+  fixtureSpec,
+  sha256Hex,
+  type GenerationConfig,
+  type SceneSpec,
+} from "@rvs/contracts";
 import {
   autoApproveT4,
   createCreatorWorkflowStore,
@@ -673,9 +680,7 @@ describe("worker registration API", () => {
     const evidence = analysisEvidence(job.id, "attempt-a");
     // A text owner is what triggers enrichment; the stock fixture has only
     // global-residual, which is why this regression slipped through before.
-    (
-      evidence.sceneInput.owners as unknown as Record<string, unknown>[]
-    ).push({
+    (evidence.sceneInput.owners as unknown as Record<string, unknown>[]).push({
       ownerId: "text-00",
       kind: "text-word",
       editable: true,
@@ -688,7 +693,12 @@ describe("worker registration API", () => {
     const db = openApiDatabase(join(directory, "app.sqlite"));
     updateAiProviderSettings(
       db,
-      { providerKind: "openai", model: "gpt-4o", apiKey: "sk-test", enabled: true },
+      {
+        providerKind: "openai",
+        model: "gpt-4o",
+        apiKey: "sk-test",
+        enabled: true,
+      },
       "admin",
       1_000,
       "test-secret-key-material",
@@ -735,7 +745,9 @@ describe("worker registration API", () => {
     // ...and the stored digest must match what the worker recomputes from the
     // bundle it will receive, or every text-bearing job dies on
     // WORKER_EVIDENCE_DIGEST_MISMATCH.
-    expect(stored?.evidenceDigest).toBe(sha256(JSON.stringify(stored?.evidence)));
+    expect(stored?.evidenceDigest).toBe(
+      sha256(JSON.stringify(stored?.evidence)),
+    );
     // The stage must only advance once enrichment is done, so a worker can
     // never claim a half-translated bundle.
     expect(stored?.preparationStage).toBe("EVIDENCE_VIDEO_QUEUED");
@@ -1266,7 +1278,12 @@ describe("worker registration API", () => {
       const db = openApiDatabase(join(directory, "app.sqlite"));
       updateAiProviderSettings(
         db,
-        { providerKind: "openai", model: "gpt-4o", apiKey: "sk-test", enabled: true },
+        {
+          providerKind: "openai",
+          model: "gpt-4o",
+          apiKey: "sk-test",
+          enabled: true,
+        },
         "admin",
         1_000,
         "test-secret-key-material",
@@ -1311,7 +1328,7 @@ describe("worker registration API", () => {
       })();
     };
 
-    it("stores the spec digest and reaches AUTHORING_COMPLETE when authoring finishes", async () => {
+    it("stores the spec digest and queues material generation when authoring finishes", async () => {
       const reviews = createReviewStore();
       const workflow = createCreatorWorkflowStore();
       // fixtureSpec's hero-image element references an "attachment"-origin
@@ -1367,10 +1384,9 @@ describe("worker registration API", () => {
         fps: 30,
         frameCount: 600,
       });
-      // Terminal here for this batch -- the assets phase and the
-      // generate-track render do not exist yet. Not READY: that means the
-      // restore-track render is cleared to run, which has not happened.
-      expect(finished?.preparationStage).toBe("AUTHORING_COMPLETE");
+      // Straight on to material generation. Not READY -- for a generate
+      // job that comes later, once its assets are backed by real bytes.
+      expect(finished?.preparationStage).toBe("ASSETS_QUEUED");
       expect(finished?.state).toBe("PREPARING");
       // I4: progress must not be left at the preview phase's
       // {stage:"preview", fraction:1} -- that is what made the UI read
@@ -1675,7 +1691,12 @@ describe("worker registration API", () => {
     const db = openApiDatabase(join(directory, "app.sqlite"));
     updateAiProviderSettings(
       db,
-      { providerKind: "openai", model: "gpt-4o", apiKey: "sk-test", enabled: true },
+      {
+        providerKind: "openai",
+        model: "gpt-4o",
+        apiKey: "sk-test",
+        enabled: true,
+      },
       "admin",
       1_000,
       "test-secret-key-material",
@@ -1785,7 +1806,12 @@ describe("worker registration API", () => {
     const db = openApiDatabase(join(directory, "app.sqlite"));
     updateAiProviderSettings(
       db,
-      { providerKind: "openai", model: "gpt-4o", apiKey: "sk-test", enabled: true },
+      {
+        providerKind: "openai",
+        model: "gpt-4o",
+        apiKey: "sk-test",
+        enabled: true,
+      },
       "admin",
       1_000,
       "test-secret-key-material",
@@ -2098,6 +2124,680 @@ describe("worker registration API", () => {
     expect((await heartbeat()).statusCode).toBe(401);
     expect(fixture.workers.leases.has(job.id)).toBe(false);
     expect(workflow.jobs.get(job.id)?.preparationStage).toBe("ANALYSIS_QUEUED");
+    await fixture.app.close();
+  });
+});
+
+// The generate track past authoring: material generation, then the render
+// that draws the authored scene, then the same COMPLETED the restore track
+// reaches. Every test here is about a job that has job.generation set; the
+// restore-track regression at the bottom is the one that must not move.
+describe("generate-track material and render phases", () => {
+  const generatedSpec = (
+    assets: SceneSpec["assets"] = [],
+    assetRefs: readonly string[] = [],
+  ): SceneSpec => ({
+    schema: "scene-spec-v1",
+    mode: "SWAP",
+    canvas: {
+      width: CANVAS["9:16"].width,
+      height: CANVAS["9:16"].height,
+      fps: DELIVERY_FPS,
+      frameCount: 60,
+    },
+    palette: {
+      hero: "#ff5500",
+      cool: "#3355ff",
+      warm: "#ffaa33",
+      background: "#101018",
+    },
+    assets,
+    beats: [
+      {
+        beatId: "beat-only",
+        startFrame: 0,
+        endFrame: 60,
+        shot: "hard-cut",
+        elements: [
+          {
+            elementId: "headline",
+            kind: "text",
+            content: "SHORT",
+            box: { x: 100, y: 800, width: 880, height: 200 },
+            keyframes: [{ frame: 0, opacity: 1, ease: "linear" }],
+            effects: [],
+          },
+          ...assetRefs.map((assetRef, index) => ({
+            elementId: `asset-${index}`,
+            kind: "image" as const,
+            assetRef,
+            box: { x: 0, y: 0, width: 100, height: 100 },
+            keyframes: [],
+            effects: [],
+          })),
+        ],
+      },
+    ],
+  });
+  const attachmentSpec = generatedSpec(
+    [
+      {
+        assetId: "logo",
+        kind: "image",
+        origin: "attachment",
+        ref: "attachment://att_1",
+      },
+    ],
+    ["logo"],
+  );
+  const logoBytes = Buffer.from([0x89, 0x50, 0x4e, 0x47, 1, 2, 3]);
+  const attachmentUploads = (): UploadStore => {
+    const uploads = uploadFixture();
+    uploads.attachments = new Map([
+      [
+        "att_1",
+        {
+          id: "att_1",
+          tenantId: "ten_a",
+          contentType: "image/png" as const,
+          sizeBytes: logoBytes.byteLength,
+          bytes: new Uint8Array(logoBytes),
+          createdAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+    ]);
+    return uploads;
+  };
+  const generateJob = (
+    workflow: CreatorWorkflowStore,
+    spec: SceneSpec,
+    stage: "ASSETS_QUEUED" | "GENERATE_QUEUED" = "ASSETS_QUEUED",
+    attachmentIds: readonly string[] = [],
+  ): Job => {
+    const job = addJob(workflow, "PREPARING", {
+      ...generationConfig,
+      attachmentIds: [...attachmentIds],
+    });
+    job.compilation = compilation;
+    job.evidence = analysisEvidence(job.id, "attempt-a");
+    job.evidenceDigest = sha256(JSON.stringify(job.evidence));
+    job.runtimePreflight = preflight;
+    job.authoredScene = { spec, beatSheet: [] };
+    job.sceneSpecDigest = sha256Hex(spec);
+    if (stage === "ASSETS_QUEUED") job.preparationStage = "ASSETS_QUEUED";
+    else {
+      job.preparationStage = "READY";
+      job.state = "QUEUED";
+      job.approved = true;
+    }
+    return job;
+  };
+  const genRenderReport = (
+    job: Job,
+    bytes: Uint8Array,
+    overrides: Record<string, unknown> = {},
+  ) => ({
+    schema: "rvs.gen-render-report.v1",
+    jobId: job.id,
+    attemptId: "attempt-a",
+    specDigest: job.sceneSpecDigest,
+    outputSha256: sha256(bytes),
+    outputBytes: bytes.byteLength,
+    frameSha256: Array<string>(60).fill("d".repeat(64)),
+    runtime: {
+      chromiumVersion: "151.0.7922.138",
+      renderer: preflight.renderer,
+      fontReady: true,
+      webgl2: true,
+      networkPolicy: "external-blocked",
+      repeatedFrameByteIdentity: true,
+    },
+    qc: {
+      status: "PASS",
+      width: CANVAS["9:16"].width,
+      height: CANVAS["9:16"].height,
+      fps: DELIVERY_FPS,
+      frameCount: 60,
+    },
+    ...overrides,
+  });
+  const safetyFixture = (
+    workflow: CreatorWorkflowStore,
+    uploads?: UploadStore,
+  ) => {
+    const directory = mkdtempSync(join(tmpdir(), "rvs-gen-render-"));
+    const db = openApiDatabase(join(directory, "app.sqlite"));
+    updateAiProviderSettings(
+      db,
+      {
+        providerKind: "openai",
+        model: "gpt-4o",
+        apiKey: "sk-test",
+        enabled: true,
+      },
+      "admin",
+      1_000,
+      "test-secret-key-material",
+    );
+    return appFixture(workflow, uploads, {
+      reviews: createReviewStore(),
+      db,
+      aiSecretKey: "test-secret-key-material",
+      safetyCheckGenerate: async () => ({
+        object: { safe: true, reason: "no unsafe content detected" },
+      }),
+    });
+  };
+
+  it("hands the assets phase the authored scene, not the measured evidence", async () => {
+    const workflow = createCreatorWorkflowStore();
+    const job = generateJob(workflow, attachmentSpec, "ASSETS_QUEUED", [
+      "att_1",
+    ]);
+    const fixture = appFixture(workflow, attachmentUploads(), {});
+    await registerWorker(fixture, ["renderer"]);
+    const claim = await claimWorker(fixture);
+
+    const payload = claim.json().job.payload;
+    expect(payload.phase).toBe("assets");
+    expect(payload.specDigest).toBe(job.sceneSpecDigest);
+    expect(payload.spec).toEqual(attachmentSpec);
+    expect(payload.attachmentIds).toEqual(["att_1"]);
+    // The generated scene is the whole input by now -- shipping the
+    // evidence bundle to a phase that never opens it would misstate what
+    // this phase depends on.
+    expect(payload.evidence).toBeUndefined();
+    expect(workflow.jobs.get(job.id)?.preparationStage).toBe("ASSETS_RUNNING");
+    await fixture.app.close();
+  });
+
+  it("is not claimable by a compiler-only worker", async () => {
+    const workflow = createCreatorWorkflowStore();
+    generateJob(workflow, generatedSpec());
+    const fixture = appFixture(workflow, uploadFixture(), {});
+    await registerWorker(fixture, ["compiler"]);
+
+    expect((await claimWorker(fixture)).json().job).toBeNull();
+    await fixture.app.close();
+  });
+
+  it("queues the generated render once a scene that needs no material is resolved", async () => {
+    const workflow = createCreatorWorkflowStore();
+    const job = generateJob(workflow, generatedSpec());
+    const fixture = appFixture(workflow, uploadFixture(), {});
+    await registerWorker(fixture, ["renderer"]);
+    await claimWorker(fixture);
+
+    const complete = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${job.id}/complete`,
+      headers: fixture.headers,
+      payload: {
+        result: {
+          protocol: "rvs.worker.v1",
+          phase: "assets",
+          specDigest: job.sceneSpecDigest,
+          assets: [],
+        },
+      },
+    });
+
+    expect(complete.statusCode).toBe(200);
+    const finished = workflow.jobs.get(job.id);
+    expect(finished?.state).toBe("QUEUED");
+    expect(finished?.preparationStage).toBe("READY");
+    expect(finished?.approved).toBe(true);
+    expect(finished?.progress).toBeNull();
+
+    const second = await claimWorker(fixture);
+    expect(second.json().job.payload.phase).toBe("gen-render");
+    expect(second.json().job.payload.assets).toEqual([]);
+    await fixture.app.close();
+  });
+
+  it("refuses an assets report for a scene this job no longer has", async () => {
+    const workflow = createCreatorWorkflowStore();
+    const job = generateJob(workflow, generatedSpec());
+    const fixture = appFixture(workflow, uploadFixture(), {});
+    await registerWorker(fixture, ["renderer"]);
+    await claimWorker(fixture);
+
+    const complete = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${job.id}/complete`,
+      headers: fixture.headers,
+      payload: {
+        result: {
+          protocol: "rvs.worker.v1",
+          phase: "assets",
+          specDigest: "f".repeat(64),
+          assets: [],
+        },
+      },
+    });
+
+    expect(complete.statusCode).toBe(422);
+    expect(workflow.jobs.get(job.id)?.state).toBe("PREPARING");
+    await fixture.app.close();
+  });
+
+  it("serves a brand attachment's bytes to the assets phase, and to nothing else", async () => {
+    const workflow = createCreatorWorkflowStore();
+    const job = generateJob(workflow, attachmentSpec, "ASSETS_QUEUED", [
+      "att_1",
+    ]);
+    const fixture = appFixture(workflow, attachmentUploads(), {});
+    await registerWorker(fixture, ["renderer"]);
+    await claimWorker(fixture);
+
+    const served = await fixture.app.inject({
+      method: "GET",
+      url: `/v1/workers/worker-a/jobs/${job.id}/attachments/att_1`,
+      headers: fixture.headers,
+    });
+    expect(served.statusCode).toBe(200);
+    expect(served.rawPayload).toEqual(logoBytes);
+
+    // An attachment this job never named is not this job's to read.
+    const foreign = await fixture.app.inject({
+      method: "GET",
+      url: `/v1/workers/worker-a/jobs/${job.id}/attachments/att_other`,
+      headers: fixture.headers,
+    });
+    expect(foreign.statusCode).toBe(404);
+    await fixture.app.close();
+  });
+
+  it("binds each reported asset to the artifact the API actually stored", async () => {
+    const workflow = createCreatorWorkflowStore();
+    const job = generateJob(workflow, attachmentSpec, "ASSETS_QUEUED", [
+      "att_1",
+    ]);
+    const fixture = appFixture(workflow, attachmentUploads(), {});
+    await registerWorker(fixture, ["renderer"]);
+    await claimWorker(fixture);
+
+    const uploaded = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${job.id}/asset-artifact/logo`,
+      headers: { ...fixture.headers, "content-type": "image/png" },
+      payload: logoBytes,
+    });
+    expect(uploaded.statusCode).toBe(201);
+    expect(workflow.generatedAssets.get(`${job.id}/logo`)).toMatchObject({
+      kind: "generated-asset",
+      contentType: "image/png",
+      sha256: sha256(logoBytes),
+    });
+
+    // A report naming an artifact id the store does not hold is rejected,
+    // exactly as the render phase rejects a report that does not match the
+    // delivery it staged.
+    const forged = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${job.id}/complete`,
+      headers: fixture.headers,
+      payload: {
+        result: {
+          protocol: "rvs.worker.v1",
+          phase: "assets",
+          specDigest: job.sceneSpecDigest,
+          assets: [
+            {
+              assetId: "logo",
+              artifactId: "genasset_notreal",
+              sha256: sha256(logoBytes),
+              provenance: null,
+            },
+          ],
+        },
+      },
+    });
+    expect(forged.statusCode).toBe(422);
+
+    const complete = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${job.id}/complete`,
+      headers: fixture.headers,
+      payload: {
+        result: {
+          protocol: "rvs.worker.v1",
+          phase: "assets",
+          specDigest: job.sceneSpecDigest,
+          assets: [
+            {
+              assetId: "logo",
+              artifactId: uploaded.json().artifactId,
+              sha256: sha256(logoBytes),
+              provenance: null,
+            },
+          ],
+        },
+      },
+    });
+    expect(complete.statusCode).toBe(200);
+    expect(workflow.jobs.get(job.id)?.state).toBe("QUEUED");
+
+    const second = await claimWorker(fixture);
+    expect(second.json().job.payload.assets).toEqual([
+      {
+        assetId: "logo",
+        artifactId: uploaded.json().artifactId,
+        sha256: sha256(logoBytes),
+        contentType: "image/png",
+      },
+    ]);
+    await fixture.app.close();
+  });
+
+  it("refuses a reported asset set that is not the one the scene needs", async () => {
+    const workflow = createCreatorWorkflowStore();
+    const job = generateJob(workflow, attachmentSpec, "ASSETS_QUEUED", [
+      "att_1",
+    ]);
+    const fixture = appFixture(workflow, attachmentUploads(), {});
+    await registerWorker(fixture, ["renderer"]);
+    await claimWorker(fixture);
+
+    const complete = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${job.id}/complete`,
+      headers: fixture.headers,
+      payload: {
+        result: {
+          protocol: "rvs.worker.v1",
+          phase: "assets",
+          specDigest: job.sceneSpecDigest,
+          assets: [],
+        },
+      },
+    });
+
+    expect(complete.statusCode).toBe(422);
+    expect(workflow.jobs.get(job.id)?.state).toBe("PREPARING");
+    await fixture.app.close();
+  });
+
+  it("refuses generated material whose provenance is not the hash of what was stored", async () => {
+    const workflow = createCreatorWorkflowStore();
+    const spec = generatedSpec(
+      [
+        {
+          assetId: "backdrop",
+          kind: "image",
+          origin: "generated",
+          ref: "generated://backdrop",
+          provenance: {
+            tool: "author-declared",
+            prompt: "a dark studio backdrop",
+            seed: 7,
+            sha256: "0".repeat(64),
+          },
+        },
+      ],
+      ["backdrop"],
+    );
+    const job = generateJob(workflow, spec);
+    const fixture = appFixture(workflow, uploadFixture(), {});
+    await registerWorker(fixture, ["renderer"]);
+    await claimWorker(fixture);
+    const uploaded = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${job.id}/asset-artifact/backdrop`,
+      headers: { ...fixture.headers, "content-type": "image/png" },
+      payload: logoBytes,
+    });
+    expect(uploaded.statusCode).toBe(201);
+
+    const lying = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${job.id}/complete`,
+      headers: fixture.headers,
+      payload: {
+        result: {
+          protocol: "rvs.worker.v1",
+          phase: "assets",
+          specDigest: job.sceneSpecDigest,
+          assets: [
+            {
+              assetId: "backdrop",
+              artifactId: uploaded.json().artifactId,
+              sha256: sha256(logoBytes),
+              provenance: {
+                tool: "some-generator@1",
+                prompt: "a dark studio backdrop",
+                seed: 3,
+                sha256: "0".repeat(64),
+              },
+            },
+          ],
+        },
+      },
+    });
+    expect(lying.statusCode).toBe(422);
+
+    const honest = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${job.id}/complete`,
+      headers: fixture.headers,
+      payload: {
+        result: {
+          protocol: "rvs.worker.v1",
+          phase: "assets",
+          specDigest: job.sceneSpecDigest,
+          assets: [
+            {
+              assetId: "backdrop",
+              artifactId: uploaded.json().artifactId,
+              sha256: sha256(logoBytes),
+              provenance: {
+                tool: "some-generator@1",
+                prompt: "a dark studio backdrop",
+                seed: 3,
+                sha256: sha256(logoBytes),
+              },
+            },
+          ],
+        },
+      },
+    });
+    expect(honest.statusCode).toBe(200);
+    // The author's declared provenance was a hash of bytes that did not
+    // exist yet. What is carried forward is what was really produced, and
+    // the spec digest moves with it.
+    const finished = workflow.jobs.get(job.id);
+    expect(finished?.authoredScene?.spec.assets[0]?.provenance).toEqual({
+      tool: "some-generator@1",
+      prompt: "a dark studio backdrop",
+      seed: 3,
+      sha256: sha256(logoBytes),
+    });
+    expect(finished?.sceneSpecDigest).toBe(
+      sha256Hex(finished?.authoredScene?.spec),
+    );
+    expect(finished?.sceneSpecDigest).not.toBe(sha256Hex(spec));
+    await fixture.app.close();
+  });
+
+  it("publishes the generated film as its own artifact kind and completes the job", async () => {
+    const workflow = createCreatorWorkflowStore();
+    const job = generateJob(workflow, generatedSpec(), "GENERATE_QUEUED");
+    const fixture = safetyFixture(workflow);
+    await registerWorker(fixture, ["renderer"]);
+    const claim = await claimWorker(fixture);
+    expect(claim.json().job.payload.phase).toBe("gen-render");
+    expect(workflow.jobs.get(job.id)?.state).toBe("RENDERING");
+
+    const filmBytes = Buffer.from("generated-mp4-bytes");
+    const uploaded = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${job.id}/generated-artifact`,
+      headers: { ...fixture.headers, "content-type": "video/mp4" },
+      payload: filmBytes,
+    });
+    expect(uploaded.statusCode).toBe(201);
+    const sample = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${job.id}/safety-sample-artifact`,
+      headers: { ...fixture.headers, "content-type": "image/png" },
+      payload: Buffer.from([137, 80, 78, 71]),
+    });
+    expect(sample.statusCode).toBe(201);
+
+    const complete = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${job.id}/complete`,
+      headers: fixture.headers,
+      payload: {
+        result: {
+          protocol: "rvs.worker.v1",
+          phase: "gen-render",
+          artifactId: uploaded.json().artifactId,
+          safetySampleArtifactId: sample.json().artifactId,
+          report: genRenderReport(job, filmBytes),
+        },
+      },
+    });
+
+    expect(complete.statusCode).toBe(200);
+    const finished = workflow.jobs.get(job.id);
+    expect(finished?.state).toBe("COMPLETED");
+    expect(finished?.artifact).toMatchObject({
+      id: uploaded.json().artifactId,
+      kind: "generated-delivery",
+    });
+    expect(workflow.artifacts.get(uploaded.json().artifactId)?.kind).toBe(
+      "generated-delivery",
+    );
+    await fixture.app.close();
+  });
+
+  it("refuses a generated render report that does not match the film it staged", async () => {
+    const workflow = createCreatorWorkflowStore();
+    const job = generateJob(workflow, generatedSpec(), "GENERATE_QUEUED");
+    const fixture = safetyFixture(workflow);
+    await registerWorker(fixture, ["renderer"]);
+    await claimWorker(fixture);
+    const filmBytes = Buffer.from("generated-mp4-bytes");
+    const uploaded = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${job.id}/generated-artifact`,
+      headers: { ...fixture.headers, "content-type": "video/mp4" },
+      payload: filmBytes,
+    });
+    const sample = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${job.id}/safety-sample-artifact`,
+      headers: { ...fixture.headers, "content-type": "image/png" },
+      payload: Buffer.from([137, 80, 78, 71]),
+    });
+
+    const complete = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${job.id}/complete`,
+      headers: fixture.headers,
+      payload: {
+        result: {
+          protocol: "rvs.worker.v1",
+          phase: "gen-render",
+          artifactId: uploaded.json().artifactId,
+          safetySampleArtifactId: sample.json().artifactId,
+          report: genRenderReport(job, filmBytes, {
+            outputSha256: "b".repeat(64),
+          }),
+        },
+      },
+    });
+
+    expect(complete.statusCode).toBe(422);
+    expect(workflow.jobs.get(job.id)?.state).toBe("RENDERING");
+    expect(workflow.jobs.get(job.id)?.artifact).toBeNull();
+    await fixture.app.close();
+  });
+
+  it("fails the job when the generated film does not pass the safety check", async () => {
+    const workflow = createCreatorWorkflowStore();
+    const job = generateJob(workflow, generatedSpec(), "GENERATE_QUEUED");
+    const directory = mkdtempSync(join(tmpdir(), "rvs-gen-render-unsafe-"));
+    const db = openApiDatabase(join(directory, "app.sqlite"));
+    updateAiProviderSettings(
+      db,
+      {
+        providerKind: "openai",
+        model: "gpt-4o",
+        apiKey: "sk-test",
+        enabled: true,
+      },
+      "admin",
+      1_000,
+      "test-secret-key-material",
+    );
+    const fixture = appFixture(workflow, undefined, {
+      reviews: createReviewStore(),
+      db,
+      aiSecretKey: "test-secret-key-material",
+      safetyCheckGenerate: async () => ({
+        object: { safe: false, reason: "depicts a real person" },
+      }),
+    });
+    await registerWorker(fixture, ["renderer"]);
+    await claimWorker(fixture);
+    const filmBytes = Buffer.from("generated-mp4-bytes");
+    const uploaded = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${job.id}/generated-artifact`,
+      headers: { ...fixture.headers, "content-type": "video/mp4" },
+      payload: filmBytes,
+    });
+    const sample = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${job.id}/safety-sample-artifact`,
+      headers: { ...fixture.headers, "content-type": "image/png" },
+      payload: Buffer.from([137, 80, 78, 71]),
+    });
+
+    const complete = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${job.id}/complete`,
+      headers: fixture.headers,
+      payload: {
+        result: {
+          protocol: "rvs.worker.v1",
+          phase: "gen-render",
+          artifactId: uploaded.json().artifactId,
+          safetySampleArtifactId: sample.json().artifactId,
+          report: genRenderReport(job, filmBytes),
+        },
+      },
+    });
+
+    expect(complete.statusCode).toBe(200);
+    const finished = workflow.jobs.get(job.id);
+    expect(finished?.state).toBe("FAILED");
+    expect(finished?.failureCode).toBe("CONTENT_SAFETY_REJECTED");
+    expect(finished?.artifact).toBeNull();
+    await fixture.app.close();
+  });
+
+  // The one way this work can break the shipping product: a job with no
+  // job.generation must still claim the restore render phase, get the
+  // restore payload, and see none of the generate track's new fields.
+  it("leaves a restore-track job on the phase and payload it has always had", async () => {
+    const workflow = createCreatorWorkflowStore();
+    const job = addJob(workflow, "QUEUED");
+    const fixture = appFixture(workflow, undefined, {});
+    await registerWorker(fixture, ["renderer"]);
+    const claim = await claimWorker(fixture);
+
+    const payload = claim.json().job.payload;
+    expect(payload.phase).toBe("render");
+    expect(payload.spec).toBeUndefined();
+    expect(payload.specDigest).toBeUndefined();
+    expect(payload.attachmentIds).toBeUndefined();
+    expect(payload.assets).toBeUndefined();
+    expect(payload.evidence).toBeTruthy();
+    expect(payload.compilation).toBeTruthy();
+    expect(workflow.jobs.get(job.id)?.state).toBe("RENDERING");
     await fixture.app.close();
   });
 });

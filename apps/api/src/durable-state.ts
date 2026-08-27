@@ -12,6 +12,7 @@ import { z } from "zod";
 import { loadSeedEnv, migrate, openDatabase, seed } from "../database/db.mjs";
 import type { AuthStore, Session } from "./auth.js";
 import type { IdempotencyRecord, IdempotencyStore } from "./boundary.js";
+import { ARTIFACT_CONTENT_TYPES } from "./creator-workflow.js";
 import type {
   CreatorWorkflowStore,
   Job,
@@ -65,6 +66,7 @@ const ArtifactSlotSchema = z.enum([
   "PREVIEW_LABELED",
   "EVIDENCE_VIDEO",
   "SAFETY_SAMPLE",
+  "GENERATED_ASSET",
 ]);
 type ArtifactSlot = z.infer<typeof ArtifactSlotSchema>;
 // One mapping for persist, hydrate, and clear. Splitting it is what left
@@ -79,6 +81,10 @@ const artifactSlots = (
   PREVIEW_LABELED: workflow.previewsLabeled,
   EVIDENCE_VIDEO: workflow.evidenceVideos,
   SAFETY_SAMPLE: workflow.safetySamples,
+  // Keyed by job *and* asset, unlike every other slot -- see
+  // generatedAssetKey in creator-workflow.ts. The mechanism does not care:
+  // it round-trips whatever map key it is given.
+  GENERATED_ASSET: workflow.generatedAssets,
 });
 const ArtifactRows = z.array(
   z.object({
@@ -187,8 +193,10 @@ const writeArtifact = (
   if (artifact.bytes.byteLength !== artifact.sizeBytes)
     throw new Error("ARTIFACT_STORAGE_INCOMPLETE");
   const directory = path.join(root, segment(artifact.tenantId));
-  // Safety samples are png; everything else is mp4.
-  const extension = artifact.contentType === "image/png" ? "png" : "mp4";
+  // Extension follows the content type -- safety samples are png, resolved
+  // scene assets are whatever the attachment or provider produced, and
+  // everything else is mp4.
+  const extension = ARTIFACT_CONTENT_TYPES[artifact.contentType] ?? "mp4";
   const storagePath = path.join(
     directory,
     `${segment(artifact.id)}.${extension}`,
@@ -203,13 +211,18 @@ const writeArtifact = (
 // Which stage an interrupted lease returns to. `render` has no preparation
 // stage (the job state alone re-queues it), hence null. Keyed by WorkerPhase
 // so adding a phase without deciding its recovery is a type error.
-const RECOVERED_STAGE: Readonly<Record<WorkerPhase, PreparationStage | null>> = {
-  analyze: "ANALYSIS_QUEUED",
-  compile: "COMPILATION_QUEUED",
-  "evidence-video": "EVIDENCE_VIDEO_QUEUED",
-  preview: "PREVIEW_QUEUED",
-  render: null,
-};
+const RECOVERED_STAGE: Readonly<Record<WorkerPhase, PreparationStage | null>> =
+  {
+    analyze: "ANALYSIS_QUEUED",
+    compile: "COMPILATION_QUEUED",
+    "evidence-video": "EVIDENCE_VIDEO_QUEUED",
+    preview: "PREVIEW_QUEUED",
+    assets: "ASSETS_QUEUED",
+    render: null,
+    // Like `render`: the job state alone (QUEUED) re-queues it, so there is
+    // no preparation stage to return to.
+    "gen-render": null,
+  };
 
 const recoverLease = (
   stores: RuntimeStores,
@@ -463,7 +476,8 @@ export function createDurableState(
     stores.uploads.casByTenantDigest.clear();
     stores.workflow.jobs.clear();
     stores.workflow.attempts.clear();
-    for (const map of Object.values(artifactSlots(stores.workflow))) map.clear();
+    for (const map of Object.values(artifactSlots(stores.workflow)))
+      map.clear();
     stores.workflow.releaseManifests.clear();
     stores.reviews.receipts.splice(0, stores.reviews.receipts.length);
     stores.reviews.current.clear();

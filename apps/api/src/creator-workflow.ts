@@ -42,14 +42,16 @@ export const PreparationStageSchema = z.enum([
   // skips straight from AWAITING_T4 to READY, exactly as before.
   "AUTHORING_QUEUED",
   "AUTHORING_RUNNING",
-  // Terminal for this batch, deliberately -- not an unfinished thought. A
-  // generate-track job stops here because the two stages that would consume
-  // an authored scene (material generation, and the generate-track render)
-  // do not exist yet; they are the next batch's work. AUTHORING_COMPLETE is
-  // never routed to READY: READY means the restore-track render is cleared
-  // to run, which has not happened for a job that only just got its scene
-  // authored.
-  "AUTHORING_COMPLETE",
+  // Material generation. An authored scene names assets; the ones it
+  // actually draws have to be backed by real bytes, stored where the
+  // renderer can read them, before there is anything to render. Also
+  // generate-track only -- a restore job never enters these.
+  "ASSETS_QUEUED",
+  "ASSETS_RUNNING",
+  // Both tracks end here, and mean the same thing: the job's render is
+  // cleared to run. A generate-track job reaches it from ASSETS_RUNNING
+  // instead of from AWAITING_T4, and its render is the `gen-render` worker
+  // phase rather than `render`.
   "READY",
 ]);
 export type PreparationStage = z.infer<typeof PreparationStageSchema>;
@@ -135,7 +137,7 @@ export type Job = {
   } | null;
   artifact: {
     id: string;
-    kind: "delivery" | "report";
+    kind: "delivery" | "generated-delivery" | "report";
     expiresAt: string;
   } | null;
 };
@@ -152,6 +154,39 @@ export type RuntimePreflightEvidence = Readonly<{
   compilerModels: true;
   runtimeDigest: string;
 }>;
+// Every content type an artifact can carry. Videos and the safety-sample
+// png were the whole set until generated assets arrived; a resolved asset
+// is whatever the brand attachment or the provider produced, which is the
+// same allowlist uploads.ts admits for attachments.
+export type ArtifactContentType =
+  | "video/mp4"
+  | "image/png"
+  | "image/jpeg"
+  | "image/svg+xml"
+  | "font/otf"
+  | "font/ttf"
+  | "font/woff2";
+export const ARTIFACT_CONTENT_TYPES: Readonly<
+  Record<ArtifactContentType, string>
+> = {
+  "video/mp4": "mp4",
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/svg+xml": "svg",
+  "font/otf": "otf",
+  "font/ttf": "ttf",
+  "font/woff2": "woff2",
+};
+export const isArtifactContentType = (
+  value: string,
+): value is ArtifactContentType => Object.hasOwn(ARTIFACT_CONTENT_TYPES, value);
+
+// A scene asset id is chosen by the scene's author (an AI), so it is
+// untrusted: it becomes both a map key and a filename stem. Restricting it
+// here is what stops "../x" from either colliding with another job's key or
+// escaping the tenant's artifact directory.
+export const SAFE_ASSET_ID = /^[A-Za-z0-9._-]{1,64}$/u;
+
 export type StoredArtifact = {
   readonly id: string;
   readonly jobId: string;
@@ -161,9 +196,17 @@ export type StoredArtifact = {
     | "preview-labeled"
     | "delivery"
     | "evidence-video"
-    | "safety-sample";
+    | "safety-sample"
+    // One resolved asset of a generated scene -- an uploaded brand
+    // attachment, or material a provider produced. Stored per (job, asset),
+    // not per job: see generatedAssetKey below.
+    | "generated-asset"
+    // The generate track's finished film. Deliberately a different kind
+    // from "delivery" so a generated video is never mistaken for a restored
+    // one, even though both are staged and published the same way.
+    | "generated-delivery";
   readonly filename: string;
-  readonly contentType: "video/mp4" | "image/png";
+  readonly contentType: ArtifactContentType;
   readonly bytes: Uint8Array;
   readonly storagePath?: string;
   readonly sha256: string;
@@ -186,6 +229,10 @@ export type CreatorWorkflowStore = {
   readonly previewsLabeled: Map<string, StoredArtifact>;
   readonly evidenceVideos: Map<string, StoredArtifact>;
   readonly safetySamples: Map<string, StoredArtifact>;
+  // Keyed by generatedAssetKey(jobId, assetId) -- one job has as many
+  // entries here as its scene has assets needing bytes, unlike every other
+  // map above, which holds at most one artifact per job.
+  readonly generatedAssets: Map<string, StoredArtifact>;
   readonly artifacts: Map<string, StoredArtifact>;
   readonly releaseManifests: Map<string, ReleaseManifest>;
   readonly idempotency: IdempotencyStore;
@@ -202,12 +249,34 @@ export const createCreatorWorkflowStore = (
   previewsLabeled: new Map(),
   evidenceVideos: new Map(),
   safetySamples: new Map(),
+  generatedAssets: new Map(),
   artifacts: new Map(),
   releaseManifests: new Map(),
   idempotency: new IdempotencyStore(),
   now,
   availablePreflight: null,
 });
+
+// One job's resolved assets live in a single flat map, keyed by job and
+// asset, so durable-state.ts persists them through the same generic slot
+// mechanism as every other artifact map. Job ids are base64url and carry no
+// "/", and SAFE_ASSET_ID forbids one, so this key cannot be ambiguous.
+export const generatedAssetKey = (jobId: string, assetId: string): string =>
+  `${jobId}/${assetId}`;
+export const generatedAssetsForJob = (
+  store: CreatorWorkflowStore,
+  jobId: string,
+): readonly (readonly [string, StoredArtifact])[] =>
+  [...store.generatedAssets].filter(([key]) =>
+    key.startsWith(`${jobId}/`),
+  ) as readonly (readonly [string, StoredArtifact])[];
+export const clearGeneratedAssets = (
+  store: CreatorWorkflowStore,
+  jobId: string,
+): void => {
+  for (const [key] of generatedAssetsForJob(store, jobId))
+    store.generatedAssets.delete(key);
+};
 
 const id = (prefix: string): string =>
   `${prefix}_${randomBytes(12).toString("base64url")}`;
@@ -705,10 +774,7 @@ function applyChoiceResolution(
     const x = Math.min(...points.map((point) => point.x));
     const y = Math.min(...points.map((point) => point.y));
     const width = Math.max(1, Math.max(...points.map((point) => point.x)) - x);
-    const height = Math.max(
-      1,
-      Math.max(...points.map((point) => point.y)) - y,
-    );
+    const height = Math.max(1, Math.max(...points.map((point) => point.y)) - y);
     const ownerId = "foreground-subject";
     const owners = rawSceneInput["owners"];
     const assets = rawSceneInput["editableAssets"];
@@ -1020,7 +1086,11 @@ const edit = (job: Job, request: FastifyRequest): void => {
   const match = header(request, "if-match");
   if (!match || match !== job.etag) throw new Error("VERSION_CONFLICT");
 };
-export const transitionJob = (job: Job, next: JobState, now = Date.now): void => {
+export const transitionJob = (
+  job: Job,
+  next: JobState,
+  now = Date.now,
+): void => {
   assertLegalTransition(job.state, next);
   job.state = next;
   job.updatedAt = new Date(now()).toISOString();
@@ -1080,6 +1150,7 @@ export function retryJob(
   store.previewsLabeled.delete(job.id);
   store.evidenceVideos.delete(job.id);
   store.safetySamples.delete(job.id);
+  clearGeneratedAssets(store, job.id);
   job.evidenceDigest = digest({ upload: job.uploadId, attempt: job.attempt });
   job.irDigest = digest({
     upload: job.uploadId,
@@ -1103,7 +1174,11 @@ export const publishStagedArtifact = (
   job: Job,
 ): boolean => {
   const artifact = store.stagedArtifacts.get(job.id);
-  if (!artifact || artifact.kind !== "delivery" || job.state !== "AWAITING_T5")
+  if (
+    !artifact ||
+    (artifact.kind !== "delivery" && artifact.kind !== "generated-delivery") ||
+    job.state !== "AWAITING_T5"
+  )
     return false;
   assertLegalTransition(job.state, "COMPLETED");
   store.stagedArtifacts.delete(job.id);
@@ -1142,7 +1217,9 @@ export function registerCreatorWorkflow(
   aiFrameSelection?: {
     readonly db: Database.Database;
     readonly aiSecretKey: string;
-    readonly generate?: Parameters<typeof selectInitialStartFrame>[0]["generate"];
+    readonly generate?: Parameters<
+      typeof selectInitialStartFrame
+    >[0]["generate"];
   },
 ): void {
   const tenant = (request: FastifyRequest): string =>
@@ -1163,9 +1240,10 @@ export function registerCreatorWorkflow(
       reply,
     ) => {
       try {
-        const generationParsed = request.body.generation === undefined
-          ? undefined
-          : GenerationConfigSchema.safeParse(request.body.generation);
+        const generationParsed =
+          request.body.generation === undefined
+            ? undefined
+            : GenerationConfigSchema.safeParse(request.body.generation);
         if (generationParsed && !generationParsed.success) {
           fail(reply, "INVALID_REQUEST");
           return;
@@ -1734,7 +1812,8 @@ export function registerCreatorWorkflow(
             job.eligibleAt = store.now();
             job.progress = null;
             job.failureCode = null;
-            if (job.state === "READY") transitionJob(job, "STALE_APPROVAL", store.now);
+            if (job.state === "READY")
+              transitionJob(job, "STALE_APPROVAL", store.now);
             else {
               job.updatedAt = new Date(store.now()).toISOString();
               job.etag = `\"${digest(job.updatedAt)}\"`;
