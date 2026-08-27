@@ -149,6 +149,9 @@
     "previewQueued": "Preview video is queued.",
     "previewRunning": "Rendering the preview video.",
     "awaitingT4": "Checking the preview video.",
+    "authoringQueued": "Preview approved. The AI is about to plan the generated scene from your brief.",
+    "authoringRunning": "The AI is planning the generated scene from your brief.",
+    "authoringComplete": "The film has been planned. Building the generated film is not part of this release yet -- there is nothing left to wait for.",
     "preparingDefault": "Getting things ready for the compiler.",
     "readyForQueue": "Ready to queue.",
     "assembling": "Putting the video together.",
@@ -248,7 +251,8 @@
     "collectDelivery": "Done. Collect the final video below.",
     "retrying": "Something went wrong, so it is being tried again.",
     "reviewAgain": "Something changed, so this needs another look.",
-    "startOver": "This job has ended. Start again from a new project."
+    "startOver": "This job has ended. Start again from a new project.",
+    "planNotBuilt": "The film has been planned. Building it is not part of this release yet."
   },
   "StageLabels": {
     "download": "Downloading Source",
@@ -261,7 +265,8 @@
     "evidence": "Collecting Evidence",
     "sceneCompile": "Recompiling Scene",
     "sceneRender": "Rendering Frames",
-    "upload": "Uploading Output"
+    "upload": "Uploading Output",
+    "authoring": "Planning Scene"
   },
   "ShotLabels": {
     "pushIn": "Push In",
@@ -305,8 +310,14 @@
     "validation": "Validation",
     "acceptedNormalizedMedia": "Video format fixed",
     "mediaSummary": "{fps} fps · {frames} frames · {seconds}s",
+    "trackLabel": "Track",
+    "trackOption": {
+      "restore": "Restore this video",
+      "generate": "Generate a new film from a brief"
+    },
     "creativeIntentLabel": "What You Want",
     "creativeIntentPlaceholder": "Describe the video you want, and anything it has to keep...",
+    "generateTrackNotice": "The generated film isn't built yet. This job will plan the scene with AI and then stop -- there is no finished video to wait for on this track yet.",
     "durationLabel": "Duration",
     "durationOption": "{seconds}s",
     "aspectLabel": "Aspect Ratio",
@@ -332,6 +343,10 @@
       "tenantBoundaryBypass": "This upload session is no longer available.",
       "resourceNotFound": "This upload session is no longer available.",
       "networkInterrupted": "The connection was interrupted. Retry to continue.",
+      "attachmentTypeInvalid": "One of your reference files isn't a supported type. Choose PNG, JPEG, SVG, TTF, OTF, WOFF2, or MP4.",
+      "attachmentSizeLimitExceeded": "One of your reference files is larger than the 20 MB per-file limit.",
+      "attachmentCountLimitExceeded": "You've reached the limit on reference files for this account.",
+      "attachmentQuotaExceeded": "You've reached the total size limit for reference files on this account.",
       "requestFailed": "The request could not be completed. Retry."
     },
     "cancelChooseAnother": "Cancel / choose another",

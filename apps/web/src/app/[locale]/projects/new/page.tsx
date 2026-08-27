@@ -41,6 +41,10 @@ type ReasonKey =
   | "tenantBoundaryBypass"
   | "resourceNotFound"
   | "networkInterrupted"
+  | "attachmentTypeInvalid"
+  | "attachmentSizeLimitExceeded"
+  | "attachmentCountLimitExceeded"
+  | "attachmentQuotaExceeded"
   | "requestFailed";
 
 const safeReasonKey = (error: unknown): ReasonKey => {
@@ -56,6 +60,14 @@ const safeReasonKey = (error: unknown): ReasonKey => {
     TENANT_BOUNDARY_BYPASS: "tenantBoundaryBypass",
     RESOURCE_NOT_FOUND: "resourceNotFound",
     NETWORK_INTERRUPTED: "networkInterrupted",
+    // I1.3/I1.4: an attachment failure gets its own reason instead of
+    // falling through to the generic "requestFailed" -- a rejected
+    // attachment used to give no clue which of the several things that can
+    // go wrong with a brand-asset upload actually happened.
+    ATTACHMENT_TYPE_INVALID: "attachmentTypeInvalid",
+    ATTACHMENT_SIZE_LIMIT_EXCEEDED: "attachmentSizeLimitExceeded",
+    ATTACHMENT_COUNT_LIMIT_EXCEEDED: "attachmentCountLimitExceeded",
+    ATTACHMENT_QUOTA_EXCEEDED: "attachmentQuotaExceeded",
   };
   return reasons[code] ?? "requestFailed";
 };
@@ -77,6 +89,14 @@ const PREFLIGHT_CHECKS = ["codecCheck", "fpsStability", "duration", "audioTrack"
 const DURATION_OPTIONS = [15, 20, 25, 30] as const;
 const ASPECT_OPTIONS: readonly Aspect[] = ["9:16", "1:1", "16:9"];
 
+// C4: which track a submit produces is now an explicit, visible choice --
+// the textarea used to double as a generate-track brief the moment it was
+// non-empty, which silently converted an existing restore-track creative
+// prompt (e.g. "keep the logo in the corner") into a generate-track job
+// that parks at AUTHORING_COMPLETE forever. Default is "restore" so an
+// existing user who never touches this control keeps their old behaviour.
+type Track = "restore" | "generate";
+
 export default function NewProjectPage() {
   const t = useTranslations("ProjectsNew");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -90,6 +110,7 @@ export default function NewProjectPage() {
   const [state, setState] = useState<WorkflowState>("idle");
   const [reasonKey, setReasonKey] = useState<ReasonKey | null>("selectSource");
   const [prompt, setPrompt] = useState("");
+  const [track, setTrack] = useState<Track>("restore");
   const [durationSec, setDurationSec] = useState<number>(20);
   const [aspect, setAspect] = useState<Aspect>("9:16");
   const [attachments, setAttachments] = useState<readonly File[]>([]);
@@ -178,6 +199,7 @@ export default function NewProjectPage() {
     setState("idle");
     setReasonKey("selectSource");
     setPrompt("");
+    setTrack("restore");
     setDurationSec(20);
     setAspect("9:16");
     setAttachments([]);
@@ -191,25 +213,33 @@ export default function NewProjectPage() {
     setState("creating");
     try {
       const brief = prompt.trim();
+      // generation is attached only when the creator explicitly chose the
+      // generate track (C4) -- never merely because the textarea is
+      // non-empty. On the restore track that textarea keeps its existing
+      // meaning (the creative-intent prompt feeding AI start-frame
+      // selection) and its existing behaviour, byte for byte: the `prompt`
+      // line below is unchanged from before this fix.
+      //
       // A generation brief carries brand attachments by id, so those upload
       // to the shared attachment store first; the job is only created once
       // every attachment has one.
-      const generation = brief
-        ? {
-            brief,
-            durationSec,
-            aspect,
-            attachmentIds: await Promise.all(
-              attachments.map((attachment) =>
-                uploadAttachment(attachment, controller.signal),
+      const generation =
+        track === "generate" && brief
+          ? {
+              brief,
+              durationSec,
+              aspect,
+              attachmentIds: await Promise.all(
+                attachments.map((attachment) =>
+                  uploadAttachment(attachment, controller.signal),
+                ),
               ),
-            ),
-          }
-        : undefined;
+            }
+          : undefined;
       const createdJobId = await createCompilerJob(
         media,
         {
-          ...(prompt ? { prompt } : {}),
+          ...(track === "restore" && prompt ? { prompt } : {}),
           ...(generation ? { generation } : {}),
         },
         controller.signal,
@@ -343,6 +373,15 @@ export default function NewProjectPage() {
               </div>
             )}
             <div className="creative-intent">
+              <label htmlFor="creative-track">{t("trackLabel")}</label>
+              <select
+                id="creative-track"
+                value={track}
+                onChange={(event) => setTrack(event.target.value as Track)}
+              >
+                <option value="restore">{t("trackOption.restore")}</option>
+                <option value="generate">{t("trackOption.generate")}</option>
+              </select>
               <label htmlFor="creative-prompt">{t("creativeIntentLabel")}</label>
               <textarea
                 id="creative-prompt"
@@ -350,64 +389,74 @@ export default function NewProjectPage() {
                 value={prompt}
                 onChange={(event) => setPrompt(event.target.value)}
               />
-              <div className="generation-fields">
-                <label htmlFor="duration">
-                  {t("durationLabel")}
-                  <select
-                    id="duration"
-                    value={durationSec}
-                    onChange={(event) =>
-                      setDurationSec(Number(event.target.value))
-                    }
-                  >
-                    {DURATION_OPTIONS.map((seconds) => (
-                      <option key={seconds} value={seconds}>
-                        {t("durationOption", { seconds })}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label htmlFor="aspect">
-                  {t("aspectLabel")}
-                  <select
-                    id="aspect"
-                    value={aspect}
-                    onChange={(event) =>
-                      setAspect(event.target.value as Aspect)
-                    }
-                  >
-                    {ASPECT_OPTIONS.map((ratio) => (
-                      <option key={ratio} value={ratio}>
-                        {ratio}
-                      </option>
-                    ))}
-                  </select>
+              {track === "generate" && (
+                <p className="generate-track-notice" role="status">
+                  {t("generateTrackNotice")}
+                </p>
+              )}
+              {track === "generate" && (
+                <div className="generation-fields">
+                  <label htmlFor="duration">
+                    {t("durationLabel")}
+                    <select
+                      id="duration"
+                      value={durationSec}
+                      onChange={(event) =>
+                        setDurationSec(Number(event.target.value))
+                      }
+                    >
+                      {DURATION_OPTIONS.map((seconds) => (
+                        <option key={seconds} value={seconds}>
+                          {t("durationOption", { seconds })}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label htmlFor="aspect">
+                    {t("aspectLabel")}
+                    <select
+                      id="aspect"
+                      value={aspect}
+                      onChange={(event) =>
+                        setAspect(event.target.value as Aspect)
+                      }
+                    >
+                      {ASPECT_OPTIONS.map((ratio) => (
+                        <option key={ratio} value={ratio}>
+                          {ratio}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              )}
+            </div>
+            {track === "generate" && (
+              <div className="supplementary-data">
+                <div>
+                  <span>{t("supplementaryData")}</span>
+                  <small>{t("supplementaryDataHint")}</small>
+                </div>
+                <input
+                  ref={attachmentInputRef}
+                  id="attachment-file"
+                  type="file"
+                  multiple
+                  accept="image/png,image/jpeg,image/svg+xml,font/ttf,font/otf,font/woff2,video/mp4,.png,.jpg,.jpeg,.svg,.ttf,.otf,.woff2,.mp4"
+                  className="visually-hidden"
+                  onChange={(event) =>
+                    setAttachments([
+                      ...attachments,
+                      ...Array.from(event.target.files ?? []),
+                    ])
+                  }
+                />
+                <label className="button" htmlFor="attachment-file">
+                  {t("addAttachments")}
                 </label>
               </div>
-            </div>
-            <div className="supplementary-data">
-              <div>
-                <span>{t("supplementaryData")}</span>
-                <small>{t("supplementaryDataHint")}</small>
-              </div>
-              <input
-                ref={attachmentInputRef}
-                id="attachment-file"
-                type="file"
-                multiple
-                className="visually-hidden"
-                onChange={(event) =>
-                  setAttachments([
-                    ...attachments,
-                    ...Array.from(event.target.files ?? []),
-                  ])
-                }
-              />
-              <label className="button" htmlFor="attachment-file">
-                {t("addAttachments")}
-              </label>
-            </div>
-            {attachments.length > 0 && (
+            )}
+            {track === "generate" && attachments.length > 0 && (
               <ul className="attachment-list">
                 {attachments.map((attachment, index) => (
                   <li key={`${attachment.name}-${index}`}>
@@ -464,7 +513,8 @@ export default function NewProjectPage() {
                 !media ||
                 state === "uploading" ||
                 state === "creating" ||
-                state === "created"
+                state === "created" ||
+                (track === "generate" && !prompt.trim())
               }
             >
               {state === "creating"

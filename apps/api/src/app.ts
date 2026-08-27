@@ -1,3 +1,4 @@
+import { Readable } from "node:stream";
 import type Database from "better-sqlite3";
 import Fastify, {
   type FastifyInstance,
@@ -113,6 +114,29 @@ const cookie = (request: FastifyRequest, name: string): string | undefined =>
     .map((part) => part.trim())
     .find((part) => part.startsWith(`${name}=`))
     ?.slice(name.length + 1);
+// I1: the video/mp4|quicktime|webm content-type parsers hand the body over
+// as a raw, unbuffered Readable (see their registration above -- kept that
+// way so large worker artifact uploads can stream to disk instead of
+// loading into memory). POST /v1/attachments needs the whole body as bytes
+// to sniff and store, so it buffers a Readable itself here rather than
+// changing those parsers for every route that shares them. Bounded by the
+// same limit as this route's own `bodyLimit` option, as a second guard.
+const bufferReadable = (stream: Readable, limitBytes: number): Promise<Buffer> =>
+  new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    let total = 0;
+    stream.on("data", (chunk: Buffer) => {
+      total += chunk.byteLength;
+      if (total > limitBytes) {
+        stream.destroy();
+        reject(new UploadFailure("ATTACHMENT_SIZE_LIMIT_EXCEEDED"));
+        return;
+      }
+      chunks.push(chunk);
+    });
+    stream.on("end", () => resolve(Buffer.concat(chunks)));
+    stream.on("error", () => reject(new UploadFailure("INVALID_REQUEST")));
+  });
 const failure = (
   reply: FastifyReply,
   result:
@@ -136,7 +160,9 @@ const failure = (
         : result.code === "UPLOAD_EXPIRED"
           ? 410
           : result.code === "ATTACHMENT_TYPE_INVALID" ||
-              result.code === "ATTACHMENT_SIZE_LIMIT_EXCEEDED"
+              result.code === "ATTACHMENT_SIZE_LIMIT_EXCEEDED" ||
+              result.code === "ATTACHMENT_COUNT_LIMIT_EXCEEDED" ||
+              result.code === "ATTACHMENT_QUOTA_EXCEEDED"
             ? 400
             : result.code === "VIDEO_TYPE_INVALID" ||
               result.code === "VIDEO_SIZE_LIMIT_EXCEEDED" ||
@@ -174,6 +200,14 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
       done(null, body);
     },
   );
+  // No `parseAs` here on purpose: worker artifact uploads (preview/
+  // delivery/evidence-video, up to MAX_ARTIFACT_BYTES) stream this body
+  // straight to disk (see uploadArtifact in workers.ts) rather than
+  // buffering a large render into memory. `/v1/attachments` also accepts
+  // these content types (video/mp4 is in the attachment allowlist) but
+  // needs the whole body as bytes to sniff and store -- see I1's fix in
+  // this handler's own registration below, which buffers a Readable body
+  // itself rather than changing this parser for every route that uses it.
   for (const contentType of ["video/mp4", "video/quicktime", "video/webm"])
     app.addContentTypeParser(contentType, (_request, body, done) => {
       done(null, body);
@@ -508,14 +542,20 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
           const key = header(request, "idempotency-key");
           if (!key) throw new UploadFailure("INVALID_REQUEST");
           const body = request.body;
+          // I1: a video/mp4|quicktime|webm attachment arrives as a
+          // Readable (see bufferReadable's comment) -- video/mp4 is in the
+          // attachment allowlist and must actually be able to upload, not
+          // fall through to INVALID_REQUEST because it isn't already bytes.
           const bytes =
             body instanceof Uint8Array
               ? body
               : typeof body === "string"
                 ? Buffer.from(body)
-                : (() => {
-                    throw new UploadFailure("INVALID_REQUEST");
-                  })();
+                : body instanceof Readable
+                  ? await bufferReadable(body, MAX_ATTACHMENT_BYTES + 1024)
+                  : (() => {
+                      throw new UploadFailure("INVALID_REQUEST");
+                    })();
           const replay = idempotency.execute(
             "attachment-create",
             key,

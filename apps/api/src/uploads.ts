@@ -18,7 +18,18 @@ export const MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024;
 export const MAX_CHUNK_BYTES = 8 * 1024 * 1024;
 export const UPLOAD_TTL_MS = 24 * 60 * 60 * 1000;
 export const MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024;
-export const MAX_ATTACHMENTS_PER_JOB = 20;
+// I2.1: renamed from MAX_ATTACHMENTS_PER_JOB, which was declared here,
+// never imported by anything, and shadowed a differently-valued constant of
+// the exact same name in job-attachments.ts (its own trap -- the two names
+// looked interchangeable but were not). This one gates POST /v1/attachments
+// (the brand-attachment store below), not job-attachments.ts's separate
+// per-job attachment system.
+export const MAX_ATTACHMENTS_PER_TENANT = 20;
+// Total-byte budget across a tenant's attachments, not just a per-file cap
+// -- MAX_ATTACHMENT_BYTES alone still let an authenticated tenant post
+// MAX_ATTACHMENTS_PER_TENANT files at MAX_ATTACHMENT_BYTES each (400 MB) into
+// the in-memory store below with no aggregate limit.
+export const MAX_ATTACHMENT_BYTES_PER_TENANT = 100 * 1024 * 1024;
 
 export type UploadState =
   | "PENDING"
@@ -119,7 +130,9 @@ export class UploadFailure extends Error {
     | "RESOURCE_NOT_FOUND"
     | "TENANT_BOUNDARY_BYPASS"
     | "ATTACHMENT_TYPE_INVALID"
-    | "ATTACHMENT_SIZE_LIMIT_EXCEEDED";
+    | "ATTACHMENT_SIZE_LIMIT_EXCEEDED"
+    | "ATTACHMENT_COUNT_LIMIT_EXCEEDED"
+    | "ATTACHMENT_QUOTA_EXCEEDED";
   constructor(code: UploadFailure["code"]) {
     super(code);
     this.code = code;
@@ -506,6 +519,16 @@ export const uploadSourcePath = (upload: UploadRecord): string | undefined =>
 // artifacts. The declared content-type header is client-controlled and is
 // therefore never trusted for the accept/reject decision below -- only the
 // bytes on the wire are.
+//
+// ponytail: this store (UploadStore.attachments, below) is an in-memory Map
+// only. It is not written by the persist transaction, not covered by
+// cleanupExpiredUploads or retention.ts's sweep, and not durable across an
+// API restart -- a restart loses every attachment while any job that
+// referenced one survives, and tenant deletion/retention leaves attachment
+// bytes resident in memory. I2's ruling scoped this wave to closing the cap
+// and the silent-loss failure mode (below, and workers.ts's ATTACHMENT_
+// UNRESOLVED check); durable persistence for this store is a follow-up
+// task, not this wave.
 const PNG_MAGIC = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 const JPEG_MAGIC = [0xff, 0xd8, 0xff];
 const OTF_MAGIC = [0x4f, 0x54, 0x54, 0x4f]; // "OTTO"
@@ -554,6 +577,21 @@ export function createAttachment(
   if (!contentType) throw new UploadFailure("ATTACHMENT_TYPE_INVALID");
   const attachments = store.attachments ?? new Map<string, AttachmentRecord>();
   store.attachments = attachments;
+  // I2.1: per-tenant count and total-byte budget. Without this, an
+  // authenticated tenant could POST attachments up to MAX_ATTACHMENT_BYTES
+  // each, with no aggregate cap, until the API ran out of memory -- this
+  // store is in-memory only (see the docstring above).
+  let existingCount = 0;
+  let existingBytes = 0;
+  for (const attachment of attachments.values())
+    if (attachment.tenantId === tenantId) {
+      existingCount += 1;
+      existingBytes += attachment.sizeBytes;
+    }
+  if (existingCount >= MAX_ATTACHMENTS_PER_TENANT)
+    throw new UploadFailure("ATTACHMENT_COUNT_LIMIT_EXCEEDED");
+  if (existingBytes + bytes.byteLength > MAX_ATTACHMENT_BYTES_PER_TENANT)
+    throw new UploadFailure("ATTACHMENT_QUOTA_EXCEEDED");
   const record: AttachmentRecord = {
     id: id("att"),
     tenantId,

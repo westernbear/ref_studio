@@ -3,6 +3,7 @@ import {
   decisionKey,
   formatJobStamp,
   gateLabelKey,
+  isAuthoringParked,
   isJobWorking,
   isTerminalJobState,
   jobActivityPercent,
@@ -196,6 +197,61 @@ describe("compiler progress projection", () => {
   });
 });
 
+describe("a generate-track job parked at AUTHORING_COMPLETE (I4)", () => {
+  it("shows an honest status while authoring is actually running", () => {
+    const running = parseJobProgress({
+      id: "job_authoring",
+      state: "PREPARING",
+      preparationStage: "AUTHORING_RUNNING",
+      progress: { phase: "prepare", stage: "authoring", fraction: 0 },
+      approvedGates: [],
+    });
+    expect(jobStatusMessage(running)).toEqual({
+      key: "compilerActive",
+      values: { stage: "authoring" },
+    });
+  });
+
+  it("stops reading as active work once authoring finishes, instead of staying on the preview stage forever", () => {
+    const parked = parseJobProgress({
+      id: "job_parked",
+      state: "PREPARING",
+      preparationStage: "AUTHORING_COMPLETE",
+      // The whole point of I4: progress is null here (workers.ts clears it
+      // on AUTHORING_COMPLETE), not left at the preview phase's
+      // {stage:"preview", fraction:1}.
+      progress: null,
+      approvedGates: [],
+    });
+    expect(jobStatusMessage(parked)).toEqual({ key: "authoringComplete" });
+    expect(nextStepKey(parked)).toBe("planNotBuilt");
+  });
+
+  it("flags AUTHORING_COMPLETE, and only AUTHORING_COMPLETE, as parked", () => {
+    expect(isAuthoringParked("AUTHORING_COMPLETE")).toBe(true);
+    expect(isAuthoringParked("AUTHORING_RUNNING")).toBe(false);
+    expect(isAuthoringParked("AUTHORING_QUEUED")).toBe(false);
+    expect(isAuthoringParked("READY")).toBe(false);
+  });
+
+  it("resolves JobStatus keys for all three authoring stages in both catalogues", async () => {
+    const ko = (await import("../messages/ko-KR.json", { with: { type: "json" } })).default;
+    const en = (await import("../messages/en-US.json", { with: { type: "json" } })).default;
+    for (const stage of ["AUTHORING_QUEUED", "AUTHORING_RUNNING", "AUTHORING_COMPLETE"]) {
+      const job = parseJobProgress({
+        id: "job_x",
+        state: "PREPARING",
+        preparationStage: stage,
+        progress: null,
+        approvedGates: [],
+      });
+      const key = jobStatusMessage(job).key;
+      expect(ko.JobStatus[key], `ko-KR JobStatus.${key}`).toBeTruthy();
+      expect(en.JobStatus[key], `en-US JobStatus.${key}`).toBeTruthy();
+    }
+  });
+});
+
 describe("which accumulated stage message is running", () => {
   const log = ["system", "stage", "stage", "user", "stage"];
 
@@ -252,6 +308,15 @@ describe("every next step has words in both catalogues", () => {
         nextStepKey({ state, approvedGates: [] }),
         nextStepKey({ state, approvedGates: ["T4"] }),
       ]),
+    );
+    // AUTHORING_COMPLETE (I4) is a preparationStage, not a state -- it does
+    // not show up in the state-only sweep above.
+    keys.add(
+      nextStepKey({
+        state: "PREPARING",
+        preparationStage: "AUTHORING_COMPLETE",
+        approvedGates: [],
+      }),
     );
     for (const key of keys) {
       expect(ko.NextStep[key], `ko-KR NextStep.${key}`).toBeTruthy();

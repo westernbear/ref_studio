@@ -1372,6 +1372,10 @@ describe("worker registration API", () => {
       // restore-track render is cleared to run, which has not happened.
       expect(finished?.preparationStage).toBe("AUTHORING_COMPLETE");
       expect(finished?.state).toBe("PREPARING");
+      // I4: progress must not be left at the preview phase's
+      // {stage:"preview", fraction:1} -- that is what made the UI read
+      // "compiler active: preview" forever once parked here.
+      expect(finished?.progress).toBeNull();
       await fixture.app.close();
     });
 
@@ -1402,6 +1406,7 @@ describe("worker registration API", () => {
       const finished = workflow.jobs.get(job.id);
       expect(finished?.state).toBe("FAILED");
       expect(finished?.failureCode).toBe("SCENE_AUTHORING_FAILED");
+      expect(finished?.progress).toBeNull();
       await fixture.app.close();
     });
 
@@ -1440,6 +1445,7 @@ describe("worker registration API", () => {
       expect(finished?.state).toBe("FAILED");
       expect(finished?.failureCode).toBe("SCENE_AUTHORING_FAILED");
       expect(finished?.authoredScene).toBeNull();
+      expect(finished?.progress).toBeNull();
       await fixture.app.close();
     });
   });

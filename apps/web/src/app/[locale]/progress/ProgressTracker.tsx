@@ -8,6 +8,7 @@ import {
   approvalGates,
   decisionKey,
   gateLabelKey,
+  isAuthoringParked,
   isTerminalJobState,
   jobProgressPercent,
   jobStateKey,
@@ -36,7 +37,11 @@ export function ProgressTracker({ initialJob }: Props) {
   const [job, setJob] = useState(initialJob);
   const [error, setError] = useState("");
   const percent = jobProgressPercent(job);
-  const shouldPoll = !isTerminalJobState(job.state);
+  // A generate-track job parked at AUTHORING_COMPLETE has nothing left to
+  // wait for this release (I4) -- polling it forever would keep this page
+  // looking like work is still in progress after it has genuinely stopped.
+  const shouldPoll =
+    !isTerminalJobState(job.state) && !isAuthoringParked(job.preparationStage);
   const nextGate = nextApprovalGate(job);
   const sceneReviewHref = `/scene-review?jobId=${encodeURIComponent(job.id)}`;
   const approvedGateCount = approvalGates.filter((gate) =>

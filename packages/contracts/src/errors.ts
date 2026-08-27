@@ -31,6 +31,16 @@ export const ErrorCodes = [
   "UNRESOLVED_CHOICE_SKIPPED",
   "TENANT_SUSPENDED",
   "QUOTA_EXCEEDED",
+  // I1: these were thrown by uploads.ts's UploadFailure but were not in
+  // this enum, so normalizeError's ErrorCodeSchema.safeParse always failed
+  // for them and every attachment failure reached the client as a generic
+  // INTERNAL_ERROR -- the specific reason never survived the trip through
+  // safeEnvelope, no matter what the web client's own reason-key mapping
+  // said.
+  "ATTACHMENT_TYPE_INVALID",
+  "ATTACHMENT_SIZE_LIMIT_EXCEEDED",
+  "ATTACHMENT_COUNT_LIMIT_EXCEEDED",
+  "ATTACHMENT_QUOTA_EXCEEDED",
   "INTERNAL_ERROR",
   "RUNTIME_PREREQUISITE_MISSING",
   "WORKER_TRANSIENT_FAILURE",

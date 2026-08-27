@@ -1392,6 +1392,19 @@ export function registerWorkers(
       job.preparationStage === "AUTHORING_QUEUED"
     ) {
       job.preparationStage = "AUTHORING_RUNNING";
+      // I4: job.progress was left at the preview phase's {stage:"preview",
+      // fraction:1} and never touched here, so the UI kept reading
+      // "compiler active: preview" (progressStage is checked before
+      // preparationStage -- see job-progress.ts's jobStatusMessage) for as
+      // long as a generate-track job existed, including forever once it
+      // parked at AUTHORING_COMPLETE below.
+      job.progress = {
+        phase: "prepare",
+        stage: "authoring",
+        fraction: 0,
+        framesProcessed: null,
+        framesTotal: null,
+      };
       try {
         if (!db || !aiSecretKey || !job.generation)
           throw new Error("AI_PROVIDER_NOT_CONFIGURED");
@@ -1438,10 +1451,18 @@ export function registerWorkers(
         // restore-track render is cleared to run, and that has not
         // happened here.
         job.preparationStage = "AUTHORING_COMPLETE";
+        // Nulled, not left at fraction: 1 -- AUTHORING_COMPLETE is a
+        // finished-for-now waypoint, not a stage still in flight, and a
+        // non-null progress.stage is what made the UI's "compiler active"
+        // status line (and the scene-review chat's running-stage spinner)
+        // read as still working (I4). The next real worker phase this job
+        // reaches, whenever that batch ships, sets its own progress.
+        job.progress = null;
         job.updatedAt = new Date(now()).toISOString();
         job.etag = `\"${digest(job.updatedAt)}\"`;
       } catch {
         job.failureCode = "SCENE_AUTHORING_FAILED";
+        job.progress = null;
         transition(job, "FAILED", now);
         outcome = "FAILED";
       }
