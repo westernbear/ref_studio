@@ -15,7 +15,12 @@ import { IdempotencyStore, requestHash, safeEnvelope } from "./boundary.js";
 import type { Principal } from "./auth.js";
 import { selectInitialStartFrame } from "./refine-prompt.js";
 import type { Gate, ReviewReceipt, ReviewStore } from "./reviews.js";
-import { uploadSourcePath, type UploadStore } from "./uploads.js";
+import {
+  ownedAttachment,
+  UploadFailure,
+  uploadSourcePath,
+  type UploadStore,
+} from "./uploads.js";
 import type { WorkerStore } from "./workers.js";
 
 export const PreparationStageSchema = z.enum([
@@ -1137,6 +1142,20 @@ export function registerCreatorWorkflow(
         const generation = generationParsed?.success
           ? generationParsed.data
           : undefined;
+        if (generation) {
+          const requestTenant = tenant(request);
+          for (const attachmentId of generation.attachmentIds) {
+            try {
+              ownedAttachment(uploads, requestTenant, attachmentId);
+            } catch (error) {
+              if (error instanceof UploadFailure) {
+                fail(reply, "INVALID_REQUEST");
+                return;
+              }
+              throw error;
+            }
+          }
+        }
         // Frame selection can call out to an AI provider, so it runs before
         // the synchronous command()/idempotency block below rather than
         // inside it -- command()'s action callback is not async.

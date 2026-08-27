@@ -6,7 +6,12 @@ import {
   RUNTIME_DIGEST,
 } from "./creator-workflow.js";
 import { createReviewStore } from "./reviews.js";
-import { createUpload, finalizeUpload, type UploadStore } from "./uploads.js";
+import {
+  createAttachment,
+  createUpload,
+  finalizeUpload,
+  type UploadStore,
+} from "./uploads.js";
 
 const preflight = {
   status: "PASS",
@@ -146,6 +151,83 @@ describe("generation config on job creation", () => {
           durationSec: 4,
           aspect: "9:16",
           attachmentIds: [],
+        },
+      },
+    });
+    expect(created.statusCode).toBe(400);
+    await state.app.close();
+  });
+  it("accepts the requesting tenant's own attachment ids", async () => {
+    const state = fixture();
+    const attachment = createAttachment(
+      state.uploads,
+      "t1",
+      Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    );
+    const created = await state.app.inject({
+      method: "POST",
+      url: "/v1/jobs",
+      headers: { ...headers, "idempotency-key": "k4" },
+      payload: {
+        uploadId: state.uploadId,
+        sourceFps: 30,
+        startFrame: 0,
+        outputProfile: "vertical-1080p30",
+        generation: {
+          brief: "신발 광고",
+          durationSec: 20,
+          aspect: "9:16",
+          attachmentIds: [attachment.id],
+        },
+      },
+    });
+    expect(created.statusCode).toBe(201);
+    expect(created.json().generation.attachmentIds).toEqual([attachment.id]);
+    await state.app.close();
+  });
+  it("rejects a job whose generation.attachmentIds names another tenant's attachment", async () => {
+    const state = fixture();
+    const foreignAttachment = createAttachment(
+      state.uploads,
+      "t2",
+      Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    );
+    const created = await state.app.inject({
+      method: "POST",
+      url: "/v1/jobs",
+      headers: { ...headers, "idempotency-key": "k5" },
+      payload: {
+        uploadId: state.uploadId,
+        sourceFps: 30,
+        startFrame: 0,
+        outputProfile: "vertical-1080p30",
+        generation: {
+          brief: "신발 광고",
+          durationSec: 20,
+          aspect: "9:16",
+          attachmentIds: [foreignAttachment.id],
+        },
+      },
+    });
+    expect(created.statusCode).toBe(400);
+    await state.app.close();
+  });
+  it("rejects a job whose generation.attachmentIds names an attachment that does not exist", async () => {
+    const state = fixture();
+    const created = await state.app.inject({
+      method: "POST",
+      url: "/v1/jobs",
+      headers: { ...headers, "idempotency-key": "k6" },
+      payload: {
+        uploadId: state.uploadId,
+        sourceFps: 30,
+        startFrame: 0,
+        outputProfile: "vertical-1080p30",
+        generation: {
+          brief: "신발 광고",
+          durationSec: 20,
+          aspect: "9:16",
+          attachmentIds: ["att_does_not_exist"],
         },
       },
     });
