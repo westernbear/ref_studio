@@ -149,16 +149,20 @@ Amend the scene above to satisfy the creator's feedback. Return the complete ame
   const parsed = PatchOutputSchema.safeParse(generated.object);
   if (!parsed.success) throw new Error("PATCH_SCHEMA_INVALID");
 
-  // The canvas and the asset list are not the model's to change in a patch
-  // (see patch-scene.prompt.ts's docstring): the canvas is a
-  // job-configuration fact fixed at authoring time, and the asset list is
-  // pinned to whatever the assets phase already resolved into real bytes --
-  // this batch does not regenerate material on a patch (see the `ponytail:`
-  // comment at the gen-render call site in apps/worker). Both are pinned to
-  // the prior spec's own values regardless of what the model returned,
-  // exactly as authorScene() pins the canvas over the model's own guess.
+  // The canvas, the asset list, and the SWAP/REINTERPRET mode are not the
+  // model's to change in a patch (see patch-scene.prompt.ts's docstring):
+  // the canvas is a job-configuration fact fixed at authoring time, the
+  // asset list is pinned to whatever the assets phase already resolved into
+  // real bytes (this batch does not regenerate material on a patch -- see
+  // the `ponytail:` comment at the gen-render call site in apps/worker), and
+  // the mode was a one-time authoring-time judgment about the brief, not
+  // something plain-language iteration should be able to flip mid-stream.
+  // All three are pinned to the prior spec's own values regardless of what
+  // the model returned, exactly as authorScene() pins the canvas over the
+  // model's own guess.
   const spec: SceneSpec = {
     ...parsed.data.spec,
+    mode: params.previous.mode,
     canvas: params.previous.canvas,
     assets: params.previous.assets,
   };

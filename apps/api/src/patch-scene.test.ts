@@ -157,6 +157,15 @@ describe("patchScene", () => {
     expect(out.spec.canvas).toEqual(fixtureSpec.canvas);
   });
 
+  it("pins the mode to the prior spec's mode regardless of what the model returns", async () => {
+    const flipped: SceneSpec = { ...fixtureSpec, mode: "REINTERPRET" };
+    const generate: GeneratePatch = async () => ({
+      object: { spec: flipped, summary: "no-op" },
+    });
+    const out = await patchScene({ ...baseParams(), generate });
+    expect(out.spec.mode).toBe(fixtureSpec.mode);
+  });
+
   it("pins the asset list to the prior spec's assets regardless of what the model returns", async () => {
     const invented: SceneSpec = {
       ...fixtureSpec,
