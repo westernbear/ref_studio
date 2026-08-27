@@ -45,10 +45,11 @@ type ChatMessage =
   // the log is the record of what happened, not a spinner that tidies itself
   // away and leaves the creator wondering what the compiler did.
   | { readonly role: "stage"; readonly stage: string }
-  // Shown once, the first time the job's authored scene (Task 3.3's
-  // "author" stage) shows up on a poll -- the beat sheet is the one place
-  // the creator can read what the AI actually planned before the film gets
-  // built, so it belongs in the log next to everything else that happened.
+  // Shown once, the first time the job's authored scene shows up on a poll
+  // (scene authoring runs in the API, not as a worker phase) -- the beat
+  // sheet is the one place the creator can read what the AI actually
+  // planned before the film gets built, so it belongs in the log next to
+  // everything else that happened.
   | { readonly role: "beats"; readonly beats: readonly BeatSheetEntry[] };
 
 type Props = {

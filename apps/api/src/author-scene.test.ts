@@ -99,4 +99,48 @@ describe("authorScene", () => {
     });
     expect(out.spec.canvas.frameCount).toBe(450);
   });
+
+  it("lets the model choose SWAP for a brief that plainly asks for substitution, without pinning the mode in the prompt", async () => {
+    let capturedPrompt = "";
+    const generate: GenerateScene = async (options) => {
+      capturedPrompt = options.prompt;
+      return { object: fixtureSpec }; // fixtureSpec.mode is "SWAP"
+    };
+    const out = await authorScene({
+      ...baseParams(),
+      config: {
+        ...config,
+        brief:
+          "Keep this reference video's exact shots and pacing, but swap in our new product screenshots and logo in place of the original content.",
+      },
+      generate,
+    });
+    expect(out.spec.mode).toBe("SWAP");
+    // The prompt must ask the model to decide, not tell it the answer -- the
+    // old hardcoded instruction pinned every call to SWAP regardless of the
+    // brief, making REINTERPRET unreachable.
+    expect(capturedPrompt).not.toMatch(/Author for the "SWAP" mode/u);
+    expect(capturedPrompt).toMatch(/you decide the mode/iu);
+  });
+
+  it("lets the model choose REINTERPRET for a brief that plainly asks for a fresh take, without pinning the mode in the prompt", async () => {
+    let capturedPrompt = "";
+    const reinterpretSpec = { ...fixtureSpec, mode: "REINTERPRET" as const };
+    const generate: GenerateScene = async (options) => {
+      capturedPrompt = options.prompt;
+      return { object: reinterpretSpec };
+    };
+    const out = await authorScene({
+      ...baseParams(),
+      config: {
+        ...config,
+        brief:
+          "Ignore what happens in the reference video -- just borrow its dark neon look and mood to build a brand-new scene announcing our conference.",
+      },
+      generate,
+    });
+    expect(out.spec.mode).toBe("REINTERPRET");
+    expect(capturedPrompt).not.toMatch(/Author for the "SWAP" mode/u);
+    expect(capturedPrompt).toMatch(/you decide the mode/iu);
+  });
 });

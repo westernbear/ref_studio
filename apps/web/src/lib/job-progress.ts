@@ -20,8 +20,9 @@ export type JobProgress = {
   readonly framesProcessed: number | null;
   readonly framesTotal: number | null;
   readonly approvedGates: readonly string[];
-  // Set once the AI has authored a scene for this job (Task 3.3's "author"
-  // stage) -- null until then, and for restore-only jobs that never ask for
+  // Set once the AI has authored a scene for this job -- scene authoring
+  // runs in the API (not as a worker phase), so this shows up once that
+  // finishes; null until then, and for restore-only jobs that never ask for
   // a generated scene at all.
   readonly beatSheet: readonly BeatSheetEntry[] | null;
 };

@@ -95,7 +95,7 @@ ${JSON.stringify(params.evidence)}
 
 ## Scene mode
 
-Author for the "SWAP" mode: respect the evidence's own owners, colours, and timing wherever they do not conflict with the creator's brief below.
+You decide the mode -- the creator never picks it. Set "mode" in your output to "SWAP" or "REINTERPRET" based on what the brief below actually asks for; see the system instructions for the criteria and which way to lean when it is ambiguous.
 
 ## Attachments available
 

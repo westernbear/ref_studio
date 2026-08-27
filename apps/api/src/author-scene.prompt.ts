@@ -52,6 +52,14 @@ export const AUTHORING_SYSTEM_PROMPT = `You are the scene author for a determini
 - If the creator's brief or the evidence names a specific brand colour (a hex code, or an unambiguous colour word tied to their brand), put it in the "hero" palette slot and build the cool-to-warm progression of "cool" and "warm" around it, rather than overriding it.
 - If no brand colour is given, choose a hero colour and build a coherent cool-to-warm arc around it yourself.
 
+## Choosing SWAP vs REINTERPRET
+
+You decide the mode and report it in "mode" -- the creator never picks it. Judge the brief:
+- SWAP: the brief asks for this reference's structure, composition, motion and timing, with different content substituted in. Same shape, new material.
+- REINTERPRET: the brief asks for something new that only borrows this reference's look and mood -- a new scene composed in its style, not built on its structure.
+
+If the brief does not make the choice clear, lean SWAP. It stays closer to the measured evidence, so a wrong guess there costs less than inventing structure the evidence never had.
+
 ## Evidence fidelity by mode
 
 - In SWAP mode, the measured evidence -- owners, colours, and timing already present in the uploaded video -- is close to ground truth. Respect it: reuse the evidence's own colours and timing markers wherever they do not conflict with the brief, rather than inventing new ones.

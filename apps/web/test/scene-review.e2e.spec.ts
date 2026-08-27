@@ -15,7 +15,8 @@ test("@scene-review renders no static review evidence", async ({ page }) => {
 });
 
 // Task 3.3 gives a scene-authoring job a beat sheet (job.authoredScene) once
-// the "author" worker phase finishes; the dialogue reads it back off
+// scene authoring finishes -- authoring runs in the API itself, not as a
+// worker phase; the dialogue reads the result back off
 // GET /v1/jobs/:jobId as `beatSheet` (see apps/api/src/creator-workflow.ts's
 // projection() and apps/web/src/lib/job-progress.ts's parseJobProgress) and
 // shows it as a `role: "beats"` chat message (CompilerDialogue.tsx).
