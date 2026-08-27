@@ -241,7 +241,7 @@
   "NextStep": {
     "building": "Building it. The result will appear below, next to your reference.",
     "verifying": "Checking the result. Nearly there.",
-    "readyToRender": "The rebuild is ready. Compare it with your reference, and start the final render when it looks right.",
+    "readyToRender": "The rebuild is ready. Compare it with your reference, then press 'Make the Final Video' beside this line.",
     "buildingFinal": "Building the final video.",
     "finalCheckRunning": "Running the last check.",
     "collectDelivery": "Done. Collect the final video below.",
@@ -266,8 +266,8 @@
     "stillVerifying": "Final verification is still finishing before render can start.",
     "jobChanged": "This job changed or is not ready. Refresh and review it again.",
     "connectionInterrupted": "The connection was interrupted. Retry.",
-    "queuing": "Queuing render...",
-    "queueFinalRender": "Queue Final Render"
+    "queuing": "Making it...",
+    "queueFinalRender": "Make the Final Video"
   },
   "ProjectsNew": {
     "homeAriaLabel": "Reference Video Studio home",

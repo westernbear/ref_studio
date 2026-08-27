@@ -1292,6 +1292,7 @@ progress {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
+  flex-wrap: wrap;
   padding: var(--space-lg);
   border-bottom: 1px solid var(--color-hairline);
 }
@@ -1302,6 +1303,18 @@ progress {
   margin: 0;
   color: var(--color-ink);
   font: var(--type-body-sm);
+}
+/* The next-step line and the button it names sit together: the line says
+   press it, so it has to be within reach of the sentence rather than under
+   a 520px dialogue where it read as page furniture. */
+.dialogue-preview-toolbar .review-actions {
+  margin: 0 0 0 auto;
+  padding-top: 0;
+  border-top: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-shrink: 0;
 }
 .status-chip.is-stale {
   border-color: var(--color-accent-sunset);

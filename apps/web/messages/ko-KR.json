@@ -241,7 +241,7 @@
   "NextStep": {
     "building": "만드는 중이에요. 다 되면 아래에 원본과 나란히 보여드릴게요.",
     "verifying": "결과를 확인하는 중이에요. 곧 끝나요.",
-    "readyToRender": "재구성이 준비됐어요. 원본과 비교해 보고, 괜찮으면 최종 영상 만들기를 시작하세요.",
+    "readyToRender": "재구성이 준비됐어요. 원본과 비교해 보고, 괜찮으면 옆의 '최종 영상 만들기' 버튼을 누르세요.",
     "buildingFinal": "최종 영상을 만드는 중이에요.",
     "finalCheckRunning": "마지막 확인 중이에요.",
     "collectDelivery": "다 됐어요. 아래에서 최종 영상을 받으세요.",
@@ -266,8 +266,8 @@
     "stillVerifying": "최종 검증이 끝나야 렌더링을 시작할 수 있습니다.",
     "jobChanged": "작업이 변경됐거나 준비되지 않았습니다. 새로고침 후 다시 확인하세요.",
     "connectionInterrupted": "연결이 끊겼습니다. 재시도하세요.",
-    "queuing": "렌더링 대기열 등록 중...",
-    "queueFinalRender": "최종 렌더링 대기열 등록"
+    "queuing": "만드는 중...",
+    "queueFinalRender": "최종 영상 만들기"
   },
   "ProjectsNew": {
     "homeAriaLabel": "레퍼런스 비디오 스튜디오 홈",

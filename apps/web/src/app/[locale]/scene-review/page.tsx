@@ -187,11 +187,13 @@ export default async function SceneReviewPage({
           initialJob={initialJob}
           media={acceptedMedia}
           sourceUrl={sourceUrl}
+          renderAction={
+            state === "READY" && etag && approvedGates.includes("T4") ? (
+              <RenderJobButton jobId={jobId} etag={etag} />
+            ) : null
+          }
         />
         <div className="stitch-review-actions" data-landmark="gate-action">
-          {state === "READY" && etag && approvedGates.includes("T4") ? (
-            <RenderJobButton jobId={jobId} etag={etag} />
-          ) : null}
           {state === "COMPLETED" ? (
             <div className="review-actions">
               <a

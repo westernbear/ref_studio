@@ -1,7 +1,7 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { errorCode } from "../../../lib/api-error";
 import {
   isJobWorking,
@@ -48,9 +48,18 @@ type Props = {
   readonly initialJob: JobProgress;
   readonly media: AcceptedMedia | null;
   readonly sourceUrl: string;
+  // The "start the final video" button, handed in by the page. It lives next
+  // to the line that tells the reader to press it: a button sitting under a
+  // 520px-tall dialogue reads as page furniture, not as the next step.
+  readonly renderAction?: ReactNode;
 };
 
-export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
+export function CompilerDialogue({
+  initialJob,
+  media,
+  sourceUrl,
+  renderAction,
+}: Props) {
   const t = useTranslations("CompilerDialogue");
   const tState = useTranslations("JobState");
   const tStage = useTranslations("StageLabels");
@@ -510,6 +519,7 @@ export function CompilerDialogue({ initialJob, media, sourceUrl }: Props) {
           <p className="dialogue-next-step" aria-live="polite">
             {tNext(nextStepKey(job))}
           </p>
+          {renderAction}
         </div>
         <div className="dialogue-preview-frame" data-landmark="compare-row">
           {/* Each pane keeps its name on screen whatever it is showing. Two
