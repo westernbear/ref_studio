@@ -17,6 +17,8 @@ import { z } from "zod";
 export const MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024;
 export const MAX_CHUNK_BYTES = 8 * 1024 * 1024;
 export const UPLOAD_TTL_MS = 24 * 60 * 60 * 1000;
+export const MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024;
+export const MAX_ATTACHMENTS_PER_JOB = 20;
 
 export type UploadState =
   | "PENDING"
@@ -48,6 +50,22 @@ export type UploadRecord = {
   casPath?: string | null;
   actualBytes: number;
 };
+export type AttachmentContentType =
+  | "image/png"
+  | "image/jpeg"
+  | "image/svg+xml"
+  | "font/ttf"
+  | "font/otf"
+  | "font/woff2"
+  | "video/mp4";
+export type AttachmentRecord = {
+  readonly id: string;
+  readonly tenantId: string;
+  readonly contentType: AttachmentContentType;
+  readonly sizeBytes: number;
+  readonly bytes: Uint8Array;
+  readonly createdAt: string;
+};
 export type CasRecord = {
   readonly id: string;
   readonly tenantId: string;
@@ -61,6 +79,10 @@ export type UploadStore = {
   readonly uploads: Map<string, UploadRecord>;
   readonly cas: Map<string, CasRecord>;
   readonly casByTenantDigest: Map<string, string>;
+  // Optional (rather than required-and-empty-by-default) so every existing
+  // fixture that builds an UploadStore literal keeps compiling unchanged;
+  // createAttachment() lazily initializes this on first use.
+  attachments?: Map<string, AttachmentRecord>;
   readonly now: () => number;
   readonly stagingRoot?: string;
   readonly casRoot?: string;
@@ -95,7 +117,9 @@ export class UploadFailure extends Error {
     | "UPLOAD_EXPIRED"
     | "UPLOAD_NOT_ABORTABLE"
     | "RESOURCE_NOT_FOUND"
-    | "TENANT_BOUNDARY_BYPASS";
+    | "TENANT_BOUNDARY_BYPASS"
+    | "ATTACHMENT_TYPE_INVALID"
+    | "ATTACHMENT_SIZE_LIMIT_EXCEEDED";
   constructor(code: UploadFailure["code"]) {
     super(code);
     this.code = code;
@@ -475,3 +499,87 @@ export function cleanupExpiredUploads(store: UploadStore): number {
 
 export const uploadSourcePath = (upload: UploadRecord): string | undefined =>
   upload.casPath ?? upload.stagingPath;
+
+// Brand attachments (logos, fonts, brand video) that a generation brief
+// references by id. These are job *inputs*, uploaded before a job exists,
+// so they share the upload store rather than living alongside job output
+// artifacts. The declared content-type header is client-controlled and is
+// therefore never trusted for the accept/reject decision below -- only the
+// bytes on the wire are.
+const PNG_MAGIC = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+const JPEG_MAGIC = [0xff, 0xd8, 0xff];
+const OTF_MAGIC = [0x4f, 0x54, 0x54, 0x4f]; // "OTTO"
+const TTF_MAGIC = [0x00, 0x01, 0x00, 0x00];
+const WOFF2_MAGIC = [0x77, 0x4f, 0x46, 0x32]; // "wOF2"
+
+const startsWithMagic = (bytes: Uint8Array, magic: readonly number[]): boolean =>
+  magic.length <= bytes.length &&
+  magic.every((byte, index) => bytes[index] === byte);
+
+const isMp4Attachment = (bytes: Uint8Array): boolean =>
+  bytes.length >= 8 &&
+  String.fromCharCode(...bytes.subarray(4, 8)) === "ftyp";
+
+const isSvgAttachment = (bytes: Uint8Array): boolean => {
+  const head = Buffer.from(bytes.subarray(0, Math.min(bytes.length, 512)))
+    .toString("utf8")
+    .trimStart()
+    .toLowerCase();
+  return head.startsWith("<?xml") || head.startsWith("<svg");
+};
+
+const detectAttachmentContentType = (
+  bytes: Uint8Array,
+): AttachmentContentType | null => {
+  if (startsWithMagic(bytes, PNG_MAGIC)) return "image/png";
+  if (startsWithMagic(bytes, JPEG_MAGIC)) return "image/jpeg";
+  if (startsWithMagic(bytes, OTF_MAGIC)) return "font/otf";
+  if (startsWithMagic(bytes, WOFF2_MAGIC)) return "font/woff2";
+  if (startsWithMagic(bytes, TTF_MAGIC)) return "font/ttf";
+  if (isMp4Attachment(bytes)) return "video/mp4";
+  if (isSvgAttachment(bytes)) return "image/svg+xml";
+  return null;
+};
+
+export function createAttachment(
+  store: UploadStore,
+  tenantId: string,
+  bytes: Uint8Array,
+): AttachmentRecord {
+  if (!(bytes instanceof Uint8Array) || bytes.byteLength < 1)
+    throw new UploadFailure("INVALID_REQUEST");
+  if (bytes.byteLength > MAX_ATTACHMENT_BYTES)
+    throw new UploadFailure("ATTACHMENT_SIZE_LIMIT_EXCEEDED");
+  const contentType = detectAttachmentContentType(bytes);
+  if (!contentType) throw new UploadFailure("ATTACHMENT_TYPE_INVALID");
+  const attachments = store.attachments ?? new Map<string, AttachmentRecord>();
+  store.attachments = attachments;
+  const record: AttachmentRecord = {
+    id: id("att"),
+    tenantId,
+    contentType,
+    sizeBytes: bytes.byteLength,
+    bytes,
+    createdAt: new Date(store.now()).toISOString(),
+  };
+  attachments.set(record.id, record);
+  return record;
+}
+
+export const ownedAttachment = (
+  store: UploadStore,
+  tenantId: string,
+  attachmentId: string,
+): AttachmentRecord => {
+  const attachment = store.attachments?.get(attachmentId);
+  if (!attachment) throw new UploadFailure("RESOURCE_NOT_FOUND");
+  if (attachment.tenantId !== tenantId) {
+    store.audit?.({
+      action: "ATTACHMENT_TENANT_DENIED",
+      tenantId,
+      decision: "DENIED",
+    });
+    throw new UploadFailure("RESOURCE_NOT_FOUND");
+  }
+  return attachment;
+};

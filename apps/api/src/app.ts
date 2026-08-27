@@ -31,9 +31,11 @@ import { decodeCookieValue } from "./admin-auth.js";
 import {
   abortUpload,
   cleanupExpiredUploads,
+  createAttachment,
   createUpload,
   FinalizeUploadSchema,
   getUpload,
+  MAX_ATTACHMENT_BYTES,
   MAX_CHUNK_BYTES,
   putChunk,
   UploadFailure,
@@ -131,7 +133,10 @@ const failure = (
         ? 404
         : result.code === "UPLOAD_EXPIRED"
           ? 410
-          : result.code === "VIDEO_TYPE_INVALID" ||
+          : result.code === "ATTACHMENT_TYPE_INVALID" ||
+              result.code === "ATTACHMENT_SIZE_LIMIT_EXCEEDED"
+            ? 400
+            : result.code === "VIDEO_TYPE_INVALID" ||
               result.code === "VIDEO_SIZE_LIMIT_EXCEEDED" ||
               result.code === "INVALID_REQUEST" ||
               result.code === "UPLOAD_QUARANTINED" ||
@@ -489,6 +494,50 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
     app.post("/v1/uploads/cleanup", async (_request, reply) => {
       reply.send({ removed: cleanupExpiredUploads(uploads) });
     });
+    app.post(
+      "/v1/attachments",
+      // Fastify's own body-size cutoff must sit above our declared
+      // per-attachment limit, or an oversized upload gets fastify's generic
+      // 413 instead of the ATTACHMENT_SIZE_LIMIT_EXCEEDED error below.
+      { bodyLimit: MAX_ATTACHMENT_BYTES + 1024 },
+      async (request, reply) => {
+        try {
+          const tenantId = header(request, "x-tenant-id") ?? "";
+          const key = header(request, "idempotency-key");
+          if (!key) throw new UploadFailure("INVALID_REQUEST");
+          const body = request.body;
+          const bytes =
+            body instanceof Uint8Array
+              ? body
+              : typeof body === "string"
+                ? Buffer.from(body)
+                : (() => {
+                    throw new UploadFailure("INVALID_REQUEST");
+                  })();
+          const replay = idempotency.execute(
+            "attachment-create",
+            key,
+            requestHash(Buffer.from(bytes).toString("base64")),
+            tenantId,
+            () => {
+              const attachment = createAttachment(uploads, tenantId, bytes);
+              return [201, { attachmentId: attachment.id }];
+            },
+          );
+          reply.code(replay.response[0]).send(replay.response[1]);
+        } catch (error) {
+          if (error instanceof UploadFailure) {
+            failure(reply, error);
+            return;
+          }
+          if (error instanceof Error && error.message === "INVALID_REQUEST") {
+            failure(reply, new UploadFailure("INVALID_REQUEST"));
+            return;
+          }
+          throw error;
+        }
+      },
+    );
     app.put(
       "/v1/uploads/:id/chunks/:index",
       async (
