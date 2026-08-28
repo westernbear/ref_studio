@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { fixtureSpec } from "./scene-spec.fixture.js";
 import {
   SceneSpecSchema,
+  SPEC_ASSET_FORMS,
   SPEC_TEXT_WEIGHTS,
   SPEC_TEXT_WEIGHT_AXIS,
 } from "./scene-spec.js";
@@ -50,6 +51,24 @@ describe("SceneSpecSchema", () => {
       expect(() =>
         SceneSpecSchema.parse(withFirstElement({ weight })),
       ).toThrow();
+  });
+
+  it("accepts each named asset form", () => {
+    for (const form of SPEC_ASSET_FORMS) {
+      const next = JSON.parse(JSON.stringify(fixtureSpec)) as {
+        assets: Record<string, unknown>[];
+      };
+      Object.assign(next.assets[0]!, { form });
+      expect(() => SceneSpecSchema.parse(next)).not.toThrow();
+    }
+  });
+
+  it("rejects an asset form outside the named set", () => {
+    const next = JSON.parse(JSON.stringify(fixtureSpec)) as {
+      assets: Record<string, unknown>[];
+    };
+    Object.assign(next.assets[0]!, { form: "sculpture" });
+    expect(() => SceneSpecSchema.parse(next)).toThrow();
   });
 
   it("maps every named weight to a real point on the font's 400-1000 axis", () => {

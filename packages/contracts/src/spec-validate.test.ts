@@ -128,6 +128,40 @@ describe("validateSceneSpec", () => {
     expect(() => validateSceneSpec(bad, ok)).toThrow(/EXTERNAL_URL/);
   });
 
+  // `form` describes how material is *made*, so it only says anything
+  // about an asset the studio makes. An attachment is already whatever the
+  // creator uploaded, and evidence carries no pixels at all.
+  it("rejects an object-form asset that is not generated", () => {
+    const bad = withAsset(fixtureSpec, {
+      assetId: "gen1",
+      kind: "image",
+      origin: "attachment",
+      ref: "attachment://att_1",
+      form: "object",
+    });
+    expect(() => validateSceneSpec(bad, new Set([...ok, "gen1"]))).toThrow(
+      /ASSET_FORM_NOT_GENERATED/,
+    );
+  });
+
+  it("accepts an object-form generated asset", () => {
+    const good = withAsset(fixtureSpec, {
+      assetId: "gen1",
+      kind: "image",
+      origin: "generated",
+      ref: "generated://gen1",
+      form: "object",
+      provenance: {
+        tool: "author-declared",
+        prompt: "a matte black handset, three-quarter view",
+        sha256: "0".repeat(64),
+      },
+    });
+    expect(validateSceneSpec(good, new Set([...ok, "gen1"])).assets).toHaveLength(
+      3,
+    );
+  });
+
   it("rejects a generated asset with no provenance", () => {
     const bad = withAsset(fixtureSpec, {
       assetId: "gen1",

@@ -34,7 +34,50 @@ const attachmentAsset: SpecAsset = {
   ref: "attachment://att_1",
 };
 
+const generatedAsset = (form?: "flat" | "object"): SpecAsset => ({
+  assetId: "gen1",
+  kind: "image",
+  origin: "generated",
+  ref: "generated://gen1",
+  ...(form ? { form } : {}),
+  provenance: {
+    tool: "author-declared",
+    prompt: "a matte black handset, three-quarter view",
+    sha256: "0".repeat(64),
+  },
+});
+
 describe("planSceneAssets", () => {
+  // The plan is what the worker's provider seam reads, so "this asset is a
+  // rendered three-dimensional object" has to survive planning to reach a
+  // provider at all.
+  it("carries a generated asset's form through to its source", () => {
+    const plan = planSceneAssets(
+      specWith([generatedAsset("object")], ["gen1"]),
+      {
+        attachmentIds: [],
+      },
+    );
+    expect(plan.required[0]?.source).toEqual({
+      origin: "generated",
+      prompt: "a matte black handset, three-quarter view",
+      seed: null,
+      form: "object",
+    });
+  });
+
+  it("defaults a generated asset with no form to flat", () => {
+    const plan = planSceneAssets(specWith([generatedAsset()], ["gen1"]), {
+      attachmentIds: [],
+    });
+    expect(plan.required[0]?.source).toEqual({
+      origin: "generated",
+      prompt: "a matte black handset, three-quarter view",
+      seed: null,
+      form: "flat",
+    });
+  });
+
   it("resolves an element-referenced attachment asset to its attachment id", () => {
     const plan = planSceneAssets(specWith([attachmentAsset], ["logo"]), {
       attachmentIds: ["att_1"],
@@ -164,6 +207,7 @@ describe("planSceneAssets", () => {
           origin: "generated",
           prompt: "a dark studio backdrop",
           seed: 7,
+          form: "flat",
         },
       },
     ]);

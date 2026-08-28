@@ -1,4 +1,4 @@
-import type { SceneSpec, SpecAsset } from "./scene-spec.js";
+import type { SceneSpec, SpecAsset, SpecAssetForm } from "./scene-spec.js";
 
 // Which of a SceneSpec's assets still have to be turned into real bytes
 // before the scene can be rendered, and where each one's bytes come from.
@@ -31,7 +31,15 @@ export type MaterialKind = "image" | "video" | "font";
 
 export type SceneAssetSource =
   | Readonly<{ origin: "attachment"; attachmentId: string }>
-  | Readonly<{ origin: "generated"; prompt: string; seed: number | null }>;
+  | Readonly<{
+      origin: "generated";
+      prompt: string;
+      seed: number | null;
+      // Normalised here rather than left optional, so every consumer of a
+      // plan answers "flat or object?" the same way instead of each one
+      // re-deciding what an absent field meant.
+      form: SpecAssetForm;
+    }>;
 
 export type RequiredSceneAsset = Readonly<{
   assetId: string;
@@ -90,7 +98,12 @@ const sourceFor = (asset: SpecAsset): SceneAssetSource => {
   const prompt = asset.provenance?.prompt;
   if (!prompt)
     throw new SceneAssetError("ASSET_GENERATED_WITHOUT_PROMPT", asset.assetId);
-  return { origin: "generated", prompt, seed: asset.provenance?.seed ?? null };
+  return {
+    origin: "generated",
+    prompt,
+    seed: asset.provenance?.seed ?? null,
+    form: asset.form ?? "flat",
+  };
 };
 
 export function planSceneAssets(
