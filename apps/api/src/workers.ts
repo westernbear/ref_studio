@@ -1977,7 +1977,22 @@ export function registerWorkers(
         job.progress = null;
         job.updatedAt = new Date(now()).toISOString();
         job.etag = `\"${digest(job.updatedAt)}\"`;
-      } catch {
+      } catch (error) {
+        // The job only ever recorded SCENE_AUTHORING_FAILED, which is true
+        // of an unconfigured provider, an unreachable model, an
+        // unresolvable attachment and a spec that failed validation alike
+        // -- diagnosing a live failure meant dumping the database and
+        // guessing. The reason the throw carried is the one piece of
+        // information that separates them, so log it.
+        console.error(
+          JSON.stringify({
+            event: "api.authoring.failed",
+            jobId: request.params.jobId,
+            errorName: error instanceof Error ? error.name : typeof error,
+            errorMessage:
+              error instanceof Error ? error.message : String(error),
+          }),
+        );
         job.failureCode = "SCENE_AUTHORING_FAILED";
         job.progress = null;
         transition(job, "FAILED", now);

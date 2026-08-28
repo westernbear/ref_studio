@@ -41,6 +41,9 @@ export const ErrorCodes = [
   "ATTACHMENT_SIZE_LIMIT_EXCEEDED",
   "ATTACHMENT_COUNT_LIMIT_EXCEEDED",
   "ATTACHMENT_QUOTA_EXCEEDED",
+  // Same trap as the four above: a code the client is meant to act on has
+  // to be in this enum or normalizeError flattens it to INTERNAL_ERROR.
+  "AI_PROVIDER_NOT_CONFIGURED",
   "INTERNAL_ERROR",
   "RUNTIME_PREREQUISITE_MISSING",
   "WORKER_TRANSIENT_FAILURE",

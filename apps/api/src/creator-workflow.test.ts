@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { buildAuthApp } from "./app.js";
 import { hashBearer, type Assignment, type AuthStore } from "./auth.js";
@@ -5,6 +8,8 @@ import {
   createCreatorWorkflowStore,
   RUNTIME_DIGEST,
 } from "./creator-workflow.js";
+import { updateAiProviderSettings } from "./ai-provider-settings.js";
+import { openApiDatabase } from "./durable-state.js";
 import { createReviewStore } from "./reviews.js";
 import {
   createAttachment,
@@ -27,7 +32,7 @@ const preflight = {
   runtimeDigest: RUNTIME_DIGEST,
 } as const;
 
-const fixture = () => {
+const fixture = (db?: ReturnType<typeof openApiDatabase>) => {
   const assignments: Assignment[] = (
     ["T1", "T2", "T3", "T4", "T5"] as const
   ).map((gate) => ({
@@ -87,6 +92,7 @@ const fixture = () => {
     creatorWorkflow: workflow,
     reviews,
     now: uploads.now,
+    ...(db ? { db, aiSecretKey: "secret" } : {}),
   });
   return { app, uploads, workflow, reviews, uploadId: upload.id };
 };
@@ -233,5 +239,96 @@ describe("generation config on job creation", () => {
     });
     expect(created.statusCode).toBe(400);
     await state.app.close();
+  });
+});
+
+// A generate-track job that reaches authoring with no AI provider fails
+// there, ten minutes in, after analysis, compilation, the evidence video
+// and the preview have all run -- and the only thing the creator sees is
+// "this job has ended". The refusal belongs at the moment the job is
+// created, where it can name its own cause.
+describe("the generate track refuses up front without an AI provider", () => {
+  const withDb = (
+    fn: (db: ReturnType<typeof openApiDatabase>) => Promise<void>,
+  ) =>
+    (async () => {
+      const directory = mkdtempSync(join(tmpdir(), "rvs-creator-workflow-ai-"));
+      const db = openApiDatabase(join(directory, "app.sqlite"));
+      try {
+        await fn(db);
+      } finally {
+        db.close();
+        rmSync(directory, { recursive: true, force: true });
+      }
+    })();
+  const payloadFor = (uploadId: string) => ({
+    uploadId,
+    sourceFps: 30,
+    startFrame: 0,
+    outputProfile: "vertical-1080p30",
+    generation: {
+      brief: "신발 광고",
+      durationSec: 20,
+      aspect: "9:16",
+      attachmentIds: [],
+    },
+  });
+
+  it("rejects a generation brief when the provider is off", async () => {
+    await withDb(async (db) => {
+      const state = fixture(db);
+      const created = await state.app.inject({
+        method: "POST",
+        url: "/v1/jobs",
+        headers: { ...headers, "idempotency-key": "ai1" },
+        payload: payloadFor(state.uploadId),
+      });
+      expect(created.statusCode).toBe(400);
+      expect(created.json().error.code).toBe("AI_PROVIDER_NOT_CONFIGURED");
+      await state.app.close();
+    });
+  });
+
+  it("still accepts a restore-track job with the provider off", async () => {
+    await withDb(async (db) => {
+      const state = fixture(db);
+      const { generation: _generation, ...restore } = payloadFor(
+        state.uploadId,
+      );
+      const created = await state.app.inject({
+        method: "POST",
+        url: "/v1/jobs",
+        headers: { ...headers, "idempotency-key": "ai2" },
+        payload: restore,
+      });
+      expect(created.statusCode).toBe(201);
+      await state.app.close();
+    });
+  });
+
+  it("accepts a generation brief once the provider is enabled", async () => {
+    await withDb(async (db) => {
+      updateAiProviderSettings(
+        db,
+        {
+          providerKind: "google",
+          model: "gemini-3-flash-preview",
+          apiKey: "key-secret",
+          enabled: true,
+        },
+        "usr_platform",
+        1_000,
+        "secret",
+      );
+      const state = fixture(db);
+      const created = await state.app.inject({
+        method: "POST",
+        url: "/v1/jobs",
+        headers: { ...headers, "idempotency-key": "ai3" },
+        payload: payloadFor(state.uploadId),
+      });
+      expect(created.statusCode).toBe(201);
+      await state.app.close();
+    });
   });
 });

@@ -11,6 +11,7 @@ import {
   GenerationConfigSchema,
   type GenerationConfig,
 } from "../../../packages/contracts/src/generation.js";
+import { getAiProviderSettings } from "./ai-provider-settings.js";
 import type { AuthoredScene } from "./author-scene.js";
 import { IdempotencyStore, requestHash, safeEnvelope } from "./boundary.js";
 import type { Principal } from "./auth.js";
@@ -1262,6 +1263,20 @@ export function registerCreatorWorkflow(
           ? generationParsed.data
           : undefined;
         if (generation) {
+          // The generate track cannot finish without an AI provider: the
+          // authoring stage calls one, and authorScene fails closed when
+          // there is none. Checking here rather than only there turns a
+          // ten-minute wait -- analysis, compilation, evidence video and
+          // preview all run first -- into an immediate, nameable refusal.
+          // Skipped when aiFrameSelection is absent (tests construct the
+          // app without a database); authoring still fails closed there.
+          if (aiFrameSelection) {
+            const ai = getAiProviderSettings(aiFrameSelection.db);
+            if (!ai.enabled || !ai.hasApiKey) {
+              fail(reply, "AI_PROVIDER_NOT_CONFIGURED");
+              return;
+            }
+          }
           const requestTenant = tenant(request);
           for (const attachmentId of generation.attachmentIds) {
             try {

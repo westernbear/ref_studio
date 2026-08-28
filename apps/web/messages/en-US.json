@@ -352,6 +352,7 @@
       "attachmentSizeLimitExceeded": "One of your reference files is larger than the 20 MB per-file limit.",
       "attachmentCountLimitExceeded": "You've reached the limit on reference files for this account.",
       "attachmentQuotaExceeded": "You've reached the total size limit for reference files on this account.",
+      "aiProviderNotConfigured": "A new film cannot be authored while the AI provider is off. Turn it on and set an API key in admin settings.",
       "requestFailed": "The request could not be completed. Retry."
     },
     "cancelChooseAnother": "Cancel / choose another",

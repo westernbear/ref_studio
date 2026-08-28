@@ -45,6 +45,7 @@ type ReasonKey =
   | "attachmentSizeLimitExceeded"
   | "attachmentCountLimitExceeded"
   | "attachmentQuotaExceeded"
+  | "aiProviderNotConfigured"
   | "requestFailed";
 
 const safeReasonKey = (error: unknown): ReasonKey => {
@@ -68,6 +69,7 @@ const safeReasonKey = (error: unknown): ReasonKey => {
     ATTACHMENT_SIZE_LIMIT_EXCEEDED: "attachmentSizeLimitExceeded",
     ATTACHMENT_COUNT_LIMIT_EXCEEDED: "attachmentCountLimitExceeded",
     ATTACHMENT_QUOTA_EXCEEDED: "attachmentQuotaExceeded",
+    AI_PROVIDER_NOT_CONFIGURED: "aiProviderNotConfigured",
   };
   return reasons[code] ?? "requestFailed";
 };
@@ -85,7 +87,12 @@ const STATE_KEYS: Readonly<Record<WorkflowState, string>> = {
   created: "ready",
 };
 
-const PREFLIGHT_CHECKS = ["codecCheck", "fpsStability", "duration", "audioTrack"] as const;
+const PREFLIGHT_CHECKS = [
+  "codecCheck",
+  "fpsStability",
+  "duration",
+  "audioTrack",
+] as const;
 const DURATION_OPTIONS = [15, 20, 25, 30] as const;
 const ASPECT_OPTIONS: readonly Aspect[] = ["9:16", "1:1", "16:9"];
 
@@ -303,7 +310,9 @@ export default function NewProjectPage() {
                 <p className="eyebrow">{t("step01")}</p>
                 <h2 id="upload-title">{t("videoSource")}</h2>
               </div>
-              <span className="status-chip">{t(`state.${STATE_KEYS[state]}`)}</span>
+              <span className="status-chip">
+                {t(`state.${STATE_KEYS[state]}`)}
+              </span>
             </div>
             <label
               data-control-id="upload_validation:8"
@@ -382,7 +391,9 @@ export default function NewProjectPage() {
                 <option value="restore">{t("trackOption.restore")}</option>
                 <option value="generate">{t("trackOption.generate")}</option>
               </select>
-              <label htmlFor="creative-prompt">{t("creativeIntentLabel")}</label>
+              <label htmlFor="creative-prompt">
+                {t("creativeIntentLabel")}
+              </label>
               <textarea
                 id="creative-prompt"
                 placeholder={t("creativeIntentPlaceholder")}
