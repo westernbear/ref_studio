@@ -611,7 +611,7 @@ export function registerAdminRead(
             providerKind: settings.providerKind,
             apiKey: settings.apiKey,
             baseUrl: "baseUrl" in settings ? (settings.baseUrl ?? null) : null,
-            requireTextGeneration: forAi,
+            capability: forAi ? "text" : "image",
           });
           reply.send({ models, reason: null });
         } catch (cause) {

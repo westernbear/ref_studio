@@ -724,7 +724,7 @@ export function registerAdminMutation(
               providerKind,
               apiKey,
               baseUrl,
-              requireTextGeneration: forAi,
+              capability: forAi ? "text" : "image",
             }),
             reason: null,
           });

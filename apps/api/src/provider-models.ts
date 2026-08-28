@@ -67,15 +67,37 @@ const OPENAI_COMPATIBLE_BASE: Readonly<Record<string, string>> = {
   moonshotai: "https://api.moonshot.ai/v1",
 };
 
+// What the model is being chosen for. Both settings pages ask the same
+// provider the same question and get one undifferentiated list back: an
+// image model in the scene-authoring field is what produced "not supported
+// for generateContent" eleven minutes into a job, and a text model in the
+// image-generator field is the same mistake facing the other way.
+export type ModelCapability = "text" | "image";
+
 export type ProviderModelsRequest = Readonly<{
   providerKind: string;
   apiKey: string;
   baseUrl: string | null;
-  // Only the AI provider needs this filter; the material provider's models
-  // are image models and its listing is not filtered at all.
-  requireTextGeneration?: boolean;
+  capability: ModelCapability;
   fetch?: ModelsFetch;
 }>;
+
+// The image models reachable through the Codex OAuth path. Listed here
+// because that path has no model-listing endpoint of its own -- it is the
+// Codex client's backend, not a catalogue -- so the alternative is an empty
+// picker on a provider that plainly does have models. A short static list
+// that goes stale is honest about what it is; "type a name" is still the
+// last option in the picker for anything newer.
+export const CODEX_IMAGE_MODELS: readonly string[] = [
+  "gpt-image-2",
+  "gpt-image-1",
+];
+
+// OpenAI's /v1/models says nothing about what a model can do, so an image
+// field would otherwise offer every text model it has. Matching on the id
+// is a heuristic and openly one; it is the difference between a usable
+// picker and a hundred wrong answers, and free text covers what it misses.
+const IMAGE_MODEL_ID = /^(gpt-image|dall-e|imagen)/u;
 
 const parse = <T>(schema: z.ZodType<T>, body: string): T => {
   let value: unknown;
@@ -108,6 +130,8 @@ export async function listProviderModels(
     return response.text();
   };
 
+  if (request.providerKind === "codex-oauth") return [...CODEX_IMAGE_MODELS];
+
   if (request.providerKind === "google") {
     const base =
       request.baseUrl ?? "https://generativelanguage.googleapis.com/v1beta";
@@ -119,7 +143,7 @@ export async function listProviderModels(
       parse(GoogleListing, body)
         .models.filter(
           (model) =>
-            !request.requireTextGeneration ||
+            request.capability !== "text" ||
             // Absent means the provider did not say; kept rather than
             // dropped, because hiding a usable model is the worse error.
             model.supportedGenerationMethods === undefined ||
@@ -147,5 +171,10 @@ export async function listProviderModels(
   const body = await read(`${base.replace(/\/+$/u, "")}/models`, {
     authorization: `Bearer ${request.apiKey}`,
   });
-  return sorted(parse(OpenAiListing, body).data.map((model) => model.id));
+  const ids = parse(OpenAiListing, body).data.map((model) => model.id);
+  return sorted(
+    request.capability === "image"
+      ? ids.filter((id) => IMAGE_MODEL_ID.test(id))
+      : ids,
+  );
 }

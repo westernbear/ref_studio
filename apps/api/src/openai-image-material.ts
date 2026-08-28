@@ -168,13 +168,18 @@ export async function generateImageMaterial(params: {
   let result: Awaited<ReturnType<GenerateImage>>;
   let tool: string;
   if (settings.providerKind === "codex-oauth") {
-    tool = `codex-oauth:${CODEX_IMAGE_MODEL}`;
+    // The console's model, when it names one -- the picker offers only
+    // models this path can actually run, so an operator who chose one gets
+    // that one, and the provenance says which.
+    const codexModel = settings.model || CODEX_IMAGE_MODEL;
+    tool = `codex-oauth:${codexModel}`;
     let generated: Awaited<ReturnType<typeof generateCodexImage>>;
     try {
       generated = await (params.generateCodex ?? generateCodexImage)({
         auth: parseCodexAuth(settings.apiKey),
         prompt: params.prompt,
         size,
+        model: codexModel,
       });
     } catch (cause) {
       // A malformed or revoked credential is not the same failure as a

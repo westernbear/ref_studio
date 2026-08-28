@@ -229,6 +229,39 @@ describe("generateImageMaterial", () => {
 // arrive -- the transparency check, the hash, the provenance -- is shared,
 // because "did we get compositable material" is the same question.
 describe("the codex-oauth path", () => {
+  // The console's model field was ignored on this path: an operator could
+  // pick a model and watch a different one produce the asset, which makes
+  // a picker worse than none.
+  it("runs the model the console configured, and says so in provenance", async () => {
+    await withDb(async (db) => {
+      updateMaterialProviderSettings(
+        db,
+        {
+          providerKind: "codex-oauth",
+          model: "gpt-image-1",
+          apiKey: CODEX_AUTH,
+          enabled: true,
+        },
+        "admin-1",
+        1_000,
+        "secret-key-material",
+      );
+      let sawModel: string | undefined;
+      const material = await generateImageMaterial({
+        db,
+        aiSecretKey: "secret-key-material",
+        prompt: "x",
+        canvas,
+        generateCodex: async (options) => {
+          sawModel = options.model;
+          return { b64: rgbaPng.toString("base64") };
+        },
+      });
+      expect(sawModel).toBe("gpt-image-1");
+      expect(material.provenance.tool).toBe("codex-oauth:gpt-image-1");
+    });
+  });
+
   it("generates through the codex seam and names it in provenance", async () => {
     await withDb(async (db) => {
       enableCodexProvider(db);

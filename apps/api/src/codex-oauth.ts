@@ -34,9 +34,11 @@ export const CODEX_TOKEN_URL = "https://auth.openai.com/oauth/token";
 // the application, not the account, and the refresh token is what carries
 // the authority.
 export const CODEX_CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann";
-// The image model the Responses image_generation tool runs. Named here
-// rather than taken from the console's `model` field, which addresses the
-// responses model, not the image one.
+// The image model the Responses image_generation tool runs when the
+// console names none. It is a fallback, not a constant: the console's model
+// field was ignored on this path, so an operator could pick a model and
+// watch a different one produce the asset -- and the picker offering
+// choices that changed nothing was worse than no picker.
 export const CODEX_IMAGE_MODEL = "gpt-image-2";
 
 // The shape the Codex CLI writes. Only `tokens` is load-bearing here;
@@ -209,11 +211,12 @@ export async function generateCodexImage(params: {
   readonly auth: CodexAuth;
   readonly prompt: string;
   readonly size: "1024x1024" | "1536x1024" | "1024x1536";
+  readonly model?: string;
   readonly request?: CodexFetch;
 }): Promise<CodexImageResult> {
   const request = params.request ?? defaultCodexFetch;
   const body = JSON.stringify({
-    model: CODEX_IMAGE_MODEL,
+    model: params.model || CODEX_IMAGE_MODEL,
     input: params.prompt,
     stream: true,
     tools: [

@@ -23,6 +23,7 @@ describe("listing a provider's models", () => {
         providerKind: "openai",
         apiKey: "sk-test",
         baseUrl: null,
+        capability: "text",
         fetch: fetchModels,
       }),
     ).toEqual(["gpt-4o", "gpt-5"]);
@@ -41,6 +42,7 @@ describe("listing a provider's models", () => {
         providerKind: "anthropic",
         apiKey: "sk-ant",
         baseUrl: null,
+        capability: "text",
         fetch: fetchModels,
       }),
     ).toEqual(["claude-sonnet-5"]);
@@ -64,6 +66,7 @@ describe("listing a provider's models", () => {
         providerKind: "google",
         apiKey: "key",
         baseUrl: null,
+        capability: "text",
         fetch: fetchModels,
       }),
     ).toEqual(["gemini-3-flash-preview"]);
@@ -92,7 +95,7 @@ describe("listing a provider's models", () => {
         providerKind: "google",
         apiKey: "key",
         baseUrl: null,
-        requireTextGeneration: true,
+        capability: "text",
         fetch: fetchModels,
       }),
     ).toEqual(["gemini-3-flash-preview"]);
@@ -108,7 +111,7 @@ describe("listing a provider's models", () => {
         providerKind: "google",
         apiKey: "key",
         baseUrl: null,
-        requireTextGeneration: true,
+        capability: "text",
         fetch: fetchModels,
       }),
     ).toEqual(["gemini-new"]);
@@ -124,6 +127,7 @@ describe("listing a provider's models", () => {
       providerKind: "openai-compatible",
       apiKey: "k",
       baseUrl: "https://llm.internal/v1/",
+      capability: "text",
       fetch: fetchModels,
     });
     expect(url).toBe("https://llm.internal/v1/models");
@@ -138,6 +142,7 @@ describe("listing a provider's models", () => {
         providerKind: "openai-compatible",
         apiKey: "k",
         baseUrl: null,
+        capability: "text",
         fetch: () => reply(200, { data: [] }),
       }),
     ).rejects.toThrow(/PROVIDER_MODELS_UNSUPPORTED/);
@@ -149,6 +154,7 @@ describe("listing a provider's models", () => {
         providerKind: "openai",
         apiKey: "bad",
         baseUrl: null,
+        capability: "text",
         fetch: () => reply(401, "unauthorized"),
       }),
     ).rejects.toThrow(/PROVIDER_MODELS_REQUEST_FAILED_401/);
@@ -160,6 +166,7 @@ describe("listing a provider's models", () => {
         providerKind: "openai",
         apiKey: "k",
         baseUrl: null,
+        capability: "text",
         fetch: () => reply(200, "<html>a proxy login page</html>"),
       }),
     ).rejects.toBeInstanceOf(ProviderModelsError);
@@ -175,8 +182,54 @@ describe("listing a provider's models", () => {
         providerKind: "openai",
         apiKey: "k",
         baseUrl: null,
+        capability: "text",
         fetch: fetchModels,
       }),
     ).toEqual(["a", "b", "c"]);
+  });
+});
+
+// The mirror of the bug above, facing the other way: the image generator's
+// picker offering every text model the provider has.
+describe("listing image models", () => {
+  it("keeps only image models out of an OpenAI listing", async () => {
+    const fetchModels: ModelsFetch = () =>
+      reply(200, {
+        data: [
+          { id: "gpt-5" },
+          { id: "gpt-image-2" },
+          { id: "dall-e-3" },
+          { id: "text-embedding-3-large" },
+          { id: "gpt-4o" },
+        ],
+      });
+    expect(
+      await listProviderModels({
+        providerKind: "openai",
+        apiKey: "k",
+        baseUrl: null,
+        capability: "image",
+        fetch: fetchModels,
+      }),
+    ).toEqual(["dall-e-3", "gpt-image-2"]);
+  });
+
+  // The Codex OAuth path talks to the Codex client's backend, which is not
+  // a catalogue -- there is nothing to list. An empty picker on a provider
+  // that plainly does have models is worse than a short static one.
+  it("offers the known set for codex-oauth, which has no listing endpoint", async () => {
+    let called = false;
+    const models = await listProviderModels({
+      providerKind: "codex-oauth",
+      apiKey: "auth-json",
+      baseUrl: null,
+      capability: "image",
+      fetch: () => {
+        called = true;
+        return reply(200, { data: [] });
+      },
+    });
+    expect(models).toContain("gpt-image-2");
+    expect(called).toBe(false);
   });
 });
