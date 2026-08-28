@@ -8,6 +8,7 @@ import { verifyPassword, type AuthStore } from "./auth.js";
 import { IdempotencyStore } from "./boundary.js";
 import {
   createCreatorWorkflowStore,
+  PreparationStageSchema,
   RUNTIME_DIGEST,
   type Job,
 } from "./creator-workflow.js";
@@ -19,7 +20,11 @@ import {
   putChunk,
   type UploadStore,
 } from "./uploads.js";
-import { createWorkerStore, hashWorkerToken } from "./workers.js";
+import {
+  createWorkerStore,
+  hashWorkerToken,
+  WorkerPhaseSchema,
+} from "./workers.js";
 
 const sha256 = (value: Uint8Array): string =>
   createHash("sha256").update(value).digest("hex");
@@ -443,5 +448,63 @@ describe("SQLite runtime durability", () => {
     );
     recoveredDb.close();
     rmSync(root, { recursive: true, force: true });
+  });
+});
+
+// The schema's CHECK lists and the TypeScript enums drift silently: a new
+// preparation stage or worker phase is a one-line Zod edit, the suite stays
+// green because nothing here persisted the new value, and production dies
+// on `CHECK constraint failed` the first time a real job reaches it. That
+// is exactly how AUTHORING_QUEUED, `assets`, `gen-render` and
+// GENERATED_ASSET shipped without migration 013. Assert the database
+// accepts every value the code can produce.
+describe("the schema accepts every value the code can produce", () => {
+  const withDb = <T>(run: (db: ReturnType<typeof openApiDatabase>) => T): T => {
+    const root = mkdtempSync(join(tmpdir(), "rvs-enums-"));
+    const db = openApiDatabase(join(root, "app.sqlite"));
+    try {
+      return run(db);
+    } finally {
+      db.close();
+      rmSync(root, { recursive: true, force: true });
+    }
+  };
+
+  it("accepts every preparation stage", () => {
+    withDb((db) => {
+      for (const stage of PreparationStageSchema.options) {
+        expect(
+          () =>
+            db
+              .prepare(
+                "INSERT INTO runtime_jobs (id, tenant_id, state, attempt, updated_at, value_json, preparation_stage) VALUES (?, 'ten_a', 'PREPARING', 1, '2026-01-01T00:00:00.000Z', '{}', ?)",
+              )
+              .run(`job_${stage}`, stage),
+          `preparation_stage ${stage} rejected by the database`,
+        ).not.toThrow();
+      }
+    });
+  });
+
+  it("accepts every worker phase", () => {
+    withDb((db) => {
+      db.prepare(
+        "INSERT INTO runtime_jobs (id, tenant_id, state, attempt, updated_at, value_json) VALUES ('job_p', 'ten_a', 'PREPARING', 1, '2026-01-01T00:00:00.000Z', '{}')",
+      ).run();
+      db.prepare(
+        "INSERT INTO runtime_workers (id, status, last_heartbeat, value_json) VALUES ('wrk_a', 'ONLINE', 0, '{}')",
+      ).run();
+      for (const phase of WorkerPhaseSchema.options) {
+        expect(
+          () =>
+            db
+              .prepare(
+                "INSERT OR REPLACE INTO runtime_job_leases (job_id, attempt_id, worker_id, token_hash, expires_at, phase) VALUES ('job_p', 'att_a', 'wrk_a', ?, 0, ?)",
+              )
+              .run("0".repeat(64), phase),
+          `phase ${phase} rejected by the database`,
+        ).not.toThrow();
+      }
+    });
   });
 });
