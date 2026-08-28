@@ -1271,6 +1271,31 @@ describe("worker registration API", () => {
   });
 
   describe("scene authoring stage", () => {
+    // Authoring no longer runs inside the /complete request -- the model
+    // call outlasts the worker's 30s request timeout, so the reply goes
+    // back first and the job advances when the model answers. Every
+    // assertion about the outcome has to wait for that, rather than
+    // relying on a fake generate happening to settle within the same
+    // microtask drain.
+    const settledAuthoring = async (
+      workflow: CreatorWorkflowStore,
+      jobId: string,
+    ) => {
+      for (let attempt = 0; attempt < 200; attempt += 1) {
+        const job = workflow.jobs.get(jobId);
+        // A failure leaves preparationStage at AUTHORING_RUNNING and moves
+        // the job's state instead, so settling means either.
+        if (
+          job &&
+          (job.preparationStage !== "AUTHORING_RUNNING" ||
+            job.state === "FAILED")
+        )
+          return job;
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      }
+      throw new Error("authoring never settled");
+    };
+
     it("moves to AUTHORING after the preview is approved when the job requests generation", () => {
       const reviews = createReviewStore();
       const workflow = createCreatorWorkflowStore();
@@ -1405,7 +1430,7 @@ describe("worker registration API", () => {
         Buffer.from("preview-report-bytes"),
       );
       expect(complete.statusCode).toBe(200);
-      const finished = workflow.jobs.get(job.id);
+      const finished = await settledAuthoring(workflow, job.id);
       expect(finished?.sceneSpecDigest).toMatch(/^[a-f0-9]{64}$/);
       expect(finished?.authoredScene?.beatSheet).toHaveLength(
         fixtureSpec.beats.length,
@@ -1453,10 +1478,70 @@ describe("worker registration API", () => {
         Buffer.from("preview-report-bytes"),
       );
       expect(complete.statusCode).toBe(200);
-      const finished = workflow.jobs.get(job.id);
+      const finished = await settledAuthoring(workflow, job.id);
       expect(finished?.state).toBe("FAILED");
       expect(finished?.failureCode).toBe("SCENE_AUTHORING_FAILED");
       expect(finished?.progress).toBeNull();
+      await fixture.app.close();
+    });
+
+    // The whole reason authoring moved out of the request: a model that
+    // takes longer than the worker's 30s request timeout used to make the
+    // worker give up mid-authoring and report WORKER_JOB_HANDLER_FAILED,
+    // for a job that was about to succeed.
+    it("replies to the worker before the model has answered", async () => {
+      const reviews = createReviewStore();
+      const workflow = createCreatorWorkflowStore();
+      const job = addJob(workflow, "PREPARING", {
+        ...generationConfig,
+        attachmentIds: ["att_1"],
+      });
+      job.preparationStage = "PREVIEW_QUEUED";
+      job.compilation = compilation;
+      job.evidence = analysisEvidence(job.id, "attempt-a");
+      const { db, aiSecretKey } = authorSceneDbFixture();
+      let release: (() => void) | undefined;
+      const answered = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const uploads = uploadFixture();
+      uploads.attachments = new Map([
+        [
+          "att_1",
+          {
+            id: "att_1",
+            tenantId: "ten_a",
+            contentType: "image/png",
+            sizeBytes: 4,
+            bytes: Uint8Array.from([0x89, 0x50, 0x4e, 0x47]),
+            createdAt: "2026-01-01T00:00:00.000Z",
+          },
+        ],
+      ]);
+      const fixture = appFixture(workflow, uploads, {
+        reviews,
+        db,
+        aiSecretKey,
+        authorSceneGenerate: async () => {
+          await answered;
+          return { object: fixtureSpec };
+        },
+      });
+      await registerWorker(fixture, ["renderer"]);
+      await claimWorker(fixture);
+      const complete = await completePreview(
+        fixture,
+        job,
+        Buffer.from("preview-report-bytes"),
+      );
+      expect(complete.statusCode).toBe(200);
+      // Still thinking. The worker is already free.
+      expect(workflow.jobs.get(job.id)?.preparationStage).toBe(
+        "AUTHORING_RUNNING",
+      );
+      release?.();
+      const finished = await settledAuthoring(workflow, job.id);
+      expect(finished?.preparationStage).toBe("ASSETS_QUEUED");
       await fixture.app.close();
     });
 
@@ -1491,7 +1576,7 @@ describe("worker registration API", () => {
         Buffer.from("preview-report-bytes"),
       );
       expect(complete.statusCode).toBe(200);
-      const finished = workflow.jobs.get(job.id);
+      const finished = await settledAuthoring(workflow, job.id);
       expect(finished?.state).toBe("FAILED");
       expect(finished?.failureCode).toBe("SCENE_AUTHORING_FAILED");
       expect(finished?.authoredScene).toBeNull();

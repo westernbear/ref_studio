@@ -1821,6 +1821,103 @@ export function registerWorkers(
       );
     }
   });
+  // Runs after its request has already replied (see the AUTHORING_RUNNING
+  // branch in finish). Re-reads the job from the store rather than closing
+  // over the object the request held, so it cannot resurrect a job that was
+  // cancelled or failed while the model was thinking, and persists its own
+  // result -- the onSend hook that normally saves a mutation has long since
+  // run by the time this finishes.
+  // ponytail: an API restart mid-authoring strands the job at
+  // AUTHORING_RUNNING with nothing to resume it. Add a stage sweeper when
+  // that actually bites; the alternative it replaces failed every time.
+  const runAuthoring = async (jobId: string): Promise<void> => {
+    try {
+      const job = workflow?.jobs.get(jobId);
+      if (!job || job.preparationStage !== "AUTHORING_RUNNING") return;
+      if (!db || !aiSecretKey || !job.generation)
+        throw new Error("AI_PROVIDER_NOT_CONFIGURED");
+      // Fail loudly on an attachment id the store can't resolve, rather
+      // than proceeding with kind: "unknown" (I2.2): a brief that
+      // referenced a logo by attachment id, where that attachment is no
+      // longer resolvable (see uploads.ts's attachment-store comment on
+      // why that can happen today), used to silently produce a film
+      // missing the logo with no error anywhere. Now it fails the job,
+      // same as any other authoring failure below.
+      const attachments = job.generation.attachmentIds.map((attachmentId) => {
+        const record = uploads?.attachments?.get(attachmentId);
+        if (!record) throw new Error("ATTACHMENT_UNRESOLVED");
+        return { attachmentId, kind: record.contentType };
+      });
+      const authored = await authorScene({
+        // M3: candidateEvidence is always null by the time a job reaches
+        // AUTHORING_RUNNING -- autoApproveT2T3 promotes it to job.evidence
+        // and nulls it back at AWAITING_T2, long before AWAITING_T4/
+        // AUTHORING_QUEUED. `job.candidateEvidence ?? job.evidence` here
+        // read as "the author may see unapproved evidence", which was
+        // never true; job.evidence is the only value this can ever be.
+        evidence: job.evidence,
+        config: job.generation,
+        attachments,
+        db,
+        aiSecretKey,
+        ...(authorSceneGenerate ? { generate: authorSceneGenerate } : {}),
+      });
+      const current = workflow?.jobs.get(jobId);
+      if (!current || current.preparationStage !== "AUTHORING_RUNNING") return;
+      current.authoredScene = authored;
+      // I3: canonical (key-sorted) JSON, matching gen-render-delivery.ts's
+      // compileSceneSpec digest -- plain JSON.stringify here would depend
+      // on property insertion order and could never agree with the
+      // worker's canonicalJson-based digest of the same spec.
+      current.sceneSpecDigest = sha256Hex(authored.spec);
+      current.automaticRetries = 0;
+      current.failureCode = null;
+      // Straight on to material generation: the scene names assets, and
+      // the ones it draws have to be backed by real bytes before there is
+      // anything to render.
+      current.preparationStage = "ASSETS_QUEUED";
+      current.eligibleAt = now();
+      // Nulled rather than left at the preview phase's {stage:"preview",
+      // fraction:1}: a non-null progress.stage is what made the UI's
+      // "compiler active" status line read as still working on the
+      // previous phase (I4). The assets phase reports its own.
+      current.progress = null;
+      current.updatedAt = new Date(now()).toISOString();
+      current.etag = `\"${digest(current.updatedAt)}\"`;
+    } catch (error) {
+      // The job only ever recorded SCENE_AUTHORING_FAILED, which is true
+      // of an unconfigured provider, an unreachable model, an unresolvable
+      // attachment and a spec that failed validation alike -- diagnosing a
+      // live failure meant dumping the database and guessing. The reason
+      // the throw carried is the one piece of information that separates
+      // them, so log it.
+      console.error(
+        JSON.stringify({
+          event: "api.authoring.failed",
+          jobId,
+          errorName: error instanceof Error ? error.name : typeof error,
+          errorMessage: error instanceof Error ? error.message : String(error),
+        }),
+      );
+      const job = workflow?.jobs.get(jobId);
+      if (job && job.preparationStage === "AUTHORING_RUNNING") {
+        job.failureCode = "SCENE_AUTHORING_FAILED";
+        job.progress = null;
+        transition(job, "FAILED", now);
+      }
+    }
+    try {
+      persist?.();
+    } catch (error) {
+      console.error(
+        JSON.stringify({
+          event: "api.authoring.persist.failed",
+          jobId,
+          errorMessage: error instanceof Error ? error.message : String(error),
+        }),
+      );
+    }
+  };
   const finish = async (
     request: FastifyRequest<{
       Params: { workerId: string; jobId: string };
@@ -1905,10 +2002,10 @@ export function registerWorkers(
     // set) to AUTHORING_QUEUED instead of READY. authorScene() needs the DB
     // handle and the decrypted AI provider secret, both of which live only
     // in this process -- so, same shape as the translation/safety-check
-    // hooks above, it runs right here in the finish handler rather than as
-    // a claimable worker phase (see queuedPhase's comment for why no phase
-    // exists for this anymore). Fail-closed: any failure here fails the job
-    // outright, no fallback -- AI 실패는 잡 실패, 폴백 없음.
+    // hooks above, it runs in this process rather than as a claimable
+    // worker phase (see queuedPhase's comment for why no phase exists for
+    // this anymore). Fail-closed: any failure fails the job outright, no
+    // fallback -- AI 실패는 잡 실패, 폴백 없음.
     if (
       !failed &&
       lease.phase === "preview" &&
@@ -1928,76 +2025,16 @@ export function registerWorkers(
         framesProcessed: null,
         framesTotal: null,
       };
-      try {
-        if (!db || !aiSecretKey || !job.generation)
-          throw new Error("AI_PROVIDER_NOT_CONFIGURED");
-        // Fail loudly on an attachment id the store can't resolve, rather
-        // than proceeding with kind: "unknown" (I2.2): a brief that
-        // referenced a logo by attachment id, where that attachment is no
-        // longer resolvable (see uploads.ts's attachment-store comment on
-        // why that can happen today), used to silently produce a film
-        // missing the logo with no error anywhere. Now it fails the job,
-        // same as any other authoring failure below.
-        const attachments = job.generation.attachmentIds.map((attachmentId) => {
-          const record = uploads?.attachments?.get(attachmentId);
-          if (!record) throw new Error("ATTACHMENT_UNRESOLVED");
-          return { attachmentId, kind: record.contentType };
-        });
-        const authored = await authorScene({
-          // M3: candidateEvidence is always null by the time a job reaches
-          // AUTHORING_RUNNING -- autoApproveT2T3 promotes it to job.evidence
-          // and nulls it back at AWAITING_T2, long before AWAITING_T4/
-          // AUTHORING_QUEUED. `job.candidateEvidence ?? job.evidence` here
-          // read as "the author may see unapproved evidence", which was
-          // never true; job.evidence is the only value this can ever be.
-          evidence: job.evidence,
-          config: job.generation,
-          attachments,
-          db,
-          aiSecretKey,
-          ...(authorSceneGenerate ? { generate: authorSceneGenerate } : {}),
-        });
-        job.authoredScene = authored;
-        // I3: canonical (key-sorted) JSON, matching gen-render-delivery.ts's
-        // compileSceneSpec digest -- plain JSON.stringify here would depend
-        // on property insertion order and could never agree with the
-        // worker's canonicalJson-based digest of the same spec.
-        job.sceneSpecDigest = sha256Hex(authored.spec);
-        job.automaticRetries = 0;
-        job.failureCode = null;
-        // Straight on to material generation: the scene names assets, and
-        // the ones it draws have to be backed by real bytes before there is
-        // anything to render.
-        job.preparationStage = "ASSETS_QUEUED";
-        job.eligibleAt = now();
-        // Nulled rather than left at the preview phase's {stage:"preview",
-        // fraction:1}: a non-null progress.stage is what made the UI's
-        // "compiler active" status line read as still working on the
-        // previous phase (I4). The assets phase reports its own.
-        job.progress = null;
-        job.updatedAt = new Date(now()).toISOString();
-        job.etag = `\"${digest(job.updatedAt)}\"`;
-      } catch (error) {
-        // The job only ever recorded SCENE_AUTHORING_FAILED, which is true
-        // of an unconfigured provider, an unreachable model, an
-        // unresolvable attachment and a spec that failed validation alike
-        // -- diagnosing a live failure meant dumping the database and
-        // guessing. The reason the throw carried is the one piece of
-        // information that separates them, so log it.
-        console.error(
-          JSON.stringify({
-            event: "api.authoring.failed",
-            jobId: request.params.jobId,
-            errorName: error instanceof Error ? error.name : typeof error,
-            errorMessage:
-              error instanceof Error ? error.message : String(error),
-          }),
-        );
-        job.failureCode = "SCENE_AUTHORING_FAILED";
-        job.progress = null;
-        transition(job, "FAILED", now);
-        outcome = "FAILED";
-      }
+      // Started, not awaited. Authoring is a model call: measured against
+      // a live provider it takes about 19 seconds for a 600-frame scene,
+      // and the worker allows this whole request 30 seconds (see the
+      // worker's request timeout). Awaiting it here made every
+      // generate-track preview completion a race the worker usually lost
+      // -- it timed out, reported WORKER_JOB_HANDLER_FAILED, and the
+      // authoring still running in here had nothing left to report to.
+      // The reply goes back immediately; the job advances when the model
+      // answers.
+      void runAuthoring(request.params.jobId);
     }
     const attempt = workflow?.attempts
       .get(request.params.jobId)
