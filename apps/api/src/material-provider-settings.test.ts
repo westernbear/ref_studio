@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  MATERIAL_PROVIDER_KINDS,
   getMaterialProviderSettings,
   getMaterialProviderSettingsWithSecret,
   updateMaterialProviderSettings,
@@ -194,6 +195,27 @@ describe("material-provider-settings", () => {
           "secret",
         ),
       ).toThrow(/INVALID_REQUEST/);
+    });
+  });
+
+  // The enum and the database's CHECK list are two copies of the same
+  // fact. They drifted once already this month, and the way it surfaced
+  // was a constraint failure deep in a running job -- so every value the
+  // code can produce is inserted here, against a real database.
+  it("accepts every provider kind the code can produce", () => {
+    withDb((db) => {
+      for (const kind of MATERIAL_PROVIDER_KINDS)
+        expect(
+          () =>
+            updateMaterialProviderSettings(
+              db,
+              { providerKind: kind, model: "m" },
+              "usr_admin",
+              1_000,
+              "secret",
+            ),
+          `provider kind ${kind} rejected by the database`,
+        ).not.toThrow();
     });
   });
 

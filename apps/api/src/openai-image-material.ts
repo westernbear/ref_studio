@@ -1,6 +1,34 @@
 import { createHash } from "node:crypto";
 import type Database from "better-sqlite3";
-import { getMaterialProviderSettingsWithSecret } from "./material-provider-settings.js";
+import {
+  getMaterialProviderSettingsWithSecret,
+  updateMaterialProviderSettings,
+} from "./material-provider-settings.js";
+import {
+  CODEX_IMAGE_MODEL,
+  CodexOAuthError,
+  generateCodexImage,
+  parseCodexAuth,
+  type CodexAuth,
+} from "./codex-oauth.js";
+
+// Writes a rotated credential straight back to the settings row. Not part
+// of the admin console's update path: this is the system refreshing its own
+// token, not an operator changing a setting, so it records no audit event
+// and touches nothing else on the row.
+const persistRefreshedCodexAuth = (
+  db: Database.Database,
+  aiSecretKey: string,
+  auth: CodexAuth,
+): void => {
+  updateMaterialProviderSettings(
+    db,
+    { apiKey: JSON.stringify(auth) },
+    "system:codex-refresh",
+    Date.now(),
+    aiSecretKey,
+  );
+};
 
 // The API-side half of the image material seam: apps/worker cannot reach
 // OpenAI directly (see docker-compose.yml -- worker-internal is `internal:
@@ -70,7 +98,8 @@ const defaultGenerateImage: GenerateImage = async ({
       output_format: "png",
     }),
   });
-  if (!response.ok) throw new Error(`OPENAI_IMAGE_REQUEST_FAILED_${response.status}`);
+  if (!response.ok)
+    throw new Error(`OPENAI_IMAGE_REQUEST_FAILED_${response.status}`);
   const body = (await response.json()) as {
     readonly data?: readonly { readonly b64_json?: string }[];
   };
@@ -121,6 +150,7 @@ export async function generateImageMaterial(params: {
   readonly prompt: string;
   readonly canvas: Readonly<{ width: number; height: number }>;
   readonly generate?: GenerateImage;
+  readonly generateCodex?: typeof generateCodexImage;
 }): Promise<GeneratedImageMaterial> {
   const settings = getMaterialProviderSettingsWithSecret(
     params.db,
@@ -128,17 +158,59 @@ export async function generateImageMaterial(params: {
   );
   if (!settings.enabled || !settings.apiKey)
     throw new MaterialProviderError("MATERIAL_PROVIDER_NOT_CONFIGURED");
-  const generate = params.generate ?? defaultGenerateImage;
+  const size = sizeForCanvas(params.canvas);
+  // Two ways to authenticate the same generator. The platform key path is
+  // the supported one; codex-oauth spends a ChatGPT subscription instead
+  // and carries its own caveats (see codex-oauth.ts). They differ only in
+  // how the bytes are obtained -- the transparency check, the hashing and
+  // the provenance below are common to both, because "did we actually get
+  // compositable material" is the same question either way.
   let result: Awaited<ReturnType<GenerateImage>>;
-  try {
-    result = await generate({
-      apiKey: settings.apiKey,
-      model: settings.model,
-      prompt: params.prompt,
-      size: sizeForCanvas(params.canvas),
-    });
-  } catch {
-    throw new MaterialProviderError("MATERIAL_GENERATION_FAILED");
+  let tool: string;
+  if (settings.providerKind === "codex-oauth") {
+    tool = `codex-oauth:${CODEX_IMAGE_MODEL}`;
+    let generated: Awaited<ReturnType<typeof generateCodexImage>>;
+    try {
+      generated = await (params.generateCodex ?? generateCodexImage)({
+        auth: parseCodexAuth(settings.apiKey),
+        prompt: params.prompt,
+        size,
+      });
+    } catch (cause) {
+      // A malformed or revoked credential is not the same failure as a
+      // model that would not draw the thing, and an operator can only fix
+      // the first -- so it keeps its own name instead of collapsing into
+      // MATERIAL_GENERATION_FAILED.
+      if (
+        cause instanceof CodexOAuthError &&
+        cause.code === "CODEX_AUTH_MALFORMED"
+      )
+        throw new MaterialProviderError("MATERIAL_PROVIDER_NOT_CONFIGURED");
+      throw new MaterialProviderError("MATERIAL_GENERATION_FAILED");
+    }
+    // Access tokens last hours. A refresh that is not written back means
+    // every subsequent asset pays for another one, and the rotated refresh
+    // token is lost the moment the old one stops working.
+    if (generated.refreshedAuth)
+      persistRefreshedCodexAuth(
+        params.db,
+        params.aiSecretKey,
+        generated.refreshedAuth,
+      );
+    result = { b64: generated.b64 };
+  } else {
+    tool = `openai:${settings.model}`;
+    const generate = params.generate ?? defaultGenerateImage;
+    try {
+      result = await generate({
+        apiKey: settings.apiKey,
+        model: settings.model,
+        prompt: params.prompt,
+        size,
+      });
+    } catch {
+      throw new MaterialProviderError("MATERIAL_GENERATION_FAILED");
+    }
   }
   const bytes = Buffer.from(result.b64, "base64");
   // A refusal (empty bytes) and an opaque result (no alpha channel) are the
@@ -154,8 +226,10 @@ export async function generateImageMaterial(params: {
       // The vendor's images endpoint does not echo back a per-response
       // model snapshot, so the identifier is the admin-configured model
       // string -- pinning it to a dated snapshot (rather than a rolling
-      // alias) is how an operator gets a reproducible `tool` value.
-      tool: `openai:${settings.model}`,
+      // alias) is how an operator gets a reproducible `tool` value. The
+      // codex-oauth path names its own model instead: the console's `model`
+      // field addresses the responses model there, not the image one.
+      tool,
       prompt: params.prompt,
       sha256,
     },

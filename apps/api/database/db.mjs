@@ -74,6 +74,7 @@ export function migrate(db) {
     [13, "./migrations/013_generate_track_enums.sql", true],
     [14, "./migrations/014_brand_attachments.sql", false],
     [15, "./migrations/015_material_service_endpoints.sql", false],
+    [16, "./migrations/016_codex_oauth_material_provider.sql", true],
   ];
   for (const [version, file, disableForeignKeys] of migrations) {
     if (

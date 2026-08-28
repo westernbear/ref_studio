@@ -1604,6 +1604,7 @@ progress {
   text-transform: uppercase;
 }
 .choice-form select,
+.choice-form textarea,
 .choice-form input {
   width: 100%;
   border: 1px solid var(--color-hairline);

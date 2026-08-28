@@ -10,7 +10,12 @@ import type Database from "better-sqlite3";
 // may well use one vendor for scene authoring (text) and a different one
 // for generated image/video/font material. Only OpenAI is wired today --
 // see openai-image-material.ts -- but the shape leaves room for more.
-export const MATERIAL_PROVIDER_KINDS = ["openai"] as const;
+// "openai" authenticates with a platform API key; "codex-oauth" with the
+// ChatGPT OAuth credentials the Codex CLI writes to ~/.codex/auth.json (see
+// codex-oauth.ts, which carries what an operator has to accept before
+// choosing it). Both put their secret in the same encrypted column -- one a
+// key, the other the auth.json blob.
+export const MATERIAL_PROVIDER_KINDS = ["openai", "codex-oauth"] as const;
 export type MaterialProviderKind = (typeof MATERIAL_PROVIDER_KINDS)[number];
 
 export type MaterialProviderSettingsPublic = {

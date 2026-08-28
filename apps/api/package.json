@@ -8,6 +8,7 @@
     "test": "vitest",
     "start": "node dist/apps/api/src/server.js",
     "verify:resolve": "node scripts/verify-module-resolution.mjs",
+    "verify:codex-oauth": "node scripts/verify-codex-oauth.mjs",
     "db:reset": "node database/cli.mjs reset",
     "db:migrate": "node database/cli.mjs migrate",
     "db:verify": "node database/cli.mjs verify",
