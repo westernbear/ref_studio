@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { errorCode } from "../lib/api-error";
 import { requestId } from "../lib/upload-client";
+import { ModelField } from "./ModelField";
 import { Panel } from "./Primitives";
 
 // The 2D image generator is a vendor with a key; the video and 3D
@@ -185,29 +186,15 @@ export function MaterialProviderSettingsForm({
             ))}
           </select>
         </label>
-        <label>
-          {t("model")}
-          <input
-            type="text"
-            value={model}
-            onChange={(event) => setModel(event.target.value)}
-            placeholder="gpt-image-2"
-            list="material-model-options"
-            required
-          />
-          <datalist id="material-model-options">
-            {models.map((option) => (
-              <option key={option} value={option} />
-            ))}
-          </datalist>
-        </label>
-        {models.length === 0 ? (
-          <p className="field-hint">
-            {modelsReason === "NO_API_KEY"
-              ? t("modelsNeedKey")
-              : t("modelsUnavailable")}
-          </p>
-        ) : null}
+        <ModelField
+          models={models}
+          modelsReason={modelsReason}
+          model={model}
+          onModelChange={setModel}
+          placeholder="gpt-image-2"
+          label={t("model")}
+          namespace="MaterialProviderSettingsForm"
+        />
         <label>
           {isCodex(providerKind) ? t("codexAuthJson") : t("apiKey")}
           {isCodex(providerKind) ? (

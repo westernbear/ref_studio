@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { errorCode } from "../lib/api-error";
 import { requestId } from "../lib/upload-client";
+import { ModelField } from "./ModelField";
 import { Panel } from "./Primitives";
 
 const PROVIDERS = [
@@ -166,29 +167,15 @@ export function AiProviderSettingsForm({
             ))}
           </select>
         </label>
-        <label>
-          {t("model")}
-          <input
-            type="text"
-            value={model}
-            onChange={(event) => setModel(event.target.value)}
-            placeholder="e.g. gpt-4o, claude-sonnet-5, grok-4.6"
-            list="ai-model-options"
-            required
-          />
-          <datalist id="ai-model-options">
-            {models.map((option) => (
-              <option key={option} value={option} />
-            ))}
-          </datalist>
-        </label>
-        {models.length === 0 ? (
-          <p className="field-hint">
-            {modelsReason === "NO_API_KEY"
-              ? t("modelsNeedKey")
-              : t("modelsUnavailable")}
-          </p>
-        ) : null}
+        <ModelField
+          models={models}
+          modelsReason={modelsReason}
+          model={model}
+          onModelChange={setModel}
+          placeholder="e.g. gpt-4o, claude-sonnet-5, grok-4.6"
+          label={t("model")}
+          namespace="AiProviderSettingsForm"
+        />
         {providerKind === "openai-compatible" ? (
           <label>
             {t("baseUrl")}

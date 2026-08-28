@@ -437,6 +437,9 @@
     }
   },
   "MaterialProviderSettingsForm": {
+    "modelChoose": "Choose a model",
+    "modelCustom": "Type a name...",
+    "modelCustomLabel": "Model name",
     "modelsNeedKey": "Save an API key and this provider's models will be listed here.",
     "modelsUnavailable": "Could not list this provider's models. Type the model name.",
     "saveFailed": "Could not save: {code}.",
@@ -469,6 +472,9 @@
     "saveSettings": "Save settings"
   },
   "AiProviderSettingsForm": {
+    "modelChoose": "Choose a model",
+    "modelCustom": "Type a name...",
+    "modelCustomLabel": "Model name",
     "modelsNeedKey": "Save an API key and this provider's models will be listed here.",
     "modelsUnavailable": "Could not list this provider's models. Type the model name.",
     "saveFailed": "Save failed: {code}.",

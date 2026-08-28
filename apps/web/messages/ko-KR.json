@@ -437,6 +437,9 @@
     }
   },
   "MaterialProviderSettingsForm": {
+    "modelChoose": "모델을 고르세요",
+    "modelCustom": "직접 입력...",
+    "modelCustomLabel": "모델 이름 직접 입력",
     "modelsNeedKey": "API 키를 저장하면 이 제공자가 가진 모델 목록을 불러옵니다.",
     "modelsUnavailable": "모델 목록을 불러오지 못했습니다. 모델 이름을 직접 입력하세요.",
     "saveFailed": "저장 실패: {code}.",
@@ -469,6 +472,9 @@
     "saveSettings": "설정 저장"
   },
   "AiProviderSettingsForm": {
+    "modelChoose": "모델을 고르세요",
+    "modelCustom": "직접 입력...",
+    "modelCustomLabel": "모델 이름 직접 입력",
     "modelsNeedKey": "API 키를 저장하면 이 제공자가 가진 모델 목록을 불러옵니다.",
     "modelsUnavailable": "모델 목록을 불러오지 못했습니다. 모델 이름을 직접 입력하세요.",
     "saveFailed": "저장 실패: {code}.",
