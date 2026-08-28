@@ -179,25 +179,31 @@ export async function proxyV1(
 // Each entry is [method, path segment pattern] where "*" matches exactly one
 // path segment (e.g. an id). Extend this list, not the route handler, when a
 // new admin mutation endpoint needs a browser-reachable proxy.
-const ADMIN_MUTATION_ROUTES: readonly (readonly [string, readonly string[]])[] =
-  [
-    ["POST", ["audit-exports"]],
-    ["POST", ["receipt-exports"]],
-    ["POST", ["workers", "*", "offline"]],
-    ["POST", ["jobs", "*", "cancel"]],
-    ["POST", ["jobs", "*", "retry"]],
-    ["POST", ["jobs", "*", "force-terminate"]],
-    ["POST", ["quarantine", "*", "release"]],
-    ["POST", ["quarantine", "*", "reject"]],
-    ["POST", ["tenants", "*", "suspend"]],
-    ["PATCH", ["tenants", "*", "members"]],
-    ["PATCH", ["billing", "*"]],
-    ["PATCH", ["ai-provider-settings"]],
-  ];
-const matchesAdminRoute = (
-  method: string,
-  path: readonly string[],
-): boolean =>
+//
+// A route the API serves but this list does not name is unreachable from the
+// browser, and the console reports it as RESOURCE_NOT_FOUND -- a 404 that
+// looks like the endpoint does not exist when it does, one hop away. That
+// has happened; the drift test in test/admin-proxy-routes.test.mjs is what
+// holds this list against the API's own registrations.
+export const ADMIN_MUTATION_ROUTES: readonly (readonly [
+  string,
+  readonly string[],
+])[] = [
+  ["POST", ["audit-exports"]],
+  ["POST", ["receipt-exports"]],
+  ["POST", ["workers", "*", "offline"]],
+  ["POST", ["jobs", "*", "cancel"]],
+  ["POST", ["jobs", "*", "retry"]],
+  ["POST", ["jobs", "*", "force-terminate"]],
+  ["POST", ["quarantine", "*", "release"]],
+  ["POST", ["quarantine", "*", "reject"]],
+  ["POST", ["tenants", "*", "suspend"]],
+  ["PATCH", ["tenants", "*", "members"]],
+  ["PATCH", ["billing", "*"]],
+  ["PATCH", ["ai-provider-settings"]],
+  ["PATCH", ["material-provider-settings"]],
+];
+const matchesAdminRoute = (method: string, path: readonly string[]): boolean =>
   ADMIN_MUTATION_ROUTES.some(
     ([routeMethod, pattern]) =>
       routeMethod === method &&
