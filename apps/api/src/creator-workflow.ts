@@ -126,6 +126,13 @@ export type Job = {
   deletionEpoch: number;
   restoreEpoch: number;
   failureCode: string | null;
+  // What actually went wrong, in the failing subsystem's own words, for
+  // the creator to read. failureCode alone says a stage failed; it does
+  // not distinguish an unconfigured provider from a model name that does
+  // not exist, and the creator was shown neither -- only "this job has
+  // ended". Bounded and stripped of newlines where it is set, because it
+  // is vendor text going onto a page.
+  failureReason: string | null;
   runtimePreflight: RuntimePreflightEvidence | null;
   readonly generation?: GenerationConfig;
   authoredScene: AuthoredScene | null;
@@ -602,6 +609,10 @@ const projection = (
   creativePrompt: job.creativePrompt,
   preparationStage: job.preparationStage,
   failureCode: job.failureCode,
+  // Only ever alongside its code. Ten places clear failureCode on the way
+  // back to healthy; gating here means none of them can leave a stale
+  // reason behind to be shown against a job that has since recovered.
+  failureReason: job.failureCode ? job.failureReason : null,
   automaticRetries: job.automaticRetries,
   artifact: job.artifact,
   progress: job.progress,
@@ -1388,6 +1399,7 @@ export function registerCreatorWorkflow(
               deletionEpoch: 0,
               restoreEpoch: 0,
               failureCode: null,
+              failureReason: null,
               runtimePreflight: store.availablePreflight,
               ...(generation ? { generation } : {}),
               authoredScene: null,

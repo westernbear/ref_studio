@@ -14,6 +14,7 @@ export type JobProgress = {
   readonly previewLabeledArtifactId: string;
   readonly evidenceVideoArtifactId: string;
   readonly failureCode: string | null;
+  readonly failureReason: string | null;
   readonly progressPhase: string;
   readonly progressStage: string;
   readonly progressFraction: number;
@@ -85,8 +86,9 @@ const stringList = (value: unknown): readonly string[] =>
 const beatSheet = (value: unknown): readonly BeatSheetEntry[] | null => {
   if (!Array.isArray(value)) return null;
   const beats = value
-    .filter((entry): entry is Record<string, unknown> =>
-      typeof entry === "object" && entry !== null,
+    .filter(
+      (entry): entry is Record<string, unknown> =>
+        typeof entry === "object" && entry !== null,
     )
     .map((entry) => ({
       beatId: text(field(entry, "beatId")),
@@ -113,6 +115,7 @@ export const parseJobProgress = (value: unknown): JobProgress | null => {
     previewLabeledArtifactId: text(field(value, "previewLabeledArtifactId")),
     evidenceVideoArtifactId: text(field(value, "evidenceVideoArtifactId")),
     failureCode: text(field(value, "failureCode")) || null,
+    failureReason: text(field(value, "failureReason")) || null,
     progressPhase: text(field(progress, "phase")),
     progressStage: text(field(progress, "stage")),
     progressFraction: Math.min(
@@ -206,10 +209,17 @@ export const jobStatusMessage = (job: JobProgress): JobStatusMessage => {
   const state = job.state;
   if (state === "COMPLETED") return { key: "completed" };
   if (state === "CANCELLED") return { key: "cancelled" };
-  if (state === "FAILED")
-    return job.failureCode === "CONTENT_SAFETY_REJECTED"
-      ? { key: "failedSafety" }
+  if (state === "FAILED") {
+    if (job.failureCode === "CONTENT_SAFETY_REJECTED")
+      return { key: "failedSafety" };
+    // The reason the failing subsystem gave, when it gave one. "The
+    // compiler job failed" is true of every failure and actionable for
+    // none of them -- a wrong model name in the AI provider settings and
+    // an unreachable worker read identically without this.
+    return job.failureReason
+      ? { key: "failedWithReason", values: { reason: job.failureReason } }
       : { key: "failed" };
+  }
   if (state === "RETRYABLE_ERROR") return { key: "retryableError" };
   if (state === "STALE_APPROVAL") return { key: "staleApproval" };
   if (state === "RENDERING")
@@ -262,7 +272,9 @@ const titleCase = (value: string): string =>
 // might report that this UI hasn't been told about yet.
 export const stageLabelKey = (
   stage: string,
-): Readonly<{ known: true; key: string } | { known: false; fallback: string }> => {
+): Readonly<
+  { known: true; key: string } | { known: false; fallback: string }
+> => {
   const key = STAGE_LABEL_KEYS[stage];
   if (key) return { known: true, key };
   return { known: false, fallback: stage ? titleCase(stage) : "" };
@@ -279,7 +291,11 @@ export const nextStepKey = (job: JobProgress): string => {
   if (job.state === "RETRYABLE_ERROR") return "retrying";
   if (job.state === "STALE_APPROVAL") return "reviewAgain";
   if (job.state === "AWAITING_T5") return "finalCheckRunning";
-  if (job.state === "QUEUED" || job.state === "RENDERING" || job.state === "ASSEMBLING")
+  if (
+    job.state === "QUEUED" ||
+    job.state === "RENDERING" ||
+    job.state === "ASSEMBLING"
+  )
     return "buildingFinal";
   if (job.state === "READY")
     return job.approvedGates.includes("T4") ? "readyToRender" : "verifying";
@@ -319,14 +335,22 @@ const SHOT_LABEL_KEYS: Readonly<Record<string, string>> = {
 };
 export const shotLabelKey = (
   shot: string,
-): Readonly<{ known: true; key: string } | { known: false; fallback: string }> => {
+): Readonly<
+  { known: true; key: string } | { known: false; fallback: string }
+> => {
   const key = SHOT_LABEL_KEYS[shot];
   if (key) return { known: true, key };
   return { known: false, fallback: shot ? titleCase(shot) : "" };
 };
 
-export const liveJobStatusErrorCode = (value: unknown, status: number): string =>
-  text(field(field(value, "error"), "code")) || `HTTP_${status}`;
+export const liveJobStatusErrorCode = (
+  value: unknown,
+  status: number,
+): string => text(field(field(value, "error"), "code")) || `HTTP_${status}`;
 
 export const formatJobStamp = (value: string): string | null =>
-  value ? (value.includes("T") ? value.replace("T", " ").slice(0, 19) : value) : null;
+  value
+    ? value.includes("T")
+      ? value.replace("T", " ").slice(0, 19)
+      : value
+    : null;

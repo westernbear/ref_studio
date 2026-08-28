@@ -1156,14 +1156,34 @@ async function renderBilling(title: string, search: SearchState, t: T) {
   );
 }
 
+// The model list comes from the provider, server-side, on the same load as
+// the settings themselves -- no new browser-reachable admin surface, and it
+// refreshes on the router.refresh() the form already does after saving. A
+// provider that will not list is not an error here: `models` is empty, the
+// form says why, and the field stays free text.
+const providerModels = async (
+  path: string,
+): Promise<Readonly<{ models: readonly string[]; reason: string | null }>> => {
+  const result = await liveApiGet(path);
+  if (!result.ok) return { models: [], reason: result.code };
+  const models = field(result.body, "models");
+  return {
+    models: Array.isArray(models) ? models.map((model) => text(model)) : [],
+    reason: text(field(result.body, "reason")) || null,
+  };
+};
+
 async function renderAiSettings(title: string, t: T) {
   const result = await liveApiGet("/admin/ai-provider-settings");
   if (!result.ok)
     return <AdminProblem code={result.code} title={title} t={t} />;
+  const models = await providerModels("/admin/ai-provider-models");
   const body = result.body;
   return (
     <AdminView title={title} description={t("aiSettingsDescription")}>
       <AiProviderSettingsForm
+        models={models.models}
+        modelsReason={models.reason}
         providerKind={text(field(body, "providerKind"), "openai")}
         model={text(field(body, "model"), "")}
         baseUrl={text(field(body, "baseUrl"), "") || null}
@@ -1182,10 +1202,13 @@ async function renderMaterialSettings(title: string, t: T) {
   const result = await liveApiGet("/admin/material-provider-settings");
   if (!result.ok)
     return <AdminProblem code={result.code} title={title} t={t} />;
+  const models = await providerModels("/admin/material-provider-models");
   const body = result.body;
   return (
     <AdminView title={title} description={t("materialSettingsDescription")}>
       <MaterialProviderSettingsForm
+        models={models.models}
+        modelsReason={models.reason}
         providerKind={text(field(body, "providerKind"), "openai")}
         model={text(field(body, "model"), "")}
         enabled={field(body, "enabled") === true}

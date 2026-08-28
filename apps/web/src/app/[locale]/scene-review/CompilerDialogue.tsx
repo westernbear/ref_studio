@@ -3,6 +3,7 @@
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { errorCode } from "../../../lib/api-error";
+import { ThinkingIndicator } from "../../../components/ThinkingIndicator";
 import {
   isJobWorking,
   isTerminalJobState,
@@ -17,7 +18,11 @@ import {
   type BeatSheetEntry,
   type JobProgress,
 } from "../../../lib/job-progress";
-import { createCompilerJob, requestId, type AcceptedMedia } from "../../../lib/upload-client";
+import {
+  createCompilerJob,
+  requestId,
+  type AcceptedMedia,
+} from "../../../lib/upload-client";
 
 type TranslatedOwner = Readonly<{
   ownerId: string;
@@ -108,12 +113,26 @@ export function CompilerDialogue({
     "reference",
   );
   const compareUrl =
-    compareSource === "evidence" && evidenceVideoUrl ? evidenceVideoUrl : sourceUrl;
+    compareSource === "evidence" && evidenceVideoUrl
+      ? evidenceVideoUrl
+      : sourceUrl;
   const [messages, setMessages] = useState<readonly ChatMessage[]>([
     { role: "system", textKey: "initialized" },
   ]);
   const [prompt, setPrompt] = useState("");
   const [sending, setSending] = useState(false);
+  // Two different waits, and they read differently to a creator: the model
+  // authoring the whole scene after the preview is approved, and the model
+  // folding one chat note into a scene that already exists. Anything else
+  // -- a worker rendering frames, a queue -- already has its own stage
+  // line, and stacking a second indicator on it would say two things are
+  // happening when one is.
+  const thinkingPhase = sending
+    ? ("patching" as const)
+    : job.preparationStage === "AUTHORING_QUEUED" ||
+        job.preparationStage === "AUTHORING_RUNNING"
+      ? ("authoring" as const)
+      : null;
   const [lastPrompt, setLastPrompt] = useState("");
   const [applying, setApplying] = useState<number | null>(null);
   const [applyError, setApplyError] = useState("");
@@ -388,9 +407,7 @@ export function CompilerDialogue({
     }
   };
 
-  const submitFeedback = async (
-    decision: "LOOKS_GOOD" | "NEEDS_CHANGES",
-  ) => {
+  const submitFeedback = async (decision: "LOOKS_GOOD" | "NEEDS_CHANGES") => {
     setFeedbackSending(true);
     setFeedbackStatus("");
     // The screen used to carry a thumbs pair beside these two, asking the same
@@ -418,12 +435,17 @@ export function CompilerDialogue({
       const body: unknown = await response.json().catch(() => null);
       if (!response.ok) {
         setFeedbackStatus(
-          t("feedbackFailed", { code: errorCode(body) || "HTTP_" + response.status }),
+          t("feedbackFailed", {
+            code: errorCode(body) || "HTTP_" + response.status,
+          }),
         );
         return;
       }
       const parsed = body as {
-        proposals: { plannerKind: "ai" | "heuristic"; proposals: readonly Proposal[] } | null;
+        proposals: {
+          plannerKind: "ai" | "heuristic";
+          proposals: readonly Proposal[];
+        } | null;
       };
       const proposals = parsed.proposals;
       if (proposals) {
@@ -456,7 +478,8 @@ export function CompilerDialogue({
   // Frames when the stage counts them, otherwise the fraction it reports.
   // Either way it has to move, because a stage name on its own does not.
   const stageProgress =
-    framesLabel ?? (job.progressFraction > 0
+    framesLabel ??
+    (job.progressFraction > 0
       ? `${Math.round(job.progressFraction * 100)}%`
       : null);
 
@@ -469,19 +492,30 @@ export function CompilerDialogue({
             <p>{t("sessionId", { id: job.id })}</p>
           </div>
         </div>
-        <div className="dialogue-chat-history" data-landmark="chat-history" ref={historyRef}>
+        <div
+          className="dialogue-chat-history"
+          data-landmark="chat-history"
+          ref={historyRef}
+        >
           {messages.map((message, index) => {
             if (message.role === "system")
               return (
                 <div className="dialogue-message" key={index}>
-                  <span className="dialogue-message-label">{t("systemNode")}</span>
+                  <span className="dialogue-message-label">
+                    {t("systemNode")}
+                  </span>
                   <p>{t(message.textKey)}</p>
                 </div>
               );
             if (message.role === "user")
               return (
-                <div className="dialogue-message dialogue-message-user" key={index}>
-                  <span className="dialogue-message-label">{t("userPrompt")}</span>
+                <div
+                  className="dialogue-message dialogue-message-user"
+                  key={index}
+                >
+                  <span className="dialogue-message-label">
+                    {t("userPrompt")}
+                  </span>
                   <p>{message.text}</p>
                 </div>
               );
@@ -490,7 +524,10 @@ export function CompilerDialogue({
               const active =
                 isJobWorking(job.state) && index === activeStageIndex;
               return (
-                <div className="dialogue-message dialogue-message-stage" key={index}>
+                <div
+                  className="dialogue-message dialogue-message-stage"
+                  key={index}
+                >
                   <span
                     className={
                       active
@@ -518,7 +555,10 @@ export function CompilerDialogue({
             }
             if (message.role === "error")
               return (
-                <div className="dialogue-message dialogue-message-error" key={index}>
+                <div
+                  className="dialogue-message dialogue-message-error"
+                  key={index}
+                >
                   <p>{message.text}</p>
                 </div>
               );
@@ -565,13 +605,17 @@ export function CompilerDialogue({
             return (
               <div className="dialogue-message" key={index}>
                 <span className="dialogue-message-label">
-                  {message.plannerKind === "ai" ? t("aiProposal") : t("heuristicProposal")}
+                  {message.plannerKind === "ai"
+                    ? t("aiProposal")
+                    : t("heuristicProposal")}
                 </span>
                 <ul className="dialogue-proposal-list">
                   {message.proposals.map((proposal, proposalIndex) => (
                     <li key={proposalIndex}>
                       <div>
-                        <strong>{t("startFrame", { frame: proposal.startFrame })}</strong>
+                        <strong>
+                          {t("startFrame", { frame: proposal.startFrame })}
+                        </strong>
                         <p>
                           {proposal.rationaleKey
                             ? tRationale(proposal.rationaleKey)
@@ -584,7 +628,9 @@ export function CompilerDialogue({
                         disabled={applying !== null}
                         onClick={() => void apply(proposal, proposalIndex)}
                       >
-                        {applying === proposalIndex ? t("applying") : t("apply")}
+                        {applying === proposalIndex
+                          ? t("applying")
+                          : t("apply")}
                       </button>
                     </li>
                   ))}
@@ -592,6 +638,11 @@ export function CompilerDialogue({
               </div>
             );
           })}
+          {/* The model is working and has produced nothing yet. Authoring
+              a scene is one call that runs 25-37 seconds against a live
+              provider; until this, the pane simply sat blank, which is
+              indistinguishable from a broken one. */}
+          {thinkingPhase ? <ThinkingIndicator phase={thinkingPhase} /> : null}
           {applyError ? <p className="dialogue-error">{applyError}</p> : null}
           {pollError ? <p className="dialogue-error">{pollError}</p> : null}
         </div>
@@ -619,7 +670,11 @@ export function CompilerDialogue({
             rows={1}
             aria-label={t("promptAriaLabel")}
           />
-          <button className="button button-primary" type="submit" disabled={sending || !prompt}>
+          <button
+            className="button button-primary"
+            type="submit"
+            disabled={sending || !prompt}
+          >
             {sending ? t("sending") : t("send")}
           </button>
         </form>
@@ -691,7 +746,9 @@ export function CompilerDialogue({
         <div className="dialogue-preview-footer" data-landmark="preview-footer">
           <div>
             <span>{t("job", { id: job.id })}</span>
-            {framesLabel ? <span>{t("frames", { frames: framesLabel })}</span> : null}
+            {framesLabel ? (
+              <span>{t("frames", { frames: framesLabel })}</span>
+            ) : null}
           </div>
         </div>
         {translatedOwners.length > 0 ? (
@@ -736,7 +793,9 @@ export function CompilerDialogue({
               type="button"
               className="chip-toggle"
               disabled={sending}
-              onClick={() => void send(lastPrompt || t("proposeAlternateVariants"))}
+              onClick={() =>
+                void send(lastPrompt || t("proposeAlternateVariants"))
+              }
             >
               {t("variations")}
             </button>

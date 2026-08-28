@@ -171,6 +171,7 @@ export default async function SceneReviewPage({
     previewLabeledArtifactId: "",
     evidenceVideoArtifactId: "",
     failureCode: null,
+    failureReason: null,
     progressPhase: "",
     progressStage: "",
     progressFraction: 0,

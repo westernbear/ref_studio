@@ -24,6 +24,13 @@ const PROVIDERS = [
 const isCodex = (kind: string) => kind === "codex-oauth";
 
 type Props = {
+  // What the provider says it has. Empty when there is no key yet, or when
+  // the provider will not list -- `modelsReason` says which, and the field
+  // stays free text either way: a model released this morning is in no
+  // list, and a listing endpoint being down must not block configuring
+  // anything.
+  readonly models: readonly string[];
+  readonly modelsReason: string | null;
   readonly providerKind: string;
   readonly model: string;
   readonly enabled: boolean;
@@ -35,6 +42,8 @@ type Props = {
 };
 
 export function MaterialProviderSettingsForm({
+  models,
+  modelsReason,
   providerKind: initialProviderKind,
   model: initialModel,
   enabled: initialEnabled,
@@ -183,9 +192,22 @@ export function MaterialProviderSettingsForm({
             value={model}
             onChange={(event) => setModel(event.target.value)}
             placeholder="gpt-image-2"
+            list="material-model-options"
             required
           />
+          <datalist id="material-model-options">
+            {models.map((option) => (
+              <option key={option} value={option} />
+            ))}
+          </datalist>
         </label>
+        {models.length === 0 ? (
+          <p className="field-hint">
+            {modelsReason === "NO_API_KEY"
+              ? t("modelsNeedKey")
+              : t("modelsUnavailable")}
+          </p>
+        ) : null}
         <label>
           {isCodex(providerKind) ? t("codexAuthJson") : t("apiKey")}
           {isCodex(providerKind) ? (

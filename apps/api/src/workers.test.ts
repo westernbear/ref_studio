@@ -1455,6 +1455,39 @@ describe("worker registration API", () => {
       await fixture.app.close();
     });
 
+    // "This job has ended" was all the creator ever saw. A wrong model
+    // name in the AI provider settings and an unreachable worker read
+    // identically without the reason the provider actually gave.
+    it("records the reason authoring failed, not only that it did", async () => {
+      const reviews = createReviewStore();
+      const workflow = createCreatorWorkflowStore();
+      const job = addJob(workflow, "PREPARING", generationConfig);
+      job.preparationStage = "PREVIEW_QUEUED";
+      job.compilation = compilation;
+      job.evidence = analysisEvidence(job.id, "attempt-a");
+      const { db, aiSecretKey } = authorSceneDbFixture();
+      const fixture = appFixture(workflow, undefined, {
+        reviews,
+        db,
+        aiSecretKey,
+        authorSceneGenerate: async () => {
+          throw new Error(
+            "models/gpt-image-2 is not found for API version v1beta,\n or is not supported for generateContent.",
+          );
+        },
+      });
+      await registerWorker(fixture, ["renderer"]);
+      await claimWorker(fixture);
+      await completePreview(fixture, job, Buffer.from("preview-report-bytes"));
+      const finished = await settledAuthoring(workflow, job.id);
+
+      expect(finished?.failureCode).toBe("SCENE_AUTHORING_FAILED");
+      expect(finished?.failureReason).toContain("gpt-image-2");
+      // One line, so it can go on a page rather than into a log.
+      expect(finished?.failureReason).not.toContain("\n");
+      await fixture.app.close();
+    });
+
     it("fails the job when authoring throws", async () => {
       const reviews = createReviewStore();
       const workflow = createCreatorWorkflowStore();

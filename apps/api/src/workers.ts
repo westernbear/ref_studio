@@ -463,6 +463,14 @@ const sessionAuthorized = (
 };
 const worker = (store: WorkerStore, id: string): Worker | undefined =>
   store.workers.get(id);
+// Vendor error text, made safe to put on a page: one line, bounded, and
+// never the raw object. Long enough to carry a model name and what was
+// wrong with it, short enough not to be a wall.
+const safeFailureReason = (error: unknown): string => {
+  const message =
+    error instanceof Error ? error.message : String(error ?? "unknown error");
+  return message.replace(/\s+/gu, " ").trim().slice(0, 400) || "unknown error";
+};
 const digest = (value: unknown): string =>
   createHash("sha256").update(JSON.stringify(value)).digest("hex");
 const transition = (job: Job, next: JobState, now: () => number): void => {
@@ -1951,6 +1959,13 @@ export function registerWorkers(
       const job = workflow?.jobs.get(jobId);
       if (job && job.preparationStage === "AUTHORING_RUNNING") {
         job.failureCode = "SCENE_AUTHORING_FAILED";
+        // The creator saw only "this job has ended". SCENE_AUTHORING_FAILED
+        // is equally true of an unconfigured provider, an unreachable
+        // model, an unresolvable attachment and a spec that failed
+        // validation -- and of a model name that simply does not exist,
+        // which is a typo one screen away that nobody could see. The
+        // provider's own words are the only thing that separates them.
+        job.failureReason = safeFailureReason(error);
         job.progress = null;
         transition(job, "FAILED", now);
       }

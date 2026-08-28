@@ -29,6 +29,13 @@ const PROVIDERS = [
 ] as const;
 
 type Props = {
+  // What the provider says it has. Empty when there is no key yet, or when
+  // the provider will not list -- `modelsReason` says which, and the field
+  // stays free text either way: a model released this morning is in no
+  // list, and a listing endpoint being down must not block configuring
+  // anything.
+  readonly models: readonly string[];
+  readonly modelsReason: string | null;
   readonly providerKind: string;
   readonly model: string;
   readonly baseUrl: string | null;
@@ -39,6 +46,8 @@ type Props = {
 };
 
 export function AiProviderSettingsForm({
+  models,
+  modelsReason,
   providerKind: initialProviderKind,
   model: initialModel,
   baseUrl: initialBaseUrl,
@@ -80,7 +89,9 @@ export function AiProviderSettingsForm({
       const body: unknown = await response.json().catch(() => null);
       if (!response.ok) {
         setStatus(
-          t("saveFailed", { code: errorCode(body) || `HTTP_${response.status}` }),
+          t("saveFailed", {
+            code: errorCode(body) || `HTTP_${response.status}`,
+          }),
         );
         return;
       }
@@ -99,7 +110,11 @@ export function AiProviderSettingsForm({
       <div className="ai-settings-status" data-landmark="ai-settings-status">
         <span
           className={enabled ? "status-chip is-live" : "status-chip"}
-          aria-label={enabled ? t("providerEnabledAriaLabel") : t("providerDisabledAriaLabel")}
+          aria-label={
+            enabled
+              ? t("providerEnabledAriaLabel")
+              : t("providerDisabledAriaLabel")
+          }
         >
           {enabled ? t("enabled") : t("disabled")}
         </span>
@@ -158,9 +173,22 @@ export function AiProviderSettingsForm({
             value={model}
             onChange={(event) => setModel(event.target.value)}
             placeholder="e.g. gpt-4o, claude-sonnet-5, grok-4.6"
+            list="ai-model-options"
             required
           />
+          <datalist id="ai-model-options">
+            {models.map((option) => (
+              <option key={option} value={option} />
+            ))}
+          </datalist>
         </label>
+        {models.length === 0 ? (
+          <p className="field-hint">
+            {modelsReason === "NO_API_KEY"
+              ? t("modelsNeedKey")
+              : t("modelsUnavailable")}
+          </p>
+        ) : null}
         {providerKind === "openai-compatible" ? (
           <label>
             {t("baseUrl")}
@@ -179,7 +207,11 @@ export function AiProviderSettingsForm({
             type="password"
             value={apiKey}
             onChange={(event) => setApiKey(event.target.value)}
-            placeholder={hasApiKey ? t("apiKeyReplacePlaceholder") : t("apiKeyEnterPlaceholder")}
+            placeholder={
+              hasApiKey
+                ? t("apiKeyReplacePlaceholder")
+                : t("apiKeyEnterPlaceholder")
+            }
             autoComplete="off"
           />
         </label>
@@ -191,7 +223,11 @@ export function AiProviderSettingsForm({
           />
           {t("enabled")}
         </label>
-        <button className="button button-primary" type="submit" disabled={saving}>
+        <button
+          className="button button-primary"
+          type="submit"
+          disabled={saving}
+        >
           {saving ? t("saving") : t("saveSettings")}
         </button>
         <p aria-live="polite">{status}</p>

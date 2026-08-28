@@ -131,7 +131,8 @@
   "JobStatus": {
     "completed": "Compiler job completed.",
     "cancelled": "Compiler job was cancelled.",
-    "failed": "Compiler job failed.",
+    "failed": "The job failed.",
+    "failedWithReason": "The job failed — {reason}",
     "failedSafety": "This output didn't pass an automatic safety check.",
     "retryableError": "Compiler job needs retry.",
     "staleApproval": "Automatic verification is stale; recompiling.",
@@ -192,8 +193,17 @@
     "verificationStages": "Verification Stages",
     "attempt": "Attempt {number}"
   },
+  "ThinkingIndicator": {
+    "authoringReading": "Reading the brief and the reference",
+    "authoringShaping": "Shaping the beat sheet",
+    "authoringWriting": "Writing the scene",
+    "authoringChecking": "Checking the scene holds up",
+    "patchingReading": "Reading your note",
+    "patchingApplying": "Applying it to the scene",
+    "patchingChecking": "Checking the result"
+  },
   "CompilerDialogue": {
-    "title": "Compiler Chat",
+    "title": "AI chat",
     "sessionId": "Session ID: {id}",
     "systemNode": "System",
     "initialized": "Compiler is up. Tell it what to change.",
@@ -338,7 +348,7 @@
       "tooShort": "The video is shorter than the required four-second interval.",
       "uploadCanceled": "Upload canceled.",
       "accepted": "Video format fixed. Describe what you want, then continue.",
-      "jobCreated": "Compiler job created. Opening Compiler Chat.",
+      "jobCreated": "Job created. Opening the chat.",
       "videoTypeInvalid": "This video could not be admitted. Choose a supported MP4, MOV, or WEBM file.",
       "videoSizeLimitExceeded": "This file is larger than the 2 GB upload limit.",
       "uploadQuarantined": "This upload is isolated for safety and cannot continue.",
@@ -427,6 +437,8 @@
     }
   },
   "MaterialProviderSettingsForm": {
+    "modelsNeedKey": "Save an API key and this provider's models will be listed here.",
+    "modelsUnavailable": "Could not list this provider's models. Type the model name.",
     "saveFailed": "Could not save: {code}.",
     "settingsSaved": "Settings saved.",
     "connectionInterrupted": "The connection dropped. Retry.",
@@ -457,6 +469,8 @@
     "saveSettings": "Save settings"
   },
   "AiProviderSettingsForm": {
+    "modelsNeedKey": "Save an API key and this provider's models will be listed here.",
+    "modelsUnavailable": "Could not list this provider's models. Type the model name.",
     "saveFailed": "Save failed: {code}.",
     "settingsSaved": "Settings saved.",
     "connectionInterrupted": "The connection was interrupted. Retry.",
@@ -614,7 +628,7 @@
     "noBillingRecords": "No live billing records are available.",
     "billingAccounts": "Billing accounts",
     "billingDetail": "Billing detail",
-    "aiSettingsDescription": "Configure which AI provider powers Compiler Chat prompt refinement.",
+    "aiSettingsDescription": "The AI provider that authors scenes and refines chat prompts. Image, video, and 3D material is configured separately under Material generators.",
     "materialSettingsDescription": "Configure the three generators that make the material a scene asks for: 2D image, video, and 3D.",
     "workflow": "Workflow",
     "workflowDescription": "Compiler jobs for the current workspace.",

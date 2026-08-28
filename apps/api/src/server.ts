@@ -17,9 +17,15 @@ import {
   quarantineVersion,
 } from "./admin-mutation.js";
 import type { AiProviderSettingsPublic } from "./ai-provider-settings.js";
-import { getAiProviderSettings } from "./ai-provider-settings.js";
+import {
+  getAiProviderSettings,
+  getAiProviderSettingsWithSecret,
+} from "./ai-provider-settings.js";
 import type { MaterialProviderSettingsPublic } from "./material-provider-settings.js";
-import { getMaterialProviderSettings } from "./material-provider-settings.js";
+import {
+  getMaterialProviderSettings,
+  getMaterialProviderSettingsWithSecret,
+} from "./material-provider-settings.js";
 import { buildAuthApp } from "./app.js";
 import type { AuthStore } from "./auth.js";
 import {
@@ -293,6 +299,7 @@ export function loadAdminReadStore(
   reviews: ReviewStore,
   workers: WorkerStore,
   writableDb: Database.Database,
+  aiSecretKey: string,
 ): AdminReadStore {
   const db = new Database(databasePath, {
     readonly: true,
@@ -470,6 +477,13 @@ export function loadAdminReadStore(
       get materialProviderSettings(): MaterialProviderSettingsPublic {
         return getMaterialProviderSettings(writableDb);
       },
+      // Functions rather than getters: these decrypt a provider key, and
+      // that should happen only when a model listing is actually asked
+      // for, not on every touch of the admin read store.
+      aiProviderSettingsWithSecret: () =>
+        getAiProviderSettingsWithSecret(writableDb, aiSecretKey),
+      materialProviderSettingsWithSecret: () =>
+        getMaterialProviderSettingsWithSecret(writableDb, aiSecretKey),
     };
   } finally {
     db.close();
@@ -521,6 +535,7 @@ export function createApiServer(config: ApiServerConfig) {
     reviews,
     workers,
     db,
+    config.introspectSecret,
   );
   const app = buildAuthApp({
     store: auth,

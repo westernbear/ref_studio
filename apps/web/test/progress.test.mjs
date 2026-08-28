@@ -49,6 +49,7 @@ describe("compiler progress projection", () => {
       previewLabeledArtifactId: "",
       evidenceVideoArtifactId: "",
       failureCode: null,
+      failureReason: null,
       progressPhase: "prepare",
       progressStage: "preview-render",
       progressFraction: 0.48,
@@ -253,8 +254,12 @@ describe("a generate-track job on its way through authoring and material generat
   });
 
   it("resolves JobStatus keys for every generate-track stage in both catalogues", async () => {
-    const ko = (await import("../messages/ko-KR.json", { with: { type: "json" } })).default;
-    const en = (await import("../messages/en-US.json", { with: { type: "json" } })).default;
+    const ko = (
+      await import("../messages/ko-KR.json", { with: { type: "json" } })
+    ).default;
+    const en = (
+      await import("../messages/en-US.json", { with: { type: "json" } })
+    ).default;
     for (const stage of [
       "AUTHORING_QUEUED",
       "AUTHORING_RUNNING",
@@ -275,8 +280,12 @@ describe("a generate-track job on its way through authoring and material generat
   });
 
   it("labels the worker's scene-assets stage in both catalogues", async () => {
-    const ko = (await import("../messages/ko-KR.json", { with: { type: "json" } })).default;
-    const en = (await import("../messages/en-US.json", { with: { type: "json" } })).default;
+    const ko = (
+      await import("../messages/ko-KR.json", { with: { type: "json" } })
+    ).default;
+    const en = (
+      await import("../messages/en-US.json", { with: { type: "json" } })
+    ).default;
     expect(ko.StageLabels.sceneAssets).toBeTruthy();
     expect(en.StageLabels.sceneAssets).toBeTruthy();
   });
@@ -305,7 +314,9 @@ describe("what to do next", () => {
   const at = (state, gates = []) => ({ state, approvedGates: gates });
 
   it("asks for the render once the rebuild has passed its checks", () => {
-    expect(nextStepKey(at("READY", ["T1", "T2", "T3", "T4"]))).toBe("readyToRender");
+    expect(nextStepKey(at("READY", ["T1", "T2", "T3", "T4"]))).toBe(
+      "readyToRender",
+    );
   });
 
   it("does not ask for it while the checks are still running", () => {
@@ -327,11 +338,24 @@ describe("what to do next", () => {
 
 describe("every next step has words in both catalogues", () => {
   it("resolves each key nextStepKey can return", async () => {
-    const ko = (await import("../messages/ko-KR.json", { with: { type: "json" } })).default;
-    const en = (await import("../messages/en-US.json", { with: { type: "json" } })).default;
+    const ko = (
+      await import("../messages/ko-KR.json", { with: { type: "json" } })
+    ).default;
+    const en = (
+      await import("../messages/en-US.json", { with: { type: "json" } })
+    ).default;
     const states = [
-      "PREPARING", "READY", "QUEUED", "RENDERING", "ASSEMBLING", "AWAITING_T5",
-      "COMPLETED", "CANCELLED", "FAILED", "RETRYABLE_ERROR", "STALE_APPROVAL",
+      "PREPARING",
+      "READY",
+      "QUEUED",
+      "RENDERING",
+      "ASSEMBLING",
+      "AWAITING_T5",
+      "COMPLETED",
+      "CANCELLED",
+      "FAILED",
+      "RETRYABLE_ERROR",
+      "STALE_APPROVAL",
     ];
     const keys = new Set(
       states.flatMap((state) => [

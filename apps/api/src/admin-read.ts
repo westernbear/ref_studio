@@ -7,6 +7,7 @@ import {
 } from "./admin-auth.js";
 import type { AiProviderSettingsPublic } from "./ai-provider-settings.js";
 import type { MaterialProviderSettingsPublic } from "./material-provider-settings.js";
+import { ProviderModelsError, listProviderModels } from "./provider-models.js";
 import { safeEnvelope } from "./boundary.js";
 import type { WorkerStore } from "./workers.js";
 
@@ -112,6 +113,15 @@ export type AdminReadStore = {
   readonly queryCount?: { value: number };
   readonly aiProviderSettings?: AiProviderSettingsPublic;
   readonly materialProviderSettings?: MaterialProviderSettingsPublic;
+  // Separate accessors from the two above, and deliberately functions: the
+  // decrypted key is read only when a model listing is actually asked for,
+  // never held on a store the rest of the admin reads share.
+  readonly aiProviderSettingsWithSecret?: () => AiProviderSettingsPublic & {
+    readonly apiKey: string | null;
+  };
+  readonly materialProviderSettingsWithSecret?: () => MaterialProviderSettingsPublic & {
+    readonly apiKey: string | null;
+  };
 };
 type Query = {
   readonly q?: string;
@@ -574,6 +584,47 @@ export function registerAdminRead(
         reply.send(store.materialProviderSettings ?? null);
         return;
       }
+      // The model name is the one field where the provider knows the
+      // right answers and the operator is guessing. Fetched live rather
+      // than from a hardcoded list, which would go stale the week after it
+      // was written.
+      if (
+        path === "/admin/ai-provider-models" ||
+        path === "/admin/material-provider-models"
+      ) {
+        if (adminRole(principal) !== "SUPER_ADMIN")
+          throw new Error("ROLE_NOT_PERMITTED");
+        const forAi = path === "/admin/ai-provider-models";
+        const settings = forAi
+          ? store.aiProviderSettingsWithSecret?.()
+          : store.materialProviderSettingsWithSecret?.();
+        if (!settings) throw new Error("RESOURCE_NOT_FOUND");
+        if (!settings.apiKey) {
+          // Not an error: there is simply nothing to ask with yet. The
+          // console shows the reason instead of an empty dropdown that
+          // looks like the provider has no models.
+          reply.send({ models: [], reason: "NO_API_KEY" });
+          return;
+        }
+        try {
+          const models = await listProviderModels({
+            providerKind: settings.providerKind,
+            apiKey: settings.apiKey,
+            baseUrl: "baseUrl" in settings ? (settings.baseUrl ?? null) : null,
+            requireTextGeneration: forAi,
+          });
+          reply.send({ models, reason: null });
+        } catch (cause) {
+          // A provider that will not list its models must not stop
+          // anyone configuring it -- the field stays free text.
+          reply.send({
+            models: [],
+            reason:
+              cause instanceof ProviderModelsError ? cause.code : "UNAVAILABLE",
+          });
+        }
+        return;
+      }
       throw new Error("RESOURCE_NOT_FOUND");
     } catch (error) {
       fail(reply, error);
@@ -589,4 +640,6 @@ export function registerAdminRead(
   app.get("/admin/billing/:tenantId", handler);
   app.get("/admin/ai-provider-settings", handler);
   app.get("/admin/material-provider-settings", handler);
+  app.get("/admin/ai-provider-models", handler);
+  app.get("/admin/material-provider-models", handler);
 }
