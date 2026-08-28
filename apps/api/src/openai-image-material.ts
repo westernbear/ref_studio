@@ -43,12 +43,10 @@ const persistRefreshedCodexAuth = (
 // same fail-closed stance as safety-check.ts.
 export class MaterialProviderError extends Error {
   readonly code: string;
-  constructor(message: string) {
-    super(message);
+  constructor(code: string) {
+    super(code);
     this.name = "MaterialProviderError";
-    // The token only, so callers matching on `code` are unaffected by a
-    // detail appended to the message.
-    this.code = message.split(":")[0] ?? message;
+    this.code = code;
   }
 }
 
@@ -193,14 +191,7 @@ export async function generateImageMaterial(params: {
         cause.code === "CODEX_AUTH_MALFORMED"
       )
         throw new MaterialProviderError("MATERIAL_PROVIDER_NOT_CONFIGURED");
-      // Carries what the provider said. A bare token cost this repository
-      // a live debugging session to learn the endpoint had been answering
-      // "Input must be a list" the whole time.
-      throw new MaterialProviderError(
-        cause instanceof CodexOAuthError
-          ? `MATERIAL_GENERATION_FAILED: ${cause.message}`
-          : "MATERIAL_GENERATION_FAILED",
-      );
+      throw new MaterialProviderError("MATERIAL_GENERATION_FAILED");
     }
     // Access tokens last hours. A refresh that is not written back means
     // every subsequent asset pays for another one, and the rotated refresh

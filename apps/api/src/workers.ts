@@ -1862,6 +1862,12 @@ export function registerWorkers(
       );
       return;
     }
+    // How long the vendor took, and what it said when it refused. This
+    // endpoint held a worker's request open for a model call and logged
+    // nothing either way, so a generation that was merely slow and one
+    // that failed looked identical from here -- both simply stopped
+    // existing at the point the worker gave up.
+    const startedAt = Date.now();
     try {
       const material = await generateImageMaterial({
         db,
@@ -1870,12 +1876,32 @@ export function registerWorkers(
         canvas: parsed.data.canvas,
         ...(materialGenerate ? { generate: materialGenerate } : {}),
       });
+      console.info(
+        JSON.stringify({
+          event: "api.material.generated",
+          jobId: request.params.jobId,
+          assetId: parsed.data.assetId,
+          elapsedMs: Date.now() - startedAt,
+          bytes: material.bytes.byteLength,
+          tool: material.provenance.tool,
+        }),
+      );
       reply.send({
         contentType: material.contentType,
         bytesBase64: Buffer.from(material.bytes).toString("base64"),
         provenance: material.provenance,
       });
     } catch (cause) {
+      console.error(
+        JSON.stringify({
+          event: "api.material.failed",
+          jobId: request.params.jobId,
+          assetId: parsed.data.assetId,
+          elapsedMs: Date.now() - startedAt,
+          errorName: cause instanceof Error ? cause.name : typeof cause,
+          errorMessage: cause instanceof Error ? cause.message : String(cause),
+        }),
+      );
       // The provider's own words, not a fixed sentence. "could not produce
       // this asset" was true of a rejected prompt, an expired credential
       // and a request shape the endpoint refuses, and told an operator

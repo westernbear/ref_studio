@@ -7,9 +7,8 @@ import {
   CodexOAuthError,
   generateCodexImage,
   parseCodexAuth,
-  CODEX_RESPONSES_MODEL,
   readGeneratedImage,
-  readGeneratedImageFromStream,
+  readResponsesBody,
   refreshCodexAuth,
   type CodexFetch,
 } from "./codex-oauth.js";
@@ -29,19 +28,10 @@ const auth = () =>
     }),
   );
 
-// The real stream: the image rides on an output_item.done event, and the
-// final response.completed has the base64 stripped out of it -- measured
-// against the live endpoint, and the reason reading only the last response
-// object reported CODEX_IMAGE_MISSING for calls that had worked.
-const streamed = (result: string | null) =>
+const streamed = (response: unknown) =>
   [
     `data: ${JSON.stringify({ type: "response.created", response: { output: [] } })}`,
-    ...(result === null
-      ? []
-      : [
-          `data: ${JSON.stringify({ type: "response.output_item.done", item: { type: "image_generation_call", result } })}`,
-        ]),
-    `data: ${JSON.stringify({ type: "response.completed", response: { status: "completed", output: [{ type: "image_generation_call" }] } })}`,
+    `data: ${JSON.stringify({ type: "response.completed", response })}`,
     "data: [DONE]",
     "",
   ].join("\n");
@@ -128,55 +118,57 @@ describe("codex token refresh", () => {
   });
 });
 
-describe("reading the image out of the stream", () => {
-  it("takes it from the output_item.done event", () => {
+describe("reading a streamed response", () => {
+  it("takes the last response object out of the event stream", () => {
+    const body = streamed({
+      output: [{ type: "image_generation_call", result: "AAA" }],
+    });
     expect(
-      readGeneratedImageFromStream("text/event-stream", streamed("AAA")),
+      readGeneratedImage(readResponsesBody("text/event-stream", body)),
     ).toBe("AAA");
-  });
-
-  // The finished response object is delivered last and has the base64
-  // stripped out. Reading only that -- which is what this did -- found a
-  // completed generation with no image in it.
-  it("does not give up because the final response object has no image", () => {
-    expect(
-      readGeneratedImageFromStream("text/event-stream", streamed("BBB")),
-    ).toBe("BBB");
   });
 
   it("also reads a plain JSON body, if the endpoint answers that way", () => {
     const body = JSON.stringify({
-      output: [{ type: "image_generation_call", result: "CCC" }],
+      output: [{ type: "image_generation_call", result: "BBB" }],
     });
-    expect(readGeneratedImageFromStream("application/json", body)).toBe("CCC");
+    expect(
+      readGeneratedImage(readResponsesBody("application/json", body)),
+    ).toBe("BBB");
   });
 
+  // The model's own message items share the output list with the image
+  // call, and their order is not guaranteed -- so the image is scanned for,
+  // not indexed.
   it("finds the image past output items that are not one", () => {
-    const body = JSON.stringify({
+    const body = streamed({
       output: [
         { type: "reasoning", summary: [] },
         { type: "message", content: [{ type: "output_text", text: "here" }] },
-        { type: "image_generation_call", result: "DDD" },
+        { type: "image_generation_call", result: "CCC" },
       ],
     });
-    expect(readGeneratedImage(JSON.parse(body))).toBe("DDD");
+    expect(
+      readGeneratedImage(readResponsesBody("text/event-stream", body)),
+    ).toBe("CCC");
   });
 
-  it("fails by name when the stream carries no image", () => {
+  it("fails by name when the response carries no image", () => {
+    const body = streamed({ output: [{ type: "message", content: [] }] });
     expect(() =>
-      readGeneratedImageFromStream("text/event-stream", streamed(null)),
+      readGeneratedImage(readResponsesBody("text/event-stream", body)),
     ).toThrow(/CODEX_IMAGE_MISSING/);
   });
 
-  it("fails by name on a body that is not JSON at all", () => {
+  it("fails by name on a stream with no response event", () => {
     expect(() =>
-      readGeneratedImageFromStream("application/json", "<html>login</html>"),
+      readResponsesBody("text/event-stream", "data: [DONE]\n"),
     ).toThrow(/CODEX_RESPONSE_MALFORMED/);
   });
 });
 
 describe("generating an image", () => {
-  it("asks the codex endpoint in the shape it actually accepts", async () => {
+  it("asks the codex endpoint for a transparent png of the given size", async () => {
     const seen: {
       url?: string;
       headers?: Record<string, string>;
@@ -186,7 +178,12 @@ describe("generating an image", () => {
       seen.url = url;
       seen.headers = { ...init.headers };
       seen.body = init.body;
-      return reply(200, streamed("DDD"));
+      return reply(
+        200,
+        streamed({
+          output: [{ type: "image_generation_call", result: "DDD" }],
+        }),
+      );
     };
     const result = await generateCodexImage({
       auth: auth(),
@@ -200,27 +197,15 @@ describe("generating an image", () => {
     expect(seen.headers?.authorization).toBe("Bearer access-one");
     expect(seen.headers?.["chatgpt-account-id"]).toBe("acct-1");
     const body = JSON.parse(seen.body ?? "{}");
-    // The responses model carries the request; the image model rides in
-    // the tool. Sending the image model at the top level is refused --
-    // "The 'gpt-image-2' model is not supported when using Codex with a
-    // ChatGPT account" -- which is what this whole path failed with.
-    expect(body.model).toBe(CODEX_RESPONSES_MODEL);
-    expect(body.store).toBe(false);
-    // "Input must be a list", says the endpoint to a bare string.
-    expect(body.input).toEqual([
-      { role: "user", content: [{ type: "input_text", text: "a gold glow" }] },
-    ]);
+    expect(body.model).toBe(CODEX_IMAGE_MODEL);
     expect(body.tools).toEqual([
       {
         type: "image_generation",
-        model: CODEX_IMAGE_MODEL,
         size: "1024x1536",
+        background: "transparent",
         output_format: "png",
       },
     ]);
-    // Asking for a transparent background fails the call on this model,
-    // and the default output is RGBA anyway.
-    expect(JSON.stringify(body)).not.toContain("background");
   });
 
   // Access tokens last hours, so a stale one is the normal case, not an
@@ -241,7 +226,12 @@ describe("generating an image", () => {
       tokens.push(init.headers["authorization"] ?? "");
       return tokens.length === 1
         ? reply(401, "expired", "text/plain")
-        : reply(200, streamed("EEE"));
+        : reply(
+            200,
+            streamed({
+              output: [{ type: "image_generation_call", result: "EEE" }],
+            }),
+          );
     };
     const result = await generateCodexImage({
       auth: auth(),
