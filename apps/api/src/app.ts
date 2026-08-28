@@ -13,6 +13,7 @@ import {
   revokeSession,
   rotateSessionTenant,
   sessionCookie,
+  ABSOLUTE_SESSION_MS,
   signIn,
   type AuthStore,
   type AuthFailure,
@@ -352,12 +353,14 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
     reply
       .header(
         "set-cookie",
-        sessionCookie(
-          result.session.id,
-          options.adminSessionTimeoutMs === undefined
-            ? undefined
-            : options.adminSessionTimeoutMs / 1000,
-        ),
+        // The cookie lasts as long as a session possibly can, not as long
+        // as one idle window. The server slides expiry forward on every
+        // authenticated request (authenticateSession) and refuses past
+        // either bound, so it is the authority on both; a cookie pinned to
+        // the idle window would instead have the browser throw away a
+        // session the server was still happy to accept -- which is what
+        // signed people out mid-job.
+        sessionCookie(result.session.id, ABSOLUTE_SESSION_MS / 1000),
       )
       .send({ ok: true });
   };
@@ -395,12 +398,7 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
       reply
         .header(
           "set-cookie",
-          sessionCookie(
-            rotated.id,
-            options.adminSessionTimeoutMs === undefined
-              ? undefined
-              : options.adminSessionTimeoutMs / 1000,
-          ),
+          sessionCookie(rotated.id, ABSOLUTE_SESSION_MS / 1000),
         )
         .send({ ok: true });
     },
@@ -845,6 +843,7 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
       options.adminReads,
       now,
       options.expectedOrigin,
+      options.adminSessionTimeoutMs,
     );
   if (options.adminMutations)
     registerAdminMutation(
@@ -853,6 +852,7 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
       options.adminMutations,
       now,
       options.expectedOrigin,
+      options.adminSessionTimeoutMs,
     );
   if (options.reviews) registerReviews(app, options.reviews);
   if (

@@ -262,6 +262,7 @@ export function registerAdminRead(
   store: AdminReadStore,
   now: () => number = Date.now,
   expectedOrigin = "http://localhost:3100",
+  adminSessionTimeoutMs?: number,
 ): void {
   app.addHook("onRequest", async (request, reply) => {
     if (
@@ -275,6 +276,7 @@ export function registerAdminRead(
       request,
       expectedOrigin,
       now(),
+      adminSessionTimeoutMs,
     );
     if ("code" in principal || !isAdminPrincipal(principal)) {
       auth.audit({

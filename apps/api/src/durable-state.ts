@@ -144,6 +144,7 @@ const SessionRows = z.array(
     tenantId: z.string(),
     expiresAt: z.string(),
     revokedAt: z.string().nullable(),
+    createdAt: z.string(),
   }),
 );
 const IdempotencyRows = z.array(
@@ -309,7 +310,11 @@ export function createDurableState(
         session.revokedAt === null
           ? null
           : new Date(session.revokedAt).toISOString(),
-        new Date().toISOString(),
+        // The session's own createdAt, not the moment of this snapshot:
+        // the snapshot is rewritten on every mutation, so stamping "now"
+        // here would push the absolute expiry ceiling forward forever and
+        // turn it back into no ceiling at all.
+        new Date(session.createdAt).toISOString(),
       );
 
     const insertUpload = db.prepare(
@@ -532,7 +537,7 @@ export function createDurableState(
     const sessions = SessionRows.parse(
       db
         .prepare(
-          "SELECT id,user_id AS userId,tenant_id AS tenantId,expires_at AS expiresAt,revoked_at AS revokedAt FROM sessions",
+          "SELECT id,user_id AS userId,tenant_id AS tenantId,expires_at AS expiresAt,revoked_at AS revokedAt,created_at AS createdAt FROM sessions",
         )
         .all(),
     );
@@ -543,6 +548,7 @@ export function createDurableState(
           userId: session.userId,
           tenantId: session.tenantId,
           expiresAt: Date.parse(session.expiresAt),
+          createdAt: Date.parse(session.createdAt),
           revokedAt:
             session.revokedAt === null ? null : Date.parse(session.revokedAt),
         }),

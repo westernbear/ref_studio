@@ -34,6 +34,15 @@ export const CODEX_TOKEN_URL = "https://auth.openai.com/oauth/token";
 // the application, not the account, and the refresh token is what carries
 // the authority.
 export const CODEX_CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann";
+// The model that carries the request. It is a *responses* model, not an
+// image one: the top-level `model` names who is being asked, and the image
+// model rides in the tool. Sending the image model here is refused --
+// "The 'gpt-image-2' model is not supported when using Codex with a
+// ChatGPT account" -- which is what the whole path failed with until this
+// was measured against the live endpoint.
+export const CODEX_RESPONSES_MODEL =
+  process.env["RVS_CODEX_RESPONSES_MODEL"] || "gpt-5.4";
+
 // The image model the Responses image_generation tool runs when the
 // console names none. It is a fallback, not a constant: the console's model
 // field was ignored on this path, so an operator could pick a model and
@@ -59,10 +68,12 @@ export type CodexAuth = z.infer<typeof CodexAuthSchema>;
 
 export class CodexOAuthError extends Error {
   readonly code: string;
-  constructor(code: string) {
-    super(code);
+  constructor(message: string) {
+    super(message);
     this.name = "CodexOAuthError";
-    this.code = code;
+    // The token only, so callers matching on `code` are unaffected by a
+    // detail appended to the message.
+    this.code = message.split(":")[0] ?? message;
   }
 }
 
@@ -155,37 +166,59 @@ export async function refreshCodexAuth(
 // rather than as the whole body. Falls back to parsing the body as one
 // JSON object, which is what a non-streaming reply would be -- so this
 // keeps working if the endpoint answers either way.
-export const readResponsesBody = (
+// The image arrives in a `response.output_item.done` event, on the item's
+// `result`. Not on the finished response object: that one is delivered
+// last and has the base64 stripped out of it, so reading only the final
+// `response.completed` -- which is what this did -- found a completed
+// generation with no image in it and reported CODEX_IMAGE_MISSING for a
+// call that had worked.
+//
+// Scans every event rather than trusting one event name, and falls back to
+// a whole-body parse for a non-streaming reply.
+export const readGeneratedImageFromStream = (
   contentType: string,
   body: string,
-): unknown => {
-  if (!contentType.includes("text/event-stream")) {
-    try {
-      return JSON.parse(body);
-    } catch {
-      throw new CodexOAuthError("CODEX_RESPONSE_MALFORMED");
-    }
-  }
-  let last: unknown;
+): string => {
+  // The body is read for what it is, not for what a header says it is.
+  // Branching on content-type sent a real event stream down the JSON path
+  // -- fifty-seven seconds of generation reported as
+  // CODEX_RESPONSE_MALFORMED -- because the endpoint does not label it the
+  // way the branch expected. contentType is kept only as a tiebreak for a
+  // body that is neither.
+  void contentType;
   for (const line of body.split("\n")) {
     if (!line.startsWith("data:")) continue;
     const payload = line.slice(5).trim();
     if (!payload || payload === "[DONE]") continue;
+    let event: { item?: { result?: unknown } };
     try {
-      const event = JSON.parse(payload) as { response?: unknown };
-      if (event.response !== undefined) last = event.response;
+      event = JSON.parse(payload) as { item?: { result?: unknown } };
     } catch {
-      // A single unparseable event is not the whole stream; the completed
-      // event is what matters and its absence is caught below.
+      // One unparseable event is not the whole stream.
+      continue;
     }
+    const result = event.item?.result;
+    if (typeof result === "string" && result.length > 0) return result;
   }
-  if (last === undefined) throw new CodexOAuthError("CODEX_RESPONSE_MALFORMED");
-  return last;
+  // No `data:` events carried one. Either this was a non-streaming reply,
+  // or the stream really had no image in it -- try it as one JSON object
+  // before saying so.
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    throw new CodexOAuthError(
+      body.includes("data:")
+        ? "CODEX_IMAGE_MISSING"
+        : "CODEX_RESPONSE_MALFORMED",
+    );
+  }
+  return readGeneratedImage(parsed);
 };
 
-// The image_generation tool reports its result as an output item carrying
-// base64 image bytes. Scanned for rather than indexed, because the model's
-// own message items share the list and their order is not guaranteed.
+// The non-streaming shape: an output item carrying the base64. Scanned for
+// rather than indexed, because the model's own message items share the
+// list and their order is not guaranteed.
 export const readGeneratedImage = (response: unknown): string => {
   const output = (response as { output?: readonly unknown[] })?.output;
   if (!Array.isArray(output)) throw new CodexOAuthError("CODEX_IMAGE_MISSING");
@@ -215,19 +248,36 @@ export async function generateCodexImage(params: {
   readonly request?: CodexFetch;
 }): Promise<CodexImageResult> {
   const request = params.request ?? defaultCodexFetch;
+  // Every line of this shape was measured against the live endpoint, which
+  // refuses each mistake with a different 400:
+  //   model      -- a responses model; the image model here is refused
+  //   input      -- "Input must be a list", so a message list, not a string
+  //   store      -- "Store must be set to false"
+  //   background -- "Transparent background is not supported for this
+  //                 model". Asking for it fails the call, and the default
+  //                 output is RGBA anyway (colour type 6), which is what
+  //                 the pipeline needs. So it is simply not asked for, and
+  //                 openai-image-material.ts still checks rather than
+  //                 trusts.
+  //   size       -- accepted and then ignored; a 1024x1536 request came
+  //                 back 1254x1254. Sent regardless, because it costs
+  //                 nothing and may start being honoured; the renderer
+  //                 draws the image into its box either way.
   const body = JSON.stringify({
-    model: params.model || CODEX_IMAGE_MODEL,
-    input: params.prompt,
+    model: CODEX_RESPONSES_MODEL,
+    store: false,
     stream: true,
+    input: [
+      {
+        role: "user",
+        content: [{ type: "input_text", text: params.prompt }],
+      },
+    ],
     tools: [
       {
         type: "image_generation",
+        model: params.model || CODEX_IMAGE_MODEL,
         size: params.size,
-        // The renderer composites this over a scene, so an opaque result is
-        // as useless as no result -- openai-image-material.ts checks the
-        // returned PNG's colour type and fails the job if the alpha channel
-        // is not actually there.
-        background: "transparent",
         output_format: "png",
       },
     ],
@@ -252,11 +302,24 @@ export async function generateCodexImage(params: {
     refreshedAuth = await refreshCodexAuth(params.auth, request);
     response = await attempt(refreshedAuth);
   }
-  if (response.status !== 200)
-    throw new CodexOAuthError(`CODEX_REQUEST_FAILED_${response.status}`);
-  const parsed = readResponsesBody(response.contentType, await response.text());
+  if (response.status !== 200) {
+    // The endpoint's own words. Discarding them left a bare status code
+    // to debug an undocumented protocol with -- the exact blindness this
+    // codebase keeps paying for. Bounded and single-line: it is vendor
+    // text that ends up in a log and on a page.
+    const detail = (await response.text())
+      .replace(/\s+/gu, " ")
+      .trim()
+      .slice(0, 300);
+    throw new CodexOAuthError(
+      `CODEX_REQUEST_FAILED_${response.status}${detail ? `: ${detail}` : ""}`,
+    );
+  }
   return {
-    b64: readGeneratedImage(parsed),
+    b64: readGeneratedImageFromStream(
+      response.contentType,
+      await response.text(),
+    ),
     ...(refreshedAuth ? { refreshedAuth } : {}),
   };
 }

@@ -468,7 +468,11 @@ const worker = (store: WorkerStore, id: string): Worker | undefined =>
 // wrong with it, short enough not to be a wall.
 const safeFailureReason = (error: unknown): string => {
   const message =
-    error instanceof Error ? error.message : String(error ?? "unknown error");
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : JSON.stringify(error ?? "unknown error");
   return message.replace(/\s+/gu, " ").trim().slice(0, 400) || "unknown error";
 };
 const digest = (value: unknown): string =>
@@ -856,6 +860,13 @@ const failWorkflowJob = (
   if (!job) return "FAILED";
   const token = failureToken(message);
   job.failureCode = token;
+  // The same gap the authoring stage had: a token and nothing else. A
+  // material generator that refused this particular prompt and one whose
+  // credentials expired arrive as the same MATERIAL_GENERATION_FAILED, and
+  // the creator saw "this job has ended" after watching a beat sheet
+  // appear. Whatever the worker actually reported is the only thing that
+  // separates them.
+  job.failureReason = safeFailureReason(message);
   if (job.state === "CANCEL_REQUESTED") {
     transition(job, "FAILED", now);
     return "FAILED";
@@ -1865,12 +1876,26 @@ export function registerWorkers(
         provenance: material.provenance,
       });
     } catch (cause) {
+      // The provider's own words, not a fixed sentence. "could not produce
+      // this asset" was true of a rejected prompt, an expired credential
+      // and a request shape the endpoint refuses, and told an operator
+      // which of them it was: none.
+      console.error(
+        JSON.stringify({
+          event: "api.material.failed",
+          jobId: request.params.jobId,
+          errorName: cause instanceof Error ? cause.name : typeof cause,
+          errorMessage: cause instanceof Error ? cause.message : String(cause),
+        }),
+      );
       materialRefused(
         reply,
         cause instanceof MaterialProviderError
           ? cause.code
           : "MATERIAL_GENERATION_FAILED",
-        "the image material provider could not produce this asset",
+        cause instanceof Error
+          ? cause.message.replace(/\s+/gu, " ").trim().slice(0, 300)
+          : "the image material provider could not produce this asset",
       );
     }
   });

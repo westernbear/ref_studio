@@ -35,6 +35,12 @@ export const authenticateAdminRequest = (
   request: FastifyRequest,
   expectedOrigin: string,
   now: number,
+  // The configured admin session window (RVS_ADMIN_SESSION_TIMEOUT_MINUTES).
+  // It used to reach only the cookie's Max-Age, which meant it was enforced
+  // by the browser choosing to discard a cookie and by nothing else -- the
+  // server accepted that session for the full default window regardless.
+  // Passed in here, it is enforced where it can be.
+  idleMs?: number,
 ): Principal | AuthFailure => {
   const authorization = requestHeader(request, "authorization");
   const token = authorization?.startsWith("Bearer ")
@@ -54,5 +60,6 @@ export const authenticateAdminRequest = (
         requestHeader(request, "origin"),
         expectedOrigin,
         now,
+        idleMs,
       );
 };

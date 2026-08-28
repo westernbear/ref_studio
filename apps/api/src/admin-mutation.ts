@@ -160,6 +160,7 @@ export function registerAdminMutation(
   store: AdminMutationStore,
   now: () => number = Date.now,
   expectedOrigin = "http://localhost:3100",
+  adminSessionTimeoutMs?: number,
 ): void {
   app.addHook("onRequest", async (request, reply) => {
     if (
@@ -172,6 +173,7 @@ export function registerAdminMutation(
       request,
       expectedOrigin,
       now(),
+      adminSessionTimeoutMs,
     );
     if ("code" in principal) {
       fail(reply, new Error(principal.code));

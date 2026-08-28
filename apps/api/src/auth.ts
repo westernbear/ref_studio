@@ -47,7 +47,16 @@ export type Session = {
   readonly id: string;
   readonly userId: string;
   readonly tenantId: string;
-  readonly expiresAt: number;
+  // Moves forward on every authenticated request -- see
+  // authenticateSession. It never did, despite `idleMs` being what sets
+  // it, so a session was a hard 30 minutes from sign-in: someone working
+  // continuously got signed out mid-job, which is what
+  // "AUTHENTICATION_REQUIRED" was reporting.
+  expiresAt: number;
+  // The ceiling the sliding window cannot pass. Without it a left-open tab
+  // that polls every few seconds would hold a session open forever, which
+  // is not what an idle timeout is for.
+  readonly createdAt: number;
   revokedAt: number | null;
 };
 export type ApiToken = {
@@ -63,6 +72,11 @@ export const SAFE_LOGIN_ERROR = "AUTHENTICATION_REQUIRED" as const;
 // Default session idle timeout; callers may override via the `idleMs` param
 // (wired from RVS_ADMIN_SESSION_TIMEOUT_MINUTES in server.ts).
 export const DEFAULT_IDLE_MS = 30 * 60 * 1000;
+// However much someone is working, a session ends here. Long enough that
+// no ordinary sitting is interrupted -- jobs take ten minutes and a person
+// runs several -- short enough that a forgotten tab is not a standing
+// credential.
+export const ABSOLUTE_SESSION_MS = 12 * 60 * 60 * 1000;
 const hash = (value: string): string =>
   createHash("sha256").update(value).digest("hex");
 export const hashBearer = hash;
@@ -125,6 +139,7 @@ export function signIn(
     userId: credential.userId,
     tenantId: membership.tenantId,
     expiresAt: now + idleMs,
+    createdAt: now,
     revokedAt: null,
   };
   store.sessions.push(session);
@@ -162,6 +177,7 @@ export function rotateSessionTenant(
     userId: session.userId,
     tenantId,
     expiresAt: now + idleMs,
+    createdAt: now,
     revokedAt: null,
   };
   store.sessions.push(rotated);
@@ -250,6 +266,8 @@ export function authenticateSession(
   origin: string | undefined,
   expectedOrigin: string,
   now = Date.now(),
+  idleMs: number = DEFAULT_IDLE_MS,
+  absoluteMs = ABSOLUTE_SESSION_MS,
 ): Principal | AuthFailure {
   if (!csrf) return { code: "CSRF_REQUIRED" };
   if (origin !== expectedOrigin) return { code: "CSRF_ORIGIN_INVALID" };
@@ -258,6 +276,14 @@ export function authenticateSession(
   );
   if (!session || session.expiresAt <= now)
     return { code: "AUTHENTICATION_REQUIRED" };
+  // Slide the window. This is the whole difference between an idle timeout
+  // and an absolute one: without it, "expiresAt" was fixed at sign-in and
+  // someone working steadily was signed out at the thirty-minute mark for
+  // no reason they could see.
+  const window = idleMs ?? DEFAULT_IDLE_MS;
+  const ceiling = session.createdAt + absoluteMs;
+  if (now >= ceiling) return { code: "AUTHENTICATION_REQUIRED" };
+  session.expiresAt = Math.min(now + window, ceiling);
   return principal(store, session.userId, session.tenantId, session.id);
 }
 function principal(

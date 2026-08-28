@@ -85,7 +85,12 @@ describe("auth flows", () => {
     expect(creator.headers["set-cookie"]).toContain("HttpOnly");
     expect(creator.headers["set-cookie"]).toContain("Secure");
     expect(creator.headers["set-cookie"]).toContain("SameSite=Lax");
-    expect(creator.headers["set-cookie"]).toContain("Max-Age=1800");
+    // The cookie lasts as long as a session possibly can (12h), not one
+    // idle window: the server slides expiry on every authenticated request
+    // and refuses past either bound, so pinning the cookie to the idle
+    // window only let the browser discard a session the server still
+    // accepted -- which signed people out mid-job.
+    expect(creator.headers["set-cookie"]).toContain("Max-Age=43200");
     expect(admin.statusCode).toBe(401);
     expect(admin.json().error.code).toBe("AUTHENTICATION_REQUIRED");
     await app.close();
@@ -207,7 +212,7 @@ describe("auth flows", () => {
     expect(rotated.headers["set-cookie"]).toContain("HttpOnly");
     expect(rotated.headers["set-cookie"]).toContain("Secure");
     expect(rotated.headers["set-cookie"]).toContain("SameSite=Lax");
-    expect(rotated.headers["set-cookie"]).toContain("Max-Age=1800");
+    expect(rotated.headers["set-cookie"]).toContain("Max-Age=43200");
     expect(oldUse.json().error.code).toBe("AUTHENTICATION_REQUIRED");
     expect(newUse.statusCode).toBe(200);
     await app.close();
@@ -277,6 +282,89 @@ describe("auth flows", () => {
     const result = signIn(store(), "reviewer@example.invalid", "wrong", 1_000);
     expect(result.error).toBe("AUTHENTICATION_REQUIRED");
   });
+  // The bug this replaced: expiresAt was fixed at sign-in and never moved,
+  // so `idleMs` named an idle timeout and implemented an absolute one.
+  // Someone working continuously was signed out at the thirty-minute mark
+  // -- reported to them as "AUTHENTICATION_REQUIRED. Retrying." on a job
+  // they were watching.
+  it("keeps a session alive while it is being used", () => {
+    const fixture = store();
+    const login = signIn(fixture, "reviewer@example.invalid", "correct", 1_000);
+    const session = login.session;
+    if (!session) throw new Error("expected a session");
+    const use = (now: number) =>
+      authenticateSession(
+        fixture,
+        session.id,
+        "csrf",
+        "https://studio.invalid",
+        "https://studio.invalid",
+        now,
+      );
+    // Past the original thirty minutes, but never idle for thirty of them.
+    let now = 1_000;
+    for (let step = 0; step < 10; step += 1) {
+      now += 20 * 60 * 1000;
+      expect(
+        use(now),
+        `signed out after ${step + 1} steps of work`,
+      ).toMatchObject({
+        userId: "usr_reviewer",
+      });
+    }
+  });
+
+  it("still signs out a session that goes idle", () => {
+    const fixture = store();
+    const login = signIn(fixture, "reviewer@example.invalid", "correct", 1_000);
+    const session = login.session;
+    if (!session) throw new Error("expected a session");
+    const use = (now: number) =>
+      authenticateSession(
+        fixture,
+        session.id,
+        "csrf",
+        "https://studio.invalid",
+        "https://studio.invalid",
+        now,
+      );
+    expect(use(1_000 + 20 * 60 * 1000)).toMatchObject({
+      userId: "usr_reviewer",
+    });
+    // Then nothing for over the idle window, measured from that last use.
+    expect(use(1_000 + 20 * 60 * 1000 + 31 * 60 * 1000)).toEqual({
+      code: "AUTHENTICATION_REQUIRED",
+    });
+  });
+
+  // Sliding on its own would let a left-open tab that polls every few
+  // seconds hold a session forever, which is not what an idle timeout is
+  // for.
+  it("ends a session at the absolute ceiling however busy it has been", () => {
+    const fixture = store();
+    const login = signIn(fixture, "reviewer@example.invalid", "correct", 1_000);
+    const session = login.session;
+    if (!session) throw new Error("expected a session");
+    const use = (now: number) =>
+      authenticateSession(
+        fixture,
+        session.id,
+        "csrf",
+        "https://studio.invalid",
+        "https://studio.invalid",
+        now,
+      );
+    let now = 1_000;
+    // Twelve hours of continuous use, in steps well inside the idle window.
+    for (let step = 0; step < 47; step += 1) {
+      now += 15 * 60 * 1000;
+      expect(use(now)).toMatchObject({ userId: "usr_reviewer" });
+    }
+    expect(use(1_000 + 12 * 60 * 60 * 1000 + 1)).toEqual({
+      code: "AUTHENTICATION_REQUIRED",
+    });
+  });
+
   it("derives browser principal and expires idle session", () => {
     const fixture = store();
     const login = signIn(fixture, "reviewer@example.invalid", "correct", 1_000);
@@ -343,7 +431,22 @@ describe("auth flows", () => {
       headers: { origin: "https://studio.invalid" },
       payload: { email: "reviewer@example.invalid", password: "correct" },
     });
-    expect(login.headers["set-cookie"]).toContain("Max-Age=300");
+    expect(login.headers["set-cookie"]).toContain("Max-Age=43200");
+    // The configured window is what the server enforces. It used to reach
+    // only the cookie's Max-Age, which meant it was enforced by the
+    // browser choosing to discard a cookie and by nothing else: a caller
+    // that kept the cookie was admitted for the full default window.
+    const sessionId = String(login.headers["set-cookie"]).split(";")[0];
+    const stillIn = await app.inject({
+      method: "GET",
+      url: "/admin/tenants",
+      headers: {
+        origin: "https://studio.invalid",
+        "x-csrf-token": "t",
+        cookie: sessionId ?? "",
+      },
+    });
+    expect(stillIn.statusCode).not.toBe(401);
     await app.close();
   });
 });

@@ -443,6 +443,7 @@ describe("SQLite runtime durability", () => {
       userId: "usr_platform",
       tenantId: "ten_platform",
       expiresAt: Date.now() + 60_000,
+      createdAt: Date.now(),
       revokedAt: null,
     });
     firstStores.workers.workers.set("worker_restart", {
@@ -506,6 +507,10 @@ describe("SQLite runtime durability", () => {
       progress: { fraction: 0.5 },
     });
     expect(secondStores.auth.sessions[0]?.id).toBe("session_restart");
+    // createdAt survives the round trip: the snapshot is rewritten on
+    // every mutation, and stamping it with the write time would push the
+    // absolute session ceiling forward forever.
+    expect(secondStores.auth.sessions[0]?.createdAt).toBeGreaterThan(0);
     expect(secondStores.workers.leases.get(job.id)?.workerId).toBe(
       "worker_restart",
     );
