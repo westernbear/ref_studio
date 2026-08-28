@@ -1409,6 +1409,7 @@ describe("worker registration API", () => {
           {
             id: "att_1",
             tenantId: "ten_a",
+            fileName: "logo.png",
             contentType: "image/png",
             sizeBytes: 4,
             bytes: Uint8Array.from([0x89, 0x50, 0x4e, 0x47]),
@@ -1511,6 +1512,7 @@ describe("worker registration API", () => {
           {
             id: "att_1",
             tenantId: "ten_a",
+            fileName: "logo.png",
             contentType: "image/png",
             sizeBytes: 4,
             bytes: Uint8Array.from([0x89, 0x50, 0x4e, 0x47]),

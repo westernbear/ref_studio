@@ -1712,7 +1712,11 @@ export function registerWorkers(
       return reply
         .header("content-type", attachment.contentType)
         .header("content-length", attachment.sizeBytes)
-        .send(Buffer.from(attachment.bytes));
+        .send(
+          attachment.storagePath
+            ? createReadStream(attachment.storagePath)
+            : Buffer.from(attachment.bytes),
+        );
     },
   );
   // And the `gen-render` phase reads back what the `assets` phase stored,
@@ -1846,7 +1850,11 @@ export function registerWorkers(
       const attachments = job.generation.attachmentIds.map((attachmentId) => {
         const record = uploads?.attachments?.get(attachmentId);
         if (!record) throw new Error("ATTACHMENT_UNRESOLVED");
-        return { attachmentId, kind: record.contentType };
+        return {
+          attachmentId,
+          kind: record.contentType,
+          fileName: record.fileName,
+        };
       });
       const authored = await authorScene({
         // M3: candidateEvidence is always null by the time a job reaches

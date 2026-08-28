@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -15,6 +15,7 @@ import {
 import { createDurableState, openApiDatabase } from "./durable-state.js";
 import { createReviewStore } from "./reviews.js";
 import {
+  createAttachment,
   createUpload,
   finalizeUpload,
   putChunk,
@@ -61,6 +62,7 @@ const stores = (root: string) => {
     now: () => 1_000,
     stagingRoot: join(root, "staging"),
     casRoot: join(root, "cas"),
+    attachmentRoot: join(root, "brand-attachments"),
   };
   return {
     auth,
@@ -108,6 +110,95 @@ const baseJob: Job = {
 };
 
 describe("SQLite runtime durability", () => {
+  // Brand attachments used to live only in an in-memory Map. An API
+  // restart between the upload and the assets stage lost every one of them
+  // while the job that referenced them survived -- ten minutes of
+  // analysis, compilation and preview, then ATTACHMENT_UNRESOLVED.
+  it("keeps brand attachments, and their filenames, across a restart", () => {
+    const root = mkdtempSync(join(tmpdir(), "rvs-attachment-restart-"));
+    const databasePath = join(root, "app.sqlite");
+    const bytes = Uint8Array.from([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+    ]);
+    try {
+      const firstDb = openApiDatabase(databasePath);
+      const firstStores = stores(root);
+      const first = createDurableState(
+        firstDb,
+        firstStores,
+        join(root, "artifacts"),
+      );
+      first.hydrate();
+      const created = createAttachment(
+        firstStores.uploads,
+        "ten_platform",
+        bytes,
+        "05_ranking.jpg",
+      );
+      // Written through to disk, not held in memory.
+      expect(created.storagePath).toBeTruthy();
+      expect(created.bytes.byteLength).toBe(0);
+      first.persist();
+      firstDb.close();
+
+      const secondDb = openApiDatabase(databasePath);
+      const secondStores = stores(root);
+      createDurableState(
+        secondDb,
+        secondStores,
+        join(root, "artifacts"),
+      ).hydrate();
+      const restored = secondStores.uploads.attachments?.get(created.id);
+      expect(restored?.fileName).toBe("05_ranking.jpg");
+      expect(restored?.contentType).toBe("image/png");
+      expect(restored?.sizeBytes).toBe(bytes.byteLength);
+      expect(readFileSync(restored?.storagePath ?? "")).toEqual(
+        Buffer.from(bytes),
+      );
+      secondDb.close();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  // A row whose file is gone is not an attachment. Serving zero bytes as a
+  // logo is worse than failing the job that wanted it.
+  it("drops an attachment whose bytes are missing from disk", () => {
+    const root = mkdtempSync(join(tmpdir(), "rvs-attachment-missing-"));
+    const databasePath = join(root, "app.sqlite");
+    try {
+      const firstDb = openApiDatabase(databasePath);
+      const firstStores = stores(root);
+      const first = createDurableState(
+        firstDb,
+        firstStores,
+        join(root, "artifacts"),
+      );
+      first.hydrate();
+      const created = createAttachment(
+        firstStores.uploads,
+        "ten_platform",
+        Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+        "logo.png",
+      );
+      first.persist();
+      firstDb.close();
+      rmSync(created.storagePath ?? "", { force: true });
+
+      const secondDb = openApiDatabase(databasePath);
+      const secondStores = stores(root);
+      createDurableState(
+        secondDb,
+        secondStores,
+        join(root, "artifacts"),
+      ).hydrate();
+      expect(secondStores.uploads.attachments?.get(created.id)).toBeUndefined();
+      secondDb.close();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("reconciles configured admin credentials in an existing database", () => {
     const root = mkdtempSync(join(tmpdir(), "rvs-admin-"));
     const databasePath = join(root, "app.sqlite");

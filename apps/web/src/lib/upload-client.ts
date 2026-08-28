@@ -238,6 +238,10 @@ export async function uploadAttachment(
       headers: {
         ...commandHeaders(`attachment:${requestId()}`),
         "content-type": file.type || "application/octet-stream",
+        // The scene author matches a file to the brief by its name, so
+        // the name has to survive the upload. Percent-encoded because a
+        // header is latin-1 and a filename here is routinely Korean.
+        "x-filename": encodeURIComponent(file.name),
       },
     },
     signal,

@@ -40,7 +40,9 @@ const withBeats = (
 
 const withKeyframe = (
   spec: SceneSpec,
-  patch: Partial<SceneSpec["beats"][number]["elements"][number]["keyframes"][number]>,
+  patch: Partial<
+    SceneSpec["beats"][number]["elements"][number]["keyframes"][number]
+  >,
 ): SceneSpec => {
   const next = clone(spec);
   const keyframe = next.beats[0]!.elements[0]!.keyframes[1]!;
@@ -157,9 +159,75 @@ describe("validateSceneSpec", () => {
         sha256: "0".repeat(64),
       },
     });
-    expect(validateSceneSpec(good, new Set([...ok, "gen1"])).assets).toHaveLength(
-      3,
-    );
+    expect(
+      validateSceneSpec(good, new Set([...ok, "gen1"])).assets,
+    ).toHaveLength(3);
+  });
+
+  // The two halves of provenance have two different authors: the model
+  // supplies the prompt, the assets stage supplies the tool and the hash
+  // of what it actually produced. Requiring all four from the model made
+  // it invent the two it cannot know.
+  it("accepts a generated asset with only the prompt while it is being authored", () => {
+    const good = withAsset(fixtureSpec, {
+      assetId: "gen1",
+      kind: "image",
+      origin: "generated",
+      ref: "generated://gen1",
+      provenance: { prompt: "a gold ambient glow, soft edges" },
+    });
+    expect(
+      validateSceneSpec(good, new Set([...ok, "gen1"])).assets,
+    ).toHaveLength(3);
+  });
+
+  it("rejects that same asset at render time, where the bytes must be accounted for", () => {
+    const bad = withAsset(fixtureSpec, {
+      assetId: "gen1",
+      kind: "image",
+      origin: "generated",
+      ref: "generated://gen1",
+      provenance: { prompt: "a gold ambient glow, soft edges" },
+    });
+    expect(() =>
+      validateSceneSpec(bad, new Set([...ok, "gen1"]), {
+        requireGeneratedOutput: true,
+      }),
+    ).toThrow(/GENERATED_ASSET_WITHOUT_PROVENANCE/);
+  });
+
+  it("rejects a rendered generated asset that names a tool but no output hash", () => {
+    const bad = withAsset(fixtureSpec, {
+      assetId: "gen1",
+      kind: "image",
+      origin: "generated",
+      ref: "generated://gen1",
+      provenance: { tool: "openai:gpt-image-2", prompt: "a gold glow" },
+    });
+    expect(() =>
+      validateSceneSpec(bad, new Set([...ok, "gen1"]), {
+        requireGeneratedOutput: true,
+      }),
+    ).toThrow(/GENERATED_ASSET_WITHOUT_PROVENANCE/);
+  });
+
+  it("accepts a rendered generated asset once both halves are recorded", () => {
+    const good = withAsset(fixtureSpec, {
+      assetId: "gen1",
+      kind: "image",
+      origin: "generated",
+      ref: "generated://gen1",
+      provenance: {
+        tool: "openai:gpt-image-2",
+        prompt: "a gold glow",
+        sha256: "0".repeat(64),
+      },
+    });
+    expect(
+      validateSceneSpec(good, new Set([...ok, "gen1"]), {
+        requireGeneratedOutput: true,
+      }).assets,
+    ).toHaveLength(3);
   });
 
   it("rejects a generated asset with no provenance", () => {
@@ -169,9 +237,9 @@ describe("validateSceneSpec", () => {
       origin: "generated",
       ref: "art_1",
     });
-    expect(() =>
-      validateSceneSpec(bad, new Set([...ok, "gen1"])),
-    ).toThrow(/GENERATED_ASSET_WITHOUT_PROVENANCE/);
+    expect(() => validateSceneSpec(bad, new Set([...ok, "gen1"]))).toThrow(
+      /GENERATED_ASSET_WITHOUT_PROVENANCE/,
+    );
   });
 
   // blur and glow are not in SPEC_EFFECTS: blur was only ever tried as an
@@ -190,13 +258,9 @@ describe("validateSceneSpec", () => {
   // other malformed spec. An empty effects array must still pass.
   it("accepts the allowlisted drop-shadow but rejects any other effect name", () => {
     const blurred = withElement(fixtureSpec, { effects: ["blur"] });
-    expect(() => validateSceneSpec(blurred, ok)).toThrow(
-      /SPEC_SCHEMA_INVALID/,
-    );
+    expect(() => validateSceneSpec(blurred, ok)).toThrow(/SPEC_SCHEMA_INVALID/);
     const glowing = withElement(fixtureSpec, { effects: ["glow"] });
-    expect(() => validateSceneSpec(glowing, ok)).toThrow(
-      /SPEC_SCHEMA_INVALID/,
-    );
+    expect(() => validateSceneSpec(glowing, ok)).toThrow(/SPEC_SCHEMA_INVALID/);
     const dropShadow = withElement(fixtureSpec, { effects: ["drop-shadow"] });
     expect(validateSceneSpec(dropShadow, ok).schema).toBe("scene-spec-v1");
     const none = withElement(fixtureSpec, { effects: [] });

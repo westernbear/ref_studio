@@ -103,12 +103,22 @@ export function resolvableAssetIds(
 export async function authorScene(params: {
   readonly evidence: unknown;
   readonly config: GenerationConfig;
-  readonly attachments: readonly { readonly attachmentId: string; readonly kind: string }[];
+  readonly attachments: readonly {
+    readonly attachmentId: string;
+    readonly kind: string;
+    // What the creator named the file. Optional only so a caller that has
+    // no name (an attachment uploaded before names were kept) still
+    // compiles; the list below then falls back to the id alone.
+    readonly fileName?: string;
+  }[];
   readonly db: Database.Database;
   readonly aiSecretKey: string;
   readonly generate?: GenerateScene;
 }): Promise<AuthoredScene> {
-  const settings = getAiProviderSettingsWithSecret(params.db, params.aiSecretKey);
+  const settings = getAiProviderSettingsWithSecret(
+    params.db,
+    params.aiSecretKey,
+  );
   if (!settings.enabled || !settings.apiKey) {
     throw new Error("AI_PROVIDER_NOT_CONFIGURED");
   }
@@ -118,7 +128,8 @@ export async function authorScene(params: {
     baseUrl: settings.baseUrl,
     apiKey: settings.apiKey,
   });
-  const generate = params.generate ?? (generateObject as unknown as GenerateScene);
+  const generate =
+    params.generate ?? (generateObject as unknown as GenerateScene);
 
   // C3: the model gets a projection of the evidence bundle, not the whole
   // thing -- see author-scene-evidence.ts's docstring. This also throws
@@ -148,8 +159,18 @@ export async function authorScene(params: {
   // mistaken for part of the system prompt (see AUTHORING_SYSTEM_PROMPT's
   // "Untrusted input" section, which tells the model to treat this block
   // as content only).
+  // The filename is the only thing that lets the model match an entry to
+  // the brief that describes it -- a brief naming "05_ranking.jpg" against
+  // a list of bare ids is a brief the model cannot honour, and it will
+  // either place the files arbitrarily or invent attachment refs (observed
+  // in production: five attachment-origin assets named after files that
+  // were never uploaded).
   const attachmentList = params.attachments
-    .map((attachment) => `- ${attachment.attachmentId} (${attachment.kind})`)
+    .map((attachment) =>
+      attachment.fileName
+        ? `- ${attachment.attachmentId} (${attachment.kind}) named "${attachment.fileName}"`
+        : `- ${attachment.attachmentId} (${attachment.kind})`,
+    )
     .join("\n");
   const prompt = `## Canvas requirements (hard -- see system instructions)
 
@@ -169,6 +190,8 @@ ${JSON.stringify(projectedEvidence)}
 You decide the mode -- the creator never picks it. Set "mode" in your output to "SWAP" or "REINTERPRET" based on what the brief below actually asks for; see the system instructions for the criteria and which way to lean when it is ambiguous.
 
 ## Attachments available
+
+Each line gives the identifier to reference it by, its type, and the name the creator gave the file. Match a file to what the brief says about it by that name; reference it by the identifier.
 
 ${attachmentList || "(none)"}
 
@@ -204,7 +227,11 @@ Author a SceneSpec for a film of about ${params.config.durationSec} seconds.`;
   // on) for every spec authorScene ever produces.
   const validated = validateSceneSpec(
     spec,
-    resolvableAssetIds(spec, params.attachments, evidenceOwnerIds(projectedEvidence)),
+    resolvableAssetIds(
+      spec,
+      params.attachments,
+      evidenceOwnerIds(projectedEvidence),
+    ),
   );
 
   return { spec: validated, beatSheet: beatSheetFor(validated) };

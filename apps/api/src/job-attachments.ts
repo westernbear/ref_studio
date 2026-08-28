@@ -5,6 +5,7 @@ import type Database from "better-sqlite3";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { safeEnvelope } from "./boundary.js";
 import type { CreatorWorkflowStore } from "./creator-workflow.js";
+import { sanitizeFilename } from "./uploads.js";
 
 const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
 const MAX_ATTACHMENTS_PER_JOB = 10;
@@ -25,17 +26,6 @@ const fail = (reply: FastifyReply, code: string, status = 400): void => {
       ),
     );
 };
-// Strips path separators and control characters so a hostile filename
-// header can't escape the per-tenant storage directory or corrupt logs.
-const sanitizeFilename = (raw: string): string => {
-  const stripped = raw
-    .replace(/[/\\]/gu, "_")
-    .split("")
-    .filter((char) => char.charCodeAt(0) >= 32)
-    .join("")
-    .slice(0, 200);
-  return stripped || "attachment";
-};
 
 export function registerJobAttachments(
   app: FastifyInstance,
@@ -48,17 +38,16 @@ export function registerJobAttachments(
 
   app.post(
     "/v1/jobs/:jobId/attachments",
-    async (
-      request: FastifyRequest<{ Params: { jobId: string } }>,
-      reply,
-    ) => {
+    async (request: FastifyRequest<{ Params: { jobId: string } }>, reply) => {
       try {
         const job = store.jobs.get(request.params.jobId);
         if (!job || job.tenantId !== tenant(request))
           throw new Error("RESOURCE_NOT_FOUND");
         const existingCount = (
           db
-            .prepare("SELECT COUNT(*) AS count FROM job_attachments WHERE job_id = ?")
+            .prepare(
+              "SELECT COUNT(*) AS count FROM job_attachments WHERE job_id = ?",
+            )
             .get(job.id) as { count: number }
         ).count;
         if (existingCount >= MAX_ATTACHMENTS_PER_JOB)
@@ -84,7 +73,8 @@ export function registerJobAttachments(
           }
         })();
         const filename = sanitizeFilename(decodedFilename);
-        const contentType = header(request, "content-type") ?? "application/octet-stream";
+        const contentType =
+          header(request, "content-type") ?? "application/octet-stream";
         const attachmentId = id("attach");
         const directory = join(attachmentsRoot, job.tenantId);
         mkdirSync(directory, { recursive: true, mode: 0o700 });

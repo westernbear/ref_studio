@@ -59,7 +59,12 @@ describe("authorScene", () => {
     };
     updateAiProviderSettings(
       db,
-      { providerKind: "openai", model: "gpt-4o", apiKey: "sk-test", enabled: true },
+      {
+        providerKind: "openai",
+        model: "gpt-4o",
+        apiKey: "sk-test",
+        enabled: true,
+      },
       "admin",
       1_000,
       AI_SECRET_KEY,
@@ -87,7 +92,9 @@ describe("authorScene", () => {
   });
 
   it("fails when no provider is configured", async () => {
-    const unconfiguredDb = openApiDatabase(join(directory, "unconfigured.sqlite"));
+    const unconfiguredDb = openApiDatabase(
+      join(directory, "unconfigured.sqlite"),
+    );
     const neverCalled: GenerateScene = async () => {
       throw new Error("must not be called");
     };
@@ -104,9 +111,9 @@ describe("authorScene", () => {
   it("fails when the model returns an invalid spec", async () => {
     const generate: GenerateScene = async () =>
       ({ object: { junk: true } }) as never;
-    await expect(
-      authorScene({ ...baseParams(), generate }),
-    ).rejects.toThrow(/SPEC_SCHEMA_INVALID/);
+    await expect(authorScene({ ...baseParams(), generate })).rejects.toThrow(
+      /SPEC_SCHEMA_INVALID/,
+    );
   });
 
   it("sets the canvas from the job config, not from the model, when the authored beats already fit it", async () => {
@@ -216,6 +223,34 @@ describe("authorScene", () => {
     expect(capturedPrompt).toMatch(/height: 1080/u);
     expect(capturedPrompt).toMatch(/frameCount: 450/u);
     expect(capturedPrompt).not.toMatch(/is a placeholder/iu);
+  });
+
+  // A brief routinely names its files ("use 05_ranking.jpg for the ranking
+  // beat"). Without the names, the model saw a list of interchangeable ids
+  // and could not honour that -- observed in production, where it invented
+  // five attachment refs named after files that were never uploaded.
+  it("gives the model each attachment's filename alongside its id", async () => {
+    let capturedPrompt = "";
+    const generate: GenerateScene = async (options) => {
+      capturedPrompt = options.prompt;
+      return { object: fixtureSpec };
+    };
+    await authorScene({
+      ...baseParams(),
+      attachments: [
+        { attachmentId: "att_1", kind: "image/png", fileName: "logo.png" },
+        {
+          attachmentId: "att_2",
+          kind: "image/jpeg",
+          fileName: "05_ranking.jpg",
+        },
+      ],
+      generate,
+    });
+    expect(capturedPrompt).toContain('att_1 (image/png) named "logo.png"');
+    expect(capturedPrompt).toContain(
+      'att_2 (image/jpeg) named "05_ranking.jpg"',
+    );
   });
 
   // C3: the evidence bundle reaches the prompt as a projection, not raw --

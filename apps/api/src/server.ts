@@ -49,7 +49,11 @@ const ServerEnv = z.object({
     .int()
     .positive()
     .default(30),
-  RVS_ADMIN_AUDIT_RETENTION_DAYS: z.coerce.number().int().positive().default(90),
+  RVS_ADMIN_AUDIT_RETENTION_DAYS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(90),
 });
 const UserRows = z.array(z.object({ id: z.string(), email: z.string() }));
 const CredentialRows = z.array(
@@ -484,6 +488,7 @@ export function createApiServer(config: ApiServerConfig) {
     now: Date.now,
     stagingRoot: path.join(dataRoot, "staging"),
     casRoot: path.join(dataRoot, "cas"),
+    attachmentRoot: path.join(dataRoot, "brand-attachments"),
   };
   const creatorWorkflow = createCreatorWorkflowStore();
   const reviews = createReviewStore();

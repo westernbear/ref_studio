@@ -9,6 +9,7 @@ import {
   readSync,
   renameSync,
   rmSync,
+  writeFileSync,
   writeSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
@@ -72,9 +73,17 @@ export type AttachmentContentType =
 export type AttachmentRecord = {
   readonly id: string;
   readonly tenantId: string;
+  // What the creator called the file. The scene author needs it: a brief
+  // says "use 05_ranking.jpg for the ranking beat", and without the name
+  // the model sees twenty interchangeable ids and cannot honour that.
+  readonly fileName: string;
   readonly contentType: AttachmentContentType;
   readonly sizeBytes: number;
+  // Empty once the bytes are on disk (storagePath set) -- same shape as
+  // StoredArtifact in durable-state.ts. Only a store with no
+  // attachmentRoot (test fixtures) keeps them resident.
   readonly bytes: Uint8Array;
+  readonly storagePath?: string;
   readonly createdAt: string;
 };
 export type CasRecord = {
@@ -97,6 +106,11 @@ export type UploadStore = {
   readonly now: () => number;
   readonly stagingRoot?: string;
   readonly casRoot?: string;
+  // Where attachment bytes are written. Unset (test fixtures) keeps them
+  // in memory instead; a real deployment always sets it, because an
+  // in-memory-only attachment is lost on restart while the job that
+  // referenced it survives.
+  readonly attachmentRoot?: string;
   readonly audit?: (event: {
     readonly action: string;
     readonly tenantId: string | null;
@@ -520,28 +534,35 @@ export const uploadSourcePath = (upload: UploadRecord): string | undefined =>
 // therefore never trusted for the accept/reject decision below -- only the
 // bytes on the wire are.
 //
-// ponytail: this store (UploadStore.attachments, below) is an in-memory Map
-// only. It is not written by the persist transaction, not covered by
-// cleanupExpiredUploads or retention.ts's sweep, and not durable across an
-// API restart -- a restart loses every attachment while any job that
-// referenced one survives, and tenant deletion/retention leaves attachment
-// bytes resident in memory. I2's ruling scoped this wave to closing the cap
-// and the silent-loss failure mode (below, and workers.ts's ATTACHMENT_
-// UNRESOLVED check); durable persistence for this store is a follow-up
-// task, not this wave.
+// Durable since migration 014: bytes go to disk under
+// UploadStore.attachmentRoot at creation, metadata to runtime_attachments
+// in the durable-state snapshot, and both come back on hydrate. Before
+// that this Map was the only copy, so an API restart between the upload
+// and the assets stage lost every attachment while the job that
+// referenced one survived -- ten minutes of analysis, compilation and
+// preview, then ATTACHMENT_UNRESOLVED.
+//
+// ponytail: still not swept. Neither cleanupExpiredUploads nor
+// retention.ts's sweep removes an attachment, and tenant deletion leaves
+// its bytes on disk, so a tenant's attachments accumulate up to the
+// per-tenant cap below (20 files, 100 MB) and stay there. Add a sweep when
+// that ceiling is the wrong one -- it is bounded, which is what the
+// unbounded in-memory version was not.
 const PNG_MAGIC = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 const JPEG_MAGIC = [0xff, 0xd8, 0xff];
 const OTF_MAGIC = [0x4f, 0x54, 0x54, 0x4f]; // "OTTO"
 const TTF_MAGIC = [0x00, 0x01, 0x00, 0x00];
 const WOFF2_MAGIC = [0x77, 0x4f, 0x46, 0x32]; // "wOF2"
 
-const startsWithMagic = (bytes: Uint8Array, magic: readonly number[]): boolean =>
+const startsWithMagic = (
+  bytes: Uint8Array,
+  magic: readonly number[],
+): boolean =>
   magic.length <= bytes.length &&
   magic.every((byte, index) => bytes[index] === byte);
 
 const isMp4Attachment = (bytes: Uint8Array): boolean =>
-  bytes.length >= 8 &&
-  String.fromCharCode(...bytes.subarray(4, 8)) === "ftyp";
+  bytes.length >= 8 && String.fromCharCode(...bytes.subarray(4, 8)) === "ftyp";
 
 const isSvgAttachment = (bytes: Uint8Array): boolean => {
   const head = Buffer.from(bytes.subarray(0, Math.min(bytes.length, 512)))
@@ -564,10 +585,24 @@ const detectAttachmentContentType = (
   return null;
 };
 
+// Strips path separators and control characters so a hostile filename
+// can't escape a storage directory or corrupt logs. Shared with
+// job-attachments.ts, which had the only copy.
+export const sanitizeFilename = (raw: string): string => {
+  const stripped = raw
+    .replace(/[/\\]/gu, "_")
+    .split("")
+    .filter((char) => char.charCodeAt(0) >= 32)
+    .join("")
+    .slice(0, 200);
+  return stripped || "attachment";
+};
+
 export function createAttachment(
   store: UploadStore,
   tenantId: string,
   bytes: Uint8Array,
+  fileName = "attachment",
 ): AttachmentRecord {
   if (!(bytes instanceof Uint8Array) || bytes.byteLength < 1)
     throw new UploadFailure("INVALID_REQUEST");
@@ -592,12 +627,28 @@ export function createAttachment(
     throw new UploadFailure("ATTACHMENT_COUNT_LIMIT_EXCEEDED");
   if (existingBytes + bytes.byteLength > MAX_ATTACHMENT_BYTES_PER_TENANT)
     throw new UploadFailure("ATTACHMENT_QUOTA_EXCEEDED");
+  const attachmentId = id("att");
+  // Bytes to disk when the store has a root, so a restart does not lose
+  // them: this Map used to be the only copy, and losing it while the job
+  // that referenced these survived turned ten minutes of analysis,
+  // compilation and preview into ATTACHMENT_UNRESOLVED.
+  const stored = ((): Pick<AttachmentRecord, "bytes" | "storagePath"> => {
+    if (!store.attachmentRoot) return { bytes };
+    const directory = join(store.attachmentRoot, segment(tenantId));
+    mkdirSync(directory, { recursive: true, mode: 0o700 });
+    const storagePath = join(directory, segment(attachmentId));
+    const temporary = `${storagePath}.tmp`;
+    writeFileSync(temporary, bytes, { mode: 0o600, flush: true });
+    renameSync(temporary, storagePath);
+    return { bytes: new Uint8Array(), storagePath };
+  })();
   const record: AttachmentRecord = {
-    id: id("att"),
+    id: attachmentId,
     tenantId,
+    fileName: sanitizeFilename(fileName),
     contentType,
     sizeBytes: bytes.byteLength,
-    bytes,
+    ...stored,
     createdAt: new Date(store.now()).toISOString(),
   };
   attachments.set(record.id, record);

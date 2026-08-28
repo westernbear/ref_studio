@@ -586,13 +586,31 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
                   : (() => {
                       throw new UploadFailure("INVALID_REQUEST");
                     })();
+          // Same header and encoding as job-attachments.ts. The name is
+          // what lets the scene author match a file to the brief that
+          // describes it ("use 05_ranking.jpg here"); without it the model
+          // gets a list of interchangeable ids.
+          const rawFileName = header(request, "x-filename");
+          const fileName = (() => {
+            if (!rawFileName) return "attachment";
+            try {
+              return decodeURIComponent(rawFileName);
+            } catch {
+              return rawFileName;
+            }
+          })();
           const replay = idempotency.execute(
             "attachment-create",
             key,
             requestHash(Buffer.from(bytes).toString("base64")),
             tenantId,
             () => {
-              const attachment = createAttachment(uploads, tenantId, bytes);
+              const attachment = createAttachment(
+                uploads,
+                tenantId,
+                bytes,
+                fileName,
+              );
               return [201, { attachmentId: attachment.id }];
             },
           );

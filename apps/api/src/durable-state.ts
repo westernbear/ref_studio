@@ -21,7 +21,12 @@ import type {
   StoredArtifact,
 } from "./creator-workflow.js";
 import type { ReviewReceipt, ReviewStore } from "./reviews.js";
-import type { CasRecord, UploadRecord, UploadStore } from "./uploads.js";
+import type {
+  AttachmentRecord,
+  CasRecord,
+  UploadRecord,
+  UploadStore,
+} from "./uploads.js";
 import { WorkerPhaseSchema } from "./workers.js";
 import type {
   ClaimedJob,
@@ -57,6 +62,25 @@ const ChunkRows = z.array(
     index: z.number().int().nonnegative(),
     sizeBytes: z.number().int().positive(),
     sha256: z.string().regex(/^[a-f0-9]{64}$/u),
+  }),
+);
+const AttachmentRows = z.array(
+  z.object({
+    id: z.string(),
+    tenantId: z.string(),
+    fileName: z.string(),
+    contentType: z.enum([
+      "image/png",
+      "image/jpeg",
+      "image/svg+xml",
+      "font/ttf",
+      "font/otf",
+      "font/woff2",
+      "video/mp4",
+    ]),
+    sizeBytes: z.number().int().nonnegative(),
+    storagePath: z.string(),
+    createdAt: z.string(),
   }),
 );
 const ArtifactSlotSchema = z.enum([
@@ -263,6 +287,7 @@ export function createDurableState(
       "runtime_review_current",
       "runtime_upload_chunks",
       "runtime_uploads",
+      "runtime_attachments",
       "runtime_cas_objects",
       "runtime_idempotency",
       "sessions",
@@ -325,6 +350,25 @@ export function createDurableState(
         JSON.stringify(item),
       );
     }
+
+    // Metadata only -- the bytes were written to disk by createAttachment,
+    // so this snapshot stays cheap to rewrite on every mutation. An
+    // attachment with no storagePath belongs to a store built without an
+    // attachmentRoot (test fixtures); there is nothing durable to record.
+    const insertAttachment = db.prepare(
+      "INSERT INTO runtime_attachments(id,tenant_id,filename,content_type,size_bytes,storage_path,created_at) VALUES(?,?,?,?,?,?,?)",
+    );
+    for (const attachment of stores.uploads.attachments?.values() ?? [])
+      if (attachment.storagePath)
+        insertAttachment.run(
+          attachment.id,
+          attachment.tenantId,
+          attachment.fileName,
+          attachment.contentType,
+          attachment.sizeBytes,
+          attachment.storagePath,
+          attachment.createdAt,
+        );
 
     const insertJob = db.prepare(
       "INSERT INTO runtime_jobs(id,tenant_id,state,attempt,updated_at,value_json,preparation_stage,eligible_at,automatic_retries,deletion_epoch,restore_epoch) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
@@ -547,6 +591,23 @@ export function createDurableState(
         `${item.tenantId}:${item.sha256}`,
         item.id,
       );
+    }
+    const attachments =
+      stores.uploads.attachments ?? new Map<string, AttachmentRecord>();
+    stores.uploads.attachments = attachments;
+    for (const row of AttachmentRows.parse(
+      db
+        .prepare(
+          "SELECT id,tenant_id AS tenantId,filename AS fileName,content_type AS contentType,size_bytes AS sizeBytes,storage_path AS storagePath,created_at AS createdAt FROM runtime_attachments ORDER BY id",
+        )
+        .all(),
+    )) {
+      // A row whose file is gone is not an attachment any more. Dropping
+      // it here makes the job that references it fail with
+      // ATTACHMENT_UNRESOLVED, which is the honest answer -- better than
+      // serving zero bytes as if they were a logo.
+      if (!existsSync(row.storagePath)) continue;
+      attachments.set(row.id, { ...row, bytes: new Uint8Array() });
     }
 
     for (const row of JsonRows.parse(
