@@ -354,6 +354,7 @@
       "attachmentCountLimitExceeded": "이 계정의 참고 파일 개수 한도에 도달했습니다.",
       "attachmentQuotaExceeded": "이 계정의 참고 파일 총 용량 한도에 도달했습니다.",
       "aiProviderNotConfigured": "AI 제공자가 꺼져 있어 새 영상을 만들 수 없습니다. 관리자 설정에서 AI 제공자를 켜고 API 키를 등록하세요.",
+      "materialProviderNotConfigured": "소재 생성기가 꺼져 있어 새 영상을 만들 수 없습니다. 관리자 → 소재 생성기에서 2D 이미지 생성기를 켜고 API 키를 등록하세요.",
       "requestFailed": "요청을 완료할 수 없습니다. 재시도하세요."
     },
     "cancelChooseAnother": "취소 / 다른 파일 선택",

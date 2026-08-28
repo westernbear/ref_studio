@@ -354,6 +354,7 @@
       "attachmentCountLimitExceeded": "You've reached the limit on reference files for this account.",
       "attachmentQuotaExceeded": "You've reached the total size limit for reference files on this account.",
       "aiProviderNotConfigured": "A new film cannot be authored while the AI provider is off. Turn it on and set an API key in admin settings.",
+      "materialProviderNotConfigured": "A new film cannot be made while the material generator is off. Turn on the 2D image generator and set an API key under Admin \u2192 Material generators.",
       "requestFailed": "The request could not be completed. Retry."
     },
     "cancelChooseAnother": "Cancel / choose another",

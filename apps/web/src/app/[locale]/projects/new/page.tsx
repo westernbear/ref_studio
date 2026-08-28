@@ -3,6 +3,10 @@
 import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 import { BrandLogo } from "../../../../components/Shells";
+import {
+  reasonKeyFor,
+  type ReasonKey,
+} from "../../../../lib/job-create-reasons";
 import { Link } from "../../../../i18n/navigation";
 import {
   createCompilerJob,
@@ -22,57 +26,6 @@ type WorkflowState =
   | "creating"
   | "created";
 const MAX_BYTES = 2 * 1024 * 1024 * 1024;
-
-type ReasonKey =
-  | "selectSource"
-  | "onlyFormats"
-  | "fileTooLarge"
-  | "tooShort"
-  | "uploadCanceled"
-  | "accepted"
-  | "jobCreated"
-  | "videoTypeInvalid"
-  | "videoSizeLimitExceeded"
-  | "uploadQuarantined"
-  | "mediaVfrUnsupported"
-  | "mediaDurationInvalid"
-  | "mediaIntervalInvalid"
-  | "invalidRequest"
-  | "tenantBoundaryBypass"
-  | "resourceNotFound"
-  | "networkInterrupted"
-  | "attachmentTypeInvalid"
-  | "attachmentSizeLimitExceeded"
-  | "attachmentCountLimitExceeded"
-  | "attachmentQuotaExceeded"
-  | "aiProviderNotConfigured"
-  | "requestFailed";
-
-const safeReasonKey = (error: unknown): ReasonKey => {
-  const code = error instanceof Error ? error.message : "NETWORK_INTERRUPTED";
-  const reasons: Record<string, ReasonKey> = {
-    VIDEO_TYPE_INVALID: "videoTypeInvalid",
-    VIDEO_SIZE_LIMIT_EXCEEDED: "videoSizeLimitExceeded",
-    UPLOAD_QUARANTINED: "uploadQuarantined",
-    MEDIA_VFR_UNSUPPORTED: "mediaVfrUnsupported",
-    MEDIA_DURATION_INVALID: "mediaDurationInvalid",
-    MEDIA_INTERVAL_INVALID: "mediaIntervalInvalid",
-    INVALID_REQUEST: "invalidRequest",
-    TENANT_BOUNDARY_BYPASS: "tenantBoundaryBypass",
-    RESOURCE_NOT_FOUND: "resourceNotFound",
-    NETWORK_INTERRUPTED: "networkInterrupted",
-    // I1.3/I1.4: an attachment failure gets its own reason instead of
-    // falling through to the generic "requestFailed" -- a rejected
-    // attachment used to give no clue which of the several things that can
-    // go wrong with a brand-asset upload actually happened.
-    ATTACHMENT_TYPE_INVALID: "attachmentTypeInvalid",
-    ATTACHMENT_SIZE_LIMIT_EXCEEDED: "attachmentSizeLimitExceeded",
-    ATTACHMENT_COUNT_LIMIT_EXCEEDED: "attachmentCountLimitExceeded",
-    ATTACHMENT_QUOTA_EXCEEDED: "attachmentQuotaExceeded",
-    AI_PROVIDER_NOT_CONFIGURED: "aiProviderNotConfigured",
-  };
-  return reasons[code] ?? "requestFailed";
-};
 
 const formatBytes = (bytes: number): string =>
   `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -192,7 +145,7 @@ export default function NewProjectPage() {
           ? "quarantined"
           : "error",
       );
-      setReasonKey(safeReasonKey(error));
+      setReasonKey(reasonKeyFor(error));
     } finally {
       abortRef.current = null;
     }
@@ -259,7 +212,7 @@ export default function NewProjectPage() {
       );
     } catch (error) {
       setState("error");
-      setReasonKey(safeReasonKey(error));
+      setReasonKey(reasonKeyFor(error));
     } finally {
       abortRef.current = null;
     }
