@@ -44,6 +44,11 @@ export const ErrorCodes = [
   // Same trap as the four above: a code the client is meant to act on has
   // to be in this enum or normalizeError flattens it to INTERNAL_ERROR.
   "AI_PROVIDER_NOT_CONFIGURED",
+  // The generate track's other prerequisite. Refused as INVALID_REQUEST
+  // before, which is what the worker then recorded on the job -- a code
+  // that says nothing about the one thing an operator has to change.
+  "MATERIAL_PROVIDER_NOT_CONFIGURED",
+  "MATERIAL_GENERATION_FAILED",
   "INTERNAL_ERROR",
   "RUNTIME_PREREQUISITE_MISSING",
   "WORKER_TRANSIENT_FAILURE",

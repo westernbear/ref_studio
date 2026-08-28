@@ -10,9 +10,7 @@ import {
 import { openApiDatabase } from "./durable-state.js";
 import { updateAiProviderSettings } from "./ai-provider-settings.js";
 
-const withDb = (
-  fn: (db: ReturnType<typeof openApiDatabase>) => void,
-): void => {
+const withDb = (fn: (db: ReturnType<typeof openApiDatabase>) => void): void => {
   const directory = mkdtempSync(
     join(tmpdir(), "rvs-material-provider-settings-"),
   );
@@ -102,6 +100,100 @@ describe("material-provider-settings", () => {
       );
       expect(withSecret.apiKey).toBe("sk-secret");
       expect(withSecret.model).toBe("gpt-image-2-mini");
+    });
+  });
+
+  // The two self-hosted generators. Addresses, not keys: they run on the
+  // worker's own network and have no credential.
+  it("defaults both self-hosted endpoints to unset", () => {
+    withDb((db) => {
+      const settings = getMaterialProviderSettings(db);
+      expect(settings.videoBaseUrl).toBeNull();
+      expect(settings.model3dBaseUrl).toBeNull();
+    });
+  });
+
+  it("stores both self-hosted endpoints", () => {
+    withDb((db) => {
+      const after = updateMaterialProviderSettings(
+        db,
+        {
+          model: "gpt-image-2",
+          videoBaseUrl: "http://wan-alpha:8000",
+          model3dBaseUrl: "http://hi3dgen:8000",
+        },
+        "usr_admin",
+        1_000,
+        "secret",
+      );
+      expect(after.videoBaseUrl).toBe("http://wan-alpha:8000");
+      expect(after.model3dBaseUrl).toBe("http://hi3dgen:8000");
+    });
+  });
+
+  it("leaves an endpoint alone when the patch omits it", () => {
+    withDb((db) => {
+      updateMaterialProviderSettings(
+        db,
+        { model: "gpt-image-2", videoBaseUrl: "http://wan-alpha:8000" },
+        "usr_admin",
+        1_000,
+        "secret",
+      );
+      const after = updateMaterialProviderSettings(
+        db,
+        { model: "gpt-image-2" },
+        "usr_admin",
+        2_000,
+        "secret",
+      );
+      expect(after.videoBaseUrl).toBe("http://wan-alpha:8000");
+    });
+  });
+
+  // An empty string is a real setting -- "this deployment has no such
+  // service" -- and must not read as "leave it alone", or a console that
+  // clears the field would silently keep dialling a service that is gone.
+  it("clears an endpoint when the patch sends an empty string", () => {
+    withDb((db) => {
+      updateMaterialProviderSettings(
+        db,
+        { model: "gpt-image-2", model3dBaseUrl: "http://hi3dgen:8000" },
+        "usr_admin",
+        1_000,
+        "secret",
+      );
+      const after = updateMaterialProviderSettings(
+        db,
+        { model: "gpt-image-2", model3dBaseUrl: "" },
+        "usr_admin",
+        2_000,
+        "secret",
+      );
+      expect(after.model3dBaseUrl).toBeNull();
+    });
+  });
+
+  it("rejects an endpoint that is not an http(s) url", () => {
+    withDb((db) => {
+      expect(() =>
+        updateMaterialProviderSettings(
+          db,
+          { model: "gpt-image-2", videoBaseUrl: "wan-alpha:8000" },
+          "usr_admin",
+          1_000,
+          "secret",
+        ),
+      ).toThrow(/INVALID_REQUEST/);
+      expect(() =>
+        updateMaterialProviderSettings(
+          db,
+          { model: "gpt-image-2", model3dBaseUrl: "file:///etc/passwd" },
+          "usr_admin",
+          1_000,
+          "secret",
+        ),
+      ).toThrow(/INVALID_REQUEST/);
     });
   });
 

@@ -9,6 +9,7 @@ import {
   RUNTIME_DIGEST,
 } from "./creator-workflow.js";
 import { updateAiProviderSettings } from "./ai-provider-settings.js";
+import { updateMaterialProviderSettings } from "./material-provider-settings.js";
 import { openApiDatabase } from "./durable-state.js";
 import { createReviewStore } from "./reviews.js";
 import {
@@ -306,7 +307,38 @@ describe("the generate track refuses up front without an AI provider", () => {
     });
   });
 
-  it("accepts a generation brief once the provider is enabled", async () => {
+  const enableProviders = (db: ReturnType<typeof openApiDatabase>): void => {
+    updateAiProviderSettings(
+      db,
+      {
+        providerKind: "google",
+        model: "gemini-3-flash-preview",
+        apiKey: "key-secret",
+        enabled: true,
+      },
+      "usr_platform",
+      1_000,
+      "secret",
+    );
+    updateMaterialProviderSettings(
+      db,
+      {
+        providerKind: "openai",
+        model: "gpt-image-2",
+        apiKey: "material-secret",
+        enabled: true,
+      },
+      "usr_platform",
+      1_000,
+      "secret",
+    );
+  };
+
+  // Both prerequisites, refused separately: the AI provider authors the
+  // scene, the material provider makes what the scene names, and a
+  // generate-track job that has one but not the other still fails -- just
+  // later, and with a code that names nothing an operator can act on.
+  it("rejects a generation brief when only the AI provider is configured", async () => {
     await withDb(async (db) => {
       updateAiProviderSettings(
         db,
@@ -320,6 +352,24 @@ describe("the generate track refuses up front without an AI provider", () => {
         1_000,
         "secret",
       );
+      const state = fixture(db);
+      const created = await state.app.inject({
+        method: "POST",
+        url: "/v1/jobs",
+        headers: { ...headers, "idempotency-key": "ai4" },
+        payload: payloadFor(state.uploadId),
+      });
+      expect(created.statusCode).toBe(400);
+      expect(created.json().error.code).toBe(
+        "MATERIAL_PROVIDER_NOT_CONFIGURED",
+      );
+      await state.app.close();
+    });
+  });
+
+  it("accepts a generation brief once both providers are enabled", async () => {
+    await withDb(async (db) => {
+      enableProviders(db);
       const state = fixture(db);
       const created = await state.app.inject({
         method: "POST",

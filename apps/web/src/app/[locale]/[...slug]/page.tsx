@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { AdminExportButton } from "../../../components/AdminExportButton";
 import { AiProviderSettingsForm } from "../../../components/AiProviderSettingsForm";
+import { MaterialProviderSettingsForm } from "../../../components/MaterialProviderSettingsForm";
 import { AdminJobCancelButton } from "../../../components/AdminJobCancelButton";
 import { AdminJobForceTerminateButton } from "../../../components/AdminJobForceTerminateButton";
 import { AdminJobRetryButton } from "../../../components/AdminJobRetryButton";
@@ -45,6 +46,7 @@ const jobStates = [
 const adminPageKeys: Record<string, string> = {
   admin: "dashboard",
   "admin/ai-settings": "aiSettings",
+  "admin/material-settings": "materialSettings",
   "admin/audit": "audit",
   "admin/billing": "billing",
   "admin/jobs": "jobs",
@@ -521,7 +523,10 @@ function jobDetailActions(t: T): (row: unknown) => ReactNode {
   return (row) => {
     const jobId = encodeURIComponent(text(field(row, "id")));
     return (
-      <a className="button button-primary" href={`/scene-review?jobId=${jobId}`}>
+      <a
+        className="button button-primary"
+        href={`/scene-review?jobId=${jobId}`}
+      >
         {t("sceneReview")}
       </a>
     );
@@ -574,10 +579,16 @@ function quarantineDetailActions(row: unknown): ReactNode {
 }
 
 const tenantColumns = (t: T): readonly Column[] => [
-  { label: t("fields.tenant"), value: (row) => <IdCell row={row} label="name" /> },
+  {
+    label: t("fields.tenant"),
+    value: (row) => <IdCell row={row} label="name" />,
+  },
   { label: t("fields.status"), value: (row) => text(field(row, "status")) },
   { label: t("fields.plan"), value: (row) => text(field(row, "plan")) },
-  { label: t("fields.activeJobs"), value: (row) => text(field(row, "activeJobs"), "0") },
+  {
+    label: t("fields.activeJobs"),
+    value: (row) => text(field(row, "activeJobs"), "0"),
+  },
   { label: t("fields.quota"), value: formatQuota },
 ];
 const tenantDetails = (t: T): readonly Column[] => [
@@ -585,7 +596,10 @@ const tenantDetails = (t: T): readonly Column[] => [
   { label: t("fields.name"), value: (row) => text(field(row, "name")) },
   { label: t("fields.status"), value: (row) => text(field(row, "status")) },
   { label: t("fields.plan"), value: (row) => text(field(row, "plan")) },
-  { label: t("fields.activeJobs"), value: (row) => text(field(row, "activeJobs"), "0") },
+  {
+    label: t("fields.activeJobs"),
+    value: (row) => text(field(row, "activeJobs"), "0"),
+  },
   { label: t("fields.created"), value: (row) => when(field(row, "createdAt")) },
 ];
 const jobColumns = (t: T): readonly Column[] => [
@@ -601,7 +615,10 @@ const jobColumns = (t: T): readonly Column[] => [
   },
   { label: t("fields.tenant"), value: (row) => text(field(row, "tenantId")) },
   { label: t("fields.state"), value: (row) => text(field(row, "state")) },
-  { label: t("fields.attempt"), value: (row) => text(field(row, "attempt"), "0") },
+  {
+    label: t("fields.attempt"),
+    value: (row) => text(field(row, "attempt"), "0"),
+  },
   { label: t("fields.created"), value: (row) => when(field(row, "createdAt")) },
 ];
 const adminJobDetails = (t: T): readonly Column[] => [
@@ -609,14 +626,20 @@ const adminJobDetails = (t: T): readonly Column[] => [
   { label: t("fields.tenant"), value: (row) => text(field(row, "tenantId")) },
   { label: t("fields.creator"), value: (row) => text(field(row, "creatorId")) },
   { label: t("fields.state"), value: (row) => text(field(row, "state")) },
-  { label: t("fields.attempt"), value: (row) => text(field(row, "attempt"), "0") },
+  {
+    label: t("fields.attempt"),
+    value: (row) => text(field(row, "attempt"), "0"),
+  },
   { label: t("fields.created"), value: (row) => when(field(row, "createdAt")) },
 ];
 const creatorJobDetails = (t: T): readonly Column[] => [
   { label: t("fields.jobId"), value: (row) => text(field(row, "id")) },
   { label: t("fields.tenant"), value: (row) => text(field(row, "tenantId")) },
   { label: t("fields.state"), value: (row) => text(field(row, "state")) },
-  { label: t("fields.attempt"), value: (row) => text(field(row, "attempt"), "0") },
+  {
+    label: t("fields.attempt"),
+    value: (row) => text(field(row, "attempt"), "0"),
+  },
   {
     label: t("fields.preparation"),
     value: (row) => text(field(row, "preparationStage")),
@@ -625,19 +648,34 @@ const creatorJobDetails = (t: T): readonly Column[] => [
   { label: t("fields.updated"), value: (row) => when(field(row, "updatedAt")) },
 ];
 const quarantineColumns = (t: T): readonly Column[] => [
-  { label: t("fields.upload"), value: (row) => <IdCell row={row} label="id" /> },
+  {
+    label: t("fields.upload"),
+    value: (row) => <IdCell row={row} label="id" />,
+  },
   { label: t("fields.tenant"), value: (row) => text(field(row, "tenantId")) },
   { label: t("fields.state"), value: (row) => text(field(row, "state")) },
-  { label: t("fields.declaredType"), value: (row) => text(field(row, "declaredType")) },
+  {
+    label: t("fields.declaredType"),
+    value: (row) => text(field(row, "declaredType")),
+  },
   { label: t("fields.reason"), value: (row) => text(field(row, "reason")) },
-  { label: t("fields.retention"), value: (row) => when(field(row, "retentionUntil")) },
+  {
+    label: t("fields.retention"),
+    value: (row) => when(field(row, "retentionUntil")),
+  },
 ];
 const quarantineDetails = (t: T): readonly Column[] => [
   { label: t("fields.uploadId"), value: (row) => text(field(row, "id")) },
   { label: t("fields.tenant"), value: (row) => text(field(row, "tenantId")) },
   { label: t("fields.state"), value: (row) => text(field(row, "state")) },
-  { label: t("fields.declaredType"), value: (row) => text(field(row, "declaredType")) },
-  { label: t("fields.magicBytes"), value: (row) => text(field(row, "magicBytes")) },
+  {
+    label: t("fields.declaredType"),
+    value: (row) => text(field(row, "declaredType")),
+  },
+  {
+    label: t("fields.magicBytes"),
+    value: (row) => text(field(row, "magicBytes")),
+  },
   {
     label: t("fields.containerParse"),
     value: (row) => text(field(row, "containerParse")),
@@ -646,7 +684,10 @@ const quarantineDetails = (t: T): readonly Column[] => [
   { label: t("fields.created"), value: (row) => when(field(row, "createdAt")) },
 ];
 const auditColumns = (t: T): readonly Column[] => [
-  { label: t("fields.event"), value: (row) => <IdCell row={row} label="eventType" /> },
+  {
+    label: t("fields.event"),
+    value: (row) => <IdCell row={row} label="eventType" />,
+  },
   { label: t("fields.tenant"), value: (row) => text(field(row, "tenantId")) },
   { label: t("fields.actor"), value: (row) => text(field(row, "actorId")) },
   { label: t("fields.outcome"), value: (row) => text(field(row, "outcome")) },
@@ -654,13 +695,22 @@ const auditColumns = (t: T): readonly Column[] => [
 ];
 const auditDetails = (t: T): readonly Column[] => [
   { label: t("fields.eventId"), value: (row) => text(field(row, "id")) },
-  { label: t("fields.eventType"), value: (row) => text(field(row, "eventType")) },
+  {
+    label: t("fields.eventType"),
+    value: (row) => text(field(row, "eventType")),
+  },
   { label: t("fields.tenant"), value: (row) => text(field(row, "tenantId")) },
   { label: t("fields.job"), value: (row) => text(field(row, "jobId")) },
   { label: t("fields.actor"), value: (row) => text(field(row, "actorId")) },
-  { label: t("fields.authorization"), value: (row) => text(field(row, "authorization")) },
+  {
+    label: t("fields.authorization"),
+    value: (row) => text(field(row, "authorization")),
+  },
   { label: t("fields.outcome"), value: (row) => text(field(row, "outcome")) },
-  { label: t("fields.correlation"), value: (row) => text(field(row, "correlationId")) },
+  {
+    label: t("fields.correlation"),
+    value: (row) => text(field(row, "correlationId")),
+  },
   { label: t("fields.created"), value: (row) => when(field(row, "createdAt")) },
 ];
 const receiptDetails = (t: T): readonly Column[] => [
@@ -670,20 +720,29 @@ const receiptDetails = (t: T): readonly Column[] => [
   { label: t("fields.gate"), value: (row) => text(field(row, "gate")) },
   { label: t("fields.decision"), value: (row) => text(field(row, "decision")) },
   { label: t("fields.actor"), value: (row) => text(field(row, "actorId")) },
-  { label: t("fields.predecessor"), value: (row) => text(field(row, "predecessorId")) },
+  {
+    label: t("fields.predecessor"),
+    value: (row) => text(field(row, "predecessorId")),
+  },
   { label: t("fields.created"), value: (row) => when(field(row, "createdAt")) },
 ];
 const billingColumns = (t: T): readonly Column[] => [
   { label: t("fields.tenant"), value: (row) => text(field(row, "tenantId")) },
   { label: t("fields.plan"), value: (row) => text(field(row, "plan")) },
-  { label: t("fields.status"), value: (row) => text(field(row, "billingStatus")) },
+  {
+    label: t("fields.status"),
+    value: (row) => text(field(row, "billingStatus")),
+  },
   { label: t("fields.quota"), value: formatQuota },
   { label: t("fields.renewal"), value: (row) => when(field(row, "renewalAt")) },
 ];
 const billingDetails = (t: T): readonly Column[] => [
   { label: t("fields.tenant"), value: (row) => text(field(row, "tenantId")) },
   { label: t("fields.plan"), value: (row) => text(field(row, "plan")) },
-  { label: t("fields.status"), value: (row) => text(field(row, "billingStatus")) },
+  {
+    label: t("fields.status"),
+    value: (row) => text(field(row, "billingStatus")),
+  },
   {
     label: t("fields.quotaReset"),
     value: (row) => when(field(field(row, "quota"), "resetAt")),
@@ -693,7 +752,8 @@ const billingDetails = (t: T): readonly Column[] => [
 
 async function renderDashboard(title: string, t: T) {
   const result = await liveApiGet("/admin/tenants");
-  if (!result.ok) return <AdminProblem code={result.code} title={title} t={t} />;
+  if (!result.ok)
+    return <AdminProblem code={result.code} title={title} t={t} />;
   const rows = items(result.body);
   const activeJobs = rows.reduce<number>(
     (total, row) => total + count(field(row, "activeJobs")),
@@ -729,7 +789,8 @@ async function renderTenants(title: string, search: SearchState, t: T) {
   const result = await liveApiGet(
     listPath(path, search, ["q", "status", "plan", "after"]),
   );
-  if (!result.ok) return <AdminProblem code={result.code} title={title} t={t} />;
+  if (!result.ok)
+    return <AdminProblem code={result.code} title={title} t={t} />;
   const rows = items(result.body);
   return (
     <AdminView title={title} description={t("tenantsDescription")}>
@@ -786,7 +847,8 @@ async function renderJobs(title: string, search: SearchState, t: T) {
   const result = await liveApiGet(
     listPath(path, search, ["q", "tenantId", "state", "after"]),
   );
-  if (!result.ok) return <AdminProblem code={result.code} title={title} t={t} />;
+  if (!result.ok)
+    return <AdminProblem code={result.code} title={title} t={t} />;
   const rows = items(result.body);
   return (
     <AdminView title={title} description={t("jobsDescription")}>
@@ -834,7 +896,8 @@ async function renderReceipts(title: string, search: SearchState, t: T) {
   const result = await liveApiGet(
     listPath(path, search, ["q", "tenantId", "jobId", "eventType", "after"]),
   );
-  if (!result.ok) return <AdminProblem code={result.code} title={title} t={t} />;
+  if (!result.ok)
+    return <AdminProblem code={result.code} title={title} t={t} />;
   const rows = items(result.body);
   const row = selectedRow(rows, single(search.selected));
   const selectedId = text(field(row, "id"), "");
@@ -916,7 +979,12 @@ async function renderReceipts(title: string, search: SearchState, t: T) {
           tenantId={single(search.tenantId) || undefined}
         />
       </section>
-      <Pagination path={path} search={search} nextCursor={cursor(result.body)} t={t} />
+      <Pagination
+        path={path}
+        search={search}
+        nextCursor={cursor(result.body)}
+        t={t}
+      />
     </AdminView>
   );
 }
@@ -926,7 +994,8 @@ async function renderQuarantine(title: string, search: SearchState, t: T) {
   const result = await liveApiGet(
     listPath(path, search, ["q", "tenantId", "state", "reason", "after"]),
   );
-  if (!result.ok) return <AdminProblem code={result.code} title={title} t={t} />;
+  if (!result.ok)
+    return <AdminProblem code={result.code} title={title} t={t} />;
   const rows = items(result.body);
   return (
     <AdminView title={title} description={t("quarantineDescription")}>
@@ -983,7 +1052,8 @@ async function renderAudit(title: string, search: SearchState, t: T) {
       "after",
     ]),
   );
-  if (!result.ok) return <AdminProblem code={result.code} title={title} t={t} />;
+  if (!result.ok)
+    return <AdminProblem code={result.code} title={title} t={t} />;
   const rows = items(result.body);
   return (
     <AdminView title={title} description={t("auditDescription")}>
@@ -1088,7 +1158,8 @@ async function renderBilling(title: string, search: SearchState, t: T) {
 
 async function renderAiSettings(title: string, t: T) {
   const result = await liveApiGet("/admin/ai-provider-settings");
-  if (!result.ok) return <AdminProblem code={result.code} title={title} t={t} />;
+  if (!result.ok)
+    return <AdminProblem code={result.code} title={title} t={t} />;
   const body = result.body;
   return (
     <AdminView title={title} description={t("aiSettingsDescription")}>
@@ -1105,9 +1176,39 @@ async function renderAiSettings(title: string, t: T) {
   );
 }
 
-async function renderAdmin(key: string, title: string, search: SearchState, t: T) {
+// The three generators a scene can draw material from: one vendor with a
+// key, two services this deployment runs itself. All three set here.
+async function renderMaterialSettings(title: string, t: T) {
+  const result = await liveApiGet("/admin/material-provider-settings");
+  if (!result.ok)
+    return <AdminProblem code={result.code} title={title} t={t} />;
+  const body = result.body;
+  return (
+    <AdminView title={title} description={t("materialSettingsDescription")}>
+      <MaterialProviderSettingsForm
+        providerKind={text(field(body, "providerKind"), "openai")}
+        model={text(field(body, "model"), "")}
+        enabled={field(body, "enabled") === true}
+        hasApiKey={field(body, "hasApiKey") === true}
+        videoBaseUrl={text(field(body, "videoBaseUrl"), "") || null}
+        model3dBaseUrl={text(field(body, "model3dBaseUrl"), "") || null}
+        updatedAt={text(field(body, "updatedAt"), "")}
+        updatedBy={text(field(body, "updatedBy"), "")}
+      />
+    </AdminView>
+  );
+}
+
+async function renderAdmin(
+  key: string,
+  title: string,
+  search: SearchState,
+  t: T,
+) {
   if (key === "admin") return renderDashboard(title, t);
   if (key === "admin/ai-settings") return renderAiSettings(title, t);
+  if (key === "admin/material-settings")
+    return renderMaterialSettings(title, t);
   if (key === "admin/tenants") return renderTenants(title, search, t);
   if (key === "admin/jobs") return renderJobs(title, search, t);
   if (key === "admin/receipts") return renderReceipts(title, search, t);
@@ -1127,7 +1228,12 @@ async function renderWorkflow(
   if (!result.ok)
     return (
       <CreatorShell>
-        <ProblemPanel admin={false} code={result.code} title={t("workflow")} t={t} />
+        <ProblemPanel
+          admin={false}
+          code={result.code}
+          title={t("workflow")}
+          t={t}
+        />
       </CreatorShell>
     );
   const rows = items(result.body);
@@ -1181,14 +1287,18 @@ export default async function StaticDestination({
   params,
   searchParams,
 }: {
-  readonly params: Promise<{ readonly slug: string[]; readonly locale: string }>;
+  readonly params: Promise<{
+    readonly slug: string[];
+    readonly locale: string;
+  }>;
   readonly searchParams: Promise<SearchState>;
 }) {
   const [{ slug }, search] = await Promise.all([params, searchParams]);
   const t = await getTranslations("AdminSlug");
   const key = slug.join("/");
   const adminPageKey = adminPageKeys[key];
-  if (adminPageKey) return renderAdmin(key, t(`titles.${adminPageKey}`), search, t);
+  if (adminPageKey)
+    return renderAdmin(key, t(`titles.${adminPageKey}`), search, t);
   if (key === "workflow" || key === "jobs")
     return renderWorkflow(`/${key}`, search, t);
   const review = key.match(/^jobs\/([^/]+)\/review$/u);

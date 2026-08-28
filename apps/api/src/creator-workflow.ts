@@ -12,6 +12,7 @@ import {
   type GenerationConfig,
 } from "../../../packages/contracts/src/generation.js";
 import { getAiProviderSettings } from "./ai-provider-settings.js";
+import { getMaterialProviderSettings } from "./material-provider-settings.js";
 import type { AuthoredScene } from "./author-scene.js";
 import { IdempotencyStore, requestHash, safeEnvelope } from "./boundary.js";
 import type { Principal } from "./auth.js";
@@ -1274,6 +1275,17 @@ export function registerCreatorWorkflow(
             const ai = getAiProviderSettings(aiFrameSelection.db);
             if (!ai.enabled || !ai.hasApiKey) {
               fail(reply, "AI_PROVIDER_NOT_CONFIGURED");
+              return;
+            }
+            // And a material provider, for the same reason one stage
+            // later. Which assets a scene needs is the model's decision,
+            // not the creator's, so "this brief might not need generated
+            // material" is not a promise anyone can make at this point --
+            // a generate-track job without a material provider is a job
+            // that fails somewhere between authoring and the render.
+            const material = getMaterialProviderSettings(aiFrameSelection.db);
+            if (!material.enabled || !material.hasApiKey) {
+              fail(reply, "MATERIAL_PROVIDER_NOT_CONFIGURED");
               return;
             }
           }

@@ -21,7 +21,8 @@
       "quarantine": "격리",
       "billing": "청구",
       "audit": "감사",
-      "aiSettings": "AI 설정"
+      "aiSettings": "AI 설정",
+      "materialSettings": "소재 생성기"
     },
     "admin": {
       "menu": "메뉴",
@@ -424,6 +425,32 @@
       "action": "JSONL 내보내기 생성"
     }
   },
+  "MaterialProviderSettingsForm": {
+    "saveFailed": "저장 실패: {code}.",
+    "settingsSaved": "설정이 저장됐습니다.",
+    "connectionInterrupted": "연결이 끊겼습니다. 재시도하세요.",
+    "providerEnabledAriaLabel": "이미지 생성기 활성화됨",
+    "providerDisabledAriaLabel": "이미지 생성기 비활성화됨",
+    "enabled": "활성화",
+    "disabled": "비활성화",
+    "imageSection": "2D 이미지 생성기",
+    "imageSectionHint": "로고, 배경, 화면 그래픽을 만듭니다. 워커는 외부 네트워크가 없어 API 서버가 대신 호출합니다. 생성 트랙에는 이 생성기가 반드시 필요합니다.",
+    "imageProvider": "이미지 제공자",
+    "model": "모델",
+    "apiKey": "API 키",
+    "selfHostedSection": "자체 호스팅 생성기",
+    "selfHostedSectionHint": "워커 내부 네트워크에서 직접 호출합니다. 비워두면 해당 소재 종류를 이름으로 거부합니다 — 영상이나 입체 소재를 쓰지 않는 씬은 영향받지 않습니다.",
+    "videoService": "영상 생성기 (Wan-Alpha) 주소",
+    "model3dService": "3D 생성기 (Hi3DGen) 주소",
+    "notSet": "설정되지 않음",
+    "configured": "설정됨",
+    "lastUpdated": "마지막 업데이트",
+    "by": "{name}",
+    "apiKeyReplacePlaceholder": "교체하려면 입력 — 기존 키를 유지하려면 비워두세요",
+    "apiKeyEnterPlaceholder": "API 키 입력",
+    "saving": "저장 중...",
+    "saveSettings": "설정 저장"
+  },
   "AiProviderSettingsForm": {
     "saveFailed": "저장 실패: {code}.",
     "settingsSaved": "설정이 저장됐습니다.",
@@ -525,6 +552,7 @@
     "titles": {
       "dashboard": "관리자 대시보드",
       "aiSettings": "AI 제공자 설정",
+      "materialSettings": "소재 생성기 설정",
       "audit": "감사 로그",
       "billing": "청구",
       "jobs": "대기열 및 배포",
@@ -582,6 +610,7 @@
     "billingAccounts": "청구 계정",
     "billingDetail": "청구 상세",
     "aiSettingsDescription": "컴파일러 대화 프롬프트 정제에 사용할 AI 제공자를 설정합니다.",
+    "materialSettingsDescription": "씬이 요구하는 소재를 만드는 세 생성기를 설정합니다: 2D 이미지, 영상, 3D.",
     "workflow": "워크플로우",
     "workflowDescription": "현재 워크스페이스의 컴파일러 작업.",
     "newProject": "새 프로젝트",

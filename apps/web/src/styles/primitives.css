@@ -1581,6 +1581,20 @@ progress {
 .choice-form p {
   margin: 0;
 }
+/* A section heading inside a form that has more than one section (the
+   material-generator settings group a keyed vendor and two self-hosted
+   services), and the sentence under it that says what the section is for. */
+.choice-form h3 {
+  color: var(--color-ink);
+  font: var(--type-display-xs);
+}
+.choice-form h3 + .field-hint {
+  margin-top: calc(var(--space-lg) * -1 + var(--space-xs));
+}
+.choice-form .field-hint {
+  color: var(--color-body-mid);
+  font: var(--type-body-sm);
+}
 .choice-form > label,
 .choice-form fieldset label {
   display: grid;

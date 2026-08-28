@@ -21,7 +21,8 @@
       "quarantine": "Quarantine",
       "billing": "Billing",
       "audit": "Audit",
-      "aiSettings": "AI Settings"
+      "aiSettings": "AI Settings",
+      "materialSettings": "Material generators"
     },
     "admin": {
       "menu": "Menu",
@@ -424,6 +425,32 @@
       "action": "Create JSONL export"
     }
   },
+  "MaterialProviderSettingsForm": {
+    "saveFailed": "Could not save: {code}.",
+    "settingsSaved": "Settings saved.",
+    "connectionInterrupted": "The connection dropped. Retry.",
+    "providerEnabledAriaLabel": "Image generator enabled",
+    "providerDisabledAriaLabel": "Image generator disabled",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "imageSection": "2D image generator",
+    "imageSectionHint": "Makes logos, backdrops, and screen graphics. The worker has no outbound network, so the API server makes the call for it. The generate track cannot run without this one.",
+    "imageProvider": "Image provider",
+    "model": "Model",
+    "apiKey": "API key",
+    "selfHostedSection": "Self-hosted generators",
+    "selfHostedSectionHint": "Called directly on the worker's own network. Leave one blank and that material kind is refused by name -- a scene that asks for neither video nor object material is unaffected.",
+    "videoService": "Video generator (Wan-Alpha) address",
+    "model3dService": "3D generator (Hi3DGen) address",
+    "notSet": "Not set",
+    "configured": "Configured",
+    "lastUpdated": "Last updated",
+    "by": "{name}",
+    "apiKeyReplacePlaceholder": "Enter to replace -- leave blank to keep the existing key",
+    "apiKeyEnterPlaceholder": "Enter an API key",
+    "saving": "Saving...",
+    "saveSettings": "Save settings"
+  },
   "AiProviderSettingsForm": {
     "saveFailed": "Save failed: {code}.",
     "settingsSaved": "Settings saved.",
@@ -525,6 +552,7 @@
     "titles": {
       "dashboard": "Admin dashboard",
       "aiSettings": "AI provider settings",
+      "materialSettings": "Material generator settings",
       "audit": "Audit log",
       "billing": "Billing",
       "jobs": "Queue & Delivery",
@@ -582,6 +610,7 @@
     "billingAccounts": "Billing accounts",
     "billingDetail": "Billing detail",
     "aiSettingsDescription": "Configure which AI provider powers Compiler Chat prompt refinement.",
+    "materialSettingsDescription": "Configure the three generators that make the material a scene asks for: 2D image, video, and 3D.",
     "workflow": "Workflow",
     "workflowDescription": "Compiler jobs for the current workspace.",
     "newProject": "New Project",

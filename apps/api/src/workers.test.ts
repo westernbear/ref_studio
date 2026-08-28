@@ -2836,6 +2836,58 @@ describe("generate-track material and render phases", () => {
     await fixture.app.close();
   });
 
+  // The two self-hosted generators are addressed from the admin console.
+  // The worker has no outbound network and used to read these from its own
+  // environment, so the claim payload is how the setting reaches it.
+  it("sends the console's self-hosted generator addresses with an assets claim", async () => {
+    const workflow = createCreatorWorkflowStore();
+    generateJob(workflow, generatedAssetSpec, "ASSETS_QUEUED");
+    const directory = mkdtempSync(join(tmpdir(), "rvs-material-endpoints-"));
+    const db = openApiDatabase(join(directory, "app.sqlite"));
+    updateMaterialProviderSettings(
+      db,
+      {
+        providerKind: "openai",
+        model: "gpt-image-2",
+        apiKey: "sk-test",
+        enabled: true,
+        videoBaseUrl: "http://wan-alpha:8000",
+        model3dBaseUrl: "http://hi3dgen:8000",
+      },
+      "admin",
+      1_000,
+      "test-secret-key-material",
+    );
+    const fixture = appFixture(workflow, uploadFixture(), {
+      db,
+      aiSecretKey: "test-secret-key-material",
+    });
+    await registerWorker(fixture, ["renderer"]);
+    const claim = await claimWorker(fixture);
+
+    expect(claim.json().job.payload.materialEndpoints).toEqual({
+      video: "http://wan-alpha:8000",
+      model3d: "http://hi3dgen:8000",
+    });
+    await fixture.app.close();
+  });
+
+  // Unset is a real answer: the worker's provider then refuses that
+  // material kind by name instead of dialling nothing.
+  it("sends nulls when neither self-hosted generator is configured", async () => {
+    const workflow = createCreatorWorkflowStore();
+    generateJob(workflow, generatedAssetSpec, "ASSETS_QUEUED");
+    const fixture = materialFixture(workflow);
+    await registerWorker(fixture, ["renderer"]);
+    const claim = await claimWorker(fixture);
+
+    expect(claim.json().job.payload.materialEndpoints).toEqual({
+      video: null,
+      model3d: null,
+    });
+    await fixture.app.close();
+  });
+
   it("refuses a material request for a kind it does not implement, naming the kind", async () => {
     const workflow = createCreatorWorkflowStore();
     generateJob(workflow, generatedAssetSpec, "ASSETS_QUEUED");
@@ -2852,6 +2904,7 @@ describe("generate-track material and render phases", () => {
     });
 
     expect(response.statusCode).toBe(422);
+    expect(response.json().error.code).toBe("MATERIAL_GENERATION_FAILED");
     expect(response.json().error.message).toMatch(/"video".*not implemented/);
     expect(response.json().error.message).toMatch(/"image"/);
   });
@@ -2872,9 +2925,10 @@ describe("generate-track material and render phases", () => {
     });
 
     expect(response.statusCode).toBe(422);
-    expect(response.json().error.message).toMatch(
-      /MATERIAL_PROVIDER_NOT_CONFIGURED/,
-    );
+    // The code, not just the message: the worker copies error.code onto the
+    // job, so refusing this as INVALID_REQUEST recorded a failure that said
+    // nothing about the one setting an operator has to change.
+    expect(response.json().error.code).toBe("MATERIAL_PROVIDER_NOT_CONFIGURED");
     await fixture.app.close();
   });
 

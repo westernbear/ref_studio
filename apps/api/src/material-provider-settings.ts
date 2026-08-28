@@ -18,6 +18,14 @@ export type MaterialProviderSettingsPublic = {
   readonly model: string;
   readonly enabled: boolean;
   readonly hasApiKey: boolean;
+  // The two self-hosted generators, addressed rather than keyed: they run
+  // on the worker's own private network and have no credential. Null means
+  // this deployment has no such service, and the matching material kind
+  // then refuses by name. Unlike the 2D provider above, these are not a
+  // prerequisite for the generate track -- a scene that asks for neither
+  // video nor object-form material never touches them.
+  readonly videoBaseUrl: string | null;
+  readonly model3dBaseUrl: string | null;
   readonly updatedAt: string;
   readonly updatedBy: string;
 };
@@ -27,6 +35,8 @@ type Row = {
   model: string;
   api_key_ciphertext: string | null;
   enabled: number;
+  video_base_url: string | null;
+  model3d_base_url: string | null;
   updated_at: string;
   updated_by: string;
 };
@@ -36,6 +46,8 @@ const DEFAULT_SETTINGS: MaterialProviderSettingsPublic = {
   model: "",
   enabled: false,
   hasApiKey: false,
+  videoBaseUrl: null,
+  model3dBaseUrl: null,
   updatedAt: new Date(0).toISOString(),
   updatedBy: "system",
 };
@@ -81,6 +93,8 @@ const toPublic = (row: Row): MaterialProviderSettingsPublic => ({
   model: row.model,
   enabled: row.enabled === 1,
   hasApiKey: row.api_key_ciphertext !== null,
+  videoBaseUrl: row.video_base_url,
+  model3dBaseUrl: row.model3d_base_url,
   updatedAt: row.updated_at,
   updatedBy: row.updated_by,
 });
@@ -88,7 +102,7 @@ const toPublic = (row: Row): MaterialProviderSettingsPublic => ({
 const readRow = (db: Database.Database): Row | undefined =>
   db
     .prepare(
-      `SELECT provider_kind, model, api_key_ciphertext, enabled, updated_at, updated_by
+      `SELECT provider_kind, model, api_key_ciphertext, enabled, video_base_url, model3d_base_url, updated_at, updated_by
          FROM material_provider_settings WHERE id = 'default'`,
     )
     .get() as Row | undefined;
@@ -119,6 +133,10 @@ export type MaterialProviderSettingsPatch = {
   readonly model?: string;
   readonly apiKey?: string;
   readonly enabled?: boolean;
+  // An empty string clears the endpoint (the console's way of saying "this
+  // deployment has no such service"); undefined leaves it as it was.
+  readonly videoBaseUrl?: string;
+  readonly model3dBaseUrl?: string;
 };
 
 export function updateMaterialProviderSettings(
@@ -142,18 +160,52 @@ export function updateMaterialProviderSettings(
     patch.apiKey && patch.apiKey.length > 0
       ? encryptSecret(patch.apiKey, secretKey)
       : (existing?.api_key_ciphertext ?? null);
+  // An empty string clears the endpoint, a URL sets it, undefined leaves
+  // it alone. Validated here rather than only in the console, because the
+  // worker dials whatever this returns.
+  const endpoint = (
+    patch: string | undefined,
+    existing: string | null | undefined,
+  ): string | null => {
+    if (patch === undefined) return existing ?? null;
+    if (patch === "") return null;
+    try {
+      const url = new URL(patch);
+      if (url.protocol !== "http:" && url.protocol !== "https:")
+        throw new Error("INVALID_REQUEST");
+    } catch {
+      throw new Error("INVALID_REQUEST");
+    }
+    return patch;
+  };
+  const videoBaseUrl = endpoint(patch.videoBaseUrl, existing?.video_base_url);
+  const model3dBaseUrl = endpoint(
+    patch.model3dBaseUrl,
+    existing?.model3d_base_url,
+  );
   const updatedAt = new Date(now).toISOString();
   db.prepare(
     `INSERT INTO material_provider_settings
-       (id, provider_kind, model, api_key_ciphertext, enabled, updated_at, updated_by)
-     VALUES ('default', ?, ?, ?, ?, ?, ?)
+       (id, provider_kind, model, api_key_ciphertext, enabled, video_base_url, model3d_base_url, updated_at, updated_by)
+     VALUES ('default', ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(id) DO UPDATE SET
        provider_kind = excluded.provider_kind,
        model = excluded.model,
        api_key_ciphertext = excluded.api_key_ciphertext,
        enabled = excluded.enabled,
+       video_base_url = excluded.video_base_url,
+       model3d_base_url = excluded.model3d_base_url,
        updated_at = excluded.updated_at,
        updated_by = excluded.updated_by`,
-  ).run(providerKind, model, apiKeyCiphertext, enabled ? 1 : 0, updatedAt, actor);
+  ).run(
+    providerKind,
+    model,
+    apiKeyCiphertext,
+    enabled ? 1 : 0,
+    videoBaseUrl,
+    model3dBaseUrl,
+    updatedAt,
+    actor,
+  );
   return getMaterialProviderSettings(db);
 }

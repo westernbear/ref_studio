@@ -20,6 +20,7 @@ import {
   MaterialProviderError,
   type GenerateImage,
 } from "./openai-image-material.js";
+import { getMaterialProviderSettings } from "./material-provider-settings.js";
 import { runSafetyCheck, type GenerateSafetyVerdict } from "./safety-check.js";
 import {
   enrichEvidenceTranslations,
@@ -683,6 +684,16 @@ const claimWorkflowJob = (
   uploads: UploadStore | undefined,
   workerId: string,
   now: () => number,
+  // Where the two self-hosted generators live, from the admin console (see
+  // material-provider-settings.ts). The worker used to read these from its
+  // own environment, which meant a shell on every worker host to change one
+  // and no way to see from the console whether either was set. Null for
+  // either means this deployment has no such service, and the worker's
+  // provider then refuses that material kind by name.
+  materialEndpoints: Readonly<{
+    video: string | null;
+    model3d: string | null;
+  }> = { video: null, model3d: null },
 ) => {
   if (!workflow) return null;
   const currentWorker = store.workers.get(workerId);
@@ -790,6 +801,9 @@ const claimWorkflowJob = (
             attachmentIds: job.generation?.attachmentIds ?? [],
           }
         : {}),
+      // Only the assets phase makes material, so only it needs to know
+      // where the generators are.
+      ...(phase === "assets" ? { materialEndpoints } : {}),
       ...(phase === "gen-render"
         ? {
             // What the `assets` phase already stored, so the renderer can
@@ -1195,6 +1209,20 @@ export function registerWorkers(
     authorSceneGenerate,
     materialGenerate,
   } = options;
+  // Read fresh on every claim rather than captured at boot, so changing an
+  // endpoint in the console takes effect on the next job instead of the
+  // next restart.
+  const materialEndpoints = (): Readonly<{
+    video: string | null;
+    model3d: string | null;
+  }> => {
+    if (!db) return { video: null, model3d: null };
+    const settings = getMaterialProviderSettings(db);
+    return {
+      video: settings.videoBaseUrl,
+      model3d: settings.model3dBaseUrl,
+    };
+  };
   const auth = (
     request: FastifyRequest,
     reply: FastifyReply,
@@ -1324,6 +1352,7 @@ export function registerWorkers(
           uploads,
           request.params.workerId,
           now,
+          materialEndpoints(),
         ),
       });
     },
@@ -1750,10 +1779,19 @@ export function registerWorkers(
   // `error()` produces (safeEnvelope's normalizeError collapses any other
   // Error message to a generic INTERNAL_ERROR), because a worker needs the
   // actual reason a material request was refused, not just "bad request".
-  const materialRefused = (reply: FastifyReply, message: string): void => {
+  // The code has to name the cause: the worker copies it straight onto the
+  // job (see worker-daemon.ts's errorCodeFrom), and a job that failed
+  // because nobody configured a material provider used to record
+  // INVALID_REQUEST -- true of a malformed body too, and useless to
+  // whoever has to fix it.
+  const materialRefused = (
+    reply: FastifyReply,
+    code: string,
+    message: string,
+  ): void => {
     reply.code(422).send({
       error: {
-        code: "INVALID_REQUEST",
+        code,
         message,
         correlationId: String(reply.getHeader("x-correlation-id")),
         details: [],
@@ -1792,6 +1830,7 @@ export function registerWorkers(
     if (parsed.data.kind !== "image") {
       materialRefused(
         reply,
+        "MATERIAL_GENERATION_FAILED",
         `material generation for kind "${parsed.data.kind}" is not implemented; only "image" material generation is available`,
       );
       return;
@@ -1799,7 +1838,8 @@ export function registerWorkers(
     if (!db || !aiSecretKey) {
       materialRefused(
         reply,
-        "MATERIAL_PROVIDER_NOT_CONFIGURED: no image material provider is configured for this deployment",
+        "MATERIAL_PROVIDER_NOT_CONFIGURED",
+        "no image material provider is configured for this deployment",
       );
       return;
     }
@@ -1820,8 +1860,9 @@ export function registerWorkers(
       materialRefused(
         reply,
         cause instanceof MaterialProviderError
-          ? `${cause.code}: the image material provider could not produce this asset`
-          : "MATERIAL_GENERATION_FAILED: the image material provider could not produce this asset",
+          ? cause.code
+          : "MATERIAL_GENERATION_FAILED",
+        "the image material provider could not produce this asset",
       );
     }
   });

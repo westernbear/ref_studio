@@ -19,6 +19,7 @@ const adminLinks = [
   { key: "billing", href: "/admin/billing" },
   { key: "audit", href: "/admin/audit" },
   { key: "aiSettings", href: "/admin/ai-settings" },
+  { key: "materialSettings", href: "/admin/material-settings" },
 ] as const;
 
 export function BrandLogo({ ops = false }: { readonly ops?: boolean }) {

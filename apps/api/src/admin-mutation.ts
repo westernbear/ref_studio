@@ -108,6 +108,8 @@ type Body = {
   baseUrl?: string;
   apiKey?: string;
   enabled?: boolean;
+  videoBaseUrl?: string;
+  model3dBaseUrl?: string;
 };
 const id = (prefix: string): string =>
   `${prefix}_${randomBytes(10).toString("base64url")}`;
@@ -313,7 +315,10 @@ export function registerAdminMutation(
             body.confirmItemId !== item.id
           )
             throw new Error("QUARANTINE_RELEASE_BLOCKED");
-          if (requestHeader(request, "if-match") !== quarantineVersion(item.id, item.state))
+          if (
+            requestHeader(request, "if-match") !==
+            quarantineVersion(item.id, item.state)
+          )
             throw new Error("VERSION_CONFLICT");
           const before = { state: item.state };
           if (path.endsWith("/release")) {
@@ -627,6 +632,12 @@ export function registerAdminMutation(
           ...(body.model !== undefined && { model: body.model }),
           ...(body.apiKey !== undefined && { apiKey: body.apiKey }),
           ...(body.enabled !== undefined && { enabled: body.enabled }),
+          ...(body.videoBaseUrl !== undefined && {
+            videoBaseUrl: body.videoBaseUrl,
+          }),
+          ...(body.model3dBaseUrl !== undefined && {
+            model3dBaseUrl: body.model3dBaseUrl,
+          }),
         };
         const after = updateMaterialProviderSettings(
           db,
