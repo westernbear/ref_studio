@@ -1067,6 +1067,35 @@ describe("worker registration API", () => {
     await fixture.app.close();
   });
 
+  it("keeps serving when the snapshot write throws, instead of killing the process", async () => {
+    // onSend runs after the reply's headers are on the wire, so a rejected
+    // hook cannot become an error response: Fastify writes headers anyway
+    // and the process dies on ERR_HTTP_HEADERS_SENT. One CHECK-constraint
+    // failure took the whole API down that way and left every worker on
+    // 502. The write is lost either way; the service must survive it.
+    const errors: string[] = [];
+    const originalError = console.error;
+    console.error = (line: unknown) => {
+      errors.push(String(line));
+    };
+    try {
+      const workflow = createCreatorWorkflowStore();
+      const fixture = appFixture(workflow, uploadFixture(), {
+        persist: () => {
+          throw new Error("TEST_SNAPSHOT_WRITE_FAILED");
+        },
+      });
+
+      const response = await registerWorker(fixture, ["renderer"]);
+
+      expect(response.statusCode).toBe(200);
+      expect(errors.join("\n")).toContain("api.persist.failed");
+      expect(errors.join("\n")).toContain("TEST_SNAPSHOT_WRITE_FAILED");
+    } finally {
+      console.error = originalError;
+    }
+  });
+
   it("rolls back the artifact file and map when request persistence fails once", async () => {
     let injectFailure = false;
     let persistenceCalls = 0;

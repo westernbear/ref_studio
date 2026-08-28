@@ -99,9 +99,7 @@ export type AppOptions = {
   readonly db?: Database.Database;
   readonly aiSecretKey?: string;
   readonly attachmentsRoot?: string;
-  readonly refinePromptGenerate?: Parameters<
-    typeof registerRefinePrompt
-  >[5];
+  readonly refinePromptGenerate?: Parameters<typeof registerRefinePrompt>[5];
   readonly patchSceneGenerate?: GeneratePatch;
   readonly safetyCheckGenerate?: GenerateSafetyVerdict;
   readonly translateGenerate?: GenerateTranslation;
@@ -125,7 +123,10 @@ const cookie = (request: FastifyRequest, name: string): string | undefined =>
 // to sniff and store, so it buffers a Readable itself here rather than
 // changing those parsers for every route that shares them. Bounded by the
 // same limit as this route's own `bodyLimit` option, as a second guard.
-const bufferReadable = (stream: Readable, limitBytes: number): Promise<Buffer> =>
+const bufferReadable = (
+  stream: Readable,
+  limitBytes: number,
+): Promise<Buffer> =>
   new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
     let total = 0;
@@ -169,15 +170,15 @@ const failure = (
               result.code === "ATTACHMENT_QUOTA_EXCEEDED"
             ? 400
             : result.code === "VIDEO_TYPE_INVALID" ||
-              result.code === "VIDEO_SIZE_LIMIT_EXCEEDED" ||
-              result.code === "INVALID_REQUEST" ||
-              result.code === "UPLOAD_QUARANTINED" ||
-              result.code === "UPLOAD_RANGE_INVALID" ||
-              result.code === "UPLOAD_INCOMPLETE" ||
-              result.code === "HASH_MISMATCH" ||
-              result.code === "UPLOAD_NOT_ABORTABLE"
-            ? 422
-            : 403;
+                result.code === "VIDEO_SIZE_LIMIT_EXCEEDED" ||
+                result.code === "INVALID_REQUEST" ||
+                result.code === "UPLOAD_QUARANTINED" ||
+                result.code === "UPLOAD_RANGE_INVALID" ||
+                result.code === "UPLOAD_INCOMPLETE" ||
+                result.code === "HASH_MISMATCH" ||
+                result.code === "UPLOAD_NOT_ABORTABLE"
+              ? 422
+              : 403;
   return reply.code(status).send(safeEnvelope(new Error(result.code), id));
 };
 const principalResult = (
@@ -232,7 +233,32 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
     const persistenceRequest = request as FastifyRequest & PersistenceRequest;
     if (!persistenceRequest[requestPersistence]) {
       persistenceRequest[requestPersistence] = true;
-      options.persist?.();
+      try {
+        options.persist?.();
+      } catch (error) {
+        // Never let this escape. The reply's headers are already on the
+        // wire by the time onSend runs, so a rejected hook cannot become
+        // an error response -- Fastify tries to write headers anyway and
+        // the process dies on ERR_HTTP_HEADERS_SENT. That is how one
+        // CHECK-constraint failure took the whole API down and left every
+        // worker on 502. The write is lost either way; crashing loses the
+        // rest of the service with it.
+        //
+        // ponytail: logged, not surfaced. Persisting where a failure could
+        // still become a 500 means moving it out of onSend, which is a
+        // real refactor; do that when a lost write needs to fail the
+        // request rather than only page someone.
+        console.error(
+          JSON.stringify({
+            event: "api.persist.failed",
+            method: request.method,
+            url: request.url,
+            errorName: error instanceof Error ? error.name : "UnknownError",
+            errorMessage:
+              error instanceof Error ? error.message : "Unknown error",
+          }),
+        );
+      }
     }
     return payload;
   });
@@ -811,7 +837,12 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
       options.expectedOrigin,
     );
   if (options.reviews) registerReviews(app, options.reviews);
-  if (options.creatorWorkflow && options.uploads && options.db && options.aiSecretKey)
+  if (
+    options.creatorWorkflow &&
+    options.uploads &&
+    options.db &&
+    options.aiSecretKey
+  )
     registerRefinePrompt(
       app,
       options.creatorWorkflow,
