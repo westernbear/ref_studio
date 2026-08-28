@@ -18,7 +18,10 @@ const API_SOURCE = "../../api/src/admin-mutation.ts";
 
 const apiRoutes = () => {
   const source = readFileSync(new URL(API_SOURCE, import.meta.url), "utf8");
-  return [...source.matchAll(/app\.(post|patch)\("\/admin\/([^"]+)"/gu)].map(
+  // Allows the newline Prettier inserts when a handler is long enough to
+  // wrap -- a registration this could not see would look like a proxy
+  // entry with nothing behind it, which is the opposite of the point.
+  return [...source.matchAll(/app\.(post|patch)\(\s*"\/admin\/([^"]+)"/gu)].map(
     ([, method, path]) => [
       method.toUpperCase(),
       // :tenantId and friends are ids the proxy patterns write as "*".

@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { errorCode } from "../lib/api-error";
 import { requestId } from "../lib/upload-client";
 import { ModelField } from "./ModelField";
@@ -43,8 +43,8 @@ type Props = {
 };
 
 export function MaterialProviderSettingsForm({
-  models,
-  modelsReason,
+  models: initialModels,
+  modelsReason: initialModelsReason,
   providerKind: initialProviderKind,
   model: initialModel,
   enabled: initialEnabled,
@@ -65,6 +65,70 @@ export function MaterialProviderSettingsForm({
     initialModel3dBaseUrl ?? "",
   );
   const [saving, setSaving] = useState(false);
+  // The list that arrived with the page is the *saved* provider's. Change
+  // the provider in the form and it is the wrong list -- so refetch, with
+  // the provider (and the key, if one has been typed) the form now holds.
+  // The saved key belongs to the previous provider, so without sending the
+  // new one this would just fail with the old credentials.
+  const [liveModels, setLiveModels] = useState(initialModels);
+  const [liveModelsReason, setLiveModelsReason] = useState(initialModelsReason);
+  const firstRender = useRef(true);
+  useEffect(() => {
+    if (firstRender.current) {
+      // The server already fetched this list for the saved settings; doing
+      // it again on mount would be a second call for the same answer.
+      firstRender.current = false;
+      return;
+    }
+    const controller = new AbortController();
+    void (async () => {
+      try {
+        const response = await fetch("/api/admin/provider-models", {
+          method: "POST",
+          credentials: "include",
+          signal: controller.signal,
+          headers: {
+            "content-type": "application/json",
+            "idempotency-key": requestId(),
+            "x-correlation-id": `cor_${requestId()}`,
+          },
+          body: JSON.stringify({
+            target: "material",
+            providerKind,
+            ...(apiKey ? { apiKey } : {}),
+          }),
+        });
+        const body: unknown = await response.json().catch(() => null);
+        if (!response.ok) {
+          setLiveModels([]);
+          setLiveModelsReason("UNAVAILABLE");
+          return;
+        }
+        const listed = (body as { models?: unknown })?.models;
+        setLiveModels(
+          Array.isArray(listed) ? listed.map((item) => String(item)) : [],
+        );
+        setLiveModelsReason(
+          typeof (body as { reason?: unknown })?.reason === "string"
+            ? (body as { reason: string }).reason
+            : null,
+        );
+      } catch {
+        // An aborted request is the next keystroke, not a failure.
+        if (!controller.signal.aborted) {
+          setLiveModels([]);
+          setLiveModelsReason("UNAVAILABLE");
+        }
+      }
+    })();
+    return () => controller.abort();
+    // apiKey is deliberately not a dependency: refetching on every
+    // keystroke of a pasted key would be a request per character. It is
+    // read when the provider changes, and the list refreshes again after a
+    // save, which is when a new key becomes the saved one.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [providerKind]);
+
   const [status, setStatus] = useState("");
 
   const save = async () => {
@@ -187,8 +251,8 @@ export function MaterialProviderSettingsForm({
           </select>
         </label>
         <ModelField
-          models={models}
-          modelsReason={modelsReason}
+          models={liveModels}
+          modelsReason={liveModelsReason}
           model={model}
           onModelChange={setModel}
           placeholder="gpt-image-2"

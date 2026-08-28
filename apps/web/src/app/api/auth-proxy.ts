@@ -202,6 +202,10 @@ export const ADMIN_MUTATION_ROUTES: readonly (readonly [
   ["PATCH", ["billing", "*"]],
   ["PATCH", ["ai-provider-settings"]],
   ["PATCH", ["material-provider-settings"]],
+  // Changes nothing; it is a POST because the body may carry a key the
+  // operator has typed but not yet saved, which does not belong in a query
+  // string.
+  ["POST", ["provider-models"]],
 ];
 const matchesAdminRoute = (method: string, path: readonly string[]): boolean =>
   ADMIN_MUTATION_ROUTES.some(

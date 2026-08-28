@@ -9,14 +9,17 @@ import {
 } from "./admin-auth.js";
 import {
   getAiProviderSettings,
+  getAiProviderSettingsWithSecret,
   updateAiProviderSettings,
   type AiProviderSettingsPatch,
 } from "./ai-provider-settings.js";
 import {
   getMaterialProviderSettings,
+  getMaterialProviderSettingsWithSecret,
   updateMaterialProviderSettings,
   type MaterialProviderSettingsPatch,
 } from "./material-provider-settings.js";
+import { ProviderModelsError, listProviderModels } from "./provider-models.js";
 import { IdempotencyStore, safeEnvelope, requestHash } from "./boundary.js";
 import {
   cancelJob,
@@ -110,6 +113,7 @@ type Body = {
   enabled?: boolean;
   videoBaseUrl?: string;
   model3dBaseUrl?: string;
+  target?: string;
 };
 const id = (prefix: string): string =>
   `${prefix}_${randomBytes(10).toString("base64url")}`;
@@ -668,6 +672,74 @@ export function registerAdminMutation(
     }
   };
   app.patch("/admin/material-provider-settings", materialSettings);
+
+  // Lists a provider's models for the console's model picker.
+  //
+  // POST, and not through command(), because it changes nothing: no
+  // idempotency key, no audit event, no tenant assignment. It is here
+  // rather than beside the admin *reads* because the body may carry a key
+  // the operator has typed but not yet saved -- which is the case that
+  // matters. Changing the provider in the console leaves the saved key
+  // belonging to the previous one, so listing against it would fail; the
+  // form sends the new key along with the new provider and gets the right
+  // answer before anything is committed.
+  //
+  // Never returns the key, only model names. A provider that will not list
+  // is answered with an empty list and a reason, not an error: the field
+  // falls back to free text, and refusing to list must not block anyone
+  // configuring a provider.
+  app.post(
+    "/admin/provider-models",
+    async (request: FastifyRequest<{ Body: Body }>, reply) => {
+      try {
+        const principal = (
+          request as FastifyRequest & { adminMutationPrincipal?: Principal }
+        ).adminMutationPrincipal;
+        if (!principal) throw new Error("ADMIN_ACCESS_DENIED");
+        if (adminRole(principal) !== "SUPER_ADMIN")
+          throw new Error("ADMIN_ACCESS_DENIED");
+        const db = store.db;
+        const aiSecretKey = store.aiSecretKey;
+        if (!db || !aiSecretKey) throw new Error("RESOURCE_NOT_FOUND");
+        const body = request.body ?? {};
+        const forAi = body.target !== "material";
+        const saved = forAi
+          ? getAiProviderSettingsWithSecret(db, aiSecretKey)
+          : getMaterialProviderSettingsWithSecret(db, aiSecretKey);
+        const providerKind = body.providerKind ?? saved.providerKind;
+        const apiKey = body.apiKey || saved.apiKey;
+        if (!apiKey) {
+          reply.send({ models: [], reason: "NO_API_KEY" });
+          return;
+        }
+        const baseUrl =
+          body.baseUrl !== undefined
+            ? body.baseUrl || null
+            : "baseUrl" in saved
+              ? (saved.baseUrl ?? null)
+              : null;
+        try {
+          reply.send({
+            models: await listProviderModels({
+              providerKind,
+              apiKey,
+              baseUrl,
+              requireTextGeneration: forAi,
+            }),
+            reason: null,
+          });
+        } catch (cause) {
+          reply.send({
+            models: [],
+            reason:
+              cause instanceof ProviderModelsError ? cause.code : "UNAVAILABLE",
+          });
+        }
+      } catch (error) {
+        fail(reply, error);
+      }
+    },
+  );
   app.all("/admin/jobs/:jobId/prioritize", async (_request, reply) => {
     reply
       .code(403)
