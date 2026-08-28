@@ -140,27 +140,31 @@ describe("validateSceneSpec", () => {
     ).toThrow(/GENERATED_ASSET_WITHOUT_PROVENANCE/);
   });
 
-  // blur/glow were removed from SPEC_EFFECTS (both compile to
-  // feGaussianBlur, which is not bit-reproducible across independent
-  // Chromium launches -- see gen-render-delivery.determinism.test.ts).
-  // drop-shadow later joined them: it was clean in isolation, but once
-  // generated.ts started painting a real background and a palette-aware
-  // fill under it (I5 batch), feDropShadow stopped being bit-reproducible
-  // over that opaque backdrop (see the matching comment on SPEC_EFFECTS's
-  // definition). SPEC_EFFECTS is empty for now. SceneSpecSchema enforces
-  // the allowlist directly (z.enum(SPEC_EFFECTS)) so an unknown effect
-  // never reaches validateSceneSpec's own checks -- it fails schema
-  // parsing, same as any other malformed spec. An empty effects array must
-  // still pass.
-  it("rejects any effect as a schema violation -- the allowlist is currently empty", () => {
+  // blur and glow are not in SPEC_EFFECTS: blur was only ever tried as an
+  // SVG filter (feGaussianBlur, not bit-reproducible across independent
+  // Chromium launches); glow was tried both as that same filter and,
+  // later, as geometry (a scaled-up, lower-opacity copy) and failed the
+  // determinism gate both times -- see gen-render-delivery.determinism
+  // test's own comment for the geometry run log. drop-shadow was also
+  // tried as a filter (feDropShadow) and failed once a real background was
+  // painted underneath it, but its geometry replacement (one offset,
+  // unscaled, darkened copy) held clean across every trial and is now the
+  // allowlist's only entry (see the matching comment on SPEC_EFFECTS's
+  // definition). SceneSpecSchema enforces the allowlist directly
+  // (z.enum(SPEC_EFFECTS)) so an unknown effect never reaches
+  // validateSceneSpec's own checks -- it fails schema parsing, same as any
+  // other malformed spec. An empty effects array must still pass.
+  it("accepts the allowlisted drop-shadow but rejects any other effect name", () => {
     const blurred = withElement(fixtureSpec, { effects: ["blur"] });
     expect(() => validateSceneSpec(blurred, ok)).toThrow(
       /SPEC_SCHEMA_INVALID/,
     );
-    const dropShadow = withElement(fixtureSpec, { effects: ["drop-shadow"] });
-    expect(() => validateSceneSpec(dropShadow, ok)).toThrow(
+    const glowing = withElement(fixtureSpec, { effects: ["glow"] });
+    expect(() => validateSceneSpec(glowing, ok)).toThrow(
       /SPEC_SCHEMA_INVALID/,
     );
+    const dropShadow = withElement(fixtureSpec, { effects: ["drop-shadow"] });
+    expect(validateSceneSpec(dropShadow, ok).schema).toBe("scene-spec-v1");
     const none = withElement(fixtureSpec, { effects: [] });
     expect(validateSceneSpec(none, ok).schema).toBe("scene-spec-v1");
   });

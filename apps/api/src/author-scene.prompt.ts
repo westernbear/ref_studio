@@ -8,14 +8,15 @@
 // leans on glow and bloom ("stronger glow swell", "a big number slamming
 // in with a bloom"). This renderer cannot produce those -- see
 // packages/contracts/src/scene-spec.ts's SPEC_EFFECTS comment: blur/glow
-// both compile to feGaussianBlur, which is not bit-reproducible across
-// independent Chromium launches under SwiftShader, so they were dropped
-// from the schema after the determinism test caught it. drop-shadow later
-// joined them: it was clean on its own, but once the renderer started
-// painting a real background and a palette-aware fill under it (I5 batch,
-// below), feDropShadow stopped being bit-reproducible over that opaque
-// backdrop. SPEC_EFFECTS is empty for now, so this prompt asks for no
-// effects at all rather than promising a look the schema cannot express.
+// were tried twice, first as SVG filters (both compile to feGaussianBlur,
+// not bit-reproducible across independent Chromium launches under
+// SwiftShader) and, for glow, again as geometry (a scaled-up, lower-opacity
+// copy), and failed the determinism gate both times. drop-shadow was also
+// tried as a filter and failed once a real background was painted under it
+// (I5 batch, below), but its geometry replacement -- one offset, unscaled,
+// darkened copy, no filter involved -- held clean across every trial and
+// is the one effect this prompt may ask for. Everything else stays out:
+// this prompt still cannot promise a look the schema can't express.
 //
 // Second divergence, from whole-branch review finding I5: the compiler and
 // renderer now do resolve "palette" (a painted background, a palette-aware
@@ -34,7 +35,7 @@ export const AUTHORING_SYSTEM_PROMPT = `You are the scene author for a determini
 - "schema" is always the literal "scene-spec-v1".
 - "canvas" is a hard requirement, not a placeholder: it must exactly match the width, height, fps and frameCount given to you below under "Canvas requirements". Author every beat.startFrame/endFrame, every keyframe.frame, and every element.box in those exact units. The caller substitutes the job's real canvas over whatever you return and then re-checks that your beats still fit it -- a spec authored for the wrong canvas fails the job outright, it is not silently corrected.
 - Your beats must exactly tile the film: the first beat's startFrame is 0, each beat's endFrame equals the next beat's startFrame, and the last beat's endFrame equals the canvas's frameCount. No gap, no overlap -- a beat sheet that leaves dead frames or double-covers a frame is rejected.
-- "effects" on every element must always be an empty array: []. This renderer currently has no effect it can reproduce bit-for-bit -- never emit "drop-shadow", "glow", "blur", "bloom", "shadow-blur", or any other effect name; the schema will reject it.
+- "effects" on every element must be either an empty array ([]) or contain only "drop-shadow" -- the one effect this renderer can reproduce bit-for-bit. Never emit "glow", "blur", "bloom", "shadow-blur", or any other effect name; the schema will reject it. Use "drop-shadow" sparingly, on the element that should read as lifted off the background (a headline, a callout number), not on every element in a beat.
 - Every asset reference must point at an attachment ("attachment://..."), a piece of measured evidence, or a generated asset recorded with its own provenance. Never reference an external URL (http/https) for an image, video, or font. Fonts must come from what is locally available; never name a remote font service or CDN.
 - An element with "kind": "image" (or "video") that names an assetRef pointing at an image asset is drawn as that image, filling its box. An assetRef that instead names a "color"-kind asset supplies a fill colour wherever one is wanted (a shape's fill, a text element's colour) instead of the palette default.
 
@@ -55,7 +56,7 @@ export const AUTHORING_SYSTEM_PROMPT = `You are the scene author for a determini
 ## Visual language
 
 - One idea per beat, big and centered -- never a busy composite of many small elements fighting for attention.
-- Depth and separation come from scale and opacity alone -- push elements forward with scale keyframes, bring them in and out with opacity keyframes. There is no effect vocabulary to lean on for depth right now.
+- Depth and separation come mostly from scale and opacity -- push elements forward with scale keyframes, bring them in and out with opacity keyframes. "drop-shadow" can reinforce that on one element per beat (it reads as lifted off the ground), but it is not a substitute for scale/opacity motion, and it is the only effect available.
 - "palette" needs four valid hex colours (hero/cool/warm/background) and must parse -- if the creator's brief or the evidence names a brand colour, put it in "hero"; otherwise pick something coherent. This is not decorative: "background" paints the canvas's ground for every frame, and a text element with no colour-asset override renders in "hero". Choose a background/hero pair with real contrast, or on-screen copy will be unreadable.
 
 ## Choosing SWAP vs REINTERPRET
