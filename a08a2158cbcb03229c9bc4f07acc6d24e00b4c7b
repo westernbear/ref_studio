@@ -5,3 +5,5 @@ lane=qa-executor sha=a08a2158cbcb03229c9bc4f07acc6d24e00b4c7b verdict=PASS sourc
 lane=security-review sha=a08a2158cbcb03229c9bc4f07acc6d24e00b4c7b verdict=PASS source=agent:/root/final_security_review_v2
 
 lane=debugging-runtime-audit sha=a08a2158cbcb03229c9bc4f07acc6d24e00b4c7b verdict=PASS source=agent:/root/final_debug_runtime_audit_v2
+
+lane=code-review sha=a08a2158cbcb03229c9bc4f07acc6d24e00b4c7b verdict=PASS source=agent:/root/final_code_review_v2
