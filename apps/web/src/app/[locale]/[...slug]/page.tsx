@@ -27,6 +27,7 @@ type SearchState = Readonly<
 type Column = {
   readonly label: string;
   readonly value: (row: unknown) => ReactNode;
+  readonly className?: string;
 };
 type T = Awaited<ReturnType<typeof getTranslations<"AdminSlug">>>;
 
@@ -124,6 +125,7 @@ function Table({
   rowHref,
   detailsLabel,
   inspectLabel,
+  tableClassName,
 }: {
   readonly columns: readonly Column[];
   readonly empty: string;
@@ -132,15 +134,20 @@ function Table({
   readonly rowHref?: (row: unknown) => string;
   readonly detailsLabel: string;
   readonly inspectLabel: string;
+  readonly tableClassName?: string;
 }) {
   if (rows.length === 0) return <p className="empty-copy">{empty}</p>;
   return (
     <div className="table-wrap">
-      <table className="live-table">
+      <table
+        className={
+          tableClassName ? `live-table ${tableClassName}` : "live-table"
+        }
+      >
         <thead>
           <tr>
             {columns.map((column) => (
-              <th key={column.label} scope="col">
+              <th key={column.label} scope="col" className={column.className}>
                 {column.label}
               </th>
             ))}
@@ -156,7 +163,9 @@ function Table({
                 className={rowId === selectedId ? "is-selected" : undefined}
               >
                 {columns.map((column) => (
-                  <td key={column.label}>{column.value(row)}</td>
+                  <td key={column.label} className={column.className}>
+                    {column.value(row)}
+                  </td>
                 ))}
                 {rowHref ? (
                   <td>
@@ -235,14 +244,16 @@ function FilterBar({
   action,
   children,
   t,
+  className,
 }: {
   readonly action: string;
   readonly children: ReactNode;
   readonly t: T;
+  readonly className?: string;
 }) {
   return (
     <form
-      className="filter-bar"
+      className={className ? `filter-bar ${className}` : "filter-bar"}
       action={action}
       method="get"
       data-landmark="filters"
@@ -387,6 +398,7 @@ function RecordSurface({
   detailLandmark,
   nextCursor,
   detailActions,
+  tableClassName,
   t,
 }: {
   readonly path: string;
@@ -401,6 +413,7 @@ function RecordSurface({
   readonly detailLandmark?: string | undefined;
   readonly nextCursor: string | null;
   readonly detailActions?: (row: unknown) => ReactNode;
+  readonly tableClassName?: string;
   readonly t: T;
 }) {
   const row = selectedRow(rows, single(search.selected));
@@ -427,6 +440,7 @@ function RecordSurface({
             }
             detailsLabel={t("details")}
             inspectLabel={t("inspect")}
+            {...(tableClassName ? { tableClassName } : {})}
           />
         </Panel>
         <DetailPanel
@@ -518,6 +532,20 @@ const formatQuota = (row: unknown): string =>
     field(field(row, "quota"), "limit"),
     "0",
   )}`;
+const motionField = (row: unknown, name: string): unknown =>
+  field(field(row, "motion"), name);
+const motionList = (row: unknown, name: string, fallback: string): string => {
+  const value = motionField(row, name);
+  return Array.isArray(value) && value.length > 0
+    ? value.map((item) => text(item)).join(", ")
+    : fallback;
+};
+const motionStatus = (row: unknown, fallback: string): ReactNode => {
+  const status = text(motionField(row, "verificationStatus"), fallback);
+  const tone =
+    status === "PASS" ? " is-live" : status === "FAIL" ? " is-stale" : "";
+  return <span className={`status-chip${tone}`}>{status}</span>;
+};
 
 function jobDetailActions(t: T): (row: unknown) => ReactNode {
   return (row) => {
@@ -621,6 +649,49 @@ const jobColumns = (t: T): readonly Column[] => [
   },
   { label: t("fields.created"), value: (row) => when(field(row, "createdAt")) },
 ];
+const adminJobColumns = (t: T): readonly Column[] => [
+  {
+    label: t("fields.job"),
+    className: "admin-job-primary",
+    value: (row) => (
+      <a
+        href={`/scene-review?jobId=${encodeURIComponent(text(field(row, "id")))}`}
+      >
+        {text(field(row, "id"))}
+      </a>
+    ),
+  },
+  {
+    label: t("fields.tenant"),
+    className: "admin-job-secondary",
+    value: (row) => text(field(row, "tenantId")),
+  },
+  {
+    label: t("fields.state"),
+    className: "admin-job-secondary",
+    value: (row) => text(field(row, "state")),
+  },
+  {
+    label: t("fields.motionBackend"),
+    className: "admin-job-backend",
+    value: (row) => text(motionField(row, "backend"), t("notAuthored")),
+  },
+  {
+    label: t("fields.verification"),
+    className: "admin-job-verification",
+    value: (row) => motionStatus(row, t("notAuthored")),
+  },
+  {
+    label: t("fields.attempt"),
+    className: "admin-job-secondary",
+    value: (row) => text(field(row, "attempt"), "0"),
+  },
+  {
+    label: t("fields.created"),
+    className: "admin-job-secondary",
+    value: (row) => when(field(row, "createdAt")),
+  },
+];
 const adminJobDetails = (t: T): readonly Column[] => [
   { label: t("fields.jobId"), value: (row) => text(field(row, "id")) },
   { label: t("fields.tenant"), value: (row) => text(field(row, "tenantId")) },
@@ -629,6 +700,43 @@ const adminJobDetails = (t: T): readonly Column[] => [
   {
     label: t("fields.attempt"),
     value: (row) => text(field(row, "attempt"), "0"),
+  },
+  {
+    label: t("fields.motionBackend"),
+    value: (row) => text(motionField(row, "backend"), t("notAuthored")),
+  },
+  {
+    label: t("fields.sceneVersion"),
+    value: (row) => text(motionField(row, "version"), t("notAvailable")),
+  },
+  {
+    label: t("fields.verification"),
+    value: (row) => motionStatus(row, t("notAuthored")),
+  },
+  {
+    label: t("fields.verificationAttempts"),
+    value: (row) =>
+      text(motionField(row, "verificationAttempts"), t("notAvailable")),
+  },
+  {
+    label: t("fields.verificationFindings"),
+    value: (row) => {
+      const total = motionField(row, "totalFindings");
+      return typeof total === "number"
+        ? t("findingsPassed", {
+            passed: count(motionField(row, "passedFindings")),
+            total,
+          })
+        : t("notAvailable");
+    },
+  },
+  {
+    label: t("fields.capabilities"),
+    value: (row) => motionList(row, "capabilities", t("notAvailable")),
+  },
+  {
+    label: t("fields.deliverables"),
+    value: (row) => motionList(row, "deliverables", t("notAvailable")),
   },
   { label: t("fields.created"), value: (row) => when(field(row, "createdAt")) },
 ];
@@ -845,14 +953,21 @@ async function renderTenants(title: string, search: SearchState, t: T) {
 async function renderJobs(title: string, search: SearchState, t: T) {
   const path = "/admin/jobs";
   const result = await liveApiGet(
-    listPath(path, search, ["q", "tenantId", "state", "after"]),
+    listPath(path, search, [
+      "q",
+      "tenantId",
+      "state",
+      "backend",
+      "verification",
+      "after",
+    ]),
   );
   if (!result.ok)
     return <AdminProblem code={result.code} title={title} t={t} />;
   const rows = items(result.body);
   return (
     <AdminView title={title} description={t("jobsDescription")}>
-      <FilterBar action={path} t={t}>
+      <FilterBar action={path} className="admin-job-filters" t={t}>
         <FilterInput
           label={t("search")}
           name="q"
@@ -872,16 +987,31 @@ async function renderJobs(title: string, search: SearchState, t: T) {
           options={jobStates}
           allLabel={t("all")}
         />
+        <FilterSelect
+          label={t("fields.motionBackend")}
+          name="backend"
+          value={single(search.backend)}
+          options={["native", "adobe"]}
+          allLabel={t("all")}
+        />
+        <FilterSelect
+          label={t("fields.verification")}
+          name="verification"
+          value={single(search.verification)}
+          options={["PASS", "FAIL", "PENDING"]}
+          allLabel={t("all")}
+        />
       </FilterBar>
       <RecordSurface
         path={path}
         search={search}
         rows={rows}
-        columns={jobColumns(t)}
+        columns={adminJobColumns(t)}
         details={adminJobDetails(t)}
         empty={t("noJobsMatch")}
         tableTitle={t("queueAndDelivery")}
         tableLandmark="job-table"
+        tableClassName="admin-job-motion-table"
         detailTitle={t("jobDetail")}
         nextCursor={cursor(result.body)}
         detailActions={adminJobDetailActions(t)}

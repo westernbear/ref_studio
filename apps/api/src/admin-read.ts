@@ -31,6 +31,16 @@ export type AdminJob = {
   readonly privatePath?: string;
   readonly etag?: string;
 };
+export type AdminMotionSummary = {
+  readonly backend: "native" | "adobe";
+  readonly version: number;
+  readonly verificationStatus: "PASS" | "FAIL" | "PENDING";
+  readonly verificationAttempts: number;
+  readonly passedFindings: number;
+  readonly totalFindings: number;
+  readonly capabilities: readonly string[];
+  readonly deliverables: readonly ("mp4" | "scene-package" | "report")[];
+};
 export type AdminReceipt = {
   readonly id: string;
   readonly tenantId: string;
@@ -114,6 +124,7 @@ export type AdminReadStore = {
   readonly queryCount?: { value: number };
   readonly aiProviderSettings?: AiProviderSettingsPublic;
   readonly materialProviderSettings?: MaterialProviderSettingsPublic;
+  readonly motionForJob?: (job: AdminJob) => AdminMotionSummary | null;
   // Separate accessors from the two above, and deliberately functions: the
   // decrypted key is read only when a model listing is actually asked for,
   // never held on a store the rest of the admin reads share.
@@ -148,6 +159,8 @@ type Query = {
   readonly include?: string;
   readonly fields?: string;
   readonly capability?: string;
+  readonly backend?: string;
+  readonly verification?: string;
 };
 const includes = (query: string | undefined, ...values: unknown[]): boolean =>
   !query ||
@@ -225,6 +238,10 @@ const visibleBilling = (item: AdminBilling): Record<string, unknown> => ({
   renewalAt: item.renewalAt,
   paymentMethod: { type: "REDACTED" },
 });
+const visibleJob = (store: AdminReadStore, item: AdminJob) => {
+  const { privatePath: _path, ...safe } = item;
+  return { ...safe, motion: store.motionForJob?.(item) ?? null };
+};
 const visibleWorkers = (
   workers: WorkerStore | undefined,
   timestamp: number,
@@ -393,6 +410,7 @@ export function registerAdminRead(
       }
       if (path === "/admin/jobs") {
         const items = store.jobs
+          .map((item) => visibleJob(store, item))
           .filter(
             (item) =>
               allowed(item.tenantId) &&
@@ -402,11 +420,15 @@ export function registerAdminRead(
                 item.tenantId,
                 item.creatorId,
                 item.state,
+                item.motion?.backend,
+                item.motion?.verificationStatus,
               ) &&
               (!query.tenantId || item.tenantId === query.tenantId) &&
-              (!query.state || item.state === query.state),
-          )
-          .map(({ privatePath: _path, ...safe }) => safe);
+              (!query.state || item.state === query.state) &&
+              (!query.backend || item.motion?.backend === query.backend) &&
+              (!query.verification ||
+                item.motion?.verificationStatus === query.verification),
+          );
         auth.audit({
           action: "TENANT_VIEWED",
           userId: principal.userId,
@@ -457,13 +479,23 @@ export function registerAdminRead(
       }
       if (path.startsWith("/admin/tenants/") && path.endsWith("/jobs")) {
         const items = store.jobs
+          .map((item) => visibleJob(store, item))
           .filter(
             (item) =>
               item.tenantId === requested &&
-              includes(query.q, item.id, item.creatorId, item.state) &&
-              (!query.state || item.state === query.state),
-          )
-          .map(({ privatePath: _path, ...safe }) => safe);
+              includes(
+                query.q,
+                item.id,
+                item.creatorId,
+                item.state,
+                item.motion?.backend,
+                item.motion?.verificationStatus,
+              ) &&
+              (!query.state || item.state === query.state) &&
+              (!query.backend || item.motion?.backend === query.backend) &&
+              (!query.verification ||
+                item.motion?.verificationStatus === query.verification),
+          );
         auth.audit({
           action: "TENANT_VIEWED",
           userId: principal.userId,

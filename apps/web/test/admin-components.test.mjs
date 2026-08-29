@@ -46,6 +46,10 @@ const authProxy = readFileSync(
   resolve(root, "apps/web/src/app/api/auth-proxy.ts"),
   "utf8",
 );
+const primitivesCss = readFileSync(
+  resolve(root, "apps/web/src/styles/primitives.css"),
+  "utf8",
+);
 
 describe("admin surface contracts", () => {
   it("uses live API-backed surfaces instead of static admin screens", () => {
@@ -87,6 +91,27 @@ describe("admin surface contracts", () => {
     expect(adminDetails).not.toMatch(/preparationStage|updatedAt/u);
     expect(routes).toContain("details={adminJobDetails(t)}");
     expect(routes).toContain("details={creatorJobDetails(t)}");
+  });
+  it("shows live motion backend, verification, version, and deliverables on admin jobs", () => {
+    expect(routes).toContain('field(row, "motion")');
+    expect(routes).toContain('name="backend"');
+    expect(routes).toContain('name="verification"');
+    for (const key of [
+      "motionBackend",
+      "sceneVersion",
+      "verification",
+      "verificationAttempts",
+      "verificationFindings",
+      "capabilities",
+      "deliverables",
+    ])
+      expect(messages.AdminSlug.fields[key]).toBeTruthy();
+  });
+  it("keeps the motion job table readable at tablet and mobile widths", () => {
+    expect(routes).toContain('tableClassName="admin-job-motion-table"');
+    expect(primitivesCss).toContain(".admin-job-motion-table");
+    expect(primitivesCss).toContain(".admin-job-secondary");
+    expect(primitivesCss).toContain(".admin-job-backend");
   });
   it("uses the HTTP-compatible request ID helper for exports", () => {
     expect(exportButton).toContain("requestId()");
