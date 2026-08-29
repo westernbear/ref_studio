@@ -31,8 +31,6 @@ const serviceBlock = (compose, service) =>
   )?.[1] ?? "";
 const relay = serviceBlock(workerCompose, "api-relay");
 const worker = serviceBlock(workerCompose, "worker");
-const rootRelay = serviceBlock(rootCompose, "api-relay");
-const rootWorker = serviceBlock(rootCompose, "worker");
 
 if (!required.every((key) => execution[key] !== undefined))
   throw new Error("EXECUTION_CONTRACT_MISSING");
@@ -51,22 +49,14 @@ if (!serviceBlock(rootCompose, "api").includes("0.0.0.0:3200:3200"))
   throw new Error("COMPOSE_API_EXTERNAL_BIND_MISSING");
 if (!serviceBlock(rootCompose, "api").includes("RVS_WORKER_TOKEN"))
   throw new Error("COMPOSE_API_WORKER_TOKEN_MISSING");
-if (
-  !rootRelay.includes("reference-video-studio-worker:1.0.0") ||
-  !rootRelay.includes("context: ./apps/worker") ||
-  !rootRelay.includes("RVS_API_BASE_URL: http://api:3200") ||
-  !rootRelay.includes("- worker-internal")
-)
-  throw new Error("COMPOSE_WORKER_RELAY_DEFAULT_MISSING");
-if (
-  !rootWorker.includes("reference-video-studio-worker:1.0.0") ||
-  !rootWorker.includes("context: ./apps/worker") ||
-  !rootWorker.includes("RVS_API_BASE_URL: http://api-relay:8787") ||
-  !rootWorker.includes("RVS_WORKER_TOKEN") ||
-  !rootWorker.includes("- worker-internal") ||
-  rootWorker.includes("- default")
-)
-  throw new Error("COMPOSE_WORKER_DEFAULT_MISSING");
+// The relay and the worker left the root compose in b4c04ae -- the worker
+// runs on its own server from apps/worker/docker-compose.yml now. Their
+// contract is asserted against that file below, not this one; the root
+// compose is the web and API only. The API still has to validate
+// RVS_WORKER_TOKEN wherever the worker connects from, which is checked
+// above.
+if (serviceBlock(rootCompose, "worker") !== "")
+  throw new Error("COMPOSE_WORKER_BACK_IN_ROOT");
 if (
   !serviceBlock(rootCompose, "web").includes("/workspace/.pnpm-store") ||
   !serviceBlock(rootCompose, "web").includes("/workspace/node_modules") ||
@@ -131,7 +121,7 @@ process.stdout.write(
     preflight: "runtime-preflight",
     composeIsolation: "verified",
     workerComposeIsolation: "verified",
-    rootWorkerServices: ["api-relay", "worker"],
+    workerComposeServices: ["api-relay", "worker"],
     workerRestartAlways: ["api-relay", "worker"],
     workerToken: "root-env-or-worker-env",
     workerRelay: "verified",

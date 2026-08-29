@@ -17,8 +17,9 @@ await test("verifies the standalone worker Compose deployment contract", () => {
   const report = JSON.parse(result.stdout);
   assert.equal(report.workerComposeIsolation, "verified");
   assert.deepEqual(report.workerRestartAlways, ["api-relay", "worker"]);
-  assert.equal(report.workerToken, "required");
+  assert.equal(report.workerToken, "root-env-or-worker-env");
   assert.equal(report.workerRelay, "verified");
+  assert.deepEqual(report.workerComposeServices, ["api-relay", "worker"]);
   assert.equal(report.workerApiTimeoutMs, 30_000);
   assert.equal(report.workerMediaTimeoutMs, 1_800_000);
 });
