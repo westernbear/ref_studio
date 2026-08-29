@@ -2,6 +2,10 @@ import Database from "better-sqlite3";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
+import {
+  BackendCapabilitySnapshotV1Schema,
+  VerificationReportV1Schema,
+} from "../../../packages/contracts/src/motion.js";
 import { IdempotencyStore } from "./boundary.js";
 import type {
   AdminAudit,
@@ -115,6 +119,11 @@ const AdminJobRows = z.array(
     createdAt: z.string(),
   }),
 );
+const AdminMotionSceneRow = z.object({
+  version: z.number().int().positive(),
+  capabilityJson: z.string(),
+  verificationJson: z.string().nullable(),
+});
 const AdminReceiptRows = z.array(
   z.object({
     id: z.string(),
@@ -403,6 +412,15 @@ export function loadAdminReadStore(
         )
         .all(),
     );
+    const motionSceneStatement = writableDb.prepare(
+      `SELECT v.version,
+              v.capability_json AS capabilityJson,
+              v.verification_json AS verificationJson
+         FROM job_motion_scene_heads h
+         JOIN motion_scene_versions v
+           ON v.id = h.version_id AND v.tenant_id = h.tenant_id
+        WHERE h.job_id = ? AND h.tenant_id = ?`,
+    );
     return {
       workers,
       get tenants(): readonly AdminTenant[] {
@@ -466,6 +484,38 @@ export function loadAdminReadStore(
               retentionUntil: upload.expiresAt,
             })),
         ]);
+      },
+      motionForJob: (job) => {
+        const row = AdminMotionSceneRow.optional().parse(
+          motionSceneStatement.get(job.id, job.tenantId),
+        );
+        if (!row) return null;
+        const backend = BackendCapabilitySnapshotV1Schema.parse(
+          JSON.parse(row.capabilityJson),
+        );
+        const verification = row.verificationJson
+          ? VerificationReportV1Schema.parse(JSON.parse(row.verificationJson))
+          : null;
+        const deliverables: Array<"mp4" | "scene-package" | "report"> = [];
+        const liveJob = workflow.jobs.get(job.id);
+        if (liveJob?.artifact)
+          deliverables.push(
+            liveJob.artifact.kind === "report" ? "report" : "mp4",
+          );
+        if (workflow.scenePackages.has(job.id))
+          deliverables.push("scene-package");
+        return {
+          backend: backend.backend,
+          version: row.version,
+          verificationStatus: verification?.status ?? "PENDING",
+          verificationAttempts: verification?.attempts ?? 0,
+          passedFindings:
+            verification?.findings.filter((finding) => finding.passed).length ??
+            0,
+          totalFindings: verification?.findings.length ?? 0,
+          capabilities: backend.capabilities,
+          deliverables,
+        };
       },
       get billing(): readonly AdminBilling[] {
         return billing;

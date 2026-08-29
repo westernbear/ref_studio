@@ -245,6 +245,19 @@ const fixture = (): Fixture => {
       updatedAt: "2026-01-01T00:00:00.000Z",
       updatedBy: "super",
     },
+    motionForJob: (job) =>
+      job.id === "job_a"
+        ? {
+            backend: "native",
+            version: 3,
+            verificationStatus: "PASS",
+            verificationAttempts: 2,
+            passedFindings: 4,
+            totalFindings: 4,
+            capabilities: ["text", "shape", "opacity"],
+            deliverables: ["mp4", "scene-package"],
+          }
+        : null,
   };
   return { auth, reads, workers, events };
 };
@@ -259,6 +272,42 @@ const appFor = (data: Fixture, now: () => number = Date.now) =>
 const headers = (id: string) => ({ authorization: `Bearer ${id}-token` });
 
 describe("admin-read", () => {
+  it("returns filterable motion authoring status without scene digests or paths", async () => {
+    const data = fixture();
+    const app = appFor(data);
+    const response = await app.inject({
+      method: "GET",
+      url: "/admin/jobs?backend=native&verification=PASS",
+      headers: headers("super"),
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().items).toEqual([
+      expect.objectContaining({
+        id: "job_a",
+        motion: {
+          backend: "native",
+          version: 3,
+          verificationStatus: "PASS",
+          verificationAttempts: 2,
+          passedFindings: 4,
+          totalFindings: 4,
+          capabilities: ["text", "shape", "opacity"],
+          deliverables: ["mp4", "scene-package"],
+        },
+      }),
+    ]);
+    expect(response.body).not.toMatch(/sceneDigest|sceneEtag|privatePath/u);
+
+    const empty = await app.inject({
+      method: "GET",
+      url: "/admin/jobs?backend=adobe",
+      headers: headers("super"),
+    });
+    expect(empty.statusCode).toBe(200);
+    expect(empty.json().items).toEqual([]);
+  });
+
   it("super-admin exercises every route, masks fields, and audits sensitive reads", async () => {
     const data = fixture();
     const app = appFor(data);

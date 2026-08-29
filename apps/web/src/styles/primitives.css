@@ -1765,6 +1765,50 @@ progress {
 .live-table tr:last-child td {
   border-bottom: 0;
 }
+@media (max-width: 1093px) {
+  .admin-job-motion-table {
+    min-width: 0;
+    table-layout: fixed;
+  }
+  .admin-job-motion-table th,
+  .admin-job-motion-table td {
+    padding-inline: var(--space-xs);
+  }
+  .admin-job-motion-table .admin-job-secondary {
+    display: none;
+  }
+  .admin-job-motion-table .admin-job-primary {
+    width: 40%;
+  }
+  .admin-job-motion-table .admin-job-backend,
+  .admin-job-motion-table .admin-job-verification {
+    width: 22%;
+  }
+  .admin-job-motion-table th:last-child,
+  .admin-job-motion-table td:last-child {
+    width: 16%;
+  }
+}
+@media (min-width: 721px) and (max-width: 900px) {
+  .admin-job-filters .filter-fields {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 720px) {
+  .admin-job-motion-table .admin-job-backend {
+    display: none;
+  }
+  .admin-job-motion-table .admin-job-primary {
+    width: 56%;
+  }
+  .admin-job-motion-table .admin-job-verification {
+    width: 24%;
+  }
+  .admin-job-motion-table th:last-child,
+  .admin-job-motion-table td:last-child {
+    width: 20%;
+  }
+}
 .id-cell {
   display: grid;
   gap: 2px;
