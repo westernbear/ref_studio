@@ -28,9 +28,7 @@ describe("canonical lifecycle", () => {
   // apps/api/src/refine-prompt.ts). COMPLETED is otherwise terminal -- this
   // is the one door back in, and only ever entered by that patch flow.
   it("allows COMPLETED -> QUEUED for a re-render after a scene patch", () =>
-    expect(() =>
-      assertLegalTransition("COMPLETED", "QUEUED"),
-    ).not.toThrow());
+    expect(() => assertLegalTransition("COMPLETED", "QUEUED")).not.toThrow());
 });
 describe("safe errors", () => {
   it("normalizes unknown errors", () => {

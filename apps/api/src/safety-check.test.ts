@@ -47,7 +47,12 @@ describe("runSafetyCheck", () => {
   it("returns the AI verdict when it says safe:true", async () => {
     updateAiProviderSettings(
       db,
-      { providerKind: "openai", model: "gpt-4o", apiKey: "sk-test", enabled: true },
+      {
+        providerKind: "openai",
+        model: "gpt-4o",
+        apiKey: "sk-test",
+        enabled: true,
+      },
       "admin",
       1_000,
       AI_SECRET_KEY,
@@ -70,7 +75,12 @@ describe("runSafetyCheck", () => {
   it("returns the AI verdict when it says safe:false", async () => {
     updateAiProviderSettings(
       db,
-      { providerKind: "openai", model: "gpt-4o", apiKey: "sk-test", enabled: true },
+      {
+        providerKind: "openai",
+        model: "gpt-4o",
+        apiKey: "sk-test",
+        enabled: true,
+      },
       "admin",
       1_000,
       AI_SECRET_KEY,
@@ -93,7 +103,12 @@ describe("runSafetyCheck", () => {
   it("returns safe:false when the AI call throws", async () => {
     updateAiProviderSettings(
       db,
-      { providerKind: "openai", model: "gpt-4o", apiKey: "sk-test", enabled: true },
+      {
+        providerKind: "openai",
+        model: "gpt-4o",
+        apiKey: "sk-test",
+        enabled: true,
+      },
       "admin",
       1_000,
       AI_SECRET_KEY,

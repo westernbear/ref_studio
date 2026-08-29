@@ -47,7 +47,12 @@ describe("translateEvidenceText", () => {
   it("returns the translated field when the AI call succeeds", async () => {
     updateAiProviderSettings(
       db,
-      { providerKind: "openai", model: "gpt-4o", apiKey: "sk-test", enabled: true },
+      {
+        providerKind: "openai",
+        model: "gpt-4o",
+        apiKey: "sk-test",
+        enabled: true,
+      },
       "admin",
       1_000,
       AI_SECRET_KEY,
@@ -74,7 +79,12 @@ describe("translateEvidenceText", () => {
   it("returns null when the AI call throws", async () => {
     updateAiProviderSettings(
       db,
-      { providerKind: "openai", model: "gpt-4o", apiKey: "sk-test", enabled: true },
+      {
+        providerKind: "openai",
+        model: "gpt-4o",
+        apiKey: "sk-test",
+        enabled: true,
+      },
       "admin",
       1_000,
       AI_SECRET_KEY,
@@ -103,7 +113,12 @@ describe("enrichEvidenceTranslations", () => {
     db = openApiDatabase(join(directory, "app.sqlite"));
     updateAiProviderSettings(
       db,
-      { providerKind: "openai", model: "gpt-4o", apiKey: "sk-test", enabled: true },
+      {
+        providerKind: "openai",
+        model: "gpt-4o",
+        apiKey: "sk-test",
+        enabled: true,
+      },
       "admin",
       1_000,
       AI_SECRET_KEY,
@@ -144,8 +159,9 @@ describe("enrichEvidenceTranslations", () => {
 
     await enrichEvidenceTranslations(evidence, db, AI_SECRET_KEY, generate);
 
-    const owners = (evidence["sceneInput"] as { owners: Record<string, unknown>[] })
-      .owners;
+    const owners = (
+      evidence["sceneInput"] as { owners: Record<string, unknown>[] }
+    ).owners;
     expect(owners[0]?.["translatedText"]).toBeUndefined();
     expect(owners[1]?.["translatedText"]).toBe("Hello");
     expect(owners[1]?.["translationProvider"]).toBe("openai");

@@ -261,9 +261,9 @@ describe("automatic gate receipts", () => {
     // call -- the requeued compile pass is what eventually lands back at
     // AWAITING_T2 with no pending choice, at which point autoApproveT2T3
     // proceeds normally on its next invocation.
-    expect(
-      state.reviews.receipts.map((receipt) => receipt.gate),
-    ).toEqual(["T1"]);
+    expect(state.reviews.receipts.map((receipt) => receipt.gate)).toEqual([
+      "T1",
+    ]);
     expect(state.job.preparationStage).toBe("COMPILATION_QUEUED");
     expect(state.job.compilation).toBeNull();
     expect(state.job.evidence).toMatchObject({

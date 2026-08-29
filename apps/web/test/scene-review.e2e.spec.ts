@@ -142,8 +142,6 @@ test("shows what changed after a scene-patch chat reply, and updates the beat sh
   // Updated in place -- one beat sheet, showing the new copy, not two.
   await expect(page.getByTestId("beat-sheet")).toHaveCount(1);
   await expect(page.getByTestId("beat-sheet")).toContainText("MERIDIAN");
-  await expect(page.getByTestId("beat-sheet")).not.toContainText(
-    "REF STUDIO",
-  );
+  await expect(page.getByTestId("beat-sheet")).not.toContainText("REF STUDIO");
   expect(refineCalls).toBe(1);
 });

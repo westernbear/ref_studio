@@ -9,10 +9,7 @@ import {
   quarantineVersion,
 } from "./admin-mutation.js";
 import type { AdminReadStore } from "./admin-read.js";
-import {
-  createCreatorWorkflowStore,
-  type Job,
-} from "./creator-workflow.js";
+import { createCreatorWorkflowStore, type Job } from "./creator-workflow.js";
 import { openApiDatabase } from "./durable-state.js";
 import { createReviewStore } from "./reviews.js";
 import { createWorkerStore } from "./workers.js";
@@ -151,8 +148,14 @@ const fixture = () => {
   });
   const workflow = createCreatorWorkflowStore();
   workflow.availablePreflight = workerPreflight;
-  workflow.jobs.set("job-a", makeJob("job-a", "tenant-a", "RENDERING", JOB_A_ETAG));
-  workflow.jobs.set("job-b", makeJob("job-b", "tenant-a", "FAILED", JOB_B_ETAG));
+  workflow.jobs.set(
+    "job-a",
+    makeJob("job-a", "tenant-a", "RENDERING", JOB_A_ETAG),
+  );
+  workflow.jobs.set(
+    "job-b",
+    makeJob("job-b", "tenant-a", "FAILED", JOB_B_ETAG),
+  );
   workflow.attempts.set("job-a", [
     { id: "attempt-a", number: 1, state: "RUNNING", immutable: true },
   ]);
@@ -187,7 +190,13 @@ const fixture = () => {
     now: () => 1_000,
   };
   const reviews = createReviewStore();
-  const mutations = { ...createAdminMutationStore(), workers, workflow, uploads, reviews };
+  const mutations = {
+    ...createAdminMutationStore(),
+    workers,
+    workflow,
+    uploads,
+    reviews,
+  };
   for (const id of ["tenant-a", "tenant-b"])
     mutations.tenants.set(id, {
       id,
@@ -718,7 +727,9 @@ describe("admin-mutation", () => {
   });
 
   it("denies AI provider settings updates from a non-super-admin", async () => {
-    const directory = mkdtempSync(join(tmpdir(), "rvs-admin-ai-settings-denied-"));
+    const directory = mkdtempSync(
+      join(tmpdir(), "rvs-admin-ai-settings-denied-"),
+    );
     const db = openApiDatabase(join(directory, "app.sqlite"));
     try {
       const data = fixture();

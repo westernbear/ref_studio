@@ -80,7 +80,9 @@ const mockUploadFlow = async (
 // creative-intent textarea that always fed AI start-frame selection must
 // still produce a plain `prompt`, never a `generation`, when the track is
 // left at its default.
-test("a restore-track submit sends prompt, not generation", async ({ page }) => {
+test("a restore-track submit sends prompt, not generation", async ({
+  page,
+}) => {
   let jobBody: unknown;
   await mockUploadFlow(page, "upl_restore", (body) => {
     jobBody = body;

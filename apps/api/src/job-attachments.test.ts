@@ -4,7 +4,10 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { buildAuthApp } from "./app.js";
 import { hashBearer, type AuthStore } from "./auth.js";
-import { createCreatorWorkflowStore, RUNTIME_DIGEST } from "./creator-workflow.js";
+import {
+  createCreatorWorkflowStore,
+  RUNTIME_DIGEST,
+} from "./creator-workflow.js";
 import { openApiDatabase } from "./durable-state.js";
 import { createUpload, finalizeUpload, type UploadStore } from "./uploads.js";
 

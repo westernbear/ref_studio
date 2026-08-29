@@ -50,8 +50,9 @@ function realisticEvidenceBundle(frameCount = 240) {
       },
       depth: {
         engine: "MiDaS v2.1 small",
-        medianNormalized: Array.from({ length: frameCount }, (_, index) =>
-          0.1 + (index % 10) / 10,
+        medianNormalized: Array.from(
+          { length: frameCount },
+          (_, index) => 0.1 + (index % 10) / 10,
         ),
         ownerSamples: [],
       },
@@ -161,12 +162,20 @@ describe("projectEvidenceForAuthoring", () => {
 
   it("carries the measured palette and audio anchors", () => {
     const projected = projectEvidenceForAuthoring(realisticEvidenceBundle());
-    expect(projected.palette).toEqual(["#101018", "#ff5500", "#3355ff", "#ffaa33"]);
+    expect(projected.palette).toEqual([
+      "#101018",
+      "#ff5500",
+      "#3355ff",
+      "#ffaa33",
+    ]);
     expect(projected.audioAnchors).toEqual([
       { frame: 10, confidence: 0.7 },
       { frame: 90, confidence: 0.8 },
     ]);
-    expect(projected.rhythm).toEqual({ beats: [10, 45, 90, 150, 200], tempoBpm: 120 });
+    expect(projected.rhythm).toEqual({
+      beats: [10, 45, 90, 150, 200],
+      tempoBpm: 120,
+    });
   });
 
   it("stays under the byte budget for a realistic, populated bundle", () => {
@@ -196,7 +205,9 @@ describe("projectEvidenceForAuthoring", () => {
   });
 
   it("tolerates a minimal, near-empty evidence object without throwing", () => {
-    const projected = projectEvidenceForAuthoring({ sceneInput: { owners: [] } });
+    const projected = projectEvidenceForAuthoring({
+      sceneInput: { owners: [] },
+    });
     expect(projected).toEqual({
       sceneInput: { owners: [] },
       palette: [],

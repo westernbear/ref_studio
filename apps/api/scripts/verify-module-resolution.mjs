@@ -16,4 +16,7 @@
 // starting a listening server.
 const serverUrl = new URL("../dist/apps/api/src/server.js", import.meta.url);
 await import(serverUrl);
-console.log("apps/api: built module graph resolved cleanly from", serverUrl.pathname);
+console.log(
+  "apps/api: built module graph resolved cleanly from",
+  serverUrl.pathname,
+);

@@ -37,9 +37,11 @@ declare const Buffer: {
   from(
     value: string | Uint8Array,
     encoding?: "hex" | "base64" | "base64url",
-  ): Uint8Array & { toString(format: "hex" | "base64" | "base64url" | "utf8"): string };
+  ): Uint8Array & {
+    toString(format: "hex" | "base64" | "base64url" | "utf8"): string;
+  };
   alloc(size: number): Uint8Array;
-  concat(
-    values: readonly Uint8Array[],
-  ): Uint8Array & { toString(format: "hex" | "base64" | "base64url" | "utf8"): string };
+  concat(values: readonly Uint8Array[]): Uint8Array & {
+    toString(format: "hex" | "base64" | "base64url" | "utf8"): string;
+  };
 };

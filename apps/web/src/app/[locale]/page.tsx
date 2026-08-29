@@ -25,7 +25,10 @@ export default async function HomePage() {
             >
               <BrandLogo />
             </Link>
-            <nav className="landing-links" aria-label={t("primaryNavAriaLabel")}>
+            <nav
+              className="landing-links"
+              aria-label={t("primaryNavAriaLabel")}
+            >
               <Link href="/workflow">{t("nav.workflow")}</Link>
               <Link href="/admin">{t("nav.admin")}</Link>
               <a href="#docs">{t("nav.docs")}</a>
@@ -80,7 +83,10 @@ export default async function HomePage() {
       <footer className="landing-footer">
         <div className="landing-footer-inner">
           <span className="landing-footer-brand">REF_STUDIO</span>
-          <nav className="landing-footer-links" aria-label={t("footerNavAriaLabel")}>
+          <nav
+            className="landing-footer-links"
+            aria-label={t("footerNavAriaLabel")}
+          >
             <a href="#api">{t("footer.api")}</a>
             <a href="#legal">{t("footer.legal")}</a>
             <a href="#privacy">{t("footer.privacy")}</a>

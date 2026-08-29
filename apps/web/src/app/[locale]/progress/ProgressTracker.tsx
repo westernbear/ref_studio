@@ -124,7 +124,10 @@ export function ProgressTracker({ initialJob }: Props) {
             })}
           </span>
         </div>
-        <nav className="progress-actions" aria-label={t("progressActionsAriaLabel")}>
+        <nav
+          className="progress-actions"
+          aria-label={t("progressActionsAriaLabel")}
+        >
           <Link className="button" href="/workflow">
             {t("workflow")}
           </Link>
@@ -144,7 +147,10 @@ export function ProgressTracker({ initialJob }: Props) {
           </div>
           <span className="status-chip">{displayPercent(percent)}</span>
         </section>
-        <section className="progress-grid" aria-label={t("liveStatusAriaLabel")}>
+        <section
+          className="progress-grid"
+          aria-label={t("liveStatusAriaLabel")}
+        >
           <div className="progress-log-panel">
             <div className="section-heading">
               <div>
@@ -189,7 +195,9 @@ export function ProgressTracker({ initialJob }: Props) {
                 <h2>{t("pipelineStage")}</h2>
                 <p>
                   {nextGate
-                    ? t("stageAutoVerifying", { gate: tGates(gateLabelKey(nextGate)) })
+                    ? t("stageAutoVerifying", {
+                        gate: tGates(gateLabelKey(nextGate)),
+                      })
                     : t("noStageWaiting")}
                 </p>
               </div>
@@ -208,7 +216,11 @@ export function ProgressTracker({ initialJob }: Props) {
                     }
                   >
                     <strong>{tGates(gateLabelKey(gate))}</strong>
-                    <span>{tDecisions(decisionKey(approved ? "APPROVED" : "PENDING"))}</span>
+                    <span>
+                      {tDecisions(
+                        decisionKey(approved ? "APPROVED" : "PENDING"),
+                      )}
+                    </span>
                   </li>
                 );
               })}

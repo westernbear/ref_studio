@@ -70,7 +70,7 @@ describe("apps/api/src runtime files import @rvs/contracts by relative deep impo
         "the real container: packages/contracts/package.json's main/types/" +
         "exports resolve @rvs/contracts to ./src/index.ts (TypeScript " +
         "source), which Node's ESM loader cannot execute -- it fails on " +
-        "index.ts's own `export * from \"./ids.js\"` with " +
+        'index.ts\'s own `export * from "./ids.js"` with ' +
         "ERR_MODULE_NOT_FOUND, because there is no compiled ids.js beside " +
         "the TypeScript source. Fix: replace the bare import with a " +
         "relative deep import into the compiled sibling output, matching " +

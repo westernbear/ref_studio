@@ -1,10 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import {
-  fixtureSpec,
-  type SceneSpec,
-} from "@rvs/contracts";
+import { fixtureSpec, type SceneSpec } from "@rvs/contracts";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { updateAiProviderSettings } from "./ai-provider-settings.js";
 import { openApiDatabase } from "./durable-state.js";
@@ -89,7 +86,12 @@ describe("patchScene", () => {
     db = openApiDatabase(join(directory, "app.sqlite"));
     updateAiProviderSettings(
       db,
-      { providerKind: "openai", model: "gpt-4o", apiKey: "sk-test", enabled: true },
+      {
+        providerKind: "openai",
+        model: "gpt-4o",
+        apiKey: "sk-test",
+        enabled: true,
+      },
       "admin",
       1_000,
       AI_SECRET_KEY,
@@ -116,7 +118,10 @@ describe("patchScene", () => {
       palette: { ...fixtureSpec.palette, hero: "#6633ee" },
     };
     const generate: GeneratePatch = async () => ({
-      object: { spec: recolored, summary: "Changed the hero colour to purple." },
+      object: {
+        spec: recolored,
+        summary: "Changed the hero colour to purple.",
+      },
     });
     const out = await patchScene({ ...baseParams(), generate });
     expect(out.spec.palette.hero).toBe("#6633ee");
@@ -130,7 +135,12 @@ describe("patchScene", () => {
       ...fixtureSpec,
       beats: fixtureSpec.beats.map((beat) =>
         beat.beatId === "beat-close"
-          ? { ...beat, startFrame: beat.startFrame, endFrame: beat.endFrame, shot: "type-flash" }
+          ? {
+              ...beat,
+              startFrame: beat.startFrame,
+              endFrame: beat.endFrame,
+              shot: "type-flash",
+            }
           : beat,
       ),
     };
@@ -171,7 +181,12 @@ describe("patchScene", () => {
       ...fixtureSpec,
       assets: [
         ...fixtureSpec.assets,
-        { assetId: "invented", kind: "image", origin: "generated", ref: "invented.png" },
+        {
+          assetId: "invented",
+          kind: "image",
+          origin: "generated",
+          ref: "invented.png",
+        },
       ],
     };
     const generate: GeneratePatch = async () => ({
@@ -182,12 +197,18 @@ describe("patchScene", () => {
   });
 
   it("fails closed when no AI provider is configured", async () => {
-    const unconfiguredDb = openApiDatabase(join(directory, "unconfigured.sqlite"));
+    const unconfiguredDb = openApiDatabase(
+      join(directory, "unconfigured.sqlite"),
+    );
     const neverCalled: GeneratePatch = async () => {
       throw new Error("must not be called");
     };
     await expect(
-      patchScene({ ...baseParams(), db: unconfiguredDb, generate: neverCalled }),
+      patchScene({
+        ...baseParams(),
+        db: unconfiguredDb,
+        generate: neverCalled,
+      }),
     ).rejects.toThrow(/AI_PROVIDER_NOT_CONFIGURED/);
     unconfiguredDb.close();
   });

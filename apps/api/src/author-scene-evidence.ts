@@ -42,7 +42,10 @@ export type ProjectedEvidence = {
   };
   readonly palette: readonly string[];
   readonly rhythm: Record<string, unknown> | null;
-  readonly audioAnchors: readonly { readonly frame: number; readonly confidence: number }[];
+  readonly audioAnchors: readonly {
+    readonly frame: number;
+    readonly confidence: number;
+  }[];
 };
 
 // Fail loudly above this, rather than silently truncating -- a silently
@@ -67,7 +70,9 @@ const isRecord = (value: unknown): value is AnyRecord =>
 const num = (value: unknown): number | undefined =>
   typeof value === "number" ? value : undefined;
 
-function summarizeGeometry(samples: readonly unknown[]): ProjectedOwner["geometry"] {
+function summarizeGeometry(
+  samples: readonly unknown[],
+): ProjectedOwner["geometry"] {
   let minX = Number.POSITIVE_INFINITY;
   let minY = Number.POSITIVE_INFINITY;
   let maxX = Number.NEGATIVE_INFINITY;
@@ -81,7 +86,12 @@ function summarizeGeometry(samples: readonly unknown[]): ProjectedOwner["geometr
     const y = num(bounds[1]);
     const width = num(bounds[2]);
     const height = num(bounds[3]);
-    if (x === undefined || y === undefined || width === undefined || height === undefined)
+    if (
+      x === undefined ||
+      y === undefined ||
+      width === undefined ||
+      height === undefined
+    )
       continue;
     minX = Math.min(minX, x);
     minY = Math.min(minY, y);
@@ -93,12 +103,20 @@ function summarizeGeometry(samples: readonly unknown[]): ProjectedOwner["geometr
   return { minX, minY, maxX, maxY, sampleCount };
 }
 
-export function projectEvidenceForAuthoring(evidence: unknown): ProjectedEvidence {
+export function projectEvidenceForAuthoring(
+  evidence: unknown,
+): ProjectedEvidence {
   const record = isRecord(evidence) ? evidence : {};
-  const sceneInputRaw = isRecord(record["sceneInput"]) ? record["sceneInput"] : {};
-  const ownersRaw = Array.isArray(sceneInputRaw["owners"]) ? sceneInputRaw["owners"] : [];
+  const sceneInputRaw = isRecord(record["sceneInput"])
+    ? record["sceneInput"]
+    : {};
+  const ownersRaw = Array.isArray(sceneInputRaw["owners"])
+    ? sceneInputRaw["owners"]
+    : [];
   const observedRaw = isRecord(record["observed"]) ? record["observed"] : {};
-  const trackingRaw = Array.isArray(observedRaw["tracking"]) ? observedRaw["tracking"] : [];
+  const trackingRaw = Array.isArray(observedRaw["tracking"])
+    ? observedRaw["tracking"]
+    : [];
 
   const geometryByOwner = new Map<string, ProjectedOwner["geometry"]>();
   for (const track of trackingRaw) {
@@ -132,7 +150,9 @@ export function projectEvidenceForAuthoring(evidence: unknown): ProjectedEvidenc
   const rhythm = isRecord(rhythmRaw) ? rhythmRaw : null;
 
   const audioRaw = isRecord(observedRaw["audio"]) ? observedRaw["audio"] : {};
-  const anchorsRaw = Array.isArray(audioRaw["anchors"]) ? audioRaw["anchors"] : [];
+  const anchorsRaw = Array.isArray(audioRaw["anchors"])
+    ? audioRaw["anchors"]
+    : [];
   const audioAnchors = anchorsRaw.filter(isRecord).map((anchor) => ({
     frame: num(anchor["frame"]) ?? 0,
     confidence: num(anchor["confidence"]) ?? 0,
@@ -156,6 +176,8 @@ export function projectEvidenceForAuthoring(evidence: unknown): ProjectedEvidenc
 // Owner ids the measured evidence actually supplies -- see authorScene.ts's
 // resolvableAssetIds, which treats an "evidence"-origin asset as
 // resolvable only when the evidence names at least one owner.
-export function evidenceOwnerIds(projected: ProjectedEvidence): ReadonlySet<string> {
+export function evidenceOwnerIds(
+  projected: ProjectedEvidence,
+): ReadonlySet<string> {
   return new Set(projected.sceneInput.owners.map((owner) => owner.ownerId));
 }

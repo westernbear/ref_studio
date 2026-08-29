@@ -1,12 +1,19 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fixtureSpec, type GenerationConfig, type SceneSpec } from "@rvs/contracts";
+import {
+  fixtureSpec,
+  type GenerationConfig,
+  type SceneSpec,
+} from "@rvs/contracts";
 import { describe, expect, it } from "vitest";
 import { buildAuthApp } from "./app.js";
 import { hashBearer, type AuthStore } from "./auth.js";
 import { updateAiProviderSettings } from "./ai-provider-settings.js";
-import { createCreatorWorkflowStore, RUNTIME_DIGEST } from "./creator-workflow.js";
+import {
+  createCreatorWorkflowStore,
+  RUNTIME_DIGEST,
+} from "./creator-workflow.js";
 import { openApiDatabase } from "./durable-state.js";
 import type { GeneratePatch } from "./patch-scene.js";
 import type { GenerateProposals } from "./refine-prompt.js";
@@ -279,7 +286,10 @@ describe("prompt-driven job creation", () => {
       const response = await state.app.inject({
         method: "POST",
         url: "/v1/jobs",
-        headers: { ...headersFor("ten_a"), "idempotency-key": "create-fallback" },
+        headers: {
+          ...headersFor("ten_a"),
+          "idempotency-key": "create-fallback",
+        },
         payload: {
           uploadId: state.uploadId,
           sourceFps: 30,
@@ -463,7 +473,9 @@ describe("job feedback", () => {
       expect(body.ok).toBe(true);
       expect(body.proposals).toBeNull();
       const row = state.db
-        .prepare("SELECT decision, planner_kind FROM job_feedback WHERE job_id = ?")
+        .prepare(
+          "SELECT decision, planner_kind FROM job_feedback WHERE job_id = ?",
+        )
         .get(jobId) as { decision: string; planner_kind: string | null };
       expect(row.decision).toBe("REQUEST_CHANGES");
       expect(row.planner_kind).toBeNull();
@@ -562,7 +574,11 @@ const completeGenerateJob = (
   job.approved = true;
   job.preparationStage = "READY";
   job.state = "COMPLETED";
-  job.artifact = { id: "genartifact_1", kind: "generated-delivery", expiresAt: "2099-01-01T00:00:00.000Z" };
+  job.artifact = {
+    id: "genartifact_1",
+    kind: "generated-delivery",
+    expiresAt: "2099-01-01T00:00:00.000Z",
+  };
   job.progress = {
     phase: "render",
     stage: "delivery-qc",
@@ -580,13 +596,21 @@ describe("scene-patch chat (generate track)", () => {
       palette: { ...fixtureSpec.palette, hero: "#6633ee" },
     };
     const patchGenerate: GeneratePatch = async () => ({
-      object: { spec: recolored, summary: "Changed the hero colour to brand purple." },
+      object: {
+        spec: recolored,
+        summary: "Changed the hero colour to brand purple.",
+      },
     });
     const state = fixture(undefined, patchGenerate);
     try {
       updateAiProviderSettings(
         state.db,
-        { providerKind: "openai", model: "gpt-4o", apiKey: "sk-test", enabled: true },
+        {
+          providerKind: "openai",
+          model: "gpt-4o",
+          apiKey: "sk-test",
+          enabled: true,
+        },
         "admin",
         1_000,
         "test-secret-key-material",
@@ -632,7 +656,12 @@ describe("scene-patch chat (generate track)", () => {
     try {
       updateAiProviderSettings(
         state.db,
-        { providerKind: "openai", model: "gpt-4o", apiKey: "sk-test", enabled: true },
+        {
+          providerKind: "openai",
+          model: "gpt-4o",
+          apiKey: "sk-test",
+          enabled: true,
+        },
         "admin",
         1_000,
         "test-secret-key-material",
@@ -675,7 +704,10 @@ describe("scene-patch chat (generate track)", () => {
   });
 
   it("fails the patch, and leaves the job unchanged, when the amended scene fails validation", async () => {
-    const broken: SceneSpec = { ...fixtureSpec, beats: fixtureSpec.beats.slice(0, 1) };
+    const broken: SceneSpec = {
+      ...fixtureSpec,
+      beats: fixtureSpec.beats.slice(0, 1),
+    };
     const patchGenerate: GeneratePatch = async () => ({
       object: { spec: broken, summary: "dropped the rest" },
     });
@@ -683,7 +715,12 @@ describe("scene-patch chat (generate track)", () => {
     try {
       updateAiProviderSettings(
         state.db,
-        { providerKind: "openai", model: "gpt-4o", apiKey: "sk-test", enabled: true },
+        {
+          providerKind: "openai",
+          model: "gpt-4o",
+          apiKey: "sk-test",
+          enabled: true,
+        },
         "admin",
         1_000,
         "test-secret-key-material",
@@ -715,7 +752,12 @@ describe("scene-patch chat (generate track)", () => {
     try {
       updateAiProviderSettings(
         state.db,
-        { providerKind: "openai", model: "gpt-4o", apiKey: "sk-test", enabled: true },
+        {
+          providerKind: "openai",
+          model: "gpt-4o",
+          apiKey: "sk-test",
+          enabled: true,
+        },
         "admin",
         1_000,
         "test-secret-key-material",

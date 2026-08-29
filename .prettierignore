@@ -35,3 +35,15 @@ stitch-extracted/**
 verification/contract/
 verification/contract-lock.json
 dist/handoff/verification/contract/
+
+# apps/worker is a git submodule with its own prettier config and its own
+# format / format:check scripts. Formatting it from here writes into a
+# different repository than the one being committed, which is how a small
+# change turns into twenty files of churn in someone else's history.
+apps/worker/
+apps/worker/**
+
+# Generated. pnpm rewrites the lockfile itself and tsc rewrites the build
+# info; reformatting either is churn that comes straight back.
+pnpm-lock.yaml
+*.tsbuildinfo

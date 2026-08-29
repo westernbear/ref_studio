@@ -58,7 +58,9 @@ function ProblemPanel({ code, t }: { readonly code: string; readonly t: T }) {
   return (
     <Panel>
       <h1>{t("title")}</h1>
-      <p>{isAuthProblem(code) ? t("signInRequired") : t("unavailable", { code })}</p>
+      <p>
+        {isAuthProblem(code) ? t("signInRequired") : t("unavailable", { code })}
+      </p>
       {isAuthProblem(code) ? (
         <a
           className="button button-primary"
@@ -71,7 +73,13 @@ function ProblemPanel({ code, t }: { readonly code: string; readonly t: T }) {
   );
 }
 
-function FilterBar({ search, t }: { readonly search: SearchState; readonly t: T }) {
+function FilterBar({
+  search,
+  t,
+}: {
+  readonly search: SearchState;
+  readonly t: T;
+}) {
   return (
     <form
       className="filter-bar"
@@ -110,7 +118,13 @@ function FilterBar({ search, t }: { readonly search: SearchState; readonly t: T 
   );
 }
 
-function WorkerCard({ worker, t }: { readonly worker: unknown; readonly t: T }) {
+function WorkerCard({
+  worker,
+  t,
+}: {
+  readonly worker: unknown;
+  readonly t: T;
+}) {
   const id = text(field(worker, "id"));
   const status = text(field(worker, "status"), "OFFLINE");
   const capabilities = strings(field(worker, "capabilities"));
@@ -190,8 +204,14 @@ export default async function AdminWorkersPage({
           </div>
         </div>
         <dl className="metric-grid">
-          <Metric label={t("workers")} value={text(field(summary, "totalWorkers"), "0")} />
-          <Metric label={t("online")} value={text(field(summary, "onlineWorkers"), "0")} />
+          <Metric
+            label={t("workers")}
+            value={text(field(summary, "totalWorkers"), "0")}
+          />
+          <Metric
+            label={t("online")}
+            value={text(field(summary, "onlineWorkers"), "0")}
+          />
           <Metric
             label={t("activeLeases")}
             value={text(field(summary, "activeLeases"), "0")}
