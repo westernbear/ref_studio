@@ -93,6 +93,17 @@ export const CODEX_IMAGE_MODELS: readonly string[] = [
   "gpt-image-1",
 ];
 
+// The same, for the chat path. Same reasoning, same staleness, same escape
+// hatch: the Codex backend has no /models, so this is a starting list and
+// "type a name" covers whatever ships next.
+export const CODEX_TEXT_MODELS: readonly string[] = [
+  "gpt-5.1-codex",
+  "gpt-5.1-codex-mini",
+  "gpt-5.1",
+  "gpt-5-codex",
+  "gpt-5",
+];
+
 // OpenAI's /v1/models says nothing about what a model can do, so an image
 // field would otherwise offer every text model it has. Matching on the id
 // is a heuristic and openly one; it is the difference between a usable
@@ -130,7 +141,10 @@ export async function listProviderModels(
     return response.text();
   };
 
-  if (request.providerKind === "codex-oauth") return [...CODEX_IMAGE_MODELS];
+  if (request.providerKind === "codex-oauth")
+    return request.capability === "image"
+      ? [...CODEX_IMAGE_MODELS]
+      : [...CODEX_TEXT_MODELS];
 
   if (request.providerKind === "google") {
     const base =

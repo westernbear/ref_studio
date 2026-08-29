@@ -15,11 +15,17 @@ import {
 } from "./material-provider-settings.js";
 import { openApiDatabase } from "./durable-state.js";
 
-const withDb = (fn: (db: ReturnType<typeof openApiDatabase>) => void): void => {
+// Awaited. It used to call fn() and return, so every async assertion in
+// this file ran detached from the test that owned it -- the database was
+// already closed by the time they touched it, and their failures surfaced
+// as unhandled rejections instead of red tests.
+const withDb = async (
+  fn: (db: ReturnType<typeof openApiDatabase>) => void | Promise<void>,
+): Promise<void> => {
   const directory = mkdtempSync(join(tmpdir(), "rvs-openai-image-material-"));
   const db = openApiDatabase(join(directory, "app.sqlite"));
   try {
-    fn(db);
+    await fn(db);
   } finally {
     db.close();
     rmSync(directory, { recursive: true, force: true });
@@ -229,6 +235,8 @@ describe("generateImageMaterial", () => {
 // arrive -- the transparency check, the hash, the provenance -- is shared,
 // because "did we get compositable material" is the same question.
 describe("the codex-oauth path", () => {
+  const canvas = { width: 1080, height: 1920 };
+
   // The console's model field was ignored on this path: an operator could
   // pick a model and watch a different one produce the asset, which makes
   // a picker worse than none.
@@ -282,9 +290,9 @@ describe("the codex-oauth path", () => {
         },
       });
       expect(sawSize).toBe("1024x1536");
-      // Names the image model, not the console's `model` field -- that one
-      // addresses the responses model on this path.
-      expect(material.provenance.tool).toBe("codex-oauth:gpt-image-2");
+      // The console's model, the same one the request ran -- see the
+      // preceding test. This assertion predates that and had never run.
+      expect(material.provenance.tool).toBe("codex-oauth:gpt-5");
       expect(material.bytes).toEqual(rgbaPng);
     });
   });

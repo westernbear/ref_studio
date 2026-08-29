@@ -16,8 +16,7 @@ import {
   projectEvidenceForAuthoring,
 } from "./author-scene-evidence.js";
 import { AUTHORING_SYSTEM_PROMPT } from "./author-scene.prompt.js";
-import { getAiProviderSettingsWithSecret } from "./ai-provider-settings.js";
-import { createAiModel } from "./ai-provider.js";
+import { aiModelFromSettings } from "./ai-model-from-settings.js";
 
 // Narrow view of `generateObject`, mirrors apps/api/src/safety-check.ts,
 // translate-evidence.ts and refine-prompt.ts so tests can inject a fake
@@ -115,19 +114,10 @@ export async function authorScene(params: {
   readonly aiSecretKey: string;
   readonly generate?: GenerateScene;
 }): Promise<AuthoredScene> {
-  const settings = getAiProviderSettingsWithSecret(
-    params.db,
-    params.aiSecretKey,
-  );
-  if (!settings.enabled || !settings.apiKey) {
+  const model = aiModelFromSettings(params.db, params.aiSecretKey);
+  if (!model) {
     throw new Error("AI_PROVIDER_NOT_CONFIGURED");
   }
-  const model = createAiModel({
-    providerKind: settings.providerKind,
-    model: settings.model,
-    baseUrl: settings.baseUrl,
-    apiKey: settings.apiKey,
-  });
   const generate =
     params.generate ?? (generateObject as unknown as GenerateScene);
 

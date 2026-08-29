@@ -1,8 +1,7 @@
 import type Database from "better-sqlite3";
 import { generateObject, type LanguageModel } from "ai";
 import { z } from "zod";
-import { getAiProviderSettingsWithSecret } from "./ai-provider-settings.js";
-import { createAiModel } from "./ai-provider.js";
+import { aiModelFromSettings } from "./ai-model-from-settings.js";
 import {
   evidenceOwnerIds,
   projectEvidenceForAuthoring,
@@ -88,8 +87,12 @@ export function diffChangedBeatIds(
   previous: SceneSpec,
   amended: SceneSpec,
 ): readonly string[] {
-  const before = new Map(previous.beats.map((beat) => [beat.beatId, beat] as const));
-  const after = new Map(amended.beats.map((beat) => [beat.beatId, beat] as const));
+  const before = new Map(
+    previous.beats.map((beat) => [beat.beatId, beat] as const),
+  );
+  const after = new Map(
+    amended.beats.map((beat) => [beat.beatId, beat] as const),
+  );
   const changed = new Set<string>();
   for (const [beatId, beat] of after) {
     const priorBeat = before.get(beatId);
@@ -116,16 +119,10 @@ export async function patchScene(params: {
   readonly aiSecretKey: string;
   readonly generate?: GeneratePatch;
 }): Promise<ScenePatchResult> {
-  const settings = getAiProviderSettingsWithSecret(params.db, params.aiSecretKey);
-  if (!settings.enabled || !settings.apiKey)
-    throw new Error("AI_PROVIDER_NOT_CONFIGURED");
-  const model = createAiModel({
-    providerKind: settings.providerKind,
-    model: settings.model,
-    baseUrl: settings.baseUrl,
-    apiKey: settings.apiKey,
-  });
-  const generate = params.generate ?? (generateObject as unknown as GeneratePatch);
+  const model = aiModelFromSettings(params.db, params.aiSecretKey);
+  if (!model) throw new Error("AI_PROVIDER_NOT_CONFIGURED");
+  const generate =
+    params.generate ?? (generateObject as unknown as GeneratePatch);
 
   const prompt = `## Scene to amend (JSON)
 

@@ -33,7 +33,12 @@ describe("ai-provider-settings", () => {
     withDb((db) => {
       updateAiProviderSettings(
         db,
-        { providerKind: "openai", model: "gpt-4o", apiKey: "sk-secret", enabled: true },
+        {
+          providerKind: "openai",
+          model: "gpt-4o",
+          apiKey: "sk-secret",
+          enabled: true,
+        },
         "admin-1",
         1_000,
         "secret-key-material",
@@ -174,6 +179,42 @@ describe("ai-provider-settings", () => {
           "secret-key-material",
         ),
       ).not.toThrow();
+    });
+  });
+  // The credential is a whole auth.json, not a key, so it is the one
+  // provider whose secret can be checked before it is stored -- and a paste
+  // that does not parse would otherwise only fail at the first job.
+  it("accepts codex-oauth and rejects an auth.json that does not parse", () => {
+    withDb((db) => {
+      expect(() =>
+        updateAiProviderSettings(
+          db,
+          {
+            providerKind: "codex-oauth",
+            model: "gpt-5.1-codex",
+            apiKey: "not json",
+          },
+          "admin-1",
+          1_000,
+          "secret-key-material",
+        ),
+      ).toThrow("INVALID_REQUEST");
+      const saved = updateAiProviderSettings(
+        db,
+        {
+          providerKind: "codex-oauth",
+          model: "gpt-5.1-codex",
+          apiKey: JSON.stringify({
+            tokens: { access_token: "a", refresh_token: "r" },
+          }),
+          enabled: true,
+        },
+        "admin-1",
+        1_000,
+        "secret-key-material",
+      );
+      expect(saved.providerKind).toBe("codex-oauth");
+      expect(saved.hasApiKey).toBe(true);
     });
   });
 });

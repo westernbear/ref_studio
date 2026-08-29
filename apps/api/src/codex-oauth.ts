@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 
 // Image material generated against a ChatGPT subscription instead of a
@@ -27,9 +28,13 @@ import { z } from "zod";
 // rather than guessed at. Run `pnpm --filter @rvs/api verify:codex-oauth`
 // against a real auth.json to find out before a job does.
 
-export const CODEX_RESPONSES_URL =
-  "https://chatgpt.com/backend-api/codex/responses";
+export const CODEX_BASE_URL = "https://chatgpt.com/backend-api/codex";
+export const CODEX_RESPONSES_URL = `${CODEX_BASE_URL}/responses`;
 export const CODEX_TOKEN_URL = "https://auth.openai.com/oauth/token";
+// What the Codex CLI calls itself in the header the backend reads to tell
+// its own clients apart. Every published client that talks to this endpoint
+// sends it, so we send it too rather than looking like something else.
+export const CODEX_ORIGINATOR = "codex_cli_rs";
 // The Codex CLI's own public OAuth client id. Not a secret -- it identifies
 // the application, not the account, and the refresh token is what carries
 // the authority.
@@ -95,7 +100,7 @@ export type CodexFetch = (
   }>
 >;
 
-const defaultCodexFetch: CodexFetch = async (url, init) => {
+export const defaultCodexFetch: CodexFetch = async (url, init) => {
   const response = await fetch(url, init);
   return {
     status: response.status,
@@ -196,6 +201,24 @@ export const readGeneratedImage = (response: unknown): string => {
   throw new CodexOAuthError("CODEX_IMAGE_MISSING");
 };
 
+// The header set every published Codex client sends. Kept in one place so
+// the image path and the chat path cannot drift apart -- the backend is
+// undocumented, so "what the working clients send" is the whole spec.
+export const codexHeaders = (
+  auth: CodexAuth,
+  sessionId: string,
+): Record<string, string> => ({
+  authorization: `Bearer ${auth.tokens.access_token}`,
+  "content-type": "application/json",
+  accept: "text/event-stream",
+  "OpenAI-Beta": "responses=experimental",
+  originator: CODEX_ORIGINATOR,
+  session_id: sessionId,
+  ...(auth.tokens.account_id
+    ? { "chatgpt-account-id": auth.tokens.account_id }
+    : {}),
+});
+
 export type CodexImageResult = Readonly<{
   b64: string;
   // Returned so the caller can persist a rotated credential. Undefined when
@@ -215,10 +238,14 @@ export async function generateCodexImage(params: {
   readonly request?: CodexFetch;
 }): Promise<CodexImageResult> {
   const request = params.request ?? defaultCodexFetch;
+  const sessionId = randomUUID();
   const body = JSON.stringify({
     model: params.model || CODEX_IMAGE_MODEL,
     input: params.prompt,
     stream: true,
+    // The backend rejects server-side persistence outright; every client
+    // that works against it sends this.
+    store: false,
     tools: [
       {
         type: "image_generation",
@@ -235,14 +262,7 @@ export async function generateCodexImage(params: {
   const attempt = async (auth: CodexAuth) =>
     request(CODEX_RESPONSES_URL, {
       method: "POST",
-      headers: {
-        authorization: `Bearer ${auth.tokens.access_token}`,
-        "content-type": "application/json",
-        accept: "text/event-stream",
-        ...(auth.tokens.account_id
-          ? { "chatgpt-account-id": auth.tokens.account_id }
-          : {}),
-      },
+      headers: codexHeaders(auth, sessionId),
       body,
     });
 

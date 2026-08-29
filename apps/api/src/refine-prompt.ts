@@ -3,8 +3,7 @@ import type Database from "better-sqlite3";
 import { generateObject, type LanguageModel } from "ai";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
-import { getAiProviderSettingsWithSecret } from "./ai-provider-settings.js";
-import { createAiModel } from "./ai-provider.js";
+import { aiModelFromSettings } from "./ai-model-from-settings.js";
 import { IdempotencyStore, requestHash, safeEnvelope } from "./boundary.js";
 import type { CreatorWorkflowStore, Job } from "./creator-workflow.js";
 import { patchScene, type GeneratePatch } from "./patch-scene.js";
@@ -168,21 +167,12 @@ async function planProposals(params: {
   readonly generate: GenerateProposals;
   readonly locale?: string | undefined;
 }): Promise<RefineResponse> {
-  const settings = getAiProviderSettingsWithSecret(
-    params.db,
-    params.aiSecretKey,
-  );
-  if (!settings.enabled || !settings.apiKey)
+  const model = aiModelFromSettings(params.db, params.aiSecretKey);
+  if (!model)
     return {
       plannerKind: "heuristic",
       proposals: heuristicProposals(params.current, params.min, params.max),
     };
-  const model = createAiModel({
-    providerKind: settings.providerKind,
-    model: settings.model,
-    baseUrl: settings.baseUrl,
-    apiKey: settings.apiKey,
-  });
   const generated = await params.generate({
     model,
     schema: ProposalsSchema,
@@ -216,9 +206,12 @@ export async function selectInitialStartFrame(params: {
   readonly generate?: GenerateProposals;
 }): Promise<InitialFrameSelection> {
   if (!params.prompt)
-    return { startFrame: clamp(0, params.min, params.max), plannerKind: "none" };
-  const settings = getAiProviderSettingsWithSecret(params.db, params.aiSecretKey);
-  if (!settings.enabled || !settings.apiKey)
+    return {
+      startFrame: clamp(0, params.min, params.max),
+      plannerKind: "none",
+    };
+  const model = aiModelFromSettings(params.db, params.aiSecretKey);
+  if (!model)
     return {
       startFrame: clamp(
         params.min + (params.max - params.min) / 2,
@@ -231,12 +224,6 @@ export async function selectInitialStartFrame(params: {
   // creation over what is meant to be a best-effort enhancement -- fall
   // back to the same heuristic used when no provider is configured at all.
   try {
-    const model = createAiModel({
-      providerKind: settings.providerKind,
-      model: settings.model,
-      baseUrl: settings.baseUrl,
-      apiKey: settings.apiKey,
-    });
     const generate = params.generate ?? generateObject;
     const generated = await generate({
       model,
@@ -542,10 +529,7 @@ export function registerRefinePrompt(
               planned ? JSON.stringify(planned.proposals) : null,
               new Date(store.now()).toISOString(),
             );
-            return [
-              200,
-              { ok: true, proposals: planned },
-            ];
+            return [200, { ok: true, proposals: planned }];
           },
         );
         reply.code(replay.response[0]).send(replay.response[1]);

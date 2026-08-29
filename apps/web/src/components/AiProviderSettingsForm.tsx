@@ -27,7 +27,12 @@ const PROVIDERS = [
   { value: "moonshotai", label: "Moonshot AI" },
   { value: "alibaba", label: "Alibaba" },
   { value: "openai-compatible", label: "OpenAI-compatible (custom)" },
+  { value: "codex-oauth", label: "Codex (ChatGPT OAuth)" },
 ] as const;
+
+// codex-oauth's secret is not a key but the whole of ~/.codex/auth.json, so
+// the field is a textarea and says so. Same treatment as the material form.
+const isCodex = (kind: string) => kind === "codex-oauth";
 
 type Props = {
   // What the provider says it has. Empty when there is no key yet, or when
@@ -197,7 +202,9 @@ export function AiProviderSettingsForm({
             <dd>{initialModel || t("notSet")}</dd>
           </div>
           <div>
-            <dt>{t("apiKey")}</dt>
+            <dt>
+              {isCodex(initialProviderKind) ? t("codexAuthJson") : t("apiKey")}
+            </dt>
             <dd>{hasApiKey ? t("configured") : t("notSet")}</dd>
           </div>
           <div>
@@ -254,19 +261,37 @@ export function AiProviderSettingsForm({
           </label>
         ) : null}
         <label>
-          {t("apiKey")}
-          <input
-            type="password"
-            value={apiKey}
-            onChange={(event) => setApiKey(event.target.value)}
-            placeholder={
-              hasApiKey
-                ? t("apiKeyReplacePlaceholder")
-                : t("apiKeyEnterPlaceholder")
-            }
-            autoComplete="off"
-          />
+          {isCodex(providerKind) ? t("codexAuthJson") : t("apiKey")}
+          {isCodex(providerKind) ? (
+            <textarea
+              rows={4}
+              value={apiKey}
+              onChange={(event) => setApiKey(event.target.value)}
+              placeholder={
+                hasApiKey
+                  ? t("codexAuthJsonReplacePlaceholder")
+                  : t("codexAuthJsonEnterPlaceholder")
+              }
+              autoComplete="off"
+              spellCheck={false}
+            />
+          ) : (
+            <input
+              type="password"
+              value={apiKey}
+              onChange={(event) => setApiKey(event.target.value)}
+              placeholder={
+                hasApiKey
+                  ? t("apiKeyReplacePlaceholder")
+                  : t("apiKeyEnterPlaceholder")
+              }
+              autoComplete="off"
+            />
+          )}
         </label>
+        {isCodex(providerKind) ? (
+          <p className="field-hint">{t("codexAuthJsonHint")}</p>
+        ) : null}
         <label className="ai-settings-toggle">
           <input
             type="checkbox"

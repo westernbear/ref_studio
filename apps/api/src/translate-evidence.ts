@@ -2,8 +2,8 @@ import { createHash } from "node:crypto";
 import type Database from "better-sqlite3";
 import { generateObject, type LanguageModel } from "ai";
 import { z } from "zod";
-import { getAiProviderSettingsWithSecret } from "./ai-provider-settings.js";
-import { createAiModel } from "./ai-provider.js";
+import { aiModelFromSettings } from "./ai-model-from-settings.js";
+import { getAiProviderSettings } from "./ai-provider-settings.js";
 
 const TranslationSchema = z.object({
   translatedText: z.string().min(1).max(2000),
@@ -36,18 +36,9 @@ export async function translateEvidenceText(params: {
   readonly aiSecretKey: string;
   readonly generate?: GenerateTranslation;
 }): Promise<TranslatedField | null> {
-  const settings = getAiProviderSettingsWithSecret(
-    params.db,
-    params.aiSecretKey,
-  );
-  if (!settings.enabled || !settings.apiKey) return null;
   try {
-    const model = createAiModel({
-      providerKind: settings.providerKind,
-      model: settings.model,
-      baseUrl: settings.baseUrl,
-      apiKey: settings.apiKey,
-    });
+    const model = aiModelFromSettings(params.db, params.aiSecretKey);
+    if (!model) return null;
     const generate =
       params.generate ?? (generateObject as unknown as GenerateTranslation);
     const generated = await generate({
@@ -57,7 +48,7 @@ export async function translateEvidenceText(params: {
     });
     return {
       translatedText: generated.object.translatedText,
-      translationProvider: settings.providerKind,
+      translationProvider: getAiProviderSettings(params.db).providerKind,
       translationSourceHash: createHash("sha256")
         .update(params.text)
         .digest("hex"),

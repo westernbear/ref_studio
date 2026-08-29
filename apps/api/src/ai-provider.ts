@@ -16,13 +16,22 @@ import { createPerplexity } from "@ai-sdk/perplexity";
 import { createTogetherAI } from "@ai-sdk/togetherai";
 import { createXai } from "@ai-sdk/xai";
 import type { LanguageModel } from "ai";
+import { createCodexChatModel } from "./codex-chat.js";
+import { parseCodexAuth } from "./codex-oauth.js";
+import type { PersistCodexAuth } from "./codex-chat.js";
 import type { AiProviderKind } from "./ai-provider-settings.js";
 
 export type AiModelSettings = {
   readonly providerKind: AiProviderKind;
   readonly model: string;
   readonly baseUrl: string | null;
+  // For every kind but codex-oauth this is that vendor's API key. For
+  // codex-oauth it is the whole of ~/.codex/auth.json.
   readonly apiKey: string;
+  // Only codex-oauth rotates its credential, so only it needs somewhere to
+  // put the rotated one. Omitted, a refresh still works -- it is just
+  // forgotten at the end of the job.
+  readonly persistCodexAuth?: PersistCodexAuth;
 };
 
 // Plain switch over the direct providers this repo supports -- each
@@ -69,6 +78,14 @@ export function createAiModel(settings: AiModelSettings): LanguageModel {
       return createMoonshotAI({ apiKey: settings.apiKey })(settings.model);
     case "alibaba":
       return createAlibaba({ apiKey: settings.apiKey })(settings.model);
+    case "codex-oauth":
+      return createCodexChatModel({
+        auth: parseCodexAuth(settings.apiKey),
+        model: settings.model,
+        ...(settings.persistCodexAuth
+          ? { persist: settings.persistCodexAuth }
+          : {}),
+      });
     case "openai-compatible":
       return createOpenAI(
         settings.baseUrl

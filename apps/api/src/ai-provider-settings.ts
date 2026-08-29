@@ -5,6 +5,7 @@ import {
   scryptSync,
 } from "node:crypto";
 import type Database from "better-sqlite3";
+import { parseCodexAuth } from "./codex-oauth.js";
 
 export const AI_PROVIDER_KINDS = [
   "openai",
@@ -25,6 +26,10 @@ export const AI_PROVIDER_KINDS = [
   "moonshotai",
   "alibaba",
   "openai-compatible",
+  // Not a vendor with its own key: the credential is the whole of
+  // ~/.codex/auth.json and the model runs on the operator's ChatGPT
+  // subscription. See codex-chat.ts.
+  "codex-oauth",
 ] as const;
 export type AiProviderKind = (typeof AI_PROVIDER_KINDS)[number];
 
@@ -166,6 +171,19 @@ export function updateAiProviderSettings(
     }
   } else if (baseUrl) throw new Error("INVALID_REQUEST");
   const enabled = patch.enabled ?? existing?.enabled === 1;
+  // A pasted auth.json that does not parse would otherwise be stored
+  // happily and only fail at the first job, hours later and somewhere else.
+  if (
+    providerKind === "codex-oauth" &&
+    patch.apiKey &&
+    patch.apiKey.length > 0
+  ) {
+    try {
+      parseCodexAuth(patch.apiKey);
+    } catch {
+      throw new Error("INVALID_REQUEST");
+    }
+  }
   const apiKeyCiphertext =
     patch.apiKey && patch.apiKey.length > 0
       ? encryptSecret(patch.apiKey, secretKey)

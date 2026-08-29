@@ -232,4 +232,16 @@ describe("listing image models", () => {
     expect(models).toContain("gpt-image-2");
     expect(called).toBe(false);
   });
+
+  it("offers text models for codex-oauth on the chat path", async () => {
+    const models = await listProviderModels({
+      providerKind: "codex-oauth",
+      apiKey: "auth-json",
+      baseUrl: null,
+      capability: "text",
+      fetch: () => reply(200, { data: [] }),
+    });
+    expect(models).toContain("gpt-5.1-codex");
+    expect(models).not.toContain("gpt-image-2");
+  });
 });

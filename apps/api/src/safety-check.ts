@@ -2,8 +2,7 @@ import { readFile } from "node:fs/promises";
 import type Database from "better-sqlite3";
 import { generateObject, type LanguageModel } from "ai";
 import { z } from "zod";
-import { getAiProviderSettingsWithSecret } from "./ai-provider-settings.js";
-import { createAiModel } from "./ai-provider.js";
+import { aiModelFromSettings } from "./ai-model-from-settings.js";
 
 const SafetyVerdictSchema = z.object({
   safe: z.boolean(),
@@ -39,19 +38,9 @@ export async function runSafetyCheck(params: {
   readonly aiSecretKey: string;
   readonly generate?: GenerateSafetyVerdict;
 }): Promise<SafetyVerdict> {
-  const settings = getAiProviderSettingsWithSecret(
-    params.db,
-    params.aiSecretKey,
-  );
-  if (!settings.enabled || !settings.apiKey)
-    return { safe: false, reason: "AI_PROVIDER_NOT_CONFIGURED" };
   try {
-    const model = createAiModel({
-      providerKind: settings.providerKind,
-      model: settings.model,
-      baseUrl: settings.baseUrl,
-      apiKey: settings.apiKey,
-    });
+    const model = aiModelFromSettings(params.db, params.aiSecretKey);
+    if (!model) return { safe: false, reason: "AI_PROVIDER_NOT_CONFIGURED" };
     const image = Buffer.from(await readFile(params.imagePath));
     const imageBase64: string = image.toString("base64");
     const generate =
