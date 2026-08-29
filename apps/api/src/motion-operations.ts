@@ -104,6 +104,56 @@ export function keyframesFromMotionIntent(intent: {
   ];
 }
 
+export function verifyMotionScene(scene: SceneSpec): VerificationReportV1 {
+  const findings: VerificationReportV1["findings"] = [];
+  try {
+    validateSceneSpec(
+      scene,
+      new Set(scene.assets.map((asset) => asset.assetId)),
+    );
+    findings.push({
+      predicate: "scene-spec",
+      passed: true,
+      detail: "SceneSpec renderer constraints passed.",
+    });
+  } catch (error) {
+    findings.push({
+      predicate: "scene-spec",
+      passed: false,
+      detail:
+        error instanceof Error ? error.message : "SceneSpec validation failed.",
+    });
+  }
+
+  const unsupportedKinds = [
+    ...new Set(
+      scene.beats.flatMap((beat) =>
+        beat.elements
+          .filter(
+            (element) => !["text", "image", "shape"].includes(element.kind),
+          )
+          .map((element) => element.kind),
+      ),
+    ),
+  ];
+  findings.push({
+    predicate: "native-element-kinds",
+    passed: unsupportedKinds.length === 0,
+    detail:
+      unsupportedKinds.length === 0
+        ? "All elements are supported by the Native capability snapshot."
+        : `Unsupported Native element kinds: ${unsupportedKinds.join(", ")}.`,
+  });
+
+  return {
+    schema: "verification-report-v1",
+    sceneDigest: sha256Hex(scene),
+    attempts: 1,
+    status: findings.every((finding) => finding.passed) ? "PASS" : "FAIL",
+    findings,
+  };
+}
+
 export async function verifyAndRepair(
   initial: SceneSpec,
   verify: (scene: SceneSpec) => Promise<readonly string[]>,

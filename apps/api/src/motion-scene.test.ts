@@ -4,6 +4,7 @@ import {
   applySceneOperations,
   keyframesFromMotionIntent,
   verifyAndRepair,
+  verifyMotionScene,
 } from "./motion-scene.js";
 
 describe("motion scene authoring", () => {
@@ -65,5 +66,32 @@ describe("motion scene authoring", () => {
     expect(verificationCalls).toBe(4);
     expect(result.scene).toBe(fixtureSpec);
     expect(result.report.status).toBe("FAIL");
+  });
+
+  it("evaluates Native capability predicates instead of minting a pass", () => {
+    const valid = verifyMotionScene(fixtureSpec);
+    expect(valid.status).toBe("PASS");
+    expect(valid.findings.length).toBeGreaterThan(0);
+    expect(valid.findings.every((finding) => finding.passed)).toBe(true);
+
+    const firstBeat = fixtureSpec.beats[0]!;
+    const firstElement = firstBeat.elements[0]!;
+    const videoScene = {
+      ...fixtureSpec,
+      beats: [
+        {
+          ...firstBeat,
+          elements: [{ ...firstElement, kind: "video" as const }],
+        },
+        ...fixtureSpec.beats.slice(1),
+      ],
+    };
+    const unsupported = verifyMotionScene(videoScene);
+    expect(unsupported.status).toBe("FAIL");
+    expect(unsupported.findings).toContainEqual({
+      predicate: "native-element-kinds",
+      passed: false,
+      detail: "Unsupported Native element kinds: video.",
+    });
   });
 });

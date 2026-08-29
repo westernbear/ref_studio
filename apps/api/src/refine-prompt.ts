@@ -40,7 +40,9 @@ const statusFor = (code: string): number =>
           ? 409
           : code === "JOB_NOT_READY_FOR_PATCH"
             ? 409
-            : 400;
+            : code === "SCENE_VERIFICATION_FAILED"
+              ? 409
+              : 400;
 
 export type RefineProposal = {
   readonly startFrame: number;

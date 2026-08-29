@@ -2,6 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fixtureSpec } from "@rvs/contracts";
+import { sha256Hex } from "../../../packages/contracts/src/canonical-json.js";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   createCompletedGeneratedJob,
@@ -9,6 +10,7 @@ import {
   motionCommandHeaders as headers,
 } from "./motion-scene-command-fixture.js";
 import { insertMotionSceneVersion } from "./motion-scene-store.js";
+import { verifyMotionScene } from "./motion-operations.js";
 
 describe("motion scene commands", () => {
   let directory = "";
@@ -179,6 +181,76 @@ describe("motion scene commands", () => {
     });
     expect(rejectedRender.statusCode).toBe(409);
     expect(job.state).toBe("COMPLETED");
+  });
+
+  it("revalidates stored reports before render and rollback admission", async () => {
+    const jobId = await createCompletedGeneratedJob(fixture);
+    await fixture.app.inject({
+      method: "GET",
+      url: `/v1/jobs/${jobId}/motion-scene`,
+      headers,
+    });
+    const job = fixture.workflow.jobs.get(jobId);
+    expect(job).toBeDefined();
+    if (!job) return;
+    const firstBeat = fixtureSpec.beats[0]!;
+    const videoScene = {
+      ...fixtureSpec,
+      beats: [
+        {
+          ...firstBeat,
+          elements: [{ ...firstBeat.elements[0]!, kind: "video" as const }],
+        },
+        ...fixtureSpec.beats.slice(1),
+      ],
+    };
+    const videoDigest = sha256Hex(videoScene);
+    const unsafe = insertMotionSceneVersion(fixture.db, job, videoScene, {
+      schema: "verification-report-v1",
+      sceneDigest: videoDigest,
+      attempts: 1,
+      status: "PASS",
+      findings: [],
+    });
+    const artifactId = job.artifact?.id;
+    const rejectedRender = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/jobs/${jobId}/motion-scene/render`,
+      headers: {
+        ...headers,
+        "if-match": `"${videoDigest}"`,
+        "idempotency-key": "render-forged-pass",
+      },
+      payload: { schema: "motion-scene-render-v1" },
+    });
+    expect(rejectedRender.statusCode).toBe(409);
+    expect(job.state).toBe("COMPLETED");
+    expect(job.artifact?.id).toBe(artifactId);
+
+    const safe = insertMotionSceneVersion(
+      fixture.db,
+      job,
+      fixtureSpec,
+      verifyMotionScene(fixtureSpec),
+    );
+    const rejectedRollback = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/jobs/${jobId}/motion-scene/rollback`,
+      headers: {
+        ...headers,
+        "if-match": `"${safe.sceneDigest}"`,
+        "idempotency-key": "rollback-forged-pass",
+      },
+      payload: { schema: "motion-scene-rollback-v1", version: unsafe.version },
+    });
+    expect(rejectedRollback.statusCode).toBe(409);
+    const current = await fixture.app.inject({
+      method: "GET",
+      url: `/v1/jobs/${jobId}/motion-scene`,
+      headers,
+    });
+    expect(current.json().version).toBe(safe.version);
+    expect(job.artifact?.id).toBe(artifactId);
   });
 
   it("accepts a connected chat refinement with the current scene ETag", async () => {
