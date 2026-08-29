@@ -35,11 +35,24 @@ export const CODEX_RESPONSES_URL = `${CODEX_BASE_URL}/responses`;
 // this account's subscription can actually run.
 export const CODEX_MODELS_URL = `${CODEX_BASE_URL}/models`;
 // The registry rejects a request without it: 400, "Field required", on the
-// query string rather than the body. It is the Codex CLI's own version, and
-// the backend uses it to decide which models that client is allowed to see
-// -- so it is a real input, not a formality, and it is pinned rather than
-// invented per call.
-export const CODEX_CLIENT_VERSION = "0.104.0";
+// query string rather than the body.
+//
+// It is the Codex CLI's own version, and the backend gates the model list
+// on it as a floor -- measured against one account: 0.0.1 lists nothing,
+// 0.104.0 lists four, 0.150.1 lists nine (the gpt-5.6 family, gpt-5.5 and
+// gpt-reserve appear only at the top). So an old value here is not a
+// harmless formality; it silently hands the operator a short list and no
+// hint that anything is missing, which is exactly what a pin of 0.104.0
+// did.
+//
+// Pinned to a real released version rather than an implausibly high one:
+// the backend accepts 99.0.0 today, but a client that lies about what it is
+// has nothing to fall back on the day that stops working. It will need
+// raising when OpenAI gates a new model behind a newer CLI, and there is no
+// signal when that happens -- hence the override, so an operator who
+// notices a model missing can fix it without waiting for a release.
+export const CODEX_CLIENT_VERSION =
+  process.env["RVS_CODEX_CLIENT_VERSION"] || "0.150.1";
 export const CODEX_TOKEN_URL = "https://auth.openai.com/oauth/token";
 // What the Codex CLI calls itself in the header the backend reads to tell
 // its own clients apart. Every published client that talks to this endpoint
