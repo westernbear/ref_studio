@@ -1,0 +1,17 @@
+{
+  "scenario": "mixed task and receipt evidence index with digest and chain verification",
+  "invocations": [
+    "pnpm test:evidence",
+    "pnpm qa:self-test",
+    "pnpm test:concurrency",
+    "pnpm format:check",
+    "git diff --check"
+  ],
+  "observed": {
+    "testEvidence": "PASS: versioned and legacy receipt rows accepted; tampered receipt digest rejected",
+    "selfTest": "PASS: existing QA negative cases retained",
+    "concurrency": "PASS: 5 API idempotency and tenant-boundary tests",
+    "format": "PASS",
+    "diffCheck": "PASS"
+  }
+}
