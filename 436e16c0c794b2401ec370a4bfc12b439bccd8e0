@@ -7,3 +7,5 @@ lane=security-review sha=436e16c0c794b2401ec370a4bfc12b439bccd8e0 verdict=PASS s
 lane=debugging-runtime-audit sha=436e16c0c794b2401ec370a4bfc12b439bccd8e0 verdict=PASS source=agent:/root/final_debug_runtime_audit_v2
 
 lane=code-review sha=436e16c0c794b2401ec370a4bfc12b439bccd8e0 verdict=PASS source=agent:/root/final_code_review_v2
+
+lane=goal-verifier sha=436e16c0c794b2401ec370a4bfc12b439bccd8e0 verdict=PASS source=agent:/root/final_goal_verifier_v2
