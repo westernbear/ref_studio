@@ -18,11 +18,18 @@
           },
           "kind": {
             "type": "string",
-            "enum": ["PLATFORM", "ORGANIZATION"]
+            "enum": [
+              "PLATFORM",
+              "ORGANIZATION"
+            ]
           },
           "status": {
             "type": "string",
-            "enum": ["ACTIVE", "DELETING", "DELETED"]
+            "enum": [
+              "ACTIVE",
+              "DELETING",
+              "DELETED"
+            ]
           },
           "deletionEpoch": {
             "type": "integer",
@@ -62,7 +69,12 @@
             "format": "date-time"
           }
         },
-        "required": ["id", "email", "displayName", "createdAt"],
+        "required": [
+          "id",
+          "email",
+          "displayName",
+          "createdAt"
+        ],
         "additionalProperties": false
       },
       "Credential": {
@@ -78,7 +90,10 @@
           },
           "kind": {
             "type": "string",
-            "enum": ["PASSWORD", "SERVICE"]
+            "enum": [
+              "PASSWORD",
+              "SERVICE"
+            ]
           },
           "secretHash": {
             "type": "string"
@@ -211,7 +226,12 @@
             "format": "date-time"
           }
         },
-        "required": ["tenantId", "userId", "role", "createdAt"],
+        "required": [
+          "tenantId",
+          "userId",
+          "role",
+          "createdAt"
+        ],
         "additionalProperties": false
       },
       "ReviewerAssignment": {
@@ -232,11 +252,22 @@
           },
           "gate": {
             "type": "string",
-            "enum": ["T1", "T2", "T3", "T4", "T5", "T6"]
+            "enum": [
+              "T1",
+              "T2",
+              "T3",
+              "T4",
+              "T5",
+              "T6"
+            ]
           },
           "scope": {
             "type": "string",
-            "enum": ["TENANT", "PLATFORM", "RELEASE"]
+            "enum": [
+              "TENANT",
+              "PLATFORM",
+              "RELEASE"
+            ]
           },
           "createdAt": {
             "type": "string",
@@ -277,7 +308,12 @@
           },
           "state": {
             "type": "string",
-            "enum": ["PENDING", "QUARANTINED", "ACCEPTED", "EXPIRED"]
+            "enum": [
+              "PENDING",
+              "QUARANTINED",
+              "ACCEPTED",
+              "EXPIRED"
+            ]
           },
           "casObjectId": {
             "type": "string",
@@ -434,7 +470,14 @@
             "format": "date-time"
           }
         },
-        "required": ["id", "tenantId", "jobId", "number", "state", "createdAt"],
+        "required": [
+          "id",
+          "tenantId",
+          "jobId",
+          "number",
+          "state",
+          "createdAt"
+        ],
         "additionalProperties": false
       },
       "Lease": {
@@ -505,14 +548,25 @@
           },
           "status": {
             "type": "string",
-            "enum": ["PENDING", "APPROVED", "REJECTED"]
+            "enum": [
+              "PENDING",
+              "APPROVED",
+              "REJECTED"
+            ]
           },
           "createdAt": {
             "type": "string",
             "format": "date-time"
           }
         },
-        "required": ["id", "tenantId", "jobId", "gate", "status", "createdAt"],
+        "required": [
+          "id",
+          "tenantId",
+          "jobId",
+          "gate",
+          "status",
+          "createdAt"
+        ],
         "additionalProperties": false
       },
       "Receipt": {
@@ -719,7 +773,13 @@
             "format": "date-time"
           }
         },
-        "required": ["id", "tenantId", "requestedBy", "state", "createdAt"],
+        "required": [
+          "id",
+          "tenantId",
+          "requestedBy",
+          "state",
+          "createdAt"
+        ],
         "additionalProperties": false
       },
       "Artifact": {
@@ -787,7 +847,14 @@
             "format": "date-time"
           }
         },
-        "required": ["id", "tenantId", "sceneId", "version", "ir", "createdAt"],
+        "required": [
+          "id",
+          "tenantId",
+          "sceneId",
+          "version",
+          "ir",
+          "createdAt"
+        ],
         "additionalProperties": false
       },
       "SceneIRVersion": {
@@ -817,7 +884,14 @@
             "format": "date-time"
           }
         },
-        "required": ["id", "tenantId", "sceneId", "version", "ir", "createdAt"],
+        "required": [
+          "id",
+          "tenantId",
+          "sceneId",
+          "version",
+          "ir",
+          "createdAt"
+        ],
         "additionalProperties": false
       },
       "BrowserPassSpecVersion": {
@@ -919,11 +993,94 @@
                 }
               }
             },
-            "required": ["code", "message", "correlationId", "details"],
+            "required": [
+              "code",
+              "message",
+              "correlationId",
+              "details"
+            ],
             "additionalProperties": false
           }
         },
-        "required": ["error"],
+        "required": [
+          "error"
+        ],
+        "additionalProperties": false
+      },
+      "SceneOperationBatchV1": {
+        "type": "object",
+        "properties": {
+          "schema": {
+            "type": "string",
+            "const": "scene-operation-batch-v1"
+          },
+          "baseSceneDigest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "operations": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 16,
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        "required": [
+          "schema",
+          "baseSceneDigest",
+          "operations"
+        ],
+        "additionalProperties": false
+      },
+      "MotionSceneSnapshotV1": {
+        "type": "object",
+        "properties": {
+          "schema": {
+            "type": "string",
+            "const": "motion-scene-snapshot-v1"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "sceneEtag": {
+            "type": "string"
+          },
+          "sceneDigest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "scene": {
+            "type": "object"
+          },
+          "history": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "backendCapability": {
+            "type": "object"
+          },
+          "verification": {
+            "type": [
+              "object",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "schema",
+          "version",
+          "sceneEtag",
+          "sceneDigest",
+          "scene",
+          "history",
+          "backendCapability",
+          "verification"
+        ],
         "additionalProperties": false
       }
     },
@@ -1027,6 +1184,74 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SafeErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/jobs/{id}/motion-scene": {
+      "get": {
+        "operationId": "getMotionScene",
+        "responses": {
+          "200": {
+            "description": "Motion scene",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MotionSceneSnapshotV1"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patchMotionScene",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SceneOperationBatchV1"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Motion scene",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MotionSceneSnapshotV1"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SafeErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/jobs/{id}/deliverables": {
+      "get": {
+        "operationId": "getDeliverables",
+        "responses": {
+          "200": {
+            "description": "Deliverables",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
                 }
               }
             }

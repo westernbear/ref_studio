@@ -98,6 +98,8 @@ const fixture = (
     now: uploads.now,
     db,
     aiSecretKey: "test-secret-key-material",
+    verifiedMotionAuthoring: true,
+    nativeSceneV2: true,
     ...(generate ? { refinePromptGenerate: generate } : {}),
     ...(patchGenerate ? { patchSceneGenerate: patchGenerate } : {}),
   });
@@ -232,6 +234,95 @@ describe("refine-prompt", () => {
         expect(proposal.startFrame).toBeGreaterThanOrEqual(0);
         expect(proposal.startFrame).toBeLessThanOrEqual(max);
       }
+    } finally {
+      state.db.close();
+      rmSync(state.directory, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("motion scene routes", () => {
+  it("versions a scene with ETag and rejects a stale digest without rebasing", async () => {
+    const state = fixture();
+    try {
+      const jobId = await createJob(state.app, state.uploadId, "motion-job");
+      const job = state.workflow.jobs.get(jobId);
+      expect(job).toBeDefined();
+      if (!job) return;
+      job.authoredScene = { spec: fixtureSpec, beatSheet: [] };
+      job.sceneSpecDigest = "ignored-by-version-store";
+      state.db.exec(
+        `INSERT INTO tenants VALUES ('ten_a','A','ORGANIZATION','ACTIVE',0,'2026-01-01T00:00:00Z');
+         INSERT INTO users VALUES ('usr_a','motion@example.test','A','2026-01-01T00:00:00Z');
+         INSERT INTO tenant_memberships VALUES ('ten_a','usr_a','OWNER','2026-01-01T00:00:00Z');
+         INSERT INTO uploads VALUES ('upl_motion','ten_a','x.mp4','video/mp4',1,'ACCEPTED',NULL,'2026-01-01T00:00:00Z','2027-01-01T00:00:00Z');`,
+      );
+      state.db
+        .prepare(
+          "INSERT INTO jobs(id,tenant_id,creator_id,upload_id,scene_id,state,attempt,deletion_epoch,created_at) VALUES(?,?,?,?,?,'QUEUED',0,0,?)",
+        )
+        .run(
+          jobId,
+          "ten_a",
+          "usr_a",
+          "upl_motion",
+          "scn_motion",
+          "2026-01-01T00:00:00Z",
+        );
+      const initial = await state.app.inject({
+        method: "GET",
+        url: `/v1/jobs/${jobId}/motion-scene`,
+        headers: headersFor("ten_a"),
+      });
+      expect(initial.statusCode, initial.body).toBe(200);
+      const snapshot = initial.json();
+      const stale = await state.app.inject({
+        method: "PATCH",
+        url: `/v1/jobs/${jobId}/motion-scene`,
+        headers: {
+          ...headersFor("ten_a"),
+          "if-match": '"stale"',
+          "idempotency-key": "motion-stale",
+        },
+        payload: {
+          schema: "scene-operation-batch-v1",
+          baseSceneDigest: snapshot.sceneDigest,
+          operations: [
+            {
+              kind: "set",
+              opId: "one",
+              path: "/mode",
+              value: "SWAP",
+              reason: "test",
+            },
+          ],
+        },
+      });
+      expect(stale.statusCode).toBe(409);
+      const updated = await state.app.inject({
+        method: "PATCH",
+        url: `/v1/jobs/${jobId}/motion-scene`,
+        headers: {
+          ...headersFor("ten_a"),
+          "if-match": snapshot.sceneEtag,
+          "idempotency-key": "motion-update",
+        },
+        payload: {
+          schema: "scene-operation-batch-v1",
+          baseSceneDigest: snapshot.sceneDigest,
+          operations: [
+            {
+              kind: "set",
+              opId: "one",
+              path: "/mode",
+              value: "SWAP",
+              reason: "test",
+            },
+          ],
+        },
+      });
+      expect(updated.statusCode, updated.body).toBe(200);
+      expect(updated.json().version).toBe(2);
     } finally {
       state.db.close();
       rmSync(state.directory, { recursive: true, force: true });

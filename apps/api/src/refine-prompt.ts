@@ -10,6 +10,7 @@ import { patchScene, type GeneratePatch } from "./patch-scene.js";
 import type { UploadStore } from "./uploads.js";
 import { assertLegalTransition } from "../../../packages/contracts/src/lifecycle.js";
 import { sha256Hex } from "../../../packages/contracts/src/canonical-json.js";
+import { applySceneOperations } from "./motion-scene.js";
 
 const id = (prefix: string): string =>
   `${prefix}_${randomBytes(12).toString("base64url")}`;
@@ -289,8 +290,49 @@ async function applyScenePatch(params: {
   // nothing above this line mutates the job, so a throw anywhere in
   // patchScene (AI failure, schema failure, validateSceneSpec failure)
   // leaves job.authoredScene exactly as it was.
-  job.authoredScene = { spec: patched.spec, beatSheet: patched.beatSheet };
-  job.sceneSpecDigest = sha256Hex(patched.spec);
+  const normalized = applySceneOperations(previous, {
+    schema: "scene-operation-batch-v1",
+    baseSceneDigest: sha256Hex(previous),
+    operations: [
+      {
+        kind: "set",
+        opId: "refine-mode",
+        path: "/mode",
+        value: patched.spec.mode,
+        reason: "generated refine",
+      },
+      {
+        kind: "set",
+        opId: "refine-canvas",
+        path: "/canvas",
+        value: patched.spec.canvas,
+        reason: "generated refine",
+      },
+      {
+        kind: "set",
+        opId: "refine-palette",
+        path: "/palette",
+        value: patched.spec.palette,
+        reason: "generated refine",
+      },
+      {
+        kind: "set",
+        opId: "refine-assets",
+        path: "/assets",
+        value: z.json().parse(patched.spec.assets),
+        reason: "generated refine",
+      },
+      {
+        kind: "set",
+        opId: "refine-beats",
+        path: "/beats",
+        value: z.json().parse(patched.spec.beats),
+        reason: "generated refine",
+      },
+    ],
+  });
+  job.authoredScene = { spec: normalized, beatSheet: patched.beatSheet };
+  job.sceneSpecDigest = sha256Hex(normalized);
   // Kept on the job record (not only in this request's response) so a
   // future partial-rerender optimisation has something to act on -- see the
   // `ponytail:` comment at apps/worker/src/worker-job-handler.ts's

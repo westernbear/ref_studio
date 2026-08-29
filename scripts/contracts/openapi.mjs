@@ -395,6 +395,41 @@ const schemas = {
     },
     ["error"],
   ),
+  SceneOperationBatchV1: object(
+    {
+      schema: { type: "string", const: "scene-operation-batch-v1" },
+      baseSceneDigest: { type: "string", pattern: "^[a-f0-9]{64}$" },
+      operations: {
+        type: "array",
+        minItems: 1,
+        maxItems: 16,
+        items: { type: "object" },
+      },
+    },
+    ["schema", "baseSceneDigest", "operations"],
+  ),
+  MotionSceneSnapshotV1: object(
+    {
+      schema: { type: "string", const: "motion-scene-snapshot-v1" },
+      version: { type: "integer", minimum: 1 },
+      sceneEtag: string(),
+      sceneDigest: { type: "string", pattern: "^[a-f0-9]{64}$" },
+      scene: { type: "object" },
+      history: { type: "array", items: { type: "object" } },
+      backendCapability: { type: "object" },
+      verification: { type: ["object", "null"] },
+    },
+    [
+      "schema",
+      "version",
+      "sceneEtag",
+      "sceneDigest",
+      "scene",
+      "history",
+      "backendCapability",
+      "verification",
+    ],
+  ),
 };
 const ref = (name) => ({ $ref: `#/components/schemas/${name}` });
 const json = (schema) => ({ content: { "application/json": { schema } } });
@@ -441,6 +476,39 @@ const document = {
         },
       },
     },
+    "/v1/jobs/{id}/motion-scene": {
+      get: {
+        operationId: "getMotionScene",
+        responses: {
+          200: {
+            description: "Motion scene",
+            ...json(ref("MotionSceneSnapshotV1")),
+          },
+        },
+      },
+      patch: {
+        operationId: "patchMotionScene",
+        requestBody: json(ref("SceneOperationBatchV1")),
+        responses: {
+          200: {
+            description: "Motion scene",
+            ...json(ref("MotionSceneSnapshotV1")),
+          },
+          409: {
+            description: "Version conflict",
+            ...json(ref("SafeErrorEnvelope")),
+          },
+        },
+      },
+    },
+    "/v1/jobs/{id}/deliverables": {
+      get: {
+        operationId: "getDeliverables",
+        responses: {
+          200: { description: "Deliverables", ...json({ type: "object" }) },
+        },
+      },
+    },
     "/v1/reviews": {
       post: {
         operationId: "createReview",
@@ -476,7 +544,7 @@ if (
   )
 )
   throw new Error("OPENAPI_COMPONENTS_NOT_CONCRETE");
-const client = `export type ApiOperation = "createUpload" | "createJob" | "getJob" | "createReview" | "listReceipts"\nexport const paths = { uploads: "/v1/uploads", jobs: "/v1/jobs", reviews: "/v1/reviews", receipts: "/v1/receipts" } as const\n`;
+const client = `export type ApiOperation = "createUpload" | "createJob" | "getJob" | "getMotionScene" | "patchMotionScene" | "getDeliverables" | "createReview" | "listReceipts"\nexport const paths = { uploads: "/v1/uploads", jobs: "/v1/jobs", motionScene: "/v1/jobs/{id}/motion-scene", deliverables: "/v1/jobs/{id}/deliverables", reviews: "/v1/reviews", receipts: "/v1/receipts" } as const\n`;
 await mkdir(resolve(root, "packages/contracts/generated"), { recursive: true });
 await writeFile(
   resolve(root, "packages/contracts/generated/openapi.json"),
@@ -489,7 +557,7 @@ await writeFile(
 process.stdout.write(
   JSON.stringify({
     status: "generated",
-    operations: 5,
+    operations: 8,
     schemas: Object.keys(schemas).length,
   }) + "\n",
 );

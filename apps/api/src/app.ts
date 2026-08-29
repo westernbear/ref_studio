@@ -56,6 +56,7 @@ import {
   type AdminMutationStore,
 } from "./admin-mutation.js";
 import { registerJobAttachments } from "./job-attachments.js";
+import { registerMotionScene } from "./motion-scene.js";
 import { registerRefinePrompt } from "./refine-prompt.js";
 import type { GenerateScene } from "./author-scene.js";
 import type { GeneratePatch } from "./patch-scene.js";
@@ -106,6 +107,8 @@ export type AppOptions = {
   readonly translateGenerate?: GenerateTranslation;
   readonly authorSceneGenerate?: GenerateScene;
   readonly materialGenerate?: GenerateImage;
+  readonly verifiedMotionAuthoring?: boolean;
+  readonly nativeSceneV2?: boolean;
 } & WorkerAppOptions;
 const header = (request: FastifyRequest, name: string): string | undefined => {
   const value = request.headers[name];
@@ -881,6 +884,14 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
       options.db,
       options.attachmentsRoot,
     );
+  if (
+    options.creatorWorkflow &&
+    options.db &&
+    (options.verifiedMotionAuthoring ??
+      process.env["RVS_VERIFIED_MOTION_AUTHORING"] === "true") &&
+    (options.nativeSceneV2 ?? process.env["RVS_NATIVE_SCENE_V2"] === "true")
+  )
+    registerMotionScene(app, options.creatorWorkflow, options.db);
   if (options.workers)
     registerWorkers(app, options.workers, {
       now,

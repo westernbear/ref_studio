@@ -11,3 +11,4 @@ export * from "./scene-spec.fixture.js";
 export * from "./spec-validate.js";
 export * from "./scene-assets.js";
 export * from "./canonical-json.js";
+export * from "./motion.js";
