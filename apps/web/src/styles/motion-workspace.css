@@ -155,6 +155,7 @@
 }
 .motion-action-card {
   display: grid;
+  min-block-size: max-content;
   border: 1px solid var(--color-hairline);
   border-radius: var(--radius-lg);
   overflow: hidden;
