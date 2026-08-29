@@ -1,13 +1,10 @@
-import { getTranslations } from "next-intl/server";
-import { BrandLogo } from "../../../components/Shells";
-import { Panel } from "../../../components/Primitives";
 import {
-  approvalGates,
-  decisionKey,
-  gateLabelKey,
-  parseJobProgress,
-  type ApprovalGate,
-} from "../../../lib/job-progress";
+  MotionDeliverablesV1Schema,
+  MotionSceneSnapshotV1Schema,
+} from "@rvs/contracts/motion";
+import { getTranslations } from "next-intl/server";
+import { Panel } from "../../../components/Primitives";
+import { parseJobProgress } from "../../../lib/job-progress";
 import {
   field,
   isAuthProblem,
@@ -18,10 +15,10 @@ import {
 import type { AcceptedMedia } from "../../../lib/upload-client";
 import { Link } from "../../../i18n/navigation";
 import { CompilerDialogue } from "./CompilerDialogue";
+import { LegacyReviewStages } from "./LegacyReviewStages";
+import { MotionWorkspace } from "./MotionWorkspace";
 import { RenderJobButton } from "./RenderJobButton";
-
-const gates = approvalGates;
-type Gate = ApprovalGate;
+import { SceneReviewHeader } from "./SceneReviewHeader";
 
 const list = (value: unknown): readonly unknown[] =>
   Array.isArray(value) ? value : [];
@@ -31,41 +28,6 @@ const numberValue = (value: unknown): number => {
 };
 const stringList = (value: unknown): readonly string[] =>
   list(value).filter((item): item is string => typeof item === "string");
-const latestReceiptFor = (
-  receipts: readonly unknown[],
-  gate: Gate,
-  attempt: number,
-): unknown =>
-  [...receipts]
-    .reverse()
-    .find(
-      (receipt) =>
-        text(field(receipt, "gate"), "") === gate &&
-        numberValue(field(receipt, "attempt")) === attempt,
-    );
-
-async function ScreenHeader() {
-  const t = await getTranslations("SceneReview.header");
-  return (
-    <header className="upload-header" data-landmark="app-header">
-      <Link className="brand" href="/" aria-label={t("homeAriaLabel")}>
-        <BrandLogo />
-      </Link>
-      <nav aria-label={t("primaryNavAriaLabel")}>
-        <Link href="/workflow">{t("workflow")}</Link>
-        <Link href="/admin">{t("admin")}</Link>
-        <a href="/docs">{t("docs")}</a>
-        <a href="/support">{t("support")}</a>
-      </nav>
-      <div className="header-actions">
-        <Link className="button button-primary" href="/projects/new">
-          {t("newProject")}
-        </Link>
-      </div>
-    </header>
-  );
-}
-
 export default async function SceneReviewPage({
   searchParams,
 }: {
@@ -74,15 +36,13 @@ export default async function SceneReviewPage({
   }>;
 }) {
   const t = await getTranslations("SceneReview");
-  const tGates = await getTranslations("Gates");
-  const tDecisions = await getTranslations("Decisions");
   const params = await searchParams;
   const rawJobId = params.jobId;
   const jobId = Array.isArray(rawJobId) ? rawJobId[0] : rawJobId;
   if (!jobId)
     return (
       <div className="upload-shell">
-        <ScreenHeader />
+        <SceneReviewHeader />
         <main className="upload-main">
           <Panel>
             <h1>{t("title")}</h1>
@@ -94,14 +54,17 @@ export default async function SceneReviewPage({
         </main>
       </div>
     );
-  const [result, receiptsResult] = await Promise.all([
-    liveApiGet(`/v1/jobs/${encodeURIComponent(jobId)}`),
-    liveApiGet(`/v1/receipts?jobId=${encodeURIComponent(jobId)}`),
-  ]);
+  const [result, receiptsResult, motionResult, deliverablesResult] =
+    await Promise.all([
+      liveApiGet(`/v1/jobs/${encodeURIComponent(jobId)}`),
+      liveApiGet(`/v1/receipts?jobId=${encodeURIComponent(jobId)}`),
+      liveApiGet(`/v1/jobs/${encodeURIComponent(jobId)}/motion-scene`),
+      liveApiGet(`/v1/jobs/${encodeURIComponent(jobId)}/deliverables`),
+    ]);
   if (!result.ok)
     return (
       <div className="upload-shell">
-        <ScreenHeader />
+        <SceneReviewHeader />
         <main className="upload-main">
           <Panel>
             <h1>{t("title")}</h1>
@@ -180,10 +143,33 @@ export default async function SceneReviewPage({
     approvedGates: [],
     beatSheet: null,
   };
+  const motionScene = motionResult.ok
+    ? MotionSceneSnapshotV1Schema.safeParse(motionResult.body)
+    : null;
+  if (motionScene?.success) {
+    const parsedDeliverables = deliverablesResult.ok
+      ? MotionDeliverablesV1Schema.safeParse(deliverablesResult.body)
+      : null;
+    const deliverables = parsedDeliverables?.success
+      ? parsedDeliverables.data
+      : { backend: "native" as const, items: [] };
+    return (
+      <div className="upload-shell motion-workspace-shell">
+        <SceneReviewHeader />
+        <main className="motion-workspace-main">
+          <MotionWorkspace
+            initialJob={initialJob}
+            initialScene={motionScene.data}
+            initialDeliverables={deliverables}
+          />
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="upload-shell">
-      <ScreenHeader />
+      <SceneReviewHeader />
       <main className="upload-main dialogue-main">
         <CompilerDialogue
           initialJob={initialJob}
@@ -195,51 +181,12 @@ export default async function SceneReviewPage({
             ) : null
           }
         />
-        <div className="stitch-review-actions" data-landmark="gate-action">
-          {state === "COMPLETED" ? (
-            <div className="review-actions">
-              <a
-                className="button button-primary"
-                href={`/api/v1/jobs/${encodeURIComponent(jobId)}/delivery-download`}
-              >
-                {t("downloadDelivery")}
-              </a>
-              <a
-                className="button"
-                href={`/api/v1/jobs/${encodeURIComponent(jobId)}/report-download`}
-              >
-                {t("downloadReport")}
-              </a>
-            </div>
-          ) : null}
-        </div>
-        <section className="stitch-review-section" data-landmark="timeline">
-          <div className="stitch-section-heading">
-            <h2>{t("verificationStages")}</h2>
-            <span>{t("attempt", { number: attempt })}</span>
-          </div>
-          <ol className="review-gate-chain">
-            {gates.map((gate) => {
-              const receipt = latestReceiptFor(receipts, gate, attempt);
-              const decision = text(field(receipt, "decision"), "PENDING");
-              return (
-                <li
-                  key={gate}
-                  className={
-                    decision === "APPROVED"
-                      ? "is-approved"
-                      : decision === "REJECTED"
-                        ? "is-rejected"
-                        : ""
-                  }
-                >
-                  <strong>{tGates(gateLabelKey(gate))}</strong>
-                  <span>{tDecisions(decisionKey(decision))}</span>
-                </li>
-              );
-            })}
-          </ol>
-        </section>
+        <LegacyReviewStages
+          jobId={jobId}
+          state={state}
+          attempt={attempt}
+          receipts={receipts}
+        />
       </main>
     </div>
   );

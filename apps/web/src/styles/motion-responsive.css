@@ -1,0 +1,61 @@
+@media (max-width: 720px) {
+  .motion-workspace-shell {
+    min-block-size: 0;
+    block-size: 100dvb;
+  }
+  .motion-workspace-main {
+    min-block-size: 0;
+  }
+  .motion-workspace {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+  .motion-workspace-separator {
+    display: none;
+  }
+  .motion-workspace-pane {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .motion-workspace[data-mobile-pane="chat"] [data-mobile-pane="editor"],
+  .motion-workspace[data-mobile-pane="editor"] [data-mobile-pane="chat"] {
+    display: none;
+  }
+  .motion-mobile-tabs {
+    display: grid;
+    grid-column: 1;
+    grid-row: 2;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    border-block-start: 1px solid var(--color-hairline);
+    background: var(--color-canvas-card);
+  }
+  .motion-mobile-tabs button {
+    border: 0;
+    border-radius: 0;
+    background: var(--color-canvas-card);
+    color: var(--color-body-mid);
+  }
+  .motion-mobile-tabs button[aria-selected="true"] {
+    background: var(--color-canvas-soft);
+    color: var(--color-ink);
+  }
+  .compiler-chat-input {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .compiler-chat-input button {
+    inline-size: 100%;
+  }
+  .motion-editor {
+    grid-template-rows:
+      minmax(calc(var(--space-4xl) * 5), 1fr)
+      minmax(calc(var(--space-4xl) * 4), 1fr);
+  }
+  .scene-properties {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .scene-properties h3,
+  .motion-field-wide {
+    grid-column: 1;
+  }
+}
