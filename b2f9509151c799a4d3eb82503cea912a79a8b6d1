@@ -1,3 +1,5 @@
 lane=context-miner sha=b2f9509151c799a4d3eb82503cea912a79a8b6d1 verdict=PASS source=agent:/root/final_context_miner
 
 lane=qa-executor sha=b2f9509151c799a4d3eb82503cea912a79a8b6d1 verdict=PASS source=agent:/root/final_qa_executor
+
+lane=code-review sha=b2f9509151c799a4d3eb82503cea912a79a8b6d1 verdict=PASS source=agent:/root/final_code_review
