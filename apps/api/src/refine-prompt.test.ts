@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   fixtureSpec,
+  sha256Hex,
   type GenerationConfig,
   type SceneSpec,
 } from "@rvs/contracts";
@@ -103,7 +104,7 @@ const fixture = (
     ...(generate ? { refinePromptGenerate: generate } : {}),
     ...(patchGenerate ? { patchSceneGenerate: patchGenerate } : {}),
   });
-  return { app, uploads, workflow, db, directory, uploadId: upload.id };
+  return { app, auth, uploads, workflow, db, directory, uploadId: upload.id };
 };
 
 const headersFor = (tenant: "ten_a" | "ten_b") => ({
@@ -269,13 +270,19 @@ describe("motion scene routes", () => {
           "scn_motion",
           "2026-01-01T00:00:00Z",
         );
-      const initial = await state.app.inject({
+      const legacyRead = await state.app.inject({
         method: "GET",
         url: `/v1/jobs/${jobId}/motion-scene`,
         headers: headersFor("ten_a"),
       });
-      expect(initial.statusCode, initial.body).toBe(200);
-      const snapshot = initial.json();
+      expect(legacyRead.statusCode).toBe(404);
+      expect(
+        state.db
+          .prepare("SELECT count(*) FROM motion_scene_versions")
+          .pluck()
+          .get(),
+      ).toBe(0);
+      const authoredDigest = sha256Hex(fixtureSpec);
       const stale = await state.app.inject({
         method: "PATCH",
         url: `/v1/jobs/${jobId}/motion-scene`,
@@ -286,7 +293,7 @@ describe("motion scene routes", () => {
         },
         payload: {
           schema: "scene-operation-batch-v1",
-          baseSceneDigest: snapshot.sceneDigest,
+          baseSceneDigest: authoredDigest,
           operations: [
             {
               kind: "set",
@@ -304,12 +311,12 @@ describe("motion scene routes", () => {
         url: `/v1/jobs/${jobId}/motion-scene`,
         headers: {
           ...headersFor("ten_a"),
-          "if-match": snapshot.sceneEtag,
+          "if-match": `"${authoredDigest}"`,
           "idempotency-key": "motion-update",
         },
         payload: {
           schema: "scene-operation-batch-v1",
-          baseSceneDigest: snapshot.sceneDigest,
+          baseSceneDigest: authoredDigest,
           operations: [
             {
               kind: "set",
@@ -323,6 +330,50 @@ describe("motion scene routes", () => {
       });
       expect(updated.statusCode, updated.body).toBe(200);
       expect(updated.json().version).toBe(2);
+      const replay = await state.app.inject({
+        method: "PATCH",
+        url: `/v1/jobs/${jobId}/motion-scene`,
+        headers: {
+          ...headersFor("ten_a"),
+          "if-match": `"${authoredDigest}"`,
+          "idempotency-key": "motion-update",
+        },
+        payload: {
+          schema: "scene-operation-batch-v1",
+          baseSceneDigest: authoredDigest,
+          operations: [
+            {
+              kind: "set",
+              opId: "one",
+              path: "/mode",
+              value: "SWAP",
+              reason: "test",
+            },
+          ],
+        },
+      });
+      expect(replay.statusCode, replay.body).toBe(200);
+      expect(replay.json().version).toBe(2);
+      const disabledApp = buildAuthApp({
+        store: state.auth,
+        expectedOrigin: "https://studio.invalid",
+        introspectSecret: "secret",
+        uploads: state.uploads,
+        creatorWorkflow: state.workflow,
+        db: state.db,
+        aiSecretKey: "test-secret-key-material",
+        now: state.uploads.now,
+        verifiedMotionAuthoring: false,
+        nativeSceneV2: false,
+      });
+      const stillReadable = await disabledApp.inject({
+        method: "GET",
+        url: `/v1/jobs/${jobId}/motion-scene`,
+        headers: headersFor("ten_a"),
+      });
+      expect(stillReadable.statusCode, stillReadable.body).toBe(200);
+      expect(stillReadable.json().version).toBe(2);
+      await disabledApp.close();
     } finally {
       state.db.close();
       rmSync(state.directory, { recursive: true, force: true });

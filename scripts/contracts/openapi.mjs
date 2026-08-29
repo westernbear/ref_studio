@@ -1,5 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { format } from "prettier";
 
 const root = resolve(import.meta.dirname, "../..");
 const string = (format) =>
@@ -548,11 +549,15 @@ const client = `export type ApiOperation = "createUpload" | "createJob" | "getJo
 await mkdir(resolve(root, "packages/contracts/generated"), { recursive: true });
 await writeFile(
   resolve(root, "packages/contracts/generated/openapi.json"),
-  `${JSON.stringify(document, null, 2)}\n`,
+  await format(JSON.stringify(document), { parser: "json" }),
 );
 await writeFile(
   resolve(root, "packages/contracts/generated/client.ts"),
-  client,
+  await format(client, { parser: "typescript" }),
+);
+await writeFile(
+  resolve(root, "apps/api/openapi.json"),
+  await format(JSON.stringify(document), { parser: "json" }),
 );
 process.stdout.write(
   JSON.stringify({

@@ -884,14 +884,16 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
       options.db,
       options.attachmentsRoot,
     );
-  if (
-    options.creatorWorkflow &&
-    options.db &&
-    (options.verifiedMotionAuthoring ??
-      process.env["RVS_VERIFIED_MOTION_AUTHORING"] === "true") &&
-    (options.nativeSceneV2 ?? process.env["RVS_NATIVE_SCENE_V2"] === "true")
-  )
-    registerMotionScene(app, options.creatorWorkflow, options.db);
+  if (options.creatorWorkflow && options.db)
+    registerMotionScene(
+      app,
+      options.creatorWorkflow,
+      options.db,
+      (options.verifiedMotionAuthoring ??
+        process.env["RVS_VERIFIED_MOTION_AUTHORING"] === "true") &&
+        (options.nativeSceneV2 ??
+          process.env["RVS_NATIVE_SCENE_V2"] === "true"),
+    );
   if (options.workers)
     registerWorkers(app, options.workers, {
       now,

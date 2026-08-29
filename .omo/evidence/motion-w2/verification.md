@@ -8,3 +8,4 @@
 - Typecheck: `pnpm --filter @rvs/contracts build && pnpm --filter @rvs/api build` -> exit 0.
 - Formatting: `pnpm format:check` -> exit 0.
 - Generated contract: `node scripts/contracts/openapi.mjs` -> `status=generated`, 8 operations, 26 schemas. Artifacts: `packages/contracts/generated/openapi.json`, `apps/api/openapi.json`, and `packages/contracts/generated/client.ts`.
+- Raw command output and exit codes: `.omo/evidence/motion-w2/verification-output.log`. This includes the idempotent replay, legacy GET no-mutation, disabled-feature read regression scenarios in the 24-test API run, the 249 pure-LOC measurement, and a post-generation formatting pass.
