@@ -170,6 +170,32 @@ describe("reading a streamed response", () => {
 });
 
 describe("generating an image", () => {
+  it("asks the codex image tool for a transparent background when the asset prompt omits one", async () => {
+    let seenPrompt: string | undefined;
+    const request: CodexFetch = async (_url, init) => {
+      const body = JSON.parse(init.body ?? "{}");
+      seenPrompt = body.input[0].content[0].text;
+      return reply(
+        200,
+        streamed({
+          output: [{ type: "image_generation_call", result: "DDD" }],
+        }),
+      );
+    };
+
+    await generateCodexImage({
+      auth: auth(),
+      model: "gpt-5.4",
+      prompt: "a gold glow",
+      size: "1024x1536",
+      request,
+    });
+
+    expect(seenPrompt).toBe(
+      "a gold glow\n\nOutput a PNG with a fully transparent background and no opaque backdrop.",
+    );
+  });
+
   it("asks the codex endpoint for a png of the given size", async () => {
     const seen: {
       url?: string;
@@ -206,7 +232,12 @@ describe("generating an image", () => {
     expect(body.input).toEqual([
       {
         role: "user",
-        content: [{ type: "input_text", text: "a gold glow" }],
+        content: [
+          {
+            type: "input_text",
+            text: "a gold glow\n\nOutput a PNG with a fully transparent background and no opaque backdrop.",
+          },
+        ],
       },
     ]);
     expect(body.tools).toEqual([

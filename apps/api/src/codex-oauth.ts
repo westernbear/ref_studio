@@ -343,7 +343,12 @@ export async function generateCodexImage(params: {
     input: [
       {
         role: "user",
-        content: [{ type: "input_text", text: params.prompt }],
+        content: [
+          {
+            type: "input_text",
+            text: `${params.prompt}\n\nOutput a PNG with a fully transparent background and no opaque backdrop.`,
+          },
+        ],
       },
     ],
     stream: true,
