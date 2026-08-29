@@ -1,0 +1,16 @@
+{
+  "corpusSize": 120,
+  "exactAliasRecallAt1": 1,
+  "aggregateRecallAt3": 1,
+  "recallAt1ByLanguage": {
+    "en": 1,
+    "ko": 1,
+    "mixed": 1
+  },
+  "unsupportedFalseAccepts": 0,
+  "ftsTop1": "timing-easing",
+  "toolsWithoutCanary": [],
+  "toolsAfterPassingCanary": [
+    "motion.lookup"
+  ]
+}

@@ -76,6 +76,7 @@ export function migrate(db) {
     [15, "./migrations/015_material_service_endpoints.sql", false],
     [16, "./migrations/016_codex_oauth_material_provider.sql", true],
     [17, "./migrations/017_codex_oauth_ai_provider.sql", true],
+    [18, "./migrations/018_motion_knowledge.sql", false],
   ];
   for (const [version, file, disableForeignKeys] of migrations) {
     if (

@@ -1,0 +1,10 @@
+$ vitest --run src/motion-knowledge.test.ts
+
+ RUN  v3.2.4 /home/singlerr/ref_studio-motion-w1/apps/api
+
+ ✓ src/motion-knowledge.test.ts (6 tests) 155ms
+
+ Test Files  1 passed (1)
+      Tests  6 passed (6)
+   Start at  19:17:32
+   Duration  1.47s (transform 362ms, setup 0ms, collect 889ms, tests 155ms, environment 0ms, prepare 90ms)
