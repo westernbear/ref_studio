@@ -89,26 +89,15 @@ export type ProviderModelsRequest = Readonly<{
   persistCodexAuth?: (auth: CodexAuth) => void;
 }>;
 
-// Fallbacks, not the list. codex-oauth is asked what the account can run
-// (listCodexModels, against the Codex model registry); these are what the
-// picker offers when that cannot be reached -- an offline console, a
-// credential the registry rejects, a shape it stopped answering. A short
-// stale list beats an empty dropdown on a provider that plainly has models,
-// and "type a name" is still the last option for anything newer.
-//
-// The registry lists what Codex runs, so it carries no image models; the
-// image picker is this list either way.
+// The Codex model registry lists what Codex runs, which is no image model
+// at all, so the image picker is static and has to be. The chat picker is
+// not: it asks the account (listCodexModels), because which models a
+// subscription can run is not a thing this file can know -- one account
+// answers gpt-5.4 and gpt-5.3-codex-spark where a guess here said
+// gpt-5.1-codex, and every name in that guess would have 404'd at job time.
 export const CODEX_IMAGE_MODELS: readonly string[] = [
   "gpt-image-2",
   "gpt-image-1",
-];
-
-export const CODEX_TEXT_MODELS: readonly string[] = [
-  "gpt-5.1-codex",
-  "gpt-5.1-codex-mini",
-  "gpt-5.1",
-  "gpt-5-codex",
-  "gpt-5",
 ];
 
 // OpenAI's /v1/models says nothing about what a model can do, so an image
@@ -135,38 +124,33 @@ const parse = <T>(schema: z.ZodType<T>, body: string): T => {
 const sorted = (ids: readonly string[]): readonly string[] =>
   [...new Set(ids)].sort((left, right) => left.localeCompare(right));
 
-// Never throws: a picker that cannot reach the registry falls back to the
-// static list rather than to an empty dropdown, because the operator's next
-// move is the same either way -- pick one, or type a name. The reason is
-// not surfaced for the same reason the list is not empty: there is nothing
-// here for them to fix.
+// Fails the way every other provider here fails -- an error the route turns
+// into an empty list, a reason on screen and a free-text field. Substituting
+// a list of plausible names instead would be worse than no list: they are
+// names this account may not have, and the operator would only find that out
+// when a job died on one.
 const listCodex = async (
   request: ProviderModelsRequest,
 ): Promise<readonly string[]> => {
-  const fallback =
-    request.capability === "image" ? CODEX_IMAGE_MODELS : CODEX_TEXT_MODELS;
+  if (request.capability === "image") return [...CODEX_IMAGE_MODELS];
   let auth: CodexAuth;
   try {
     auth = parseCodexAuth(request.apiKey);
   } catch {
-    return [...fallback];
+    throw new ProviderModelsError("PROVIDER_MODELS_UNREADABLE");
   }
-  try {
-    const listed = await listCodexModels({
-      auth,
-      ...(request.codexFetch ? { request: request.codexFetch } : {}),
-    });
-    // A refresh here rotates the stored refresh token, so dropping it would
-    // leave the console's copy stale and the credential dead on the next
-    // job. The caller that owns the row writes it back.
-    if (listed.refreshedAuth) request.persistCodexAuth?.(listed.refreshedAuth);
-    const models = listed.models.filter(
-      (id) => IMAGE_MODEL_ID.test(id) === (request.capability === "image"),
-    );
-    return models.length > 0 ? sorted(models) : [...fallback];
-  } catch {
-    return [...fallback];
-  }
+  const listed = await listCodexModels({
+    auth,
+    ...(request.codexFetch ? { request: request.codexFetch } : {}),
+  });
+  // A refresh here rotates the stored refresh token, so dropping it would
+  // leave the console's copy stale and the credential dead on the next job.
+  // The caller that owns the row writes it back.
+  if (listed.refreshedAuth) request.persistCodexAuth?.(listed.refreshedAuth);
+  // The registry has never answered with one, but an image model reaching
+  // the chat picker is the exact failure this module was written to stop --
+  // see the header. One predicate is cheaper than finding out again.
+  return sorted(listed.models.filter((id) => !IMAGE_MODEL_ID.test(id)));
 };
 
 export async function listProviderModels(

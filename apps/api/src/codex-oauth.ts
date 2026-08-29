@@ -34,6 +34,12 @@ export const CODEX_RESPONSES_URL = `${CODEX_BASE_URL}/responses`;
 // it answers a different shape ({ models: [{ slug }] }) and lists only what
 // this account's subscription can actually run.
 export const CODEX_MODELS_URL = `${CODEX_BASE_URL}/models`;
+// The registry rejects a request without it: 400, "Field required", on the
+// query string rather than the body. It is the Codex CLI's own version, and
+// the backend uses it to decide which models that client is allowed to see
+// -- so it is a real input, not a formality, and it is pinned rather than
+// invented per call.
+export const CODEX_CLIENT_VERSION = "0.104.0";
 export const CODEX_TOKEN_URL = "https://auth.openai.com/oauth/token";
 // What the Codex CLI calls itself in the header the backend reads to tell
 // its own clients apart. Every published client that talks to this endpoint
@@ -164,11 +170,21 @@ export async function refreshCodexAuth(
 // rather than as the whole body. Falls back to parsing the body as one
 // JSON object, which is what a non-streaming reply would be -- so this
 // keeps working if the endpoint answers either way.
+//
+// Which of the two it is, is decided by looking at the body. The header was
+// the obvious thing to trust and it is wrong: this endpoint answers 200
+// with a well-formed SSE stream and no content-type at all, so trusting it
+// sent every response down the JSON branch to die as
+// CODEX_RESPONSE_MALFORMED. The header is still honoured when it says
+// something -- it is the hint, not the evidence.
+const looksStreamed = (contentType: string, body: string): boolean =>
+  contentType.includes("text/event-stream") || /^(event|data):/mu.test(body);
+
 export const readResponsesBody = (
   contentType: string,
   body: string,
 ): unknown => {
-  if (!contentType.includes("text/event-stream")) {
+  if (!looksStreamed(contentType, body)) {
     try {
       return JSON.parse(body);
     } catch {
@@ -176,12 +192,22 @@ export const readResponsesBody = (
     }
   }
   let last: unknown;
+  const streamedOutput: unknown[] = [];
   for (const line of body.split("\n")) {
     if (!line.startsWith("data:")) continue;
     const payload = line.slice(5).trim();
     if (!payload || payload === "[DONE]") continue;
     try {
-      const event = JSON.parse(payload) as { response?: unknown };
+      const event = JSON.parse(payload) as {
+        type?: string;
+        response?: unknown;
+        item?: unknown;
+      };
+      if (
+        event.type === "response.output_item.done" &&
+        event.item !== undefined
+      )
+        streamedOutput.push(event.item);
       if (event.response !== undefined) last = event.response;
     } catch {
       // A single unparseable event is not the whole stream; the completed
@@ -189,7 +215,13 @@ export const readResponsesBody = (
     }
   }
   if (last === undefined) throw new CodexOAuthError("CODEX_RESPONSE_MALFORMED");
-  return last;
+  // This backend's `response.completed` carries `output: []`. The items were
+  // streamed and are not repeated at the end, so collapsing to the last
+  // event alone yields a finished response with nothing in it -- a model
+  // that answered and a caller told it did not. The items are put back.
+  const finished = last as { output?: unknown };
+  if (Array.isArray(finished.output) && finished.output.length > 0) return last;
+  return { ...(last as object), output: streamedOutput };
 };
 
 // The image_generation tool reports its result as an output item carrying
@@ -243,7 +275,7 @@ export async function listCodexModels(params: {
   const request = params.request ?? defaultCodexFetch;
   const sessionId = randomUUID();
   const attempt = (auth: CodexAuth) =>
-    request(CODEX_MODELS_URL, {
+    request(`${CODEX_MODELS_URL}?client_version=${CODEX_CLIENT_VERSION}`, {
       method: "GET",
       // A listing is JSON, not a stream; everything else about the headers
       // is what every other Codex call sends.

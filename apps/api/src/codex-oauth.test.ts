@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   CODEX_CLIENT_ID,
+  CODEX_CLIENT_VERSION,
   CODEX_MODELS_URL,
   CODEX_IMAGE_MODEL,
   CODEX_RESPONSES_URL,
@@ -323,7 +324,11 @@ describe("codex model registry", () => {
     };
     const listed = await listCodexModels({ auth: auth(), request });
     expect(listed.models).toEqual(["gpt-5.5", "gpt-5.3-codex-spark"]);
-    expect(seen.url).toBe(CODEX_MODELS_URL);
+    // client_version is required: without it the registry answers 400,
+    // "Field required" on the query string.
+    expect(seen.url).toBe(
+      `${CODEX_MODELS_URL}?client_version=${CODEX_CLIENT_VERSION}`,
+    );
     expect(seen.method).toBe("GET");
     expect(seen.headers).toMatchObject({
       authorization: "Bearer access-one",
@@ -346,7 +351,8 @@ describe("codex model registry", () => {
           }),
           "application/json",
         );
-      return calls.filter((entry) => entry === CODEX_MODELS_URL).length === 1
+      return calls.filter((entry) => entry.startsWith(CODEX_MODELS_URL))
+        .length === 1
         ? reply(401, "")
         : reply(
             200,
@@ -365,5 +371,35 @@ describe("codex model registry", () => {
     await expect(listCodexModels({ auth: auth(), request })).rejects.toThrow(
       "CODEX_RESPONSE_MALFORMED",
     );
+  });
+});
+
+// Both of these are what the live endpoint actually does, and both sent
+// every response to CODEX_RESPONSE_MALFORMED or to an empty output before
+// they were handled.
+describe("reading what this backend actually streams", () => {
+  it("reads a stream that arrives with no content-type at all", () => {
+    expect(
+      readResponsesBody(
+        "",
+        streamed({ output: [{ type: "message" }], status: "completed" }),
+      ),
+    ).toEqual({ output: [{ type: "message" }], status: "completed" });
+  });
+
+  it("puts back the output items that response.completed drops", () => {
+    const item = {
+      type: "message",
+      content: [{ type: "output_text", text: "pong" }],
+    };
+    const body = [
+      `data: ${JSON.stringify({ type: "response.output_item.done", item })}`,
+      `data: ${JSON.stringify({ type: "response.completed", response: { status: "completed", output: [] } })}`,
+      "",
+    ].join("\n");
+    expect(readResponsesBody("", body)).toEqual({
+      status: "completed",
+      output: [item],
+    });
   });
 });

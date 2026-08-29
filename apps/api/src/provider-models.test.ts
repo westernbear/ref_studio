@@ -230,10 +230,12 @@ describe("listing image models", () => {
   });
 
   // The Codex OAuth path talks to the Codex client's backend, which is not
+});
 
-  // The Codex path has a registry of its own -- the Codex client's, not the
-  // platform's /v1/models -- so the picker asks the account instead of
-  // offering whatever was true when this file was written.
+// The Codex path has a registry of its own -- the Codex client's, not the
+// platform's /v1/models -- so the picker asks the account instead of
+// offering whatever was true when this file was written.
+describe("listing codex-oauth models", () => {
   it("asks the codex registry and drops what the capability did not want", async () => {
     const models = await listProviderModels({
       providerKind: "codex-oauth",
@@ -285,40 +287,45 @@ describe("listing image models", () => {
   // Never an empty dropdown on a provider that plainly has models: the
   // registry being unreachable is not something the operator can fix from
   // this screen, and the next move is the same either way.
-  it("falls back to the static list when the registry will not answer", async () => {
-    expect(
-      await listProviderModels({
+  // Same failure shape as every other provider: the route turns this into
+  // an empty list plus a reason, and the field falls back to free text.
+  // Offering plausible-looking names this account may not have would only
+  // move the failure to job time.
+  it("surfaces a registry that will not answer", async () => {
+    await expect(
+      listProviderModels({
         providerKind: "codex-oauth",
         apiKey: CODEX_AUTH,
         baseUrl: null,
         capability: "text",
         codexFetch: async () => codexReply(500, "boom"),
       }),
-    ).toContain("gpt-5.1-codex");
+    ).rejects.toThrow(/CODEX_REQUEST_FAILED_500/);
   });
 
-  // The registry lists what Codex runs, which is no image model at all.
-  it("answers the image picker from the static list", async () => {
+  // The registry lists what Codex runs, which is no image model.
+  it("answers the image picker from the static list without asking", async () => {
     expect(
       await listProviderModels({
         providerKind: "codex-oauth",
         apiKey: CODEX_AUTH,
         baseUrl: null,
         capability: "image",
-        codexFetch: async () =>
-          codexReply(200, { models: [{ slug: "gpt-5.5" }] }),
+        codexFetch: () => {
+          throw new Error("the registry has no image models to list");
+        },
       }),
     ).toContain("gpt-image-2");
   });
 
-  it("falls back rather than throwing on a credential that does not parse", async () => {
-    expect(
-      await listProviderModels({
+  it("names a credential that does not parse", async () => {
+    await expect(
+      listProviderModels({
         providerKind: "codex-oauth",
         apiKey: "not an auth.json",
         baseUrl: null,
         capability: "text",
       }),
-    ).toContain("gpt-5.1-codex");
+    ).rejects.toBeInstanceOf(ProviderModelsError);
   });
 });

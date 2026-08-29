@@ -61,6 +61,11 @@ export function ModelField({
             value={model}
             onChange={(event) => onModelChange(event.target.value)}
             placeholder={placeholder}
+            // A bare text input in a form that also holds a credential is
+            // one Chrome will happily fill with the account's email. A
+            // saved model of "someone@example.com" fails at job time, in a
+            // log, hours later.
+            autoComplete="off"
             required
           />
         </label>
@@ -106,6 +111,7 @@ export function ModelField({
             value={model}
             onChange={(event) => onModelChange(event.target.value)}
             placeholder={placeholder}
+            autoComplete="off"
             autoFocus
             required
           />
