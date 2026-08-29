@@ -1,0 +1,259 @@
+.motion-workspace-shell {
+  block-size: 100dvb;
+  min-block-size: 0;
+  overflow: hidden;
+}
+.motion-workspace-shell > .upload-header {
+  flex: none;
+}
+.motion-workspace-main {
+  display: grid;
+  flex: 1;
+  min-block-size: 0;
+  min-inline-size: 0;
+  overflow: hidden;
+}
+.motion-workspace {
+  display: grid;
+  min-block-size: 0;
+  min-inline-size: 0;
+  overflow: hidden;
+  background: var(--color-canvas);
+}
+.motion-workspace-pane {
+  min-block-size: 0;
+  min-inline-size: 0;
+}
+.motion-workspace-separator {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  min-block-size: 0;
+  background: var(--color-hairline);
+  cursor: col-resize;
+  touch-action: none;
+}
+.motion-workspace-separator::before {
+  position: absolute;
+  inset-block: 0;
+  inline-size: 44px;
+  content: "";
+}
+.motion-workspace-separator::after {
+  content: "";
+  inline-size: 1px;
+  block-size: var(--space-2xl);
+  background: var(--color-on-surface-variant);
+}
+.motion-workspace-separator:hover,
+.motion-workspace-separator:focus-visible {
+  background: var(--color-ink);
+}
+.compiler-chat {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  border-inline-end: 1px solid var(--color-hairline);
+  background: var(--color-canvas-card);
+}
+.compiler-chat-header {
+  display: flex;
+  align-items: center;
+  min-block-size: var(--space-4xl);
+  padding: var(--space-md) var(--space-lg);
+  border-block-end: 1px solid var(--color-hairline);
+}
+.compiler-chat-header h1,
+.compiler-chat-header p {
+  margin: 0;
+}
+.compiler-chat-header h1 {
+  color: var(--color-ink);
+  font: var(--type-caption-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.compiler-chat-header p {
+  margin-block-start: var(--space-xxs);
+  color: var(--color-body-mid);
+  font: var(--type-caption-mono-sm);
+  overflow-wrap: anywhere;
+}
+.compiler-chat-history {
+  display: grid;
+  align-content: start;
+  gap: var(--space-lg);
+  min-block-size: 0;
+  overflow-y: auto;
+  padding: var(--space-lg);
+}
+.compiler-chat-message {
+  display: grid;
+  gap: var(--space-sm);
+}
+.compiler-chat-message > span,
+.motion-action-card > header,
+.motion-action-summary,
+.motion-field > span,
+.motion-downloads {
+  color: var(--color-body-mid);
+  font: var(--type-caption-mono-sm);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.compiler-chat-message[data-role="assistant"] > span {
+  color: var(--color-breeze);
+}
+.compiler-chat-message[data-role="user"] {
+  justify-items: end;
+  text-align: end;
+}
+.compiler-chat-message[data-role="operation"] {
+  justify-items: center;
+}
+.compiler-chat-message[data-role="operation"] p {
+  border-radius: var(--radius-pill);
+  padding-block: var(--space-xs);
+  color: var(--color-body-mid);
+  font: var(--type-caption-mono-sm);
+}
+.compiler-chat-message[data-role="error"] p {
+  border-color: var(--color-error);
+  color: var(--color-error);
+}
+.compiler-chat-message p {
+  max-inline-size: min(100%, 68ch);
+  margin: 0;
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-lg);
+  padding: var(--space-md);
+  background: var(--color-canvas-soft);
+  color: var(--color-ink);
+  font: var(--type-body-sm);
+  overflow-wrap: anywhere;
+}
+.compiler-chat-input {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-sm);
+  padding: var(--space-lg);
+  border-block-start: 1px solid var(--color-hairline);
+}
+.compiler-chat-input textarea {
+  min-block-size: calc(var(--space-4xl) + var(--space-sm));
+  resize: none;
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-lg);
+  padding: var(--space-md);
+  background: var(--color-canvas-soft);
+  color: var(--color-ink);
+  font: var(--type-body-sm);
+}
+.compiler-chat-input button {
+  align-self: end;
+  min-inline-size: var(--space-4xl);
+}
+.motion-action-card {
+  display: grid;
+  min-block-size: max-content;
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--color-canvas);
+}
+.motion-action-card > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  min-block-size: var(--space-3xl);
+  padding: var(--space-md);
+  border-block-end: 1px solid var(--color-hairline);
+  background: var(--color-surface-container-low);
+  color: var(--color-ink);
+}
+.motion-action-card > header strong {
+  color: var(--color-breeze);
+  font: inherit;
+}
+.motion-action-card > header strong[data-state="QUEUED"],
+.motion-action-card > header strong[data-state="RENDERING"] {
+  color: var(--color-sunset);
+}
+.motion-action-body {
+  display: grid;
+  gap: var(--space-md);
+  padding: var(--space-md);
+}
+.motion-action-summary,
+.motion-action-buttons,
+.motion-downloads {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  justify-content: space-between;
+}
+.motion-progress {
+  block-size: var(--space-xs);
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-variant);
+}
+.motion-progress > span {
+  display: block;
+  block-size: 100%;
+  background: var(--color-ink);
+  transition: inline-size 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.motion-field {
+  display: grid;
+  gap: var(--space-xs);
+  min-inline-size: 0;
+}
+.motion-field input,
+.motion-field select {
+  inline-size: 100%;
+  min-inline-size: 0;
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  padding-inline: var(--space-sm);
+  background: var(--color-canvas-soft);
+  color: var(--color-ink);
+  font: var(--type-body-sm);
+}
+.motion-capability-note {
+  margin: 0;
+  color: var(--color-body-mid);
+  font: var(--type-body-sm);
+  overflow-wrap: anywhere;
+}
+.motion-history-controls {
+  display: grid;
+  gap: var(--space-sm);
+}
+.motion-action-buttons button,
+.motion-downloads a {
+  min-block-size: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm);
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font: var(--type-button);
+}
+.motion-downloads span {
+  text-transform: none;
+  letter-spacing: 0;
+}
+.motion-mobile-tabs {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .motion-progress > span {
+    transition: none;
+  }
+}

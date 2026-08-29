@@ -555,6 +555,23 @@
         "required": ["schema", "baseSceneDigest", "operations"],
         "additionalProperties": false
       },
+      "MotionSceneRollbackV1": {
+        "type": "object",
+        "properties": {
+          "schema": { "type": "string", "const": "motion-scene-rollback-v1" },
+          "version": { "type": "integer", "minimum": 1 }
+        },
+        "required": ["schema", "version"],
+        "additionalProperties": false
+      },
+      "MotionSceneRenderV1": {
+        "type": "object",
+        "properties": {
+          "schema": { "type": "string", "const": "motion-scene-render-v1" }
+        },
+        "required": ["schema"],
+        "additionalProperties": false
+      },
       "MotionSceneSnapshotV1": {
         "type": "object",
         "properties": {
@@ -746,6 +763,66 @@
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/DeliverablesV1" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/jobs/{id}/motion-scene/rollback": {
+      "post": {
+        "operationId": "rollbackMotionScene",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/MotionSceneRollbackV1" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "New version restored from history",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MotionSceneSnapshotV1"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version conflict",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SafeErrorEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/jobs/{id}/motion-scene/render": {
+      "post": {
+        "operationId": "renderMotionScene",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/MotionSceneRenderV1" }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Queued",
+            "content": {
+              "application/json": { "schema": { "type": "object" } }
+            }
+          },
+          "409": {
+            "description": "Version conflict",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SafeErrorEnvelope" }
               }
             }
           }

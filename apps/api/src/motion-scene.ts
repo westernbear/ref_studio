@@ -7,20 +7,25 @@ import { assertLegalTransition } from "../../../packages/contracts/src/lifecycle
 import { safeEnvelope } from "./boundary.js";
 import { beatSheetFor } from "./author-scene.js";
 import type { CreatorWorkflowStore, Job } from "./creator-workflow.js";
-import { applySceneOperations, MotionSceneError } from "./motion-operations.js";
+import {
+  applySceneOperations,
+  MotionSceneError,
+  verifyMotionScene,
+} from "./motion-operations.js";
 import { registerMotionDeliverables } from "./motion-deliverables.js";
+import { registerMotionSceneCommands } from "./motion-scene-commands.js";
 import {
   currentMotionSceneRow,
   findMotionSceneRow,
   insertMotionSceneVersion,
   motionSceneSnapshot,
-  passedMotionVerification,
 } from "./motion-scene-store.js";
 
 export {
   applySceneOperations,
   keyframesFromMotionIntent,
   verifyAndRepair,
+  verifyMotionScene,
 } from "./motion-operations.js";
 
 const etag = (digest: string): string => `"${digest}"`;
@@ -55,9 +60,16 @@ export function registerMotionScene(
     async (request: FastifyRequest<{ Params: { jobId: string } }>, reply) => {
       try {
         const job = jobFor(request);
-        reply.send(
-          motionSceneSnapshot(db, job, currentMotionSceneRow(db, job)),
-        );
+        let row = findMotionSceneRow(db, job);
+        if (!row && admissionEnabled && job.generation && job.authoredScene)
+          row = insertMotionSceneVersion(
+            db,
+            job,
+            job.authoredScene.spec,
+            verifyMotionScene(job.authoredScene.spec),
+          );
+        if (!row) throw new MotionSceneError("RESOURCE_NOT_FOUND", 404);
+        reply.send(motionSceneSnapshot(db, job, row));
       } catch (error) {
         fail(reply, error);
       }
@@ -118,12 +130,10 @@ export function registerMotionScene(
           throw new MotionSceneError("VERSION_CONFLICT", 409);
         const scene = SceneSpecSchema.parse(JSON.parse(current.sceneJson));
         const applied = applySceneOperations(scene, batch);
-        const next = insertMotionSceneVersion(
-          db,
-          job,
-          applied,
-          passedMotionVerification(applied),
-        );
+        const verification = verifyMotionScene(applied);
+        if (verification.status !== "PASS")
+          throw new MotionSceneError("SCENE_VERIFICATION_FAILED", 409);
+        const next = insertMotionSceneVersion(db, job, applied, verification);
         job.authoredScene = {
           spec: applied,
           beatSheet: beatSheetFor(applied),
@@ -159,5 +169,6 @@ export function registerMotionScene(
       }
     },
   );
+  registerMotionSceneCommands(app, store, db);
   registerMotionDeliverables(app, store);
 }

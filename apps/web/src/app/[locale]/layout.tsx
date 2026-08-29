@@ -8,8 +8,12 @@ import {
 } from "next-intl/server";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
+import { DevReactTools } from "../../components/DevReactTools";
 import { routing } from "../../i18n/routing";
 import "../../styles/primitives.css";
+import "../../styles/motion-workspace.css";
+import "../../styles/motion-editor.css";
+import "../../styles/motion-responsive.css";
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
@@ -43,6 +47,7 @@ export default async function RootLayout({
   return (
     <html lang={locale}>
       <body>
+        <DevReactTools />
         <NextIntlClientProvider messages={messages}>
           {children}
         </NextIntlClientProvider>

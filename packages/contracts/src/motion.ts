@@ -56,6 +56,19 @@ export const SceneOperationBatchV1Schema = z
   });
 export type SceneOperationBatchV1 = z.infer<typeof SceneOperationBatchV1Schema>;
 
+export const MotionSceneRollbackV1Schema = z
+  .object({
+    schema: z.literal("motion-scene-rollback-v1"),
+    version: z.number().int().positive(),
+  })
+  .strict();
+export type MotionSceneRollbackV1 = z.infer<typeof MotionSceneRollbackV1Schema>;
+
+export const MotionSceneRenderV1Schema = z
+  .object({ schema: z.literal("motion-scene-render-v1") })
+  .strict();
+export type MotionSceneRenderV1 = z.infer<typeof MotionSceneRenderV1Schema>;
+
 export const BackendCapabilitySnapshotV1Schema = z
   .object({
     schema: z.literal("backend-capability-snapshot-v1"),
@@ -107,3 +120,19 @@ export const MotionSceneSnapshotV1Schema = z
   })
   .strict();
 export type MotionSceneSnapshotV1 = z.infer<typeof MotionSceneSnapshotV1Schema>;
+
+export const MotionDeliverablesV1Schema = z
+  .object({
+    backend: z.enum(["native", "adobe"]),
+    items: z.array(
+      z
+        .object({
+          id: z.string().min(1),
+          kind: z.enum(["mp4", "scene-package", "report"]),
+          downloadUrl: z.string().startsWith("/v1/"),
+        })
+        .strict(),
+    ),
+  })
+  .strict();
+export type MotionDeliverablesV1 = z.infer<typeof MotionDeliverablesV1Schema>;

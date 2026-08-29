@@ -409,6 +409,17 @@ const schemas = {
     },
     ["schema", "baseSceneDigest", "operations"],
   ),
+  MotionSceneRollbackV1: object(
+    {
+      schema: { type: "string", const: "motion-scene-rollback-v1" },
+      version: { type: "integer", minimum: 1 },
+    },
+    ["schema", "version"],
+  ),
+  MotionSceneRenderV1: object(
+    { schema: { type: "string", const: "motion-scene-render-v1" } },
+    ["schema"],
+  ),
   MotionSceneSnapshotV1: object(
     {
       schema: { type: "string", const: "motion-scene-snapshot-v1" },
@@ -533,6 +544,35 @@ const document = {
         },
       },
     },
+    "/v1/jobs/{id}/motion-scene/rollback": {
+      post: {
+        operationId: "rollbackMotionScene",
+        requestBody: json(ref("MotionSceneRollbackV1")),
+        responses: {
+          200: {
+            description: "New version restored from history",
+            ...json(ref("MotionSceneSnapshotV1")),
+          },
+          409: {
+            description: "Version conflict",
+            ...json(ref("SafeErrorEnvelope")),
+          },
+        },
+      },
+    },
+    "/v1/jobs/{id}/motion-scene/render": {
+      post: {
+        operationId: "renderMotionScene",
+        requestBody: json(ref("MotionSceneRenderV1")),
+        responses: {
+          202: { description: "Queued", ...json({ type: "object" }) },
+          409: {
+            description: "Version conflict",
+            ...json(ref("SafeErrorEnvelope")),
+          },
+        },
+      },
+    },
     "/v1/jobs/{id}/scene-package-download": {
       get: {
         operationId: "downloadScenePackage",
@@ -584,7 +624,7 @@ if (
   )
 )
   throw new Error("OPENAPI_COMPONENTS_NOT_CONCRETE");
-const client = `export type ApiOperation = "createUpload" | "createJob" | "getJob" | "getMotionScene" | "patchMotionScene" | "getDeliverables" | "downloadScenePackage" | "createReview" | "listReceipts"\nexport const paths = { uploads: "/v1/uploads", jobs: "/v1/jobs", motionScene: "/v1/jobs/{id}/motion-scene", deliverables: "/v1/jobs/{id}/deliverables", scenePackage: "/v1/jobs/{id}/scene-package-download", reviews: "/v1/reviews", receipts: "/v1/receipts" } as const\n`;
+const client = `export type ApiOperation = "createUpload" | "createJob" | "getJob" | "getMotionScene" | "patchMotionScene" | "rollbackMotionScene" | "renderMotionScene" | "getDeliverables" | "downloadScenePackage" | "createReview" | "listReceipts"\nexport const paths = { uploads: "/v1/uploads", jobs: "/v1/jobs", motionScene: "/v1/jobs/{id}/motion-scene", motionSceneRollback: "/v1/jobs/{id}/motion-scene/rollback", motionSceneRender: "/v1/jobs/{id}/motion-scene/render", deliverables: "/v1/jobs/{id}/deliverables", scenePackage: "/v1/jobs/{id}/scene-package-download", reviews: "/v1/reviews", receipts: "/v1/receipts" } as const\n`;
 await mkdir(resolve(root, "packages/contracts/generated"), { recursive: true });
 await writeFile(
   resolve(root, "packages/contracts/generated/openapi.json"),
@@ -601,7 +641,7 @@ await writeFile(
 process.stdout.write(
   JSON.stringify({
     status: "generated",
-    operations: 9,
+    operations: 11,
     schemas: Object.keys(schemas).length,
   }) + "\n",
 );

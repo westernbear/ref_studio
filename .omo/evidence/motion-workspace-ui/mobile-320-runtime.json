@@ -1,0 +1,11 @@
+{
+  "tool": "$browse",
+  "chromiumNoSandbox": true,
+  "viewport": { "width": 320, "height": 700 },
+  "bodyScrollWidth": 320,
+  "documentScrollWidth": 320,
+  "documentClientWidth": 320,
+  "horizontalOverflow": false,
+  "separatorDisplay": "none",
+  "mobileTabs": { "top": 655, "bottom": 700, "height": 45 }
+}

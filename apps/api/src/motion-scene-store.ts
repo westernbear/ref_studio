@@ -10,7 +10,7 @@ import {
 import { sha256Hex } from "../../../packages/contracts/src/canonical-json.js";
 import type { SceneSpec } from "../../../packages/contracts/src/scene-spec.js";
 import type { Job } from "./creator-workflow.js";
-import { MotionSceneError } from "./motion-operations.js";
+import { MotionSceneError, verifyMotionScene } from "./motion-operations.js";
 
 export type MotionSceneVersionRow = {
   readonly id: string;
@@ -51,6 +51,21 @@ export const findMotionSceneRow = (
         WHERE h.job_id=? AND h.tenant_id=?`,
     )
     .get(job.id, job.tenantId) as MotionSceneVersionRow | undefined;
+
+export const motionSceneRowForVersion = (
+  db: Database.Database,
+  job: Job,
+  version: number,
+): MotionSceneVersionRow | undefined =>
+  db
+    .prepare(
+      `SELECT id, version, scene_digest AS sceneDigest, scene_json AS sceneJson,
+              capability_json AS capabilityJson, verification_json AS verificationJson,
+              created_at AS createdAt
+         FROM motion_scene_versions
+        WHERE job_id=? AND tenant_id=? AND version=?`,
+    )
+    .get(job.id, job.tenantId, version) as MotionSceneVersionRow | undefined;
 
 export const insertMotionSceneVersion = (
   db: Database.Database,
@@ -104,16 +119,6 @@ export const currentMotionSceneRow = (
   return row;
 };
 
-export const passedMotionVerification = (
-  scene: SceneSpec,
-): VerificationReportV1 => ({
-  schema: "verification-report-v1",
-  sceneDigest: sha256Hex(scene),
-  attempts: 1,
-  status: "PASS",
-  findings: [],
-});
-
 export function recordMotionSceneRefinement(
   db: Database.Database,
   job: Job,
@@ -124,8 +129,12 @@ export function recordMotionSceneRefinement(
   const current = findMotionSceneRow(db, job);
   if (current && current.sceneDigest !== previousDigest)
     throw new MotionSceneError("VERSION_CONFLICT", 409);
-  if (!current) insertMotionSceneVersion(db, job, previous, null);
-  insertMotionSceneVersion(db, job, next, passedMotionVerification(next));
+  const verification = verifyMotionScene(next);
+  if (verification.status !== "PASS")
+    throw new MotionSceneError("SCENE_VERIFICATION_FAILED", 409);
+  if (!current)
+    insertMotionSceneVersion(db, job, previous, verifyMotionScene(previous));
+  insertMotionSceneVersion(db, job, next, verification);
 }
 
 export const motionSceneSnapshot = (
