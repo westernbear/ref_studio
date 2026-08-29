@@ -23,13 +23,19 @@ Display text uses Manrope. Body text uses Inter. Dense IDs, timestamps, states, 
 
 Buttons are 44px minimum targets with pill treatment for primary navigation actions. Panels use `--color-canvas-card`, one `--color-hairline` border, and small radii. The shared brand lockup displays `/logo.png` in a clipped, stable frame across creator, admin, auth, upload, and progress shells. Tables sit inside `.table-wrap` so narrow viewports scroll only the table when needed. Live record pages use native GET filters, an adjacent selected-record detail panel, and cursor pagination. Receipt decisions use a chronological timeline; audit and receipt exports expose the API's pending export state. Progress surfaces use a large numeric state, a thin meter, and live metadata panels without placeholder rows. Review choice forms use labeled native selects and numeric inputs inside the existing panel surface, with explicit owner and measured-rectangle modes.
 
+The motion workspace reuses those primitives as five named components. `workspace-split` owns the desktop chat/editor ratio and separator states. `compiler-chat` owns prompt, operation-event, queued/running/result, and error messages. `scene-canvas` owns frame scrubbing, layer selection, pointer/keyboard movement, and immediate text/shape preview. `scene-inspector` owns timeline and typed property edits. `motion-action-card` owns verification, version history, undo/rollback, rerender, backend capability, and deliverable links. Every visible action must call a real route or be natively disabled with the unavailable capability named.
+
 ## 5. Layout
 
 Creator and admin pages use bounded app shells with responsive wrapping navigation. Product workflow pages use a centered content width. List/detail layouts use two desktop columns and stack in document order on narrow screens; pagination and export actions stay in normal flow. Progress pages use a full-viewport shell with header/footer fixed in the document flow and a single main scroll region on small screens. Intrinsic grids must use `minmax(min(..., 100%), 1fr)`, and unbroken metadata values must wrap inside their cells, to avoid mobile overflow.
 
+The motion workspace is a bounded `100dvb` app shell below the product header. Desktop uses a 50:50 split with a 30:70 to 70:30 resizable range; chat and editor each own their vertical scroll. Mobile keeps both panes mounted and switches visibility through Chat/Editor tabs so draft text, selection, frame, and version state survive tab changes. At 320px the primary surface never owns horizontal scroll.
+
 ## 6. Motion
 
 Motion is limited to state-bearing transitions: progress meter width, hover affordance, live polling status, and the indeterminate ring shown while a stage is actually running. Animated decoration is not used. Every animation is slowed under `prefers-reduced-motion`, never left running at full speed.
+
+The workspace separator uses native pointer events without animated width. Tab, status, and selection changes use opacity/color only. Reduced motion removes transforms and continuous progress animation while keeping textual live status visible.
 
 ## 7. Anti-Patterns
 
