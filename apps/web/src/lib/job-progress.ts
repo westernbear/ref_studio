@@ -373,6 +373,7 @@ export const thinkingPhaseFor = (
   job: Pick<JobProgress, "state" | "preparationStage">,
   sending: boolean,
 ): ThinkingPhase | null => {
+  if (isTerminalJobState(job.state)) return null;
   if (sending) return "patching";
   if (
     job.preparationStage === "AUTHORING_QUEUED" ||

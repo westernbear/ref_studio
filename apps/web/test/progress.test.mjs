@@ -397,4 +397,12 @@ describe("chat thinking phase", () => {
     expect(thinkingPhaseFor(job("AWAITING_T5"), false)).toBeNull();
     expect(thinkingPhaseFor(job("COMPLETED"), false)).toBeNull();
   });
+  it("stops thinking when authoring ends in a terminal state", () => {
+    expect(
+      thinkingPhaseFor(job("FAILED", "AUTHORING_RUNNING"), false),
+    ).toBeNull();
+    expect(
+      thinkingPhaseFor(job("FAILED", "AUTHORING_RUNNING"), true),
+    ).toBeNull();
+  });
 });
