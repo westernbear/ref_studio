@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { crc32, deflateSync } from "node:zlib";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -32,19 +33,34 @@ const withDb = async (
   }
 };
 
-// Only the signature + IHDR header matter to pngHasAlpha/generateImageMaterial
-// -- neither decodes pixel data -- so these fixtures are minimal, not valid,
-// full PNGs.
-const pngHeader = (colorType: number): Buffer => {
-  const buffer = Buffer.alloc(33);
-  buffer.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], 0);
-  buffer.write("IHDR", 12, "ascii");
-  buffer.writeUInt8(8, 24); // bit depth
-  buffer.writeUInt8(colorType, 25);
-  return buffer;
+// Real PNGs, because pngHasAlpha decodes pixels now: a header-only fixture
+// is not a PNG and is answered no, which is the point of the check.
+const pngChunk = (type: string, data: Buffer): Buffer => {
+  const head = Buffer.alloc(8);
+  head.writeUInt32BE(data.length, 0);
+  head.write(type, 4, "ascii");
+  const crc = Buffer.alloc(4);
+  crc.writeUInt32BE(crc32(Buffer.concat([head.subarray(4), data])) >>> 0, 0);
+  return Buffer.concat([head, data, crc]);
 };
-const rgbaPng = pngHeader(6);
-const rgbPng = pngHeader(2);
+const makePng = (colorType: number, samples: readonly number[]): Buffer => {
+  const channels = colorType === 6 ? 4 : colorType === 4 ? 2 : 3;
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(samples.length / channels, 0);
+  ihdr.writeUInt32BE(1, 4);
+  ihdr.writeUInt8(8, 8);
+  ihdr.writeUInt8(colorType, 9);
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    pngChunk("IHDR", ihdr),
+    pngChunk("IDAT", deflateSync(Buffer.from([0, ...samples]))),
+    pngChunk("IEND", Buffer.alloc(0)),
+  ]);
+};
+const rgbaPng = makePng(6, [255, 0, 0, 0]);
+const opaqueRgbaPng = makePng(6, [255, 0, 0, 255]);
+const greyAlphaPng = makePng(4, [128, 0]);
+const rgbPng = makePng(2, [255, 0, 0]);
 
 const enableProvider = (
   db: ReturnType<typeof openApiDatabase>,
@@ -97,13 +113,15 @@ describe("sizeForCanvas", () => {
 describe("pngHasAlpha", () => {
   it("is true for RGBA (color type 6) and grey+alpha (color type 4)", () => {
     expect(pngHasAlpha(rgbaPng)).toBe(true);
-    expect(pngHasAlpha(pngHeader(4))).toBe(true);
+    expect(pngHasAlpha(greyAlphaPng)).toBe(true);
   });
 
   it("is false for RGB, indexed, greyscale, and garbage bytes", () => {
     expect(pngHasAlpha(rgbPng)).toBe(false);
-    expect(pngHasAlpha(pngHeader(3))).toBe(false);
-    expect(pngHasAlpha(pngHeader(0))).toBe(false);
+    // The one the header check got wrong: an alpha channel every pixel of
+    // which is opaque. This backend answers with exactly that.
+    expect(pngHasAlpha(opaqueRgbaPng)).toBe(false);
+    expect(pngHasAlpha(makePng(0, [128]))).toBe(false);
     expect(pngHasAlpha(new Uint8Array([1, 2, 3]))).toBe(false);
     expect(pngHasAlpha(new Uint8Array())).toBe(false);
   });

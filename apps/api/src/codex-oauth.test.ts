@@ -3,7 +3,6 @@ import {
   CODEX_CLIENT_ID,
   CODEX_CLIENT_VERSION,
   CODEX_MODELS_URL,
-  CODEX_IMAGE_MODEL,
   CODEX_RESPONSES_URL,
   CODEX_TOKEN_URL,
   CodexOAuthError,
@@ -171,7 +170,7 @@ describe("reading a streamed response", () => {
 });
 
 describe("generating an image", () => {
-  it("asks the codex endpoint for a transparent png of the given size", async () => {
+  it("asks the codex endpoint for a png of the given size", async () => {
     const seen: {
       url?: string;
       headers?: Record<string, string>;
@@ -190,6 +189,7 @@ describe("generating an image", () => {
     };
     const result = await generateCodexImage({
       auth: auth(),
+      model: "gpt-5.4",
       prompt: "a gold glow",
       size: "1024x1536",
       request,
@@ -200,12 +200,19 @@ describe("generating an image", () => {
     expect(seen.headers?.authorization).toBe("Bearer access-one");
     expect(seen.headers?.["chatgpt-account-id"]).toBe("acct-1");
     const body = JSON.parse(seen.body ?? "{}");
-    expect(body.model).toBe(CODEX_IMAGE_MODEL);
+    expect(body.model).toBe("gpt-5.4");
+    // A list, not a bare string -- this backend refuses a string. And no
+    // background: "transparent", which it also refuses.
+    expect(body.input).toEqual([
+      {
+        role: "user",
+        content: [{ type: "input_text", text: "a gold glow" }],
+      },
+    ]);
     expect(body.tools).toEqual([
       {
         type: "image_generation",
         size: "1024x1536",
-        background: "transparent",
         output_format: "png",
       },
     ]);
@@ -238,6 +245,7 @@ describe("generating an image", () => {
     };
     const result = await generateCodexImage({
       auth: auth(),
+      model: "gpt-5.4",
       prompt: "a gold glow",
       size: "1024x1024",
       request,
@@ -266,6 +274,7 @@ describe("generating an image", () => {
     await expect(
       generateCodexImage({
         auth: auth(),
+        model: "gpt-5.4",
         prompt: "x",
         size: "1024x1024",
         request,
@@ -280,6 +289,7 @@ describe("generating an image", () => {
     await expect(
       generateCodexImage({
         auth: auth(),
+        model: "gpt-5.4",
         prompt: "x",
         size: "1024x1024",
         request,
@@ -292,6 +302,7 @@ describe("generating an image", () => {
     await expect(
       generateCodexImage({
         auth: auth(),
+        model: "gpt-5.4",
         prompt: "x",
         size: "1024x1024",
         request,

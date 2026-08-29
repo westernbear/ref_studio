@@ -303,19 +303,20 @@ describe("listing codex-oauth models", () => {
     ).rejects.toThrow(/CODEX_REQUEST_FAILED_500/);
   });
 
-  // The registry lists what Codex runs, which is no image model.
-  it("answers the image picker from the static list without asking", async () => {
+  // Not a mistake: on this path the picture comes from the image_generation
+  // tool running on an ordinary Codex model, and asking for an image model
+  // is refused outright. So the image field names the same kind of model.
+  it("answers the image picker from the same registry", async () => {
     expect(
       await listProviderModels({
         providerKind: "codex-oauth",
         apiKey: CODEX_AUTH,
         baseUrl: null,
         capability: "image",
-        codexFetch: () => {
-          throw new Error("the registry has no image models to list");
-        },
+        codexFetch: async () =>
+          codexReply(200, { models: [{ slug: "gpt-5.4" }] }),
       }),
-    ).toContain("gpt-image-2");
+    ).toEqual(["gpt-5.4"]);
   });
 
   it("names a credential that does not parse", async () => {

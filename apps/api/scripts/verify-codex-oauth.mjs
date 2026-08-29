@@ -35,14 +35,18 @@ const option = (name, fallback) => {
 const path =
   argv.find((entry) => !entry.startsWith("--")) ??
   join(homedir(), ".codex", "auth.json");
-const CHAT_MODEL = option("model", "gpt-5.1-codex");
+// No default worth writing down: which models an account can run is what
+// the registry answers, and a constant here would be a guess that fails at
+// request time. --model= overrides.
+const MODEL = option("model", null);
 
 const step = (name, detail) =>
   console.log(JSON.stringify({ step: name, ...detail }));
 
 const main = async () => {
-  const { generateCodexImage, parseCodexAuth, CODEX_IMAGE_MODEL } =
-    await import("../dist/apps/api/src/codex-oauth.js");
+  const { generateCodexImage, listCodexModels, parseCodexAuth } = await import(
+    "../dist/apps/api/src/codex-oauth.js"
+  );
 
   let auth;
   try {
@@ -92,6 +96,17 @@ const main = async () => {
     return;
   }
 
+  // Which models exist is the registry's answer, not this script's.
+  // codex-auto-review is Codex's own helper, not something to test with.
+  const resolveModel = async () => {
+    if (MODEL) return MODEL;
+    const { models } = await listCodexModels({ auth });
+    const chosen =
+      models.find((slug) => !slug.includes("auto-review")) ?? models[0];
+    if (!chosen) throw new Error("the registry listed no models");
+    return chosen;
+  };
+
   if (flag("chat")) {
     const { createCodexChatModel } = await import(
       "../dist/apps/api/src/codex-chat.js"
@@ -99,15 +114,16 @@ const main = async () => {
     const { generateObject } = await import("ai");
     const { z } = await import("zod");
     const chatStarted = Date.now();
+    const model = await resolveModel();
     try {
       const { object } = await generateObject({
-        model: createCodexChatModel({ auth, model: CHAT_MODEL }),
+        model: createCodexChatModel({ auth, model }),
         schema: z.object({ answer: z.string().min(1) }),
         prompt: "Reply with the single word: pong.",
       });
       step("chat", {
         ok: true,
-        model: CHAT_MODEL,
+        model,
         elapsedMs: Date.now() - chatStarted,
         answer: object.answer,
       });
@@ -115,7 +131,7 @@ const main = async () => {
     } catch (error) {
       step("chat", {
         ok: false,
-        model: CHAT_MODEL,
+        model,
         elapsedMs: Date.now() - chatStarted,
         error: error instanceof Error ? error.message : String(error),
       });
@@ -125,10 +141,12 @@ const main = async () => {
   }
 
   const started = Date.now();
+  const model = await resolveModel();
   let generated;
   try {
     generated = await generateCodexImage({
       auth,
+      model,
       prompt:
         "a single flat solid red circle, centred, on a fully transparent background",
       size: "1024x1024",
@@ -136,7 +154,7 @@ const main = async () => {
   } catch (error) {
     step("generate", {
       ok: false,
-      model: CODEX_IMAGE_MODEL,
+      model,
       elapsedMs: Date.now() - started,
       error: error instanceof Error ? error.message : String(error),
     });
@@ -145,8 +163,12 @@ const main = async () => {
   }
 
   const bytes = Buffer.from(generated.b64, "base64");
-  // The same check the pipeline applies: an opaque PNG is as useless as no
-  // PNG, because the renderer composites this over a scene.
+  // The pipeline's own check, imported rather than reimplemented: this
+  // backend refuses a transparent-background request and answers RGBA
+  // regardless, so an alpha channel proves nothing and only the pixels do.
+  const { pngHasAlpha } = await import(
+    "../dist/apps/api/src/openai-image-material.js"
+  );
   const isPng =
     bytes.length > 25 &&
     bytes[0] === 0x89 &&
@@ -154,10 +176,10 @@ const main = async () => {
     bytes[2] === 0x4e &&
     bytes[3] === 0x47;
   const colorType = isPng ? bytes[25] : null;
-  const hasAlpha = colorType === 4 || colorType === 6;
+  const hasAlpha = pngHasAlpha(bytes);
   step("generate", {
     ok: true,
-    model: CODEX_IMAGE_MODEL,
+    model,
     elapsedMs: Date.now() - started,
     bytes: bytes.length,
     isPng,

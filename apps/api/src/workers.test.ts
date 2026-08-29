@@ -1,3 +1,4 @@
+import { crc32, deflateSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
 import { createHash } from "node:crypto";
 import {
@@ -2814,14 +2815,29 @@ describe("generate-track material and render phases", () => {
       ...(materialGenerate ? { materialGenerate } : {}),
     });
   };
-  // A minimal (not fully valid) RGBA PNG: only the signature and IHDR
-  // header matter to the alpha check the provider runs.
+  // A real 1x1 transparent RGBA PNG. It used to be a bare header, which the
+  // alpha check accepted; it decodes the pixels now, so a header is not a
+  // PNG and is refused.
+  const pngChunk = (type: string, data: Buffer): Buffer => {
+    const head = Buffer.alloc(8);
+    head.writeUInt32BE(data.length, 0);
+    head.write(type, 4, "ascii");
+    const crc = Buffer.alloc(4);
+    crc.writeUInt32BE(crc32(Buffer.concat([head.subarray(4), data])) >>> 0, 0);
+    return Buffer.concat([head, data, crc]);
+  };
   const rgbaPngHeader = (): Buffer => {
-    const bytes = Buffer.alloc(33);
-    bytes.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], 0);
-    bytes.write("IHDR", 12, "ascii");
-    bytes.writeUInt8(6, 25);
-    return bytes;
+    const ihdr = Buffer.alloc(13);
+    ihdr.writeUInt32BE(1, 0);
+    ihdr.writeUInt32BE(1, 4);
+    ihdr.writeUInt8(8, 8);
+    ihdr.writeUInt8(6, 9);
+    return Buffer.concat([
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+      pngChunk("IHDR", ihdr),
+      pngChunk("IDAT", deflateSync(Buffer.from([0, 255, 0, 0, 0]))),
+      pngChunk("IEND", Buffer.alloc(0)),
+    ]);
   };
   const materialRequestPayload = {
     assetId: "backdrop",

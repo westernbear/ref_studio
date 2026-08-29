@@ -1,11 +1,11 @@
 import { createHash } from "node:crypto";
+import { inflateSync } from "node:zlib";
 import type Database from "better-sqlite3";
 import {
   getMaterialProviderSettingsWithSecret,
   updateMaterialProviderSettings,
 } from "./material-provider-settings.js";
 import {
-  CODEX_IMAGE_MODEL,
   CodexOAuthError,
   generateCodexImage,
   parseCodexAuth,
@@ -123,25 +123,111 @@ export const sizeForCanvas = (
 // PNG signature (8 bytes) + IHDR chunk: 4-byte length, 4-byte type "IHDR",
 // 4-byte width, 4-byte height, 1-byte bit depth, then 1-byte colour type at
 // offset 25. Colour type 4 (greyscale+alpha) and 6 (RGBA) carry an alpha
-// channel; 0, 2 and 3 never do. Reading this header is enough to tell
-// whether the vendor actually honoured `background: "transparent"` --
-// decoding the whole image is not needed for that question. Plain
-// Uint8Array indexing throughout, not Buffer methods: see node-shims.d.ts's
-// deliberately narrow Buffer type.
+// channel; 0, 2 and 3 never do. Plain Uint8Array indexing throughout, not
+// Buffer methods: see node-shims.d.ts's deliberately narrow Buffer type.
+//
+// The header alone used to be the whole check, on the reasoning that an
+// alpha channel is what `background: "transparent"` produces. It is not: a
+// fully opaque image is routinely encoded as RGBA, and the Codex backend
+// rejects the transparent-background request outright while still answering
+// with colour type 6. So the header passed and the renderer composited a
+// solid rectangle over the scene. The pixels decide now, and the header is
+// only the cheap way to stop early.
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+const be32 = (bytes: Uint8Array, at: number): number =>
+  ((bytes[at] ?? 0) << 24) |
+  ((bytes[at + 1] ?? 0) << 16) |
+  ((bytes[at + 2] ?? 0) << 8) |
+  (bytes[at + 3] ?? 0);
+const chunkTypeAt = (bytes: Uint8Array, at: number): string =>
+  String.fromCharCode(
+    bytes[at] ?? 0,
+    bytes[at + 1] ?? 0,
+    bytes[at + 2] ?? 0,
+    bytes[at + 3] ?? 0,
+  );
+
+// Paeth, from the PNG spec. Named rather than inlined because it is the one
+// filter whose result is not obvious from reading it.
+const paeth = (left: number, above: number, corner: number): number => {
+  const estimate = left + above - corner;
+  const dLeft = Math.abs(estimate - left);
+  const dAbove = Math.abs(estimate - above);
+  const dCorner = Math.abs(estimate - corner);
+  if (dLeft <= dAbove && dLeft <= dCorner) return left;
+  return dAbove <= dCorner ? above : corner;
+};
+
+// True as soon as one pixel is not fully opaque. Fails closed: a PNG this
+// cannot decode -- 16-bit, interlaced, a broken chunk stream -- is answered
+// no, so the job stops by name instead of shipping a picture nobody checked.
+const hasTransparentPixel = (bytes: Uint8Array, colorType: number): boolean => {
+  const width = be32(bytes, 16);
+  const height = be32(bytes, 20);
+  if (bytes[24] !== 8 || bytes[28] !== 0) return false;
+  if (width < 1 || height < 1) return false;
+  const parts: Uint8Array[] = [];
+  for (let at = 8; at + 8 <= bytes.byteLength; ) {
+    const length = be32(bytes, at);
+    const type = chunkTypeAt(bytes, at + 4);
+    const from = at + 8;
+    if (from + length > bytes.byteLength) return false;
+    if (type === "IDAT") parts.push(bytes.subarray(from, from + length));
+    if (type === "IEND") break;
+    at = from + length + 4;
+  }
+  if (parts.length === 0) return false;
+  let pixels: Uint8Array;
+  try {
+    pixels = inflateSync(Buffer.concat(parts.map((part) => Buffer.from(part))));
+  } catch {
+    return false;
+  }
+  const channels = colorType === 6 ? 4 : 2;
+  const stride = width * channels;
+  if (pixels.byteLength < (stride + 1) * height) return false;
+  const previous = new Uint8Array(stride);
+  const current = new Uint8Array(stride);
+  let read = 0;
+  for (let row = 0; row < height; row += 1) {
+    const filter = pixels[read] ?? 0;
+    read += 1;
+    for (let index = 0; index < stride; index += 1) {
+      const raw = pixels[read + index] ?? 0;
+      const left = index >= channels ? (current[index - channels] ?? 0) : 0;
+      const above = previous[index] ?? 0;
+      const corner = index >= channels ? (previous[index - channels] ?? 0) : 0;
+      const value =
+        filter === 0
+          ? raw
+          : filter === 1
+            ? raw + left
+            : filter === 2
+              ? raw + above
+              : filter === 3
+                ? raw + ((left + above) >> 1)
+                : filter === 4
+                  ? raw + paeth(left, above, corner)
+                  : -1;
+      if (value < 0) return false;
+      current[index] = value & 0xff;
+    }
+    read += stride;
+    for (let index = channels - 1; index < stride; index += channels)
+      if ((current[index] ?? 255) < 255) return true;
+    previous.set(current);
+  }
+  return false;
+};
+
 export const pngHasAlpha = (bytes: Uint8Array): boolean => {
-  if (bytes.byteLength < 26) return false;
+  if (bytes.byteLength < 33) return false;
   for (const [index, expected] of PNG_SIGNATURE.entries())
     if (bytes[index] !== expected) return false;
-  const chunkType = String.fromCharCode(
-    bytes[12] ?? 0,
-    bytes[13] ?? 0,
-    bytes[14] ?? 0,
-    bytes[15] ?? 0,
-  );
-  if (chunkType !== "IHDR") return false;
+  if (chunkTypeAt(bytes, 12) !== "IHDR") return false;
   const colorType = bytes[25];
-  return colorType === 4 || colorType === 6;
+  if (colorType !== 4 && colorType !== 6) return false;
+  return hasTransparentPixel(bytes, colorType);
 };
 
 export async function generateImageMaterial(params: {
@@ -168,10 +254,10 @@ export async function generateImageMaterial(params: {
   let result: Awaited<ReturnType<GenerateImage>>;
   let tool: string;
   if (settings.providerKind === "codex-oauth") {
-    // The console's model, when it names one -- the picker offers only
-    // models this path can actually run, so an operator who chose one gets
-    // that one, and the provenance says which.
-    const codexModel = settings.model || CODEX_IMAGE_MODEL;
+    // The console's model. The picker offers what the account's registry
+    // lists, which on this path is a Codex model hosting the
+    // image_generation tool -- there is no image model to fall back to.
+    const codexModel = settings.model;
     tool = `codex-oauth:${codexModel}`;
     let generated: Awaited<ReturnType<typeof generateCodexImage>>;
     try {

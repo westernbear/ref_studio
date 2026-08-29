@@ -318,14 +318,21 @@ export async function generateCodexImage(params: {
   readonly auth: CodexAuth;
   readonly prompt: string;
   readonly size: "1024x1024" | "1536x1024" | "1024x1536";
-  readonly model?: string;
+  readonly model: string;
   readonly request?: CodexFetch;
 }): Promise<CodexImageResult> {
   const request = params.request ?? defaultCodexFetch;
   const sessionId = randomUUID();
   const body = JSON.stringify({
-    model: params.model || CODEX_IMAGE_MODEL,
-    input: params.prompt,
+    model: params.model,
+    // A bare string is refused here -- "Input must be a list" -- however
+    // freely the documented Responses API accepts one.
+    input: [
+      {
+        role: "user",
+        content: [{ type: "input_text", text: params.prompt }],
+      },
+    ],
     stream: true,
     // The backend rejects server-side persistence outright; every client
     // that works against it sends this.
@@ -334,11 +341,12 @@ export async function generateCodexImage(params: {
       {
         type: "image_generation",
         size: params.size,
-        // The renderer composites this over a scene, so an opaque result is
-        // as useless as no result -- openai-image-material.ts checks the
-        // returned PNG's colour type and fails the job if the alpha channel
-        // is not actually there.
-        background: "transparent",
+        // No `background: "transparent"`: this backend refuses it outright
+        // ("Transparent background is not supported for this model") and
+        // answers nothing at all. What comes back is RGBA either way, so
+        // whether it is actually transparent is a question about the
+        // pixels -- openai-image-material.ts's pngHasAlpha reads them and
+        // fails the job when they are all opaque.
         output_format: "png",
       },
     ],

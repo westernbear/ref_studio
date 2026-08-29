@@ -255,7 +255,10 @@ export function MaterialProviderSettingsForm({
           modelsReason={liveModelsReason}
           model={model}
           onModelChange={setModel}
-          placeholder="gpt-image-2"
+          // On codex the picture comes from the image_generation tool
+          // running on an ordinary Codex model; asking for an image model
+          // is refused, so the name to expect here is a different shape.
+          placeholder={isCodex(providerKind) ? "gpt-5.4" : "gpt-image-2"}
           label={t("model")}
           namespace="MaterialProviderSettingsForm"
         />

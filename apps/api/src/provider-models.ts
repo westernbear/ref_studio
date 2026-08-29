@@ -89,17 +89,6 @@ export type ProviderModelsRequest = Readonly<{
   persistCodexAuth?: (auth: CodexAuth) => void;
 }>;
 
-// The Codex model registry lists what Codex runs, which is no image model
-// at all, so the image picker is static and has to be. The chat picker is
-// not: it asks the account (listCodexModels), because which models a
-// subscription can run is not a thing this file can know -- one account
-// answers gpt-5.4 and gpt-5.3-codex-spark where a guess here said
-// gpt-5.1-codex, and every name in that guess would have 404'd at job time.
-export const CODEX_IMAGE_MODELS: readonly string[] = [
-  "gpt-image-2",
-  "gpt-image-1",
-];
-
 // OpenAI's /v1/models says nothing about what a model can do, so an image
 // field would otherwise offer every text model it has. Matching on the id
 // is a heuristic and openly one; it is the difference between a usable
@@ -129,10 +118,17 @@ const sorted = (ids: readonly string[]): readonly string[] =>
 // a list of plausible names instead would be worse than no list: they are
 // names this account may not have, and the operator would only find that out
 // when a job died on one.
+// Both capabilities get the same list, which is not the mistake it looks
+// like: on this path the picture comes from the image_generation tool
+// running on an ordinary Codex model, and asking for an image model is
+// refused. So the image field names the same kind of model the chat field
+// does, and the registry is the only thing that knows which ones exist --
+// one account answers gpt-5.4 and gpt-5.3-codex-spark where a static guess
+// here said gpt-5.1-codex, and every name in that guess would have failed
+// at job time.
 const listCodex = async (
   request: ProviderModelsRequest,
 ): Promise<readonly string[]> => {
-  if (request.capability === "image") return [...CODEX_IMAGE_MODELS];
   let auth: CodexAuth;
   try {
     auth = parseCodexAuth(request.apiKey);
@@ -148,8 +144,9 @@ const listCodex = async (
   // The caller that owns the row writes it back.
   if (listed.refreshedAuth) request.persistCodexAuth?.(listed.refreshedAuth);
   // The registry has never answered with one, but an image model reaching
-  // the chat picker is the exact failure this module was written to stop --
-  // see the header. One predicate is cheaper than finding out again.
+  // either picker is the exact failure this module was written to stop --
+  // see the header, and note that this backend refuses image models. One
+  // predicate is cheaper than finding out again.
   return sorted(listed.models.filter((id) => !IMAGE_MODEL_ID.test(id)));
 };
 
