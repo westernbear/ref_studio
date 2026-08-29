@@ -354,3 +354,30 @@ export const formatJobStamp = (value: string): string | null =>
       ? value.replace("T", " ").slice(0, 19)
       : value
     : null;
+
+export type ThinkingPhase = "authoring" | "patching" | "compiling";
+
+// Which wait the chat pane is in, if any. Three of them read differently to
+// a creator and only one can be true at a time:
+//
+//  - patching: their note is in flight, folding into an existing scene.
+//  - authoring: the model is writing the whole scene, one call, 25-37s.
+//  - compiling: the worker is preparing/rendering/assembling. The stage
+//    checklist above already reports which stage and how far; this only says
+//    "still alive", so it carries a single phrase rather than a rotation
+//    that would invent progress the checklist has not reported.
+//
+// Null everywhere else -- READY and AWAITING_* are not terminal but nothing
+// is running, and an indicator that never stops is an indicator nobody reads.
+export const thinkingPhaseFor = (
+  job: Pick<JobProgress, "state" | "preparationStage">,
+  sending: boolean,
+): ThinkingPhase | null => {
+  if (sending) return "patching";
+  if (
+    job.preparationStage === "AUTHORING_QUEUED" ||
+    job.preparationStage === "AUTHORING_RUNNING"
+  )
+    return "authoring";
+  return isJobWorking(job.state) ? "compiling" : null;
+};

@@ -200,7 +200,8 @@
     "authoringChecking": "Checking the scene holds up",
     "patchingReading": "Reading your note",
     "patchingApplying": "Applying it to the scene",
-    "patchingChecking": "Checking the result"
+    "patchingChecking": "Checking the result",
+    "compilingWorking": "Compiling your video"
   },
   "CompilerDialogue": {
     "title": "AI chat",

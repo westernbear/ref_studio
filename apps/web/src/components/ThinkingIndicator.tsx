@@ -2,6 +2,9 @@
 
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
+import type { ThinkingPhase } from "../lib/job-progress";
+
+export type { ThinkingPhase };
 
 // What the screen shows while the model is working and has produced
 // nothing yet.
@@ -29,8 +32,6 @@ import { useEffect, useState } from "react";
 // rotating text -- the information survives, the movement does not.
 const PHASE_MS = 2_600;
 
-export type ThinkingPhase = "authoring" | "patching";
-
 // Per phase, in order. Kept short: this is a status line, not a log.
 const PHASES: Readonly<Record<ThinkingPhase, readonly string[]>> = {
   authoring: [
@@ -40,6 +41,10 @@ const PHASES: Readonly<Record<ThinkingPhase, readonly string[]>> = {
     "authoringChecking",
   ],
   patching: ["patchingReading", "patchingApplying", "patchingChecking"],
+  // One phrase, not a rotation: the stage checklist directly above this
+  // reports the real stage and its progress. Rotating invented phases beside
+  // a live checklist would put two different stories on the same screen.
+  compiling: ["compilingWorking"],
 };
 
 export function ThinkingIndicator({

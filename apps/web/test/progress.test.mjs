@@ -17,6 +17,7 @@ import {
   progressStages,
   shotLabelKey,
   stageLabelKey,
+  thinkingPhaseFor,
 } from "../src/lib/job-progress.ts";
 
 describe("compiler progress projection", () => {
@@ -367,5 +368,33 @@ describe("every next step has words in both catalogues", () => {
       expect(ko.NextStep[key], `ko-KR NextStep.${key}`).toBeTruthy();
       expect(en.NextStep[key], `en-US NextStep.${key}`).toBeTruthy();
     }
+  });
+});
+
+describe("chat thinking phase", () => {
+  const job = (state, preparationStage = "") => ({ state, preparationStage });
+
+  it("shows the patch phase while a chat note is in flight", () => {
+    expect(thinkingPhaseFor(job("RENDERING"), true)).toBe("patching");
+  });
+  it("shows the authoring phase while the model writes the scene", () => {
+    expect(thinkingPhaseFor(job("PREPARING", "AUTHORING_RUNNING"), false)).toBe(
+      "authoring",
+    );
+    expect(thinkingPhaseFor(job("PREPARING", "AUTHORING_QUEUED"), false)).toBe(
+      "authoring",
+    );
+  });
+  it("shows the compiling phase for every other working state", () => {
+    expect(thinkingPhaseFor(job("PREPARING", "ASSETS_RUNNING"), false)).toBe(
+      "compiling",
+    );
+    expect(thinkingPhaseFor(job("RENDERING"), false)).toBe("compiling");
+    expect(thinkingPhaseFor(job("ASSEMBLING"), false)).toBe("compiling");
+  });
+  it("goes quiet when nothing is running", () => {
+    expect(thinkingPhaseFor(job("READY"), false)).toBeNull();
+    expect(thinkingPhaseFor(job("AWAITING_T5"), false)).toBeNull();
+    expect(thinkingPhaseFor(job("COMPLETED"), false)).toBeNull();
   });
 });

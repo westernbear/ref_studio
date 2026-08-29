@@ -200,7 +200,8 @@
     "authoringChecking": "장면이 맞는지 확인하는 중",
     "patchingReading": "수정 요청을 읽는 중",
     "patchingApplying": "장면에 반영하는 중",
-    "patchingChecking": "반영 결과를 확인하는 중"
+    "patchingChecking": "반영 결과를 확인하는 중",
+    "compilingWorking": "영상을 컴파일하는 중"
   },
   "CompilerDialogue": {
     "title": "AI 대화",
