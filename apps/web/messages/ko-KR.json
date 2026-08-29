@@ -228,6 +228,8 @@
     "showAnalysis": "분석 표시",
     "preview": "프리뷰",
     "previewPending": "프리뷰 만드는 중...",
+    "final": "최종",
+    "finalPending": "최종 결과물 준비 중...",
     "translations": "번역",
     "job": "작업: {id}",
     "frames": "프레임: {frames}",

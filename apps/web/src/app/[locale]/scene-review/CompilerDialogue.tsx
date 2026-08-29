@@ -24,6 +24,7 @@ import {
   requestId,
   type AcceptedMedia,
 } from "../../../lib/upload-client";
+import { useRouter } from "../../../i18n/navigation";
 
 type TranslatedOwner = Readonly<{
   ownerId: string;
@@ -92,6 +93,7 @@ export function CompilerDialogue({
   // AI rationales are free text: the server needs the reader's locale to
   // ask the model for the right language.
   const locale = useLocale();
+  const router = useRouter();
   const [job, setJob] = useState(initialJob);
   // Derived from the live-polled job, not a static prop -- otherwise the
   // preview never appears once rendering finishes after initial page load.
@@ -107,6 +109,14 @@ export function CompilerDialogue({
   // reader has no reason to care about, so the clean cut only stands in when
   // the captioned one has not been made yet.
   const shownPreviewUrl = previewLabeledUrl ?? previewUrl;
+  const finalVideoUrl = job.artifactId
+    ? `/api/v1/jobs/${encodeURIComponent(job.id)}/delivery-download`
+    : null;
+  const resultVideoUrl =
+    job.state === "COMPLETED" ? finalVideoUrl : shownPreviewUrl;
+  const resultLabel = job.state === "COMPLETED" ? t("final") : t("preview");
+  const resultPendingLabel =
+    job.state === "COMPLETED" ? t("finalPending") : t("previewPending");
   const evidenceVideoUrl = job.evidenceVideoArtifactId
     ? `/api/v1/jobs/${encodeURIComponent(job.id)}/evidence-video-download`
     : null;
@@ -140,6 +150,7 @@ export function CompilerDialogue({
     readonly TranslatedOwner[]
   >([]);
   const historyRef = useRef<HTMLDivElement | null>(null);
+  const refreshedProjectionRef = useRef("");
 
   useEffect(() => {
     if (isTerminalJobState(job.state)) return undefined;
@@ -165,6 +176,18 @@ export function CompilerDialogue({
         }
         const parsed = parseJobProgress(body);
         if (parsed) {
+          const refreshKey = [
+            parsed.state,
+            parsed.attempt,
+            parsed.approvedGates.join(","),
+            parsed.artifactId,
+            parsed.previewArtifactId,
+            parsed.previewLabeledArtifactId,
+          ].join("|");
+          if (refreshedProjectionRef.current !== refreshKey) {
+            refreshedProjectionRef.current = refreshKey;
+            router.refresh();
+          }
           setJob(parsed);
           setPollError("");
         }
@@ -720,21 +743,19 @@ export function CompilerDialogue({
           </div>
           <div className="dialogue-compare-pane">
             <div className="dialogue-compare-head">
-              <span className="dialogue-compare-name">{t("preview")}</span>
+              <span className="dialogue-compare-name">{resultLabel}</span>
             </div>
-            {shownPreviewUrl ? (
+            {resultVideoUrl ? (
               <video
                 controls
                 preload="metadata"
                 playsInline
-                src={shownPreviewUrl}
+                src={resultVideoUrl}
               />
             ) : (
-              // Falling back to sourceUrl here put the reference clip in both
-              // panes, the right one labelled "Preview".
               <div className="dialogue-preview-pending" role="status">
                 <span className="spinner spinner-lg" aria-hidden="true" />
-                <span>{t("previewPending")}</span>
+                <span>{resultPendingLabel}</span>
               </div>
             )}
           </div>

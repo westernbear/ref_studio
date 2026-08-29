@@ -367,12 +367,11 @@ export type ThinkingPhase = "authoring" | "patching" | "compiling";
 //    "still alive", so it carries a single phrase rather than a rotation
 //    that would invent progress the checklist has not reported.
 //
-// Null everywhere else -- READY and AWAITING_* are not terminal but nothing
-// is running, and an indicator that never stops is an indicator nobody reads.
 export const thinkingPhaseFor = (
   job: Pick<JobProgress, "state" | "preparationStage">,
   sending: boolean,
 ): ThinkingPhase | null => {
+  if (sending && job.state === "COMPLETED") return "patching";
   if (isTerminalJobState(job.state)) return null;
   if (sending) return "patching";
   if (

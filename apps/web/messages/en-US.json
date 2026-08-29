@@ -228,6 +228,8 @@
     "showAnalysis": "Show analysis",
     "preview": "Preview",
     "previewPending": "Rendering preview...",
+    "final": "Final",
+    "finalPending": "Preparing the final result...",
     "translations": "Translations",
     "job": "Job: {id}",
     "frames": "Frames: {frames}",

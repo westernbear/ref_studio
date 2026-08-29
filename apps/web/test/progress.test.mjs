@@ -374,7 +374,8 @@ describe("every next step has words in both catalogues", () => {
 describe("chat thinking phase", () => {
   const job = (state, preparationStage = "") => ({ state, preparationStage });
 
-  it("shows the patch phase while a chat note is in flight", () => {
+  it("shows the patch phase immediately when a completed job is being refined", () => {
+    expect(thinkingPhaseFor(job("COMPLETED"), true)).toBe("patching");
     expect(thinkingPhaseFor(job("RENDERING"), true)).toBe("patching");
   });
   it("shows the authoring phase while the model writes the scene", () => {

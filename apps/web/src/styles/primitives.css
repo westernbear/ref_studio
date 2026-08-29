@@ -1178,6 +1178,7 @@ progress {
   grid-template-columns: minmax(min(360px, 100%), 400px) minmax(0, 1fr);
   gap: var(--space-xl);
   min-height: 520px;
+  align-items: start;
 }
 .dialogue-chat,
 .dialogue-preview {
@@ -1327,7 +1328,8 @@ progress {
   padding: var(--space-sm) var(--space-md);
 }
 .dialogue-preview {
-  grid-template-rows: auto 1fr auto;
+  align-self: start;
+  grid-template-rows: auto auto auto;
 }
 .dialogue-preview-toolbar {
   display: flex;
@@ -1369,6 +1371,7 @@ progress {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--space-xl);
+  align-content: start;
   padding: var(--space-xl) var(--space-lg);
   background:
     radial-gradient(
