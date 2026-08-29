@@ -3,3 +3,5 @@ lane=context-miner sha=436e16c0c794b2401ec370a4bfc12b439bccd8e0 verdict=PASS sou
 lane=qa-executor sha=436e16c0c794b2401ec370a4bfc12b439bccd8e0 verdict=PASS source=agent:/root/final_qa_executor_v2
 
 lane=security-review sha=436e16c0c794b2401ec370a4bfc12b439bccd8e0 verdict=PASS source=agent:/root/final_security_review_v2
+
+lane=debugging-runtime-audit sha=436e16c0c794b2401ec370a4bfc12b439bccd8e0 verdict=PASS source=agent:/root/final_debug_runtime_audit_v2
