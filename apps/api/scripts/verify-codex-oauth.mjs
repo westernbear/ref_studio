@@ -12,6 +12,7 @@
 //   node scripts/verify-codex-oauth.mjs path/to/auth.json
 //   node scripts/verify-codex-oauth.mjs --chat           # the chat path
 //   node scripts/verify-codex-oauth.mjs --chat --model=gpt-5.1
+//   node scripts/verify-codex-oauth.mjs --models          # the registry
 //
 // --chat asks the same credential for one structured object instead of one
 // image, which is what every AI call in this repo does. It is the only way
@@ -62,6 +63,34 @@ const main = async () => {
     hasAccountId: Boolean(auth.tokens.account_id),
     lastRefresh: auth.last_refresh ?? null,
   });
+
+  if (flag("models")) {
+    const { listCodexModels } = await import(
+      "../dist/apps/api/src/codex-oauth.js"
+    );
+    const started = Date.now();
+    try {
+      const listed = await listCodexModels({ auth });
+      step("models", {
+        ok: true,
+        elapsedMs: Date.now() - started,
+        count: listed.models.length,
+        models: listed.models,
+        refreshed: Boolean(listed.refreshedAuth),
+      });
+      console.log(
+        "codex-oauth model registry works against the live endpoint.",
+      );
+    } catch (error) {
+      step("models", {
+        ok: false,
+        elapsedMs: Date.now() - started,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      process.exitCode = 1;
+    }
+    return;
+  }
 
   if (flag("chat")) {
     const { createCodexChatModel } = await import(

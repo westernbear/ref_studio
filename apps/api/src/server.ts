@@ -20,11 +20,13 @@ import type { AiProviderSettingsPublic } from "./ai-provider-settings.js";
 import {
   getAiProviderSettings,
   getAiProviderSettingsWithSecret,
+  updateAiProviderSettings,
 } from "./ai-provider-settings.js";
 import type { MaterialProviderSettingsPublic } from "./material-provider-settings.js";
 import {
   getMaterialProviderSettings,
   getMaterialProviderSettingsWithSecret,
+  updateMaterialProviderSettings,
 } from "./material-provider-settings.js";
 import { buildAuthApp } from "./app.js";
 import type { AuthStore } from "./auth.js";
@@ -484,6 +486,29 @@ export function loadAdminReadStore(
         getAiProviderSettingsWithSecret(writableDb, aiSecretKey),
       materialProviderSettingsWithSecret: () =>
         getMaterialProviderSettingsWithSecret(writableDb, aiSecretKey),
+      // A codex credential that refreshed while listing models. No audit
+      // event: a token rotating on schedule is not an operator changing a
+      // setting, and a log full of them hides the changes that are.
+      persistCodexAuth: (target, auth) => {
+        const patch = { apiKey: JSON.stringify(auth) };
+        const actor = "system:codex-refresh";
+        if (target === "ai")
+          updateAiProviderSettings(
+            writableDb,
+            patch,
+            actor,
+            Date.now(),
+            aiSecretKey,
+          );
+        else
+          updateMaterialProviderSettings(
+            writableDb,
+            patch,
+            actor,
+            Date.now(),
+            aiSecretKey,
+          );
+      },
     };
   } finally {
     db.close();

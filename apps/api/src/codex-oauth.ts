@@ -30,6 +30,10 @@ import { z } from "zod";
 
 export const CODEX_BASE_URL = "https://chatgpt.com/backend-api/codex";
 export const CODEX_RESPONSES_URL = `${CODEX_BASE_URL}/responses`;
+// The Codex client's own model registry. Not the platform's /v1/models --
+// it answers a different shape ({ models: [{ slug }] }) and lists only what
+// this account's subscription can actually run.
+export const CODEX_MODELS_URL = `${CODEX_BASE_URL}/models`;
 export const CODEX_TOKEN_URL = "https://auth.openai.com/oauth/token";
 // What the Codex CLI calls itself in the header the backend reads to tell
 // its own clients apart. Every published client that talks to this endpoint
@@ -88,9 +92,9 @@ export const parseCodexAuth = (raw: string): CodexAuth => {
 export type CodexFetch = (
   url: string,
   init: Readonly<{
-    method: "POST";
+    method: "GET" | "POST";
     headers: Readonly<Record<string, string>>;
-    body: string;
+    body?: string;
   }>,
 ) => Promise<
   Readonly<{
@@ -218,6 +222,54 @@ export const codexHeaders = (
     ? { "chatgpt-account-id": auth.tokens.account_id }
     : {}),
 });
+
+const CodexModelsSchema = z.looseObject({
+  models: z.array(z.looseObject({ slug: z.string().min(1) })),
+});
+
+export type CodexModelsResult = Readonly<{
+  models: readonly string[];
+  refreshedAuth?: CodexAuth;
+}>;
+
+// What the account can actually run, asked of the account rather than
+// guessed. The static lists in provider-models.ts are the fallback for when
+// this cannot be reached, not the source of truth -- a subscription's model
+// set changes without anyone here noticing.
+export async function listCodexModels(params: {
+  readonly auth: CodexAuth;
+  readonly request?: CodexFetch;
+}): Promise<CodexModelsResult> {
+  const request = params.request ?? defaultCodexFetch;
+  const sessionId = randomUUID();
+  const attempt = (auth: CodexAuth) =>
+    request(CODEX_MODELS_URL, {
+      method: "GET",
+      // A listing is JSON, not a stream; everything else about the headers
+      // is what every other Codex call sends.
+      headers: { ...codexHeaders(auth, sessionId), accept: "application/json" },
+    });
+  let response = await attempt(params.auth);
+  let refreshedAuth: CodexAuth | undefined;
+  if (response.status === 401) {
+    refreshedAuth = await refreshCodexAuth(params.auth, request);
+    response = await attempt(refreshedAuth);
+  }
+  if (response.status !== 200)
+    throw new CodexOAuthError(`CODEX_REQUEST_FAILED_${response.status}`);
+  let body: unknown;
+  try {
+    body = JSON.parse(await response.text());
+  } catch {
+    throw new CodexOAuthError("CODEX_RESPONSE_MALFORMED");
+  }
+  const parsed = CodexModelsSchema.safeParse(body);
+  if (!parsed.success) throw new CodexOAuthError("CODEX_RESPONSE_MALFORMED");
+  return {
+    models: parsed.data.models.map((model) => model.slug),
+    ...(refreshedAuth ? { refreshedAuth } : {}),
+  };
+}
 
 export type CodexImageResult = Readonly<{
   b64: string;

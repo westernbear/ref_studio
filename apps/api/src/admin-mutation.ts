@@ -20,6 +20,7 @@ import {
   type MaterialProviderSettingsPatch,
 } from "./material-provider-settings.js";
 import { ProviderModelsError, listProviderModels } from "./provider-models.js";
+import type { CodexAuth } from "./codex-oauth.js";
 import { IdempotencyStore, safeEnvelope, requestHash } from "./boundary.js";
 import {
   cancelJob,
@@ -720,6 +721,33 @@ export function registerAdminMutation(
             : "baseUrl" in saved
               ? (saved.baseUrl ?? null)
               : null;
+        // Only the saved credential is written back. When the operator has
+        // typed a key into the form and not saved it, listing against it
+        // must not commit it -- the whole point of this route is answering
+        // before anything is committed.
+        const persistCodexAuth =
+          providerKind === "codex-oauth" && !body.apiKey
+            ? (auth: CodexAuth) => {
+                const patch = { apiKey: JSON.stringify(auth) };
+                const actor = "system:codex-refresh";
+                if (forAi)
+                  updateAiProviderSettings(
+                    db,
+                    patch,
+                    actor,
+                    Date.now(),
+                    aiSecretKey,
+                  );
+                else
+                  updateMaterialProviderSettings(
+                    db,
+                    patch,
+                    actor,
+                    Date.now(),
+                    aiSecretKey,
+                  );
+              }
+            : undefined;
         try {
           reply.send({
             models: await listProviderModels({
@@ -727,6 +755,7 @@ export function registerAdminMutation(
               apiKey,
               baseUrl,
               capability: forAi ? "text" : "image",
+              ...(persistCodexAuth ? { persistCodexAuth } : {}),
             }),
             reason: null,
           });

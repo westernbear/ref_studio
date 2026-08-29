@@ -8,6 +8,7 @@ import {
 import type { AiProviderSettingsPublic } from "./ai-provider-settings.js";
 import type { MaterialProviderSettingsPublic } from "./material-provider-settings.js";
 import { ProviderModelsError, listProviderModels } from "./provider-models.js";
+import type { CodexAuth } from "./codex-oauth.js";
 import { safeEnvelope } from "./boundary.js";
 import type { WorkerStore } from "./workers.js";
 
@@ -122,6 +123,14 @@ export type AdminReadStore = {
   readonly materialProviderSettingsWithSecret?: () => MaterialProviderSettingsPublic & {
     readonly apiKey: string | null;
   };
+  // codex-oauth's credential rotates when the model registry refreshes it,
+  // and the rotated refresh token is the one that still works. Reads do not
+  // otherwise write, so this is the narrowest way to let that one write
+  // through without handing the read store a database.
+  readonly persistCodexAuth?: (
+    target: "ai" | "material",
+    auth: CodexAuth,
+  ) => void;
 };
 type Query = {
   readonly q?: string;
@@ -614,6 +623,8 @@ export function registerAdminRead(
             apiKey: settings.apiKey,
             baseUrl: "baseUrl" in settings ? (settings.baseUrl ?? null) : null,
             capability: forAi ? "text" : "image",
+            persistCodexAuth: (auth) =>
+              store.persistCodexAuth?.(forAi ? "ai" : "material", auth),
           });
           reply.send({ models, reason: null });
         } catch (cause) {

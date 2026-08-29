@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { listCodexModels, parseCodexAuth } from "./codex-oauth.js";
+import type { CodexAuth, CodexFetch } from "./codex-oauth.js";
 
 // Asks a provider which models it actually has, so the console can offer a
 // list instead of a text box.
@@ -80,22 +82,27 @@ export type ProviderModelsRequest = Readonly<{
   baseUrl: string | null;
   capability: ModelCapability;
   fetch?: ModelsFetch;
+  // codex-oauth only: its registry is a different endpoint with a different
+  // auth story, so it gets its own seam rather than being bent through
+  // ModelsFetch.
+  codexFetch?: CodexFetch;
+  persistCodexAuth?: (auth: CodexAuth) => void;
 }>;
 
-// The image models reachable through the Codex OAuth path. Listed here
-// because that path has no model-listing endpoint of its own -- it is the
-// Codex client's backend, not a catalogue -- so the alternative is an empty
-// picker on a provider that plainly does have models. A short static list
-// that goes stale is honest about what it is; "type a name" is still the
-// last option in the picker for anything newer.
+// Fallbacks, not the list. codex-oauth is asked what the account can run
+// (listCodexModels, against the Codex model registry); these are what the
+// picker offers when that cannot be reached -- an offline console, a
+// credential the registry rejects, a shape it stopped answering. A short
+// stale list beats an empty dropdown on a provider that plainly has models,
+// and "type a name" is still the last option for anything newer.
+//
+// The registry lists what Codex runs, so it carries no image models; the
+// image picker is this list either way.
 export const CODEX_IMAGE_MODELS: readonly string[] = [
   "gpt-image-2",
   "gpt-image-1",
 ];
 
-// The same, for the chat path. Same reasoning, same staleness, same escape
-// hatch: the Codex backend has no /models, so this is a starting list and
-// "type a name" covers whatever ships next.
 export const CODEX_TEXT_MODELS: readonly string[] = [
   "gpt-5.1-codex",
   "gpt-5.1-codex-mini",
@@ -128,6 +135,40 @@ const parse = <T>(schema: z.ZodType<T>, body: string): T => {
 const sorted = (ids: readonly string[]): readonly string[] =>
   [...new Set(ids)].sort((left, right) => left.localeCompare(right));
 
+// Never throws: a picker that cannot reach the registry falls back to the
+// static list rather than to an empty dropdown, because the operator's next
+// move is the same either way -- pick one, or type a name. The reason is
+// not surfaced for the same reason the list is not empty: there is nothing
+// here for them to fix.
+const listCodex = async (
+  request: ProviderModelsRequest,
+): Promise<readonly string[]> => {
+  const fallback =
+    request.capability === "image" ? CODEX_IMAGE_MODELS : CODEX_TEXT_MODELS;
+  let auth: CodexAuth;
+  try {
+    auth = parseCodexAuth(request.apiKey);
+  } catch {
+    return [...fallback];
+  }
+  try {
+    const listed = await listCodexModels({
+      auth,
+      ...(request.codexFetch ? { request: request.codexFetch } : {}),
+    });
+    // A refresh here rotates the stored refresh token, so dropping it would
+    // leave the console's copy stale and the credential dead on the next
+    // job. The caller that owns the row writes it back.
+    if (listed.refreshedAuth) request.persistCodexAuth?.(listed.refreshedAuth);
+    const models = listed.models.filter(
+      (id) => IMAGE_MODEL_ID.test(id) === (request.capability === "image"),
+    );
+    return models.length > 0 ? sorted(models) : [...fallback];
+  } catch {
+    return [...fallback];
+  }
+};
+
 export async function listProviderModels(
   request: ProviderModelsRequest,
 ): Promise<readonly string[]> {
@@ -141,10 +182,7 @@ export async function listProviderModels(
     return response.text();
   };
 
-  if (request.providerKind === "codex-oauth")
-    return request.capability === "image"
-      ? [...CODEX_IMAGE_MODELS]
-      : [...CODEX_TEXT_MODELS];
+  if (request.providerKind === "codex-oauth") return listCodex(request);
 
   if (request.providerKind === "google") {
     const base =

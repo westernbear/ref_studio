@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   CODEX_CLIENT_ID,
+  CODEX_MODELS_URL,
   CODEX_IMAGE_MODEL,
   CODEX_RESPONSES_URL,
   CODEX_TOKEN_URL,
   CodexOAuthError,
   generateCodexImage,
+  listCodexModels,
   parseCodexAuth,
   readGeneratedImage,
   readResponsesBody,
@@ -294,5 +296,74 @@ describe("generating an image", () => {
         request,
       }),
     ).rejects.toBeInstanceOf(CodexOAuthError);
+  });
+});
+
+// The registry is the Codex client's own, not the platform's /v1/models: a
+// different endpoint answering { models: [{ slug }] }, listing what this
+// subscription can run.
+describe("codex model registry", () => {
+  it("asks the registry and returns its slugs", async () => {
+    const seen: {
+      url?: string;
+      method?: string;
+      headers?: Record<string, string>;
+    } = {};
+    const request: CodexFetch = async (url, init) => {
+      seen.url = url;
+      seen.method = init.method;
+      seen.headers = { ...init.headers };
+      return reply(
+        200,
+        JSON.stringify({
+          models: [{ slug: "gpt-5.5" }, { slug: "gpt-5.3-codex-spark" }],
+        }),
+        "application/json",
+      );
+    };
+    const listed = await listCodexModels({ auth: auth(), request });
+    expect(listed.models).toEqual(["gpt-5.5", "gpt-5.3-codex-spark"]);
+    expect(seen.url).toBe(CODEX_MODELS_URL);
+    expect(seen.method).toBe("GET");
+    expect(seen.headers).toMatchObject({
+      authorization: "Bearer access-one",
+      "chatgpt-account-id": "acct-1",
+      accept: "application/json",
+    });
+    expect(listed.refreshedAuth).toBeUndefined();
+  });
+
+  it("refreshes on 401 and hands the rotated credential back to be stored", async () => {
+    const calls: string[] = [];
+    const request: CodexFetch = async (url) => {
+      calls.push(url);
+      if (url === CODEX_TOKEN_URL)
+        return reply(
+          200,
+          JSON.stringify({
+            access_token: "access-two",
+            refresh_token: "refresh-two",
+          }),
+          "application/json",
+        );
+      return calls.filter((entry) => entry === CODEX_MODELS_URL).length === 1
+        ? reply(401, "")
+        : reply(
+            200,
+            JSON.stringify({ models: [{ slug: "gpt-5.5" }] }),
+            "application/json",
+          );
+    };
+    const listed = await listCodexModels({ auth: auth(), request });
+    expect(listed.models).toEqual(["gpt-5.5"]);
+    expect(listed.refreshedAuth?.tokens.refresh_token).toBe("refresh-two");
+  });
+
+  it("names a registry that answers something else", async () => {
+    const request: CodexFetch = async () =>
+      reply(200, JSON.stringify({ data: [] }), "application/json");
+    await expect(listCodexModels({ auth: auth(), request })).rejects.toThrow(
+      "CODEX_RESPONSE_MALFORMED",
+    );
   });
 });

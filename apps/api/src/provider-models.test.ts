@@ -5,6 +5,21 @@ import {
   type ModelsFetch,
 } from "./provider-models.js";
 
+const CODEX_AUTH = JSON.stringify({
+  auth_mode: "chatgpt",
+  tokens: {
+    access_token: "access-one",
+    refresh_token: "refresh-one",
+    account_id: "acct-1",
+  },
+});
+
+const codexReply = (status: number, body: unknown) => ({
+  status,
+  contentType: "application/json",
+  text: async () => (typeof body === "string" ? body : JSON.stringify(body)),
+});
+
 const reply = (status: number, body: unknown): ReturnType<ModelsFetch> =>
   Promise.resolve({
     status,
@@ -215,33 +230,95 @@ describe("listing image models", () => {
   });
 
   // The Codex OAuth path talks to the Codex client's backend, which is not
-  // a catalogue -- there is nothing to list. An empty picker on a provider
-  // that plainly does have models is worse than a short static one.
-  it("offers the known set for codex-oauth, which has no listing endpoint", async () => {
-    let called = false;
-    const models = await listProviderModels({
-      providerKind: "codex-oauth",
-      apiKey: "auth-json",
-      baseUrl: null,
-      capability: "image",
-      fetch: () => {
-        called = true;
-        return reply(200, { data: [] });
-      },
-    });
-    expect(models).toContain("gpt-image-2");
-    expect(called).toBe(false);
-  });
 
-  it("offers text models for codex-oauth on the chat path", async () => {
+  // The Codex path has a registry of its own -- the Codex client's, not the
+  // platform's /v1/models -- so the picker asks the account instead of
+  // offering whatever was true when this file was written.
+  it("asks the codex registry and drops what the capability did not want", async () => {
     const models = await listProviderModels({
       providerKind: "codex-oauth",
-      apiKey: "auth-json",
+      apiKey: CODEX_AUTH,
       baseUrl: null,
       capability: "text",
-      fetch: () => reply(200, { data: [] }),
+      fetch: () => {
+        throw new Error("the generic listing path must not run");
+      },
+      codexFetch: async () =>
+        codexReply(200, {
+          models: [
+            { slug: "gpt-5.5" },
+            { slug: "gpt-5.3-codex-spark" },
+            { slug: "gpt-image-2" },
+          ],
+        }),
     });
-    expect(models).toContain("gpt-5.1-codex");
-    expect(models).not.toContain("gpt-image-2");
+    expect(models).toEqual(["gpt-5.3-codex-spark", "gpt-5.5"]);
+  });
+
+  it("writes back a credential the registry rotated", async () => {
+    const persisted: { token?: string } = {};
+    let registryCalls = 0;
+    await listProviderModels({
+      providerKind: "codex-oauth",
+      apiKey: CODEX_AUTH,
+      baseUrl: null,
+      capability: "text",
+      persistCodexAuth: (auth) => {
+        persisted.token = auth.tokens.refresh_token;
+      },
+      codexFetch: async (url) => {
+        if (url.endsWith("/oauth/token"))
+          return codexReply(200, {
+            access_token: "access-two",
+            refresh_token: "refresh-two",
+          });
+        registryCalls += 1;
+        return registryCalls === 1
+          ? codexReply(401, "")
+          : codexReply(200, { models: [{ slug: "gpt-5.5" }] });
+      },
+    });
+    expect(persisted.token).toBe("refresh-two");
+    expect(registryCalls).toBe(2);
+  });
+
+  // Never an empty dropdown on a provider that plainly has models: the
+  // registry being unreachable is not something the operator can fix from
+  // this screen, and the next move is the same either way.
+  it("falls back to the static list when the registry will not answer", async () => {
+    expect(
+      await listProviderModels({
+        providerKind: "codex-oauth",
+        apiKey: CODEX_AUTH,
+        baseUrl: null,
+        capability: "text",
+        codexFetch: async () => codexReply(500, "boom"),
+      }),
+    ).toContain("gpt-5.1-codex");
+  });
+
+  // The registry lists what Codex runs, which is no image model at all.
+  it("answers the image picker from the static list", async () => {
+    expect(
+      await listProviderModels({
+        providerKind: "codex-oauth",
+        apiKey: CODEX_AUTH,
+        baseUrl: null,
+        capability: "image",
+        codexFetch: async () =>
+          codexReply(200, { models: [{ slug: "gpt-5.5" }] }),
+      }),
+    ).toContain("gpt-image-2");
+  });
+
+  it("falls back rather than throwing on a credential that does not parse", async () => {
+    expect(
+      await listProviderModels({
+        providerKind: "codex-oauth",
+        apiKey: "not an auth.json",
+        baseUrl: null,
+        capability: "text",
+      }),
+    ).toContain("gpt-5.1-codex");
   });
 });
