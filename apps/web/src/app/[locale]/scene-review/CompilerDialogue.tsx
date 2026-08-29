@@ -13,6 +13,7 @@ import {
   runningStageIndex,
   shotLabelKey,
   stageLabelKey,
+  thinkingPhaseFor,
   liveJobStatusErrorCode,
   parseJobProgress,
   type BeatSheetEntry,
@@ -121,18 +122,13 @@ export function CompilerDialogue({
   ]);
   const [prompt, setPrompt] = useState("");
   const [sending, setSending] = useState(false);
-  // Two different waits, and they read differently to a creator: the model
-  // authoring the whole scene after the preview is approved, and the model
-  // folding one chat note into a scene that already exists. Anything else
-  // -- a worker rendering frames, a queue -- already has its own stage
-  // line, and stacking a second indicator on it would say two things are
-  // happening when one is.
-  const thinkingPhase = sending
-    ? ("patching" as const)
-    : job.preparationStage === "AUTHORING_QUEUED" ||
-        job.preparationStage === "AUTHORING_RUNNING"
-      ? ("authoring" as const)
-      : null;
+  // The chat is blocked while anything is running -- a note sent into a
+  // half-built scene lands against a version that no longer exists by the
+  // time the worker finishes, and the reply reads as the compiler ignoring
+  // the request. The thinking indicator below the history is what explains
+  // the dead button, so the two are derived from the same call.
+  const thinkingPhase = thinkingPhaseFor(job, sending);
+  const busy = sending || isJobWorking(job.state);
   const [lastPrompt, setLastPrompt] = useState("");
   const [applying, setApplying] = useState<number | null>(null);
   const [applyError, setApplyError] = useState("");
@@ -277,7 +273,7 @@ export function CompilerDialogue({
   }, [messages]);
 
   const send = async (text: string) => {
-    if (!text || sending) return;
+    if (!text || busy) return;
     setSending(true);
     setMessages((previous) => [...previous, { role: "user", text }]);
     try {
@@ -660,7 +656,7 @@ export function CompilerDialogue({
             onKeyDown={(event) => {
               if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault();
-                if (!sending && prompt) {
+                if (!busy && prompt) {
                   void send(prompt);
                   setPrompt("");
                 }
@@ -673,7 +669,7 @@ export function CompilerDialogue({
           <button
             className="button button-primary"
             type="submit"
-            disabled={sending || !prompt}
+            disabled={busy || !prompt}
           >
             {sending ? t("sending") : t("send")}
           </button>
