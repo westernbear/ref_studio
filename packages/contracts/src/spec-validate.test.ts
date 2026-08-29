@@ -230,6 +230,21 @@ describe("validateSceneSpec", () => {
     ).toHaveLength(3);
   });
 
+  it("accepts an inline generated color without output provenance at render time", () => {
+    const good = withAsset(fixtureSpec, {
+      assetId: "color-pill",
+      kind: "color",
+      origin: "generated",
+      ref: "#ff5500",
+      provenance: { prompt: "a warm coral pill" },
+    });
+    expect(() =>
+      validateSceneSpec(good, new Set([...ok, "color-pill"]), {
+        requireGeneratedOutput: true,
+      }),
+    ).not.toThrow();
+  });
+
   it("rejects a generated asset with no provenance", () => {
     const bad = withAsset(fixtureSpec, {
       assetId: "gen1",
