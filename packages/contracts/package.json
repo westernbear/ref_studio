@@ -9,6 +9,14 @@
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
+    },
+    "./motion": {
+      "types": "./src/motion.ts",
+      "default": "./src/motion.ts"
+    },
+    "./scene-spec": {
+      "types": "./src/scene-spec.ts",
+      "default": "./src/scene-spec.ts"
     }
   },
   "scripts": {

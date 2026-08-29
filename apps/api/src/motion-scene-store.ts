@@ -52,6 +52,21 @@ export const findMotionSceneRow = (
     )
     .get(job.id, job.tenantId) as MotionSceneVersionRow | undefined;
 
+export const motionSceneRowForVersion = (
+  db: Database.Database,
+  job: Job,
+  version: number,
+): MotionSceneVersionRow | undefined =>
+  db
+    .prepare(
+      `SELECT id, version, scene_digest AS sceneDigest, scene_json AS sceneJson,
+              capability_json AS capabilityJson, verification_json AS verificationJson,
+              created_at AS createdAt
+         FROM motion_scene_versions
+        WHERE job_id=? AND tenant_id=? AND version=?`,
+    )
+    .get(job.id, job.tenantId, version) as MotionSceneVersionRow | undefined;
+
 export const insertMotionSceneVersion = (
   db: Database.Database,
   job: Job,

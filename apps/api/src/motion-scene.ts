@@ -9,6 +9,7 @@ import { beatSheetFor } from "./author-scene.js";
 import type { CreatorWorkflowStore, Job } from "./creator-workflow.js";
 import { applySceneOperations, MotionSceneError } from "./motion-operations.js";
 import { registerMotionDeliverables } from "./motion-deliverables.js";
+import { registerMotionSceneCommands } from "./motion-scene-commands.js";
 import {
   currentMotionSceneRow,
   findMotionSceneRow,
@@ -55,9 +56,16 @@ export function registerMotionScene(
     async (request: FastifyRequest<{ Params: { jobId: string } }>, reply) => {
       try {
         const job = jobFor(request);
-        reply.send(
-          motionSceneSnapshot(db, job, currentMotionSceneRow(db, job)),
-        );
+        let row = findMotionSceneRow(db, job);
+        if (!row && admissionEnabled && job.generation && job.authoredScene)
+          row = insertMotionSceneVersion(
+            db,
+            job,
+            job.authoredScene.spec,
+            passedMotionVerification(job.authoredScene.spec),
+          );
+        if (!row) throw new MotionSceneError("RESOURCE_NOT_FOUND", 404);
+        reply.send(motionSceneSnapshot(db, job, row));
       } catch (error) {
         fail(reply, error);
       }
@@ -159,5 +167,6 @@ export function registerMotionScene(
       }
     },
   );
+  registerMotionSceneCommands(app, store, db);
   registerMotionDeliverables(app, store);
 }
