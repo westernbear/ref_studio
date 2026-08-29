@@ -46,11 +46,23 @@ export const codexChatBody = (raw: string): string => {
   }
   if (typeof parsed !== "object" || parsed === null)
     throw new CodexOAuthError("CODEX_REQUEST_MALFORMED");
-  return JSON.stringify({
-    ...(parsed as Record<string, unknown>),
-    store: false,
-    stream: true,
-  });
+  const body = Object.assign({}, parsed, { store: false, stream: true });
+  const text = Reflect.get(parsed, "text");
+  if (typeof text !== "object" || text === null) return JSON.stringify(body);
+  const format = Reflect.get(text, "format");
+  if (
+    typeof format !== "object" ||
+    format === null ||
+    Reflect.get(format, "type") !== "json_schema"
+  )
+    return JSON.stringify(body);
+  return JSON.stringify(
+    Object.assign({}, body, {
+      text: Object.assign({}, text, {
+        format: Object.assign({}, format, { strict: false }),
+      }),
+    }),
+  );
 };
 
 // Refresh-on-401-and-retry-once, the same policy generateCodexImage uses

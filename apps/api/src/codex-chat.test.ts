@@ -64,6 +64,25 @@ describe("codex chat body", () => {
     expect(rewritten).toMatchObject({ model: "m", stream: true, store: false });
   });
 
+  it("disables strict schema validation for optional structured-output fields", () => {
+    const rewritten = JSON.parse(
+      codexChatBody(
+        JSON.stringify({
+          text: {
+            format: {
+              type: "json_schema",
+              strict: true,
+              schema: { type: "object" },
+            },
+          },
+        }),
+      ),
+    );
+    expect(rewritten).toMatchObject({
+      text: { format: { type: "json_schema", strict: false } },
+    });
+  });
+
   it("names a body it cannot read", () => {
     expect(() => codexChatBody("not json")).toThrow(CodexOAuthError);
   });
