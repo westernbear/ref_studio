@@ -1,3 +1,6 @@
 [submodule "apps/worker"]
 	path = apps/worker
 	url = https://github.com/westernbear/ref_studio_worker.git
+[submodule "integrations/adobe-bridge"]
+	path = integrations/adobe-bridge
+	url = https://github.com/westernbear/ref_studio_adobe_bridge.git
