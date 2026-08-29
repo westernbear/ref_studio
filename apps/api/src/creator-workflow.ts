@@ -168,6 +168,7 @@ export type RuntimePreflightEvidence = Readonly<{
   repeatedFrameByteIdentity: true;
   ffmpeg: true;
   ffprobe: true;
+  tar?: true | undefined;
   compilerModels: true;
   runtimeDigest: string;
 }>;
@@ -177,6 +178,7 @@ export type RuntimePreflightEvidence = Readonly<{
 // same allowlist uploads.ts admits for attachments.
 export type ArtifactContentType =
   | "video/mp4"
+  | "application/x-tar"
   | "image/png"
   | "image/jpeg"
   | "image/svg+xml"
@@ -187,6 +189,7 @@ export const ARTIFACT_CONTENT_TYPES: Readonly<
   Record<ArtifactContentType, string>
 > = {
   "video/mp4": "mp4",
+  "application/x-tar": "tar",
   "image/png": "png",
   "image/jpeg": "jpg",
   "image/svg+xml": "svg",
@@ -221,7 +224,8 @@ export type StoredArtifact = {
     // The generate track's finished film. Deliberately a different kind
     // from "delivery" so a generated video is never mistaken for a restored
     // one, even though both are staged and published the same way.
-    | "generated-delivery";
+    | "generated-delivery"
+    | "scene-package";
   readonly filename: string;
   readonly contentType: ArtifactContentType;
   readonly bytes: Uint8Array;
@@ -242,6 +246,7 @@ export type CreatorWorkflowStore = {
   readonly jobs: Map<string, Job>;
   readonly attempts: Map<string, Attempt[]>;
   readonly stagedArtifacts: Map<string, StoredArtifact>;
+  readonly stagedScenePackages: Map<string, StoredArtifact>;
   readonly previews: Map<string, StoredArtifact>;
   readonly previewsLabeled: Map<string, StoredArtifact>;
   readonly evidenceVideos: Map<string, StoredArtifact>;
@@ -251,6 +256,7 @@ export type CreatorWorkflowStore = {
   // map above, which holds at most one artifact per job.
   readonly generatedAssets: Map<string, StoredArtifact>;
   readonly artifacts: Map<string, StoredArtifact>;
+  readonly scenePackages: Map<string, StoredArtifact>;
   readonly releaseManifests: Map<string, ReleaseManifest>;
   readonly idempotency: IdempotencyStore;
   readonly now: () => number;
@@ -262,12 +268,14 @@ export const createCreatorWorkflowStore = (
   jobs: new Map(),
   attempts: new Map(),
   stagedArtifacts: new Map(),
+  stagedScenePackages: new Map(),
   previews: new Map(),
   previewsLabeled: new Map(),
   evidenceVideos: new Map(),
   safetySamples: new Map(),
   generatedAssets: new Map(),
   artifacts: new Map(),
+  scenePackages: new Map(),
   releaseManifests: new Map(),
   idempotency: new IdempotencyStore(),
   now,
@@ -1168,6 +1176,7 @@ export function retryJob(
   job.lastPatchChangedBeatIds = null;
   store.previews.delete(job.id);
   store.stagedArtifacts.delete(job.id);
+  store.stagedScenePackages.delete(job.id);
   // Leaving these behind lets a retry reuse the previous attempt's
   // evidence video and, worse, its safety sample.
   store.previewsLabeled.delete(job.id);
@@ -1197,15 +1206,23 @@ export const publishStagedArtifact = (
   job: Job,
 ): boolean => {
   const artifact = store.stagedArtifacts.get(job.id);
+  const scenePackage = store.stagedScenePackages.get(job.id);
   if (
     !artifact ||
     (artifact.kind !== "delivery" && artifact.kind !== "generated-delivery") ||
+    (artifact.kind === "generated-delivery" &&
+      job.runtimePreflight?.tar === true &&
+      !scenePackage) ||
     job.state !== "AWAITING_T5"
   )
     return false;
   assertLegalTransition(job.state, "COMPLETED");
   store.stagedArtifacts.delete(job.id);
   store.artifacts.set(artifact.id, artifact);
+  if (scenePackage) {
+    store.stagedScenePackages.delete(job.id);
+    store.scenePackages.set(job.id, scenePackage);
+  }
   job.artifact = {
     id: artifact.id,
     kind: artifact.kind,

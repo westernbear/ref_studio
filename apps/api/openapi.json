@@ -578,6 +578,30 @@
           "verification"
         ],
         "additionalProperties": false
+      },
+      "DeliverablesV1": {
+        "type": "object",
+        "properties": {
+          "backend": { "type": "string", "enum": ["native", "adobe"] },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string" },
+                "kind": {
+                  "type": "string",
+                  "enum": ["mp4", "scene-package", "report"]
+                },
+                "downloadUrl": { "type": "string" }
+              },
+              "required": ["id", "kind", "downloadUrl"],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": ["backend", "items"],
+        "additionalProperties": false
       }
     },
     "securitySchemes": { "bearerAuth": { "type": "http", "scheme": "bearer" } }
@@ -720,7 +744,32 @@
           "200": {
             "description": "Deliverables",
             "content": {
-              "application/json": { "schema": { "type": "object" } }
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/DeliverablesV1" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/jobs/{id}/scene-package-download": {
+      "get": {
+        "operationId": "downloadScenePackage",
+        "responses": {
+          "200": {
+            "description": "Offline native scene package",
+            "content": {
+              "application/x-tar": {
+                "schema": { "type": "string", "format": "binary" }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SafeErrorEnvelope" }
+              }
             }
           }
         }

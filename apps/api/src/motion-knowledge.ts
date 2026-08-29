@@ -1,6 +1,13 @@
 import type Database from "better-sqlite3";
 import { z } from "zod";
 
+export const MOTION_INTERNAL_FEATURES = [
+  "motion_lookup",
+  "context_inspect",
+  "scene_apply_operations",
+  "scene_verify",
+] as const;
+
 export const ProviderToolCanaryV1Schema = z
   .object({
     providerKind: z.string().min(1),
@@ -103,6 +110,27 @@ export function lookupMotionKnowledge(
           LIMIT 3`,
       )
       .all(match),
+  );
+}
+
+export function hostMotionLookup(
+  db: Database.Database,
+  text: string,
+): readonly MotionKnowledgeCard[] {
+  const normalized = normalizeQuery(text);
+  if (normalized.length === 0) return [];
+  return parseRows(
+    db
+      .prepare(
+        `SELECT card.*
+           FROM motion_aliases AS alias
+           JOIN motion_cards AS card ON card.id = alias.card_id
+          WHERE instr(?, lower(alias.alias)) > 0
+          GROUP BY card.id
+          ORDER BY max(length(alias.alias)) DESC, card.id
+          LIMIT 3`,
+      )
+      .all(normalized),
   );
 }
 

@@ -91,6 +91,35 @@ describe("authorScene", () => {
     expect(out.beatSheet).toHaveLength(fixtureSpec.beats.length);
   });
 
+  it("injects host-resolved motion knowledge before the model call", async () => {
+    let capturedPrompt = "";
+    const generate: GenerateScene = async (options) => {
+      capturedPrompt = options.prompt;
+      return { object: fixtureSpec };
+    };
+    await authorScene({
+      ...baseParams(),
+      config: {
+        ...config,
+        brief: "Use 12-frame anticipation and frame 36 settle.",
+      },
+      generate,
+    });
+    expect(capturedPrompt).toContain('"id":"timing-easing"');
+  });
+
+  it("repairs semantic predicate failures no more than four times", async () => {
+    let calls = 0;
+    const broken = { ...fixtureSpec, beats: fixtureSpec.beats.slice(0, 1) };
+    const generate: GenerateScene = async () => {
+      calls += 1;
+      return { object: calls === 4 ? fixtureSpec : broken };
+    };
+    const authored = await authorScene({ ...baseParams(), generate });
+    expect(calls).toBe(4);
+    expect(authored.spec).toEqual(fixtureSpec);
+  });
+
   it("fails when no provider is configured", async () => {
     const unconfiguredDb = openApiDatabase(
       join(directory, "unconfigured.sqlite"),

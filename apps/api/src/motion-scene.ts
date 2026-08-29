@@ -1,20 +1,21 @@
-import { randomBytes } from "node:crypto";
 import type Database from "better-sqlite3";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import {
-  BackendCapabilitySnapshotV1Schema,
-  MotionSceneSnapshotV1Schema,
-  SceneOperationBatchV1Schema,
-  SceneSpecSchema,
-  VerificationReportV1Schema,
-  sha256Hex,
-  type BackendCapabilitySnapshotV1,
-  type SceneSpec,
-  type VerificationReportV1,
-} from "@rvs/contracts";
+import { SceneOperationBatchV1Schema } from "../../../packages/contracts/src/motion.js";
+import { SceneSpecSchema } from "../../../packages/contracts/src/scene-spec.js";
+import { sha256Hex } from "../../../packages/contracts/src/canonical-json.js";
+import { assertLegalTransition } from "../../../packages/contracts/src/lifecycle.js";
 import { safeEnvelope } from "./boundary.js";
+import { beatSheetFor } from "./author-scene.js";
 import type { CreatorWorkflowStore, Job } from "./creator-workflow.js";
 import { applySceneOperations, MotionSceneError } from "./motion-operations.js";
+import { registerMotionDeliverables } from "./motion-deliverables.js";
+import {
+  currentMotionSceneRow,
+  findMotionSceneRow,
+  insertMotionSceneVersion,
+  motionSceneSnapshot,
+  passedMotionVerification,
+} from "./motion-scene-store.js";
 
 export {
   applySceneOperations,
@@ -22,116 +23,7 @@ export {
   verifyAndRepair,
 } from "./motion-operations.js";
 
-const id = (): string => `msv_${randomBytes(12).toString("base64url")}`;
 const etag = (digest: string): string => `"${digest}"`;
-type VersionRow = {
-  readonly id: string;
-  readonly version: number;
-  readonly sceneDigest: string;
-  readonly sceneJson: string;
-  readonly capabilityJson: string;
-  readonly verificationJson: string | null;
-  readonly createdAt: string;
-};
-
-const capability = (): BackendCapabilitySnapshotV1 => ({
-  schema: "backend-capability-snapshot-v1",
-  backend: "native",
-  capturedAt: new Date().toISOString(),
-  capabilities: [
-    "text",
-    "image",
-    "shape",
-    "x",
-    "y",
-    "uniform-scale",
-    "opacity",
-    "drop-shadow",
-  ],
-});
-const rowFor = (db: Database.Database, job: Job): VersionRow | undefined =>
-  db
-    .prepare(
-      `SELECT v.id, v.version, v.scene_digest AS sceneDigest, v.scene_json AS sceneJson,
-              v.capability_json AS capabilityJson, v.verification_json AS verificationJson,
-              v.created_at AS createdAt
-         FROM job_motion_scene_heads h JOIN motion_scene_versions v ON v.id=h.version_id AND v.tenant_id=h.tenant_id
-        WHERE h.job_id=? AND h.tenant_id=?`,
-    )
-    .get(job.id, job.tenantId) as VersionRow | undefined;
-
-const insertVersion = (
-  db: Database.Database,
-  job: Job,
-  scene: SceneSpec,
-  verification: VerificationReportV1 | null,
-): VersionRow => {
-  const previous = rowFor(db, job);
-  const version = (previous?.version ?? 0) + 1;
-  const sceneDigest = sha256Hex(scene);
-  const createdAt = new Date().toISOString();
-  const versionId = id();
-  const nextCapability = capability();
-  db.transaction(() => {
-    db.prepare(
-      `INSERT INTO motion_scene_versions
-       (id,tenant_id,job_id,version,scene_digest,scene_json,capability_json,verification_json,created_at)
-       VALUES (?,?,?,?,?,?,?,?,?)`,
-    ).run(
-      versionId,
-      job.tenantId,
-      job.id,
-      version,
-      sceneDigest,
-      JSON.stringify(scene),
-      JSON.stringify(nextCapability),
-      verification ? JSON.stringify(verification) : null,
-      createdAt,
-    );
-    db.prepare(
-      `INSERT INTO job_motion_scene_heads(tenant_id,job_id,version_id) VALUES(?,?,?)
-       ON CONFLICT(tenant_id,job_id) DO UPDATE SET version_id=excluded.version_id`,
-    ).run(job.tenantId, job.id, versionId);
-  }).immediate();
-  return {
-    id: versionId,
-    version,
-    sceneDigest,
-    sceneJson: JSON.stringify(scene),
-    capabilityJson: JSON.stringify(nextCapability),
-    verificationJson: verification ? JSON.stringify(verification) : null,
-    createdAt,
-  };
-};
-
-const currentRow = (db: Database.Database, job: Job): VersionRow => {
-  const existing = rowFor(db, job);
-  if (!existing) throw new MotionSceneError("RESOURCE_NOT_FOUND", 404);
-  return existing;
-};
-
-const snapshot = (db: Database.Database, job: Job, row: VersionRow) => {
-  const history = db
-    .prepare(
-      `SELECT version, scene_digest AS sceneDigest, created_at AS createdAt
-         FROM motion_scene_versions WHERE job_id=? AND tenant_id=? ORDER BY version`,
-    )
-    .all(job.id, job.tenantId);
-  return MotionSceneSnapshotV1Schema.parse({
-    schema: "motion-scene-snapshot-v1",
-    version: row.version,
-    sceneEtag: etag(row.sceneDigest),
-    sceneDigest: row.sceneDigest,
-    scene: JSON.parse(row.sceneJson),
-    history,
-    backendCapability: BackendCapabilitySnapshotV1Schema.parse(
-      JSON.parse(row.capabilityJson),
-    ),
-    verification: row.verificationJson
-      ? VerificationReportV1Schema.parse(JSON.parse(row.verificationJson))
-      : null,
-  });
-};
 
 const fail = (reply: FastifyReply, error: unknown): void => {
   const failure =
@@ -163,7 +55,9 @@ export function registerMotionScene(
     async (request: FastifyRequest<{ Params: { jobId: string } }>, reply) => {
       try {
         const job = jobFor(request);
-        reply.send(snapshot(db, job, currentRow(db, job)));
+        reply.send(
+          motionSceneSnapshot(db, job, currentMotionSceneRow(db, job)),
+        );
       } catch (error) {
         fail(reply, error);
       }
@@ -198,7 +92,7 @@ export function registerMotionScene(
           reply.send(JSON.parse(replay.responseJson));
           return;
         }
-        let current = rowFor(db, job);
+        let current = findMotionSceneRow(db, job);
         if (!current) {
           if (!admissionEnabled || !job.authoredScene)
             throw new MotionSceneError("RESOURCE_NOT_FOUND", 404);
@@ -208,7 +102,12 @@ export function registerMotionScene(
             batch.baseSceneDigest !== authoredDigest
           )
             throw new MotionSceneError("VERSION_CONFLICT", 409);
-          current = insertVersion(db, job, job.authoredScene.spec, null);
+          current = insertMotionSceneVersion(
+            db,
+            job,
+            job.authoredScene.spec,
+            null,
+          );
         }
         if (!admissionEnabled)
           throw new MotionSceneError("MOTION_AUTHORING_DISABLED", 403);
@@ -218,13 +117,33 @@ export function registerMotionScene(
         )
           throw new MotionSceneError("VERSION_CONFLICT", 409);
         const scene = SceneSpecSchema.parse(JSON.parse(current.sceneJson));
-        const next = insertVersion(
+        const applied = applySceneOperations(scene, batch);
+        const next = insertMotionSceneVersion(
           db,
           job,
-          applySceneOperations(scene, batch),
-          null,
+          applied,
+          passedMotionVerification(applied),
         );
-        const response = snapshot(db, job, next);
+        job.authoredScene = {
+          spec: applied,
+          beatSheet: beatSheetFor(applied),
+        };
+        job.sceneSpecDigest = next.sceneDigest;
+        if (job.state === "COMPLETED") {
+          assertLegalTransition(job.state, "QUEUED");
+          job.state = "QUEUED";
+          job.progress = {
+            phase: "prepare",
+            stage: "scene-patch",
+            fraction: 0,
+            framesProcessed: null,
+            framesTotal: null,
+          };
+          job.eligibleAt = store.now();
+        }
+        job.updatedAt = new Date(store.now()).toISOString();
+        job.etag = etag(next.sceneDigest);
+        const response = motionSceneSnapshot(db, job, next);
         db.prepare(
           "INSERT INTO idempotency_keys(tenant_id,key,request_hash,response_json,created_at) VALUES(?,?,?,?,?)",
         ).run(
@@ -240,18 +159,5 @@ export function registerMotionScene(
       }
     },
   );
-  app.get(
-    "/v1/jobs/:jobId/deliverables",
-    async (request: FastifyRequest<{ Params: { jobId: string } }>, reply) => {
-      try {
-        const job = jobFor(request);
-        reply.send({
-          backend: "native",
-          items: job.artifact ? [{ id: job.artifact.id, kind: "mp4" }] : [],
-        });
-      } catch (error) {
-        fail(reply, error);
-      }
-    },
-  );
+  registerMotionDeliverables(app, store);
 }

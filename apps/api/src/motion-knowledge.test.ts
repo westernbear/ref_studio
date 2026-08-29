@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import { openApiDatabase } from "./durable-state.js";
 import {
   lookupMotionKnowledge,
+  hostMotionLookup,
   modelMotionTools,
+  MOTION_INTERNAL_FEATURES,
   MotionKnowledgeCardSchema,
   ProviderToolCanaryV1Schema,
 } from "./motion-knowledge.js";
@@ -27,6 +29,26 @@ describe("motion knowledge migration", () => {
 });
 
 describe("motion.lookup", () => {
+  it("keeps the host motion surface to the four approved internal features", () => {
+    expect(MOTION_INTERNAL_FEATURES).toEqual([
+      "motion_lookup",
+      "context_inspect",
+      "scene_apply_operations",
+      "scene_verify",
+    ]);
+  });
+  it("lets the host resolve motion phrases from a longer creator brief", () => {
+    const db = openApiDatabase(":memory:");
+    const results = hostMotionLookup(
+      db,
+      "Use 12-frame anticipation, then frame 36 settle with readable text 가독성.",
+    );
+    expect(results.map((card) => card.id)).toEqual([
+      "timing-easing",
+      "typography",
+    ]);
+    db.close();
+  });
   it("Given the bilingual corpus, when each query is looked up, then metrics meet the fixed thresholds", () => {
     // Given
     const db = openApiDatabase(":memory:");

@@ -438,6 +438,20 @@ describe("SQLite runtime durability", () => {
       expiresAt: "2026-01-02T00:00:00.000Z",
       report: null,
     });
+    firstStores.workflow.scenePackages.set(job.id, {
+      id: "scenepackage_restart",
+      jobId: job.id,
+      tenantId: job.tenantId,
+      kind: "scene-package",
+      filename: "scene-package.tar",
+      contentType: "application/x-tar",
+      bytes: Uint8Array.from([117, 115, 116, 97, 114]),
+      sha256: sha256(Uint8Array.from([117, 115, 116, 97, 114])),
+      sizeBytes: 5,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      expiresAt: "2026-01-02T00:00:00.000Z",
+      report: null,
+    });
     firstStores.auth.sessions.push({
       id: "session_restart",
       userId: "usr_platform",
@@ -525,6 +539,10 @@ describe("SQLite runtime durability", () => {
     // png must not be stored under a .mp4 name.
     expect(sample?.storagePath).toMatch(/\.png$/u);
     expect(existsSync(sample?.storagePath ?? "")).toBe(true);
+    const scenePackage = secondStores.workflow.scenePackages.get(job.id);
+    expect(scenePackage?.id).toBe("scenepackage_restart");
+    expect(scenePackage?.storagePath).toMatch(/\.tar$/u);
+    expect(existsSync(scenePackage?.storagePath ?? "")).toBe(true);
     secondDb
       .prepare("UPDATE runtime_job_leases SET expires_at=0 WHERE job_id=?")
       .run(job.id);

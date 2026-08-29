@@ -5,6 +5,7 @@ export type ApiOperation =
   | "getMotionScene"
   | "patchMotionScene"
   | "getDeliverables"
+  | "downloadScenePackage"
   | "createReview"
   | "listReceipts";
 export const paths = {
@@ -12,6 +13,7 @@ export const paths = {
   jobs: "/v1/jobs",
   motionScene: "/v1/jobs/{id}/motion-scene",
   deliverables: "/v1/jobs/{id}/deliverables",
+  scenePackage: "/v1/jobs/{id}/scene-package-download",
   reviews: "/v1/reviews",
   receipts: "/v1/receipts",
 } as const;

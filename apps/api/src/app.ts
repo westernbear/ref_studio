@@ -217,7 +217,12 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
   // needs the whole body as bytes to sniff and store -- see I1's fix in
   // this handler's own registration below, which buffers a Readable body
   // itself rather than changing this parser for every route that uses it.
-  for (const contentType of ["video/mp4", "video/quicktime", "video/webm"])
+  for (const contentType of [
+    "video/mp4",
+    "video/quicktime",
+    "video/webm",
+    "application/x-tar",
+  ])
     app.addContentTypeParser(contentType, (_request, body, done) => {
       done(null, body);
     });

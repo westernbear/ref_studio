@@ -85,12 +85,14 @@ const AttachmentRows = z.array(
 );
 const ArtifactSlotSchema = z.enum([
   "STAGED",
+  "STAGED_SCENE_PACKAGE",
   "PREVIEW",
   "PUBLISHED",
   "PREVIEW_LABELED",
   "EVIDENCE_VIDEO",
   "SAFETY_SAMPLE",
   "GENERATED_ASSET",
+  "SCENE_PACKAGE",
 ]);
 type ArtifactSlot = z.infer<typeof ArtifactSlotSchema>;
 // One mapping for persist, hydrate, and clear. Splitting it is what left
@@ -100,6 +102,7 @@ const artifactSlots = (
   workflow: CreatorWorkflowStore,
 ): Readonly<Record<ArtifactSlot, Map<string, StoredArtifact>>> => ({
   STAGED: workflow.stagedArtifacts,
+  STAGED_SCENE_PACKAGE: workflow.stagedScenePackages,
   PREVIEW: workflow.previews,
   PUBLISHED: workflow.artifacts,
   PREVIEW_LABELED: workflow.previewsLabeled,
@@ -109,6 +112,7 @@ const artifactSlots = (
   // generatedAssetKey in creator-workflow.ts. The mechanism does not care:
   // it round-trips whatever map key it is given.
   GENERATED_ASSET: workflow.generatedAssets,
+  SCENE_PACKAGE: workflow.scenePackages,
 });
 const ArtifactRows = z.array(
   z.object({

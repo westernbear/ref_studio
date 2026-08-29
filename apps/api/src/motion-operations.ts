@@ -1,10 +1,13 @@
 import {
   SceneSpecSchema,
-  sha256Hex,
-  type SceneOperationBatchV1,
   type SceneSpec,
-  type VerificationReportV1,
-} from "@rvs/contracts";
+} from "../../../packages/contracts/src/scene-spec.js";
+import { sha256Hex } from "../../../packages/contracts/src/canonical-json.js";
+import { validateSceneSpec } from "../../../packages/contracts/src/spec-validate.js";
+import type {
+  SceneOperationBatchV1,
+  VerificationReportV1,
+} from "../../../packages/contracts/src/motion.js";
 
 const pointerSegments = (path: string): readonly string[] =>
   path
@@ -72,7 +75,14 @@ export function applySceneOperations(
     );
   const parsed = SceneSpecSchema.safeParse(candidate);
   if (!parsed.success) throw new MotionSceneError("INVALID_SCENE", 422);
-  return parsed.data;
+  try {
+    return validateSceneSpec(
+      parsed.data,
+      new Set(parsed.data.assets.map((asset) => asset.assetId)),
+    );
+  } catch {
+    throw new MotionSceneError("INVALID_SCENE", 422);
+  }
 }
 
 export function keyframesFromMotionIntent(intent: {

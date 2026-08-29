@@ -140,6 +140,7 @@ const RuntimePreflight = z
     repeatedFrameByteIdentity: z.literal(true),
     ffmpeg: z.literal(true),
     ffprobe: z.literal(true),
+    tar: z.literal(true).optional(),
     compilerModels: z.literal(true),
     runtimeDigest: z.string().regex(/^[a-f0-9]{64}$/u),
   })
@@ -358,6 +359,7 @@ const GenRenderResult = z
     protocol: z.literal("rvs.worker.v1"),
     phase: z.literal("gen-render"),
     artifactId: z.string().min(1),
+    scenePackageArtifactId: z.string().min(1).optional(),
     safetySampleArtifactId: z.string().min(1).nullable(),
     report: GenRenderReport,
   })
@@ -593,6 +595,7 @@ const ARTIFACT_ID_PREFIX: Readonly<Record<ArtifactKind, string>> = {
   "safety-sample": "safetysample",
   "generated-asset": "genasset",
   "generated-delivery": "genartifact",
+  "scene-package": "scenepackage",
   delivery: "artifact",
 };
 const contentTypeOf = (request: FastifyRequest): string =>
@@ -630,6 +633,8 @@ const uploadStateValid = (
       preparingJob(job)
     );
   if (kind === "generated-delivery")
+    return lease.phase === "gen-render" && job.state === "RENDERING";
+  if (kind === "scene-package")
     return lease.phase === "gen-render" && job.state === "RENDERING";
   // A safety sample belongs to whichever render produced it -- both tracks
   // hand one to the same content-safety gate.
@@ -1108,6 +1113,7 @@ const finishWorkflowJob = (
     if (job.state !== "RENDERING" || !job.approved || !scene) return null;
     const parsed = GenRenderResult.safeParse(result);
     const artifact = workflow?.stagedArtifacts.get(job.id);
+    const scenePackage = workflow?.stagedScenePackages.get(job.id);
     const attemptId = workflow?.attempts.get(job.id)?.at(-1)?.id;
     const canvas = scene.spec.canvas;
     if (
@@ -1115,6 +1121,11 @@ const finishWorkflowJob = (
       !artifact ||
       artifact.kind !== "generated-delivery" ||
       artifact.id !== parsed.data.artifactId ||
+      (job.runtimePreflight?.tar === true &&
+        (!scenePackage ||
+          scenePackage.id !== parsed.data.scenePackageArtifactId)) ||
+      (parsed.data.scenePackageArtifactId !== undefined &&
+        scenePackage?.id !== parsed.data.scenePackageArtifactId) ||
       parsed.data.report.jobId !== job.id ||
       parsed.data.report.attemptId !== attemptId ||
       parsed.data.report.outputSha256 !== artifact.sha256 ||
@@ -1506,7 +1517,9 @@ export function registerWorkers(
               ? workflow?.safetySamples
               : kind === "generated-asset"
                 ? workflow?.generatedAssets
-                : workflow?.stagedArtifacts;
+                : kind === "scene-package"
+                  ? workflow?.stagedScenePackages
+                  : workflow?.stagedArtifacts;
     // A resolved scene asset is stored per (job, asset); everything else is
     // one artifact per job.
     const assetId =
@@ -1519,9 +1532,11 @@ export function registerWorkers(
         ? isArtifactContentType(declaredContentType)
           ? declaredContentType
           : null
-        : kind === "safety-sample"
-          ? "image/png"
-          : "video/mp4";
+        : kind === "scene-package"
+          ? "application/x-tar"
+          : kind === "safety-sample"
+            ? "image/png"
+            : "video/mp4";
     const stateValid =
       uploadStateValid(kind, lease, job) &&
       (kind !== "generated-asset" || SAFE_ASSET_ID.test(assetId)) &&
@@ -1628,7 +1643,9 @@ export function registerWorkers(
         createdAt: new Date(timestamp).toISOString(),
         expiresAt: new Date(
           timestamp +
-            (kind === "delivery" || kind === "generated-delivery"
+            (kind === "delivery" ||
+            kind === "generated-delivery" ||
+            kind === "scene-package"
               ? 24 * 60 * 60 * 1000
               : 30 * 24 * 60 * 60 * 1000),
         ).toISOString(),
@@ -1703,6 +1720,11 @@ export function registerWorkers(
       "/v1/workers/:workerId/jobs/:jobId/generated-artifact",
       "generated-delivery",
       requireMp4,
+    ],
+    [
+      "/v1/workers/:workerId/jobs/:jobId/artifacts/scene-package",
+      "scene-package",
+      requireContentType("application/x-tar"),
     ],
     [
       "/v1/workers/:workerId/jobs/:jobId/safety-sample-artifact",

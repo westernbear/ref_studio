@@ -330,6 +330,10 @@ describe("motion scene routes", () => {
       });
       expect(updated.statusCode, updated.body).toBe(200);
       expect(updated.json().version).toBe(2);
+      expect(updated.json().verification).toMatchObject({
+        attempts: 1,
+        status: "PASS",
+      });
       const replay = await state.app.inject({
         method: "PATCH",
         url: `/v1/jobs/${jobId}/motion-scene`,
@@ -732,6 +736,49 @@ const completeGenerateJob = (
 };
 
 describe("scene-patch chat (generate track)", () => {
+  const patchHeaders = (
+    state: ReturnType<typeof fixture>,
+    jobId: string,
+    key: string,
+  ) => ({
+    ...headersFor("ten_a"),
+    "idempotency-key": key,
+    "if-match": `"${state.workflow.jobs.get(jobId)?.sceneSpecDigest}"`,
+  });
+
+  it("requires the current scene ETag before generated refinement", async () => {
+    const state = fixture();
+    try {
+      const jobId = await createJob(
+        state.app,
+        state.uploadId,
+        "job-patch-etag",
+      );
+      completeGenerateJob(state.workflow, jobId);
+      const missing = await state.app.inject({
+        method: "POST",
+        url: `/v1/jobs/${jobId}/refine-prompt`,
+        headers: { ...headersFor("ten_a"), "idempotency-key": "missing-etag" },
+        payload: { prompt: "make it faster" },
+      });
+      const stale = await state.app.inject({
+        method: "POST",
+        url: `/v1/jobs/${jobId}/refine-prompt`,
+        headers: {
+          ...headersFor("ten_a"),
+          "idempotency-key": "stale-etag",
+          "if-match": `"${"0".repeat(64)}"`,
+        },
+        payload: { prompt: "make it faster" },
+      });
+      expect(missing.statusCode).toBe(428);
+      expect(stale.statusCode).toBe(409);
+      expect(state.workflow.jobs.get(jobId)?.state).toBe("COMPLETED");
+    } finally {
+      state.db.close();
+      rmSync(state.directory, { recursive: true, force: true });
+    }
+  });
   it("amends the scene, requeues the job for gen-render, and reports the changed beats", async () => {
     const recolored: SceneSpec = {
       ...fixtureSpec,
@@ -762,7 +809,7 @@ describe("scene-patch chat (generate track)", () => {
       const response = await state.app.inject({
         method: "POST",
         url: `/v1/jobs/${jobId}/refine-prompt`,
-        headers: { ...headersFor("ten_a"), "idempotency-key": "patch-1" },
+        headers: patchHeaders(state, jobId, "patch-1"),
         payload: { prompt: "use our brand purple #6633ee" },
       });
       expect(response.statusCode, response.body).toBe(200);
@@ -773,11 +820,21 @@ describe("scene-patch chat (generate track)", () => {
       const job = state.workflow.jobs.get(jobId);
       expect(job?.state).toBe("QUEUED");
       expect(job?.authoredScene?.spec.palette.hero).toBe("#6633ee");
-      expect(job?.artifact).toBeNull();
+      expect(job?.artifact).toMatchObject({ id: "genartifact_1" });
       expect(job?.progress?.fraction).toBe(0);
       // Left on the record, not only in this request's response -- see the
       // `lastPatchChangedBeatIds` docstring on the Job type.
       expect(job?.lastPatchChangedBeatIds).toEqual([]);
+      const versioned = await state.app.inject({
+        method: "GET",
+        url: `/v1/jobs/${jobId}/motion-scene`,
+        headers: headersFor("ten_a"),
+      });
+      expect(versioned.statusCode, versioned.body).toBe(200);
+      expect(versioned.json()).toMatchObject({
+        version: 2,
+        verification: { attempts: 1, status: "PASS" },
+      });
     } finally {
       state.db.close();
       rmSync(state.directory, { recursive: true, force: true });
@@ -813,7 +870,7 @@ describe("scene-patch chat (generate track)", () => {
       const response = await state.app.inject({
         method: "POST",
         url: `/v1/jobs/${jobId}/refine-prompt`,
-        headers: { ...headersFor("ten_a"), "idempotency-key": "patch-2" },
+        headers: patchHeaders(state, jobId, "patch-2"),
         payload: { prompt: "too busy" },
       });
       expect(response.statusCode, response.body).toBe(200);
@@ -832,7 +889,7 @@ describe("scene-patch chat (generate track)", () => {
       const response = await state.app.inject({
         method: "POST",
         url: `/v1/jobs/${jobId}/refine-prompt`,
-        headers: { ...headersFor("ten_a"), "idempotency-key": "patch-3" },
+        headers: patchHeaders(state, jobId, "patch-3"),
         payload: { prompt: "beat three is too fast" },
       });
       expect(response.statusCode).toBe(400);
@@ -872,7 +929,7 @@ describe("scene-patch chat (generate track)", () => {
       const response = await state.app.inject({
         method: "POST",
         url: `/v1/jobs/${jobId}/refine-prompt`,
-        headers: { ...headersFor("ten_a"), "idempotency-key": "patch-4" },
+        headers: patchHeaders(state, jobId, "patch-4"),
         payload: { prompt: "drop the search bar scene" },
       });
       expect(response.statusCode).toBe(400);
@@ -910,7 +967,7 @@ describe("scene-patch chat (generate track)", () => {
       const response = await state.app.inject({
         method: "POST",
         url: `/v1/jobs/${jobId}/refine-prompt`,
-        headers: { ...headersFor("ten_a"), "idempotency-key": "patch-5" },
+        headers: patchHeaders(state, jobId, "patch-5"),
         payload: { prompt: "too busy" },
       });
       expect(response.statusCode).toBe(409);

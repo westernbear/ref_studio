@@ -9,8 +9,7 @@ CREATE TABLE motion_scene_versions (
   verification_json TEXT,
   created_at TEXT NOT NULL,
   UNIQUE (tenant_id, job_id, version),
-  UNIQUE (tenant_id, id),
-  FOREIGN KEY (tenant_id, job_id) REFERENCES jobs(tenant_id, id)
+  UNIQUE (tenant_id, id)
 );
 
 CREATE TABLE job_motion_scene_heads (
@@ -18,7 +17,6 @@ CREATE TABLE job_motion_scene_heads (
   job_id TEXT NOT NULL,
   version_id TEXT NOT NULL,
   PRIMARY KEY (tenant_id, job_id),
-  FOREIGN KEY (tenant_id, job_id) REFERENCES jobs(tenant_id, id),
   FOREIGN KEY (tenant_id, version_id) REFERENCES motion_scene_versions(tenant_id, id)
 );
 

@@ -431,6 +431,26 @@ const schemas = {
       "verification",
     ],
   ),
+  DeliverablesV1: object(
+    {
+      backend: { type: "string", enum: ["native", "adobe"] },
+      items: {
+        type: "array",
+        items: object(
+          {
+            id: string(),
+            kind: {
+              type: "string",
+              enum: ["mp4", "scene-package", "report"],
+            },
+            downloadUrl: string(),
+          },
+          ["id", "kind", "downloadUrl"],
+        ),
+      },
+    },
+    ["backend", "items"],
+  ),
 };
 const ref = (name) => ({ $ref: `#/components/schemas/${name}` });
 const json = (schema) => ({ content: { "application/json": { schema } } });
@@ -506,7 +526,26 @@ const document = {
       get: {
         operationId: "getDeliverables",
         responses: {
-          200: { description: "Deliverables", ...json({ type: "object" }) },
+          200: {
+            description: "Deliverables",
+            ...json(ref("DeliverablesV1")),
+          },
+        },
+      },
+    },
+    "/v1/jobs/{id}/scene-package-download": {
+      get: {
+        operationId: "downloadScenePackage",
+        responses: {
+          200: {
+            description: "Offline native scene package",
+            content: {
+              "application/x-tar": {
+                schema: { type: "string", format: "binary" },
+              },
+            },
+          },
+          404: { description: "Not found", ...json(ref("SafeErrorEnvelope")) },
         },
       },
     },
@@ -545,7 +584,7 @@ if (
   )
 )
   throw new Error("OPENAPI_COMPONENTS_NOT_CONCRETE");
-const client = `export type ApiOperation = "createUpload" | "createJob" | "getJob" | "getMotionScene" | "patchMotionScene" | "getDeliverables" | "createReview" | "listReceipts"\nexport const paths = { uploads: "/v1/uploads", jobs: "/v1/jobs", motionScene: "/v1/jobs/{id}/motion-scene", deliverables: "/v1/jobs/{id}/deliverables", reviews: "/v1/reviews", receipts: "/v1/receipts" } as const\n`;
+const client = `export type ApiOperation = "createUpload" | "createJob" | "getJob" | "getMotionScene" | "patchMotionScene" | "getDeliverables" | "downloadScenePackage" | "createReview" | "listReceipts"\nexport const paths = { uploads: "/v1/uploads", jobs: "/v1/jobs", motionScene: "/v1/jobs/{id}/motion-scene", deliverables: "/v1/jobs/{id}/deliverables", scenePackage: "/v1/jobs/{id}/scene-package-download", reviews: "/v1/reviews", receipts: "/v1/receipts" } as const\n`;
 await mkdir(resolve(root, "packages/contracts/generated"), { recursive: true });
 await writeFile(
   resolve(root, "packages/contracts/generated/openapi.json"),
@@ -562,7 +601,7 @@ await writeFile(
 process.stdout.write(
   JSON.stringify({
     status: "generated",
-    operations: 8,
+    operations: 9,
     schemas: Object.keys(schemas).length,
   }) + "\n",
 );
