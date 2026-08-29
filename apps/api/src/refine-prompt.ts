@@ -10,6 +10,8 @@ import { patchScene, type GeneratePatch } from "./patch-scene.js";
 import type { UploadStore } from "./uploads.js";
 import { assertLegalTransition } from "../../../packages/contracts/src/lifecycle.js";
 import { sha256Hex } from "../../../packages/contracts/src/canonical-json.js";
+import { applySceneOperations } from "./motion-scene.js";
+import { recordMotionSceneRefinement } from "./motion-scene-store.js";
 
 const id = (prefix: string): string =>
   `${prefix}_${randomBytes(12).toString("base64url")}`;
@@ -32,9 +34,13 @@ const statusFor = (code: string): number =>
     ? 404
     : code === "AUTHENTICATION_REQUIRED"
       ? 401
-      : code === "JOB_NOT_READY_FOR_PATCH"
-        ? 409
-        : 400;
+      : code === "PRECONDITION_REQUIRED"
+        ? 428
+        : code === "VERSION_CONFLICT"
+          ? 409
+          : code === "JOB_NOT_READY_FOR_PATCH"
+            ? 409
+            : 400;
 
 export type RefineProposal = {
   readonly startFrame: number;
@@ -275,7 +281,8 @@ async function applyScenePatch(params: {
 }): Promise<ScenePatchChatResponse> {
   const { store, job } = params;
   assertPatchable(job);
-  const previous = job.authoredScene!.spec;
+  const previous = job.authoredScene?.spec;
+  if (!previous) throw new Error("JOB_NOT_READY_FOR_PATCH");
   const patched = await patchScene({
     previous,
     feedback: params.feedback,
@@ -289,8 +296,50 @@ async function applyScenePatch(params: {
   // nothing above this line mutates the job, so a throw anywhere in
   // patchScene (AI failure, schema failure, validateSceneSpec failure)
   // leaves job.authoredScene exactly as it was.
-  job.authoredScene = { spec: patched.spec, beatSheet: patched.beatSheet };
-  job.sceneSpecDigest = sha256Hex(patched.spec);
+  const normalized = applySceneOperations(previous, {
+    schema: "scene-operation-batch-v1",
+    baseSceneDigest: sha256Hex(previous),
+    operations: [
+      {
+        kind: "set",
+        opId: "refine-mode",
+        path: "/mode",
+        value: patched.spec.mode,
+        reason: "generated refine",
+      },
+      {
+        kind: "set",
+        opId: "refine-canvas",
+        path: "/canvas",
+        value: patched.spec.canvas,
+        reason: "generated refine",
+      },
+      {
+        kind: "set",
+        opId: "refine-palette",
+        path: "/palette",
+        value: patched.spec.palette,
+        reason: "generated refine",
+      },
+      {
+        kind: "set",
+        opId: "refine-assets",
+        path: "/assets",
+        value: z.json().parse(patched.spec.assets),
+        reason: "generated refine",
+      },
+      {
+        kind: "set",
+        opId: "refine-beats",
+        path: "/beats",
+        value: z.json().parse(patched.spec.beats),
+        reason: "generated refine",
+      },
+    ],
+  });
+  recordMotionSceneRefinement(params.db, job, previous, normalized);
+  job.authoredScene = { spec: normalized, beatSheet: patched.beatSheet };
+  job.sceneSpecDigest = sha256Hex(normalized);
   // Kept on the job record (not only in this request's response) so a
   // future partial-rerender optimisation has something to act on -- see the
   // `ponytail:` comment at apps/worker/src/worker-job-handler.ts's
@@ -302,7 +351,6 @@ async function applyScenePatch(params: {
   // job used to point at is no longer the film this scene describes, and
   // the progress the UI reads has to say a new render is starting, not
   // repeat the finished render's own final progress record.
-  job.artifact = null;
   job.progress = {
     phase: "prepare",
     stage: "scene-patch",
@@ -350,7 +398,10 @@ export function registerRefinePrompt(
         const replay = await idempotency.executeAsync(
           "refine-prompt",
           key,
-          requestHash(request.body ?? {}),
+          requestHash({
+            body: request.body ?? {},
+            ifMatch: header(request, "if-match") ?? null,
+          }),
           tenant(request),
           async () => {
             const job = store.jobs.get(request.params.jobId);
@@ -365,6 +416,10 @@ export function registerRefinePrompt(
             // instead. A restore-track job (no job.generation) takes
             // exactly the path it always has, below, completely unchanged.
             if (job.generation) {
+              const match = header(request, "if-match");
+              if (!match) throw new Error("PRECONDITION_REQUIRED");
+              if (match !== `"${job.sceneSpecDigest}"`)
+                throw new Error("VERSION_CONFLICT");
               const response = await applyScenePatch({
                 store,
                 job,

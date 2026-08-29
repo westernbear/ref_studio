@@ -1,5 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { format } from "prettier";
 
 const root = resolve(import.meta.dirname, "../..");
 const string = (format) =>
@@ -395,6 +396,61 @@ const schemas = {
     },
     ["error"],
   ),
+  SceneOperationBatchV1: object(
+    {
+      schema: { type: "string", const: "scene-operation-batch-v1" },
+      baseSceneDigest: { type: "string", pattern: "^[a-f0-9]{64}$" },
+      operations: {
+        type: "array",
+        minItems: 1,
+        maxItems: 16,
+        items: { type: "object" },
+      },
+    },
+    ["schema", "baseSceneDigest", "operations"],
+  ),
+  MotionSceneSnapshotV1: object(
+    {
+      schema: { type: "string", const: "motion-scene-snapshot-v1" },
+      version: { type: "integer", minimum: 1 },
+      sceneEtag: string(),
+      sceneDigest: { type: "string", pattern: "^[a-f0-9]{64}$" },
+      scene: { type: "object" },
+      history: { type: "array", items: { type: "object" } },
+      backendCapability: { type: "object" },
+      verification: { type: ["object", "null"] },
+    },
+    [
+      "schema",
+      "version",
+      "sceneEtag",
+      "sceneDigest",
+      "scene",
+      "history",
+      "backendCapability",
+      "verification",
+    ],
+  ),
+  DeliverablesV1: object(
+    {
+      backend: { type: "string", enum: ["native", "adobe"] },
+      items: {
+        type: "array",
+        items: object(
+          {
+            id: string(),
+            kind: {
+              type: "string",
+              enum: ["mp4", "scene-package", "report"],
+            },
+            downloadUrl: string(),
+          },
+          ["id", "kind", "downloadUrl"],
+        ),
+      },
+    },
+    ["backend", "items"],
+  ),
 };
 const ref = (name) => ({ $ref: `#/components/schemas/${name}` });
 const json = (schema) => ({ content: { "application/json": { schema } } });
@@ -441,6 +497,58 @@ const document = {
         },
       },
     },
+    "/v1/jobs/{id}/motion-scene": {
+      get: {
+        operationId: "getMotionScene",
+        responses: {
+          200: {
+            description: "Motion scene",
+            ...json(ref("MotionSceneSnapshotV1")),
+          },
+        },
+      },
+      patch: {
+        operationId: "patchMotionScene",
+        requestBody: json(ref("SceneOperationBatchV1")),
+        responses: {
+          200: {
+            description: "Motion scene",
+            ...json(ref("MotionSceneSnapshotV1")),
+          },
+          409: {
+            description: "Version conflict",
+            ...json(ref("SafeErrorEnvelope")),
+          },
+        },
+      },
+    },
+    "/v1/jobs/{id}/deliverables": {
+      get: {
+        operationId: "getDeliverables",
+        responses: {
+          200: {
+            description: "Deliverables",
+            ...json(ref("DeliverablesV1")),
+          },
+        },
+      },
+    },
+    "/v1/jobs/{id}/scene-package-download": {
+      get: {
+        operationId: "downloadScenePackage",
+        responses: {
+          200: {
+            description: "Offline native scene package",
+            content: {
+              "application/x-tar": {
+                schema: { type: "string", format: "binary" },
+              },
+            },
+          },
+          404: { description: "Not found", ...json(ref("SafeErrorEnvelope")) },
+        },
+      },
+    },
     "/v1/reviews": {
       post: {
         operationId: "createReview",
@@ -476,20 +584,24 @@ if (
   )
 )
   throw new Error("OPENAPI_COMPONENTS_NOT_CONCRETE");
-const client = `export type ApiOperation = "createUpload" | "createJob" | "getJob" | "createReview" | "listReceipts"\nexport const paths = { uploads: "/v1/uploads", jobs: "/v1/jobs", reviews: "/v1/reviews", receipts: "/v1/receipts" } as const\n`;
+const client = `export type ApiOperation = "createUpload" | "createJob" | "getJob" | "getMotionScene" | "patchMotionScene" | "getDeliverables" | "downloadScenePackage" | "createReview" | "listReceipts"\nexport const paths = { uploads: "/v1/uploads", jobs: "/v1/jobs", motionScene: "/v1/jobs/{id}/motion-scene", deliverables: "/v1/jobs/{id}/deliverables", scenePackage: "/v1/jobs/{id}/scene-package-download", reviews: "/v1/reviews", receipts: "/v1/receipts" } as const\n`;
 await mkdir(resolve(root, "packages/contracts/generated"), { recursive: true });
 await writeFile(
   resolve(root, "packages/contracts/generated/openapi.json"),
-  `${JSON.stringify(document, null, 2)}\n`,
+  await format(JSON.stringify(document), { parser: "json" }),
 );
 await writeFile(
   resolve(root, "packages/contracts/generated/client.ts"),
-  client,
+  await format(client, { parser: "typescript" }),
+);
+await writeFile(
+  resolve(root, "apps/api/openapi.json"),
+  await format(JSON.stringify(document), { parser: "json" }),
 );
 process.stdout.write(
   JSON.stringify({
     status: "generated",
-    operations: 5,
+    operations: 9,
     schemas: Object.keys(schemas).length,
   }) + "\n",
 );

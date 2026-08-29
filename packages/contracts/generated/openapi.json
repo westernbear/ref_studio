@@ -1,37 +1,20 @@
 {
   "openapi": "3.1.0",
-  "info": {
-    "title": "Reference Video Studio API",
-    "version": "v1"
-  },
+  "info": { "title": "Reference Video Studio API", "version": "v1" },
   "components": {
     "schemas": {
       "Tenant": {
         "type": "object",
         "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^ten_[A-Za-z0-9-]+$"
-          },
-          "name": {
-            "type": "string"
-          },
-          "kind": {
-            "type": "string",
-            "enum": ["PLATFORM", "ORGANIZATION"]
-          },
+          "id": { "type": "string", "pattern": "^ten_[A-Za-z0-9-]+$" },
+          "name": { "type": "string" },
+          "kind": { "type": "string", "enum": ["PLATFORM", "ORGANIZATION"] },
           "status": {
             "type": "string",
             "enum": ["ACTIVE", "DELETING", "DELETED"]
           },
-          "deletionEpoch": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          }
+          "deletionEpoch": { "type": "integer", "minimum": 0 },
+          "createdAt": { "type": "string", "format": "date-time" }
         },
         "required": [
           "id",
@@ -46,21 +29,10 @@
       "User": {
         "type": "object",
         "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^usr_[A-Za-z0-9-]+$"
-          },
-          "email": {
-            "type": "string",
-            "format": "email"
-          },
-          "displayName": {
-            "type": "string"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          }
+          "id": { "type": "string", "pattern": "^usr_[A-Za-z0-9-]+$" },
+          "email": { "type": "string", "format": "email" },
+          "displayName": { "type": "string" },
+          "createdAt": { "type": "string", "format": "date-time" }
         },
         "required": ["id", "email", "displayName", "createdAt"],
         "additionalProperties": false
@@ -68,25 +40,11 @@
       "Credential": {
         "type": "object",
         "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^cred_[A-Za-z0-9-]+$"
-          },
-          "userId": {
-            "type": "string",
-            "pattern": "^usr_[A-Za-z0-9-]+$"
-          },
-          "kind": {
-            "type": "string",
-            "enum": ["PASSWORD", "SERVICE"]
-          },
-          "secretHash": {
-            "type": "string"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          },
+          "id": { "type": "string", "pattern": "^cred_[A-Za-z0-9-]+$" },
+          "userId": { "type": "string", "pattern": "^usr_[A-Za-z0-9-]+$" },
+          "kind": { "type": "string", "enum": ["PASSWORD", "SERVICE"] },
+          "secretHash": { "type": "string" },
+          "createdAt": { "type": "string", "format": "date-time" },
           "revokedAt": {
             "type": "string",
             "format": "date-time",
@@ -106,31 +64,16 @@
       "Session": {
         "type": "object",
         "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^ses_[A-Za-z0-9-]+$"
-          },
-          "userId": {
-            "type": "string",
-            "pattern": "^usr_[A-Za-z0-9-]+$"
-          },
-          "tenantId": {
-            "type": "string",
-            "pattern": "^ten_[A-Za-z0-9-]+$"
-          },
-          "expiresAt": {
-            "type": "string",
-            "format": "date-time"
-          },
+          "id": { "type": "string", "pattern": "^ses_[A-Za-z0-9-]+$" },
+          "userId": { "type": "string", "pattern": "^usr_[A-Za-z0-9-]+$" },
+          "tenantId": { "type": "string", "pattern": "^ten_[A-Za-z0-9-]+$" },
+          "expiresAt": { "type": "string", "format": "date-time" },
           "revokedAt": {
             "type": "string",
             "format": "date-time",
             "nullable": true
           },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          }
+          "createdAt": { "type": "string", "format": "date-time" }
         },
         "required": [
           "id",
@@ -145,34 +88,17 @@
       "ApiToken": {
         "type": "object",
         "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^tok_[A-Za-z0-9-]+$"
-          },
-          "userId": {
-            "type": "string",
-            "pattern": "^usr_[A-Za-z0-9-]+$"
-          },
-          "tenantId": {
-            "type": "string",
-            "pattern": "^ten_[A-Za-z0-9-]+$"
-          },
-          "tokenHash": {
-            "type": "string"
-          },
-          "expiresAt": {
-            "type": "string",
-            "format": "date-time"
-          },
+          "id": { "type": "string", "pattern": "^tok_[A-Za-z0-9-]+$" },
+          "userId": { "type": "string", "pattern": "^usr_[A-Za-z0-9-]+$" },
+          "tenantId": { "type": "string", "pattern": "^ten_[A-Za-z0-9-]+$" },
+          "tokenHash": { "type": "string" },
+          "expiresAt": { "type": "string", "format": "date-time" },
           "revokedAt": {
             "type": "string",
             "format": "date-time",
             "nullable": true
           },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          }
+          "createdAt": { "type": "string", "format": "date-time" }
         },
         "required": [
           "id",
@@ -188,14 +114,8 @@
       "Membership": {
         "type": "object",
         "properties": {
-          "tenantId": {
-            "type": "string",
-            "pattern": "^ten_[A-Za-z0-9-]+$"
-          },
-          "userId": {
-            "type": "string",
-            "pattern": "^usr_[A-Za-z0-9-]+$"
-          },
+          "tenantId": { "type": "string", "pattern": "^ten_[A-Za-z0-9-]+$" },
+          "userId": { "type": "string", "pattern": "^usr_[A-Za-z0-9-]+$" },
           "role": {
             "type": "string",
             "enum": [
@@ -206,10 +126,7 @@
               "VIEWER"
             ]
           },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          }
+          "createdAt": { "type": "string", "format": "date-time" }
         },
         "required": ["tenantId", "userId", "role", "createdAt"],
         "additionalProperties": false
@@ -217,19 +134,13 @@
       "ReviewerAssignment": {
         "type": "object",
         "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^rev_[A-Za-z0-9-]+$"
-          },
+          "id": { "type": "string", "pattern": "^rev_[A-Za-z0-9-]+$" },
           "tenantId": {
             "type": "string",
             "pattern": "^ten_[A-Za-z0-9-]+$",
             "nullable": true
           },
-          "reviewerId": {
-            "type": "string",
-            "pattern": "^usr_[A-Za-z0-9-]+$"
-          },
+          "reviewerId": { "type": "string", "pattern": "^usr_[A-Za-z0-9-]+$" },
           "gate": {
             "type": "string",
             "enum": ["T1", "T2", "T3", "T4", "T5", "T6"]
@@ -238,10 +149,7 @@
             "type": "string",
             "enum": ["TENANT", "PLATFORM", "RELEASE"]
           },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          }
+          "createdAt": { "type": "string", "format": "date-time" }
         },
         "required": [
           "id",
@@ -256,25 +164,11 @@
       "Upload": {
         "type": "object",
         "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^upl_[A-Za-z0-9-]+$"
-          },
-          "tenantId": {
-            "type": "string",
-            "pattern": "^ten_[A-Za-z0-9-]+$"
-          },
-          "filename": {
-            "type": "string"
-          },
-          "contentType": {
-            "type": "string",
-            "const": "video/mp4"
-          },
-          "sizeBytes": {
-            "type": "integer",
-            "minimum": 0
-          },
+          "id": { "type": "string", "pattern": "^upl_[A-Za-z0-9-]+$" },
+          "tenantId": { "type": "string", "pattern": "^ten_[A-Za-z0-9-]+$" },
+          "filename": { "type": "string" },
+          "contentType": { "type": "string", "const": "video/mp4" },
+          "sizeBytes": { "type": "integer", "minimum": 0 },
           "state": {
             "type": "string",
             "enum": ["PENDING", "QUARANTINED", "ACCEPTED", "EXPIRED"]
@@ -284,14 +178,8 @@
             "pattern": "^cas_[A-Za-z0-9-]+$",
             "nullable": true
           },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "expiresAt": {
-            "type": "string",
-            "format": "date-time"
-          }
+          "createdAt": { "type": "string", "format": "date-time" },
+          "expiresAt": { "type": "string", "format": "date-time" }
         },
         "required": [
           "id",
@@ -309,32 +197,13 @@
       "CasObject": {
         "type": "object",
         "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^cas_[A-Za-z0-9-]+$"
-          },
-          "tenantId": {
-            "type": "string",
-            "pattern": "^ten_[A-Za-z0-9-]+$"
-          },
-          "sha256": {
-            "type": "string",
-            "pattern": "^[a-f0-9]{64}$"
-          },
-          "contentType": {
-            "type": "string"
-          },
-          "sizeBytes": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "purpose": {
-            "type": "string"
-          },
-          "retentionUntil": {
-            "type": "string",
-            "format": "date-time"
-          }
+          "id": { "type": "string", "pattern": "^cas_[A-Za-z0-9-]+$" },
+          "tenantId": { "type": "string", "pattern": "^ten_[A-Za-z0-9-]+$" },
+          "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "contentType": { "type": "string" },
+          "sizeBytes": { "type": "integer", "minimum": 0 },
+          "purpose": { "type": "string" },
+          "retentionUntil": { "type": "string", "format": "date-time" }
         },
         "required": [
           "id",
@@ -350,26 +219,11 @@
       "Job": {
         "type": "object",
         "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^job_[A-Za-z0-9-]+$"
-          },
-          "tenantId": {
-            "type": "string",
-            "pattern": "^ten_[A-Za-z0-9-]+$"
-          },
-          "creatorId": {
-            "type": "string",
-            "pattern": "^usr_[A-Za-z0-9-]+$"
-          },
-          "uploadId": {
-            "type": "string",
-            "pattern": "^upl_[A-Za-z0-9-]+$"
-          },
-          "sceneId": {
-            "type": "string",
-            "pattern": "^scn_[A-Za-z0-9-]+$"
-          },
+          "id": { "type": "string", "pattern": "^job_[A-Za-z0-9-]+$" },
+          "tenantId": { "type": "string", "pattern": "^ten_[A-Za-z0-9-]+$" },
+          "creatorId": { "type": "string", "pattern": "^usr_[A-Za-z0-9-]+$" },
+          "uploadId": { "type": "string", "pattern": "^upl_[A-Za-z0-9-]+$" },
+          "sceneId": { "type": "string", "pattern": "^scn_[A-Za-z0-9-]+$" },
           "state": {
             "type": "string",
             "enum": [
@@ -381,18 +235,9 @@
               "FAILED"
             ]
           },
-          "attempt": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "deletionEpoch": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          }
+          "attempt": { "type": "integer", "minimum": 0 },
+          "deletionEpoch": { "type": "integer", "minimum": 0 },
+          "createdAt": { "type": "string", "format": "date-time" }
         },
         "required": [
           "id",
@@ -410,29 +255,12 @@
       "Attempt": {
         "type": "object",
         "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^att_[A-Za-z0-9-]+$"
-          },
-          "tenantId": {
-            "type": "string",
-            "pattern": "^ten_[A-Za-z0-9-]+$"
-          },
-          "jobId": {
-            "type": "string",
-            "pattern": "^job_[A-Za-z0-9-]+$"
-          },
-          "number": {
-            "type": "integer",
-            "minimum": 1
-          },
-          "state": {
-            "type": "string"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          }
+          "id": { "type": "string", "pattern": "^att_[A-Za-z0-9-]+$" },
+          "tenantId": { "type": "string", "pattern": "^ten_[A-Za-z0-9-]+$" },
+          "jobId": { "type": "string", "pattern": "^job_[A-Za-z0-9-]+$" },
+          "number": { "type": "integer", "minimum": 1 },
+          "state": { "type": "string" },
+          "createdAt": { "type": "string", "format": "date-time" }
         },
         "required": ["id", "tenantId", "jobId", "number", "state", "createdAt"],
         "additionalProperties": false
@@ -440,33 +268,13 @@
       "Lease": {
         "type": "object",
         "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^lease_[A-Za-z0-9-]+$"
-          },
-          "tenantId": {
-            "type": "string",
-            "pattern": "^ten_[A-Za-z0-9-]+$"
-          },
-          "jobId": {
-            "type": "string",
-            "pattern": "^job_[A-Za-z0-9-]+$"
-          },
-          "attemptId": {
-            "type": "string",
-            "pattern": "^att_[A-Za-z0-9-]+$"
-          },
-          "workerId": {
-            "type": "string"
-          },
-          "acquiredAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "expiresAt": {
-            "type": "string",
-            "format": "date-time"
-          },
+          "id": { "type": "string", "pattern": "^lease_[A-Za-z0-9-]+$" },
+          "tenantId": { "type": "string", "pattern": "^ten_[A-Za-z0-9-]+$" },
+          "jobId": { "type": "string", "pattern": "^job_[A-Za-z0-9-]+$" },
+          "attemptId": { "type": "string", "pattern": "^att_[A-Za-z0-9-]+$" },
+          "workerId": { "type": "string" },
+          "acquiredAt": { "type": "string", "format": "date-time" },
+          "expiresAt": { "type": "string", "format": "date-time" },
           "releasedAt": {
             "type": "string",
             "format": "date-time",
@@ -488,29 +296,15 @@
       "Review": {
         "type": "object",
         "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^rev_[A-Za-z0-9-]+$"
-          },
-          "tenantId": {
-            "type": "string",
-            "pattern": "^ten_[A-Za-z0-9-]+$"
-          },
-          "jobId": {
-            "type": "string",
-            "pattern": "^job_[A-Za-z0-9-]+$"
-          },
-          "gate": {
-            "type": "string"
-          },
+          "id": { "type": "string", "pattern": "^rev_[A-Za-z0-9-]+$" },
+          "tenantId": { "type": "string", "pattern": "^ten_[A-Za-z0-9-]+$" },
+          "jobId": { "type": "string", "pattern": "^job_[A-Za-z0-9-]+$" },
+          "gate": { "type": "string" },
           "status": {
             "type": "string",
             "enum": ["PENDING", "APPROVED", "REJECTED"]
           },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          }
+          "createdAt": { "type": "string", "format": "date-time" }
         },
         "required": ["id", "tenantId", "jobId", "gate", "status", "createdAt"],
         "additionalProperties": false
@@ -518,36 +312,14 @@
       "Receipt": {
         "type": "object",
         "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^rcpt_[A-Za-z0-9-]+$"
-          },
-          "tenantId": {
-            "type": "string",
-            "pattern": "^ten_[A-Za-z0-9-]+$"
-          },
-          "jobId": {
-            "type": "string",
-            "pattern": "^job_[A-Za-z0-9-]+$"
-          },
-          "attemptId": {
-            "type": "string",
-            "pattern": "^att_[A-Za-z0-9-]+$"
-          },
-          "sequence": {
-            "type": "integer",
-            "minimum": 1
-          },
-          "gate": {
-            "type": "string"
-          },
-          "decision": {
-            "type": "string"
-          },
-          "actorId": {
-            "type": "string",
-            "pattern": "^usr_[A-Za-z0-9-]+$"
-          },
+          "id": { "type": "string", "pattern": "^rcpt_[A-Za-z0-9-]+$" },
+          "tenantId": { "type": "string", "pattern": "^ten_[A-Za-z0-9-]+$" },
+          "jobId": { "type": "string", "pattern": "^job_[A-Za-z0-9-]+$" },
+          "attemptId": { "type": "string", "pattern": "^att_[A-Za-z0-9-]+$" },
+          "sequence": { "type": "integer", "minimum": 1 },
+          "gate": { "type": "string" },
+          "decision": { "type": "string" },
+          "actorId": { "type": "string", "pattern": "^usr_[A-Za-z0-9-]+$" },
           "predecessorId": {
             "type": "string",
             "pattern": "^rcpt_[A-Za-z0-9-]+$",
@@ -555,15 +327,9 @@
           },
           "artifactCasIds": {
             "type": "array",
-            "items": {
-              "type": "string",
-              "pattern": "^cas_[A-Za-z0-9-]+$"
-            }
+            "items": { "type": "string", "pattern": "^cas_[A-Za-z0-9-]+$" }
           },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          }
+          "createdAt": { "type": "string", "format": "date-time" }
         },
         "required": [
           "id",
@@ -583,38 +349,19 @@
       "AuditEvent": {
         "type": "object",
         "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^rcpt_[A-Za-z0-9-]+$"
-          },
+          "id": { "type": "string", "pattern": "^rcpt_[A-Za-z0-9-]+$" },
           "tenantId": {
             "type": "string",
             "pattern": "^ten_[A-Za-z0-9-]+$",
             "nullable": true
           },
-          "actorId": {
-            "type": "string",
-            "pattern": "^usr_[A-Za-z0-9-]+$"
-          },
-          "action": {
-            "type": "string"
-          },
-          "targetType": {
-            "type": "string"
-          },
-          "targetId": {
-            "type": "string"
-          },
-          "decision": {
-            "type": "string"
-          },
-          "correlationId": {
-            "type": "string"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          }
+          "actorId": { "type": "string", "pattern": "^usr_[A-Za-z0-9-]+$" },
+          "action": { "type": "string" },
+          "targetType": { "type": "string" },
+          "targetId": { "type": "string" },
+          "decision": { "type": "string" },
+          "correlationId": { "type": "string" },
+          "createdAt": { "type": "string", "format": "date-time" }
         },
         "required": [
           "id",
@@ -632,24 +379,11 @@
       "Quota": {
         "type": "object",
         "properties": {
-          "tenantId": {
-            "type": "string",
-            "pattern": "^ten_[A-Za-z0-9-]+$"
-          },
-          "plan": {
-            "type": "string"
-          },
-          "limitSeconds": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "usedSeconds": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "enforcementState": {
-            "type": "string"
-          },
+          "tenantId": { "type": "string", "pattern": "^ten_[A-Za-z0-9-]+$" },
+          "plan": { "type": "string" },
+          "limitSeconds": { "type": "integer", "minimum": 0 },
+          "usedSeconds": { "type": "integer", "minimum": 0 },
+          "enforcementState": { "type": "string" },
           "supportGrantExpiresAt": {
             "type": "string",
             "format": "date-time",
@@ -669,23 +403,11 @@
       "IdempotencyKey": {
         "type": "object",
         "properties": {
-          "tenantId": {
-            "type": "string",
-            "pattern": "^ten_[A-Za-z0-9-]+$"
-          },
-          "key": {
-            "type": "string"
-          },
-          "requestHash": {
-            "type": "string"
-          },
-          "responseJson": {
-            "type": "string"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          }
+          "tenantId": { "type": "string", "pattern": "^ten_[A-Za-z0-9-]+$" },
+          "key": { "type": "string" },
+          "requestHash": { "type": "string" },
+          "responseJson": { "type": "string" },
+          "createdAt": { "type": "string", "format": "date-time" }
         },
         "required": [
           "tenantId",
@@ -699,25 +421,11 @@
       "Export": {
         "type": "object",
         "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^exp_[A-Za-z0-9-]+$"
-          },
-          "tenantId": {
-            "type": "string",
-            "pattern": "^ten_[A-Za-z0-9-]+$"
-          },
-          "requestedBy": {
-            "type": "string",
-            "pattern": "^usr_[A-Za-z0-9-]+$"
-          },
-          "state": {
-            "type": "string"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          }
+          "id": { "type": "string", "pattern": "^exp_[A-Za-z0-9-]+$" },
+          "tenantId": { "type": "string", "pattern": "^ten_[A-Za-z0-9-]+$" },
+          "requestedBy": { "type": "string", "pattern": "^usr_[A-Za-z0-9-]+$" },
+          "state": { "type": "string" },
+          "createdAt": { "type": "string", "format": "date-time" }
         },
         "required": ["id", "tenantId", "requestedBy", "state", "createdAt"],
         "additionalProperties": false
@@ -725,30 +433,16 @@
       "Artifact": {
         "type": "object",
         "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^art_[A-Za-z0-9-]+$"
-          },
-          "tenantId": {
-            "type": "string",
-            "pattern": "^ten_[A-Za-z0-9-]+$"
-          },
+          "id": { "type": "string", "pattern": "^art_[A-Za-z0-9-]+$" },
+          "tenantId": { "type": "string", "pattern": "^ten_[A-Za-z0-9-]+$" },
           "exportId": {
             "type": "string",
             "pattern": "^exp_[A-Za-z0-9-]+$",
             "nullable": true
           },
-          "casObjectId": {
-            "type": "string",
-            "pattern": "^cas_[A-Za-z0-9-]+$"
-          },
-          "kind": {
-            "type": "string"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          }
+          "casObjectId": { "type": "string", "pattern": "^cas_[A-Za-z0-9-]+$" },
+          "kind": { "type": "string" },
+          "createdAt": { "type": "string", "format": "date-time" }
         },
         "required": [
           "id",
@@ -763,29 +457,12 @@
       "AuthoringIRVersion": {
         "type": "object",
         "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^air_[A-Za-z0-9-]+$"
-          },
-          "tenantId": {
-            "type": "string",
-            "pattern": "^ten_[A-Za-z0-9-]+$"
-          },
-          "sceneId": {
-            "type": "string",
-            "pattern": "^scn_[A-Za-z0-9-]+$"
-          },
-          "version": {
-            "type": "integer",
-            "minimum": 1
-          },
-          "ir": {
-            "type": "object"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          }
+          "id": { "type": "string", "pattern": "^air_[A-Za-z0-9-]+$" },
+          "tenantId": { "type": "string", "pattern": "^ten_[A-Za-z0-9-]+$" },
+          "sceneId": { "type": "string", "pattern": "^scn_[A-Za-z0-9-]+$" },
+          "version": { "type": "integer", "minimum": 1 },
+          "ir": { "type": "object" },
+          "createdAt": { "type": "string", "format": "date-time" }
         },
         "required": ["id", "tenantId", "sceneId", "version", "ir", "createdAt"],
         "additionalProperties": false
@@ -793,29 +470,12 @@
       "SceneIRVersion": {
         "type": "object",
         "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^sir_[A-Za-z0-9-]+$"
-          },
-          "tenantId": {
-            "type": "string",
-            "pattern": "^ten_[A-Za-z0-9-]+$"
-          },
-          "sceneId": {
-            "type": "string",
-            "pattern": "^scn_[A-Za-z0-9-]+$"
-          },
-          "version": {
-            "type": "integer",
-            "minimum": 1
-          },
-          "ir": {
-            "type": "object"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          }
+          "id": { "type": "string", "pattern": "^sir_[A-Za-z0-9-]+$" },
+          "tenantId": { "type": "string", "pattern": "^ten_[A-Za-z0-9-]+$" },
+          "sceneId": { "type": "string", "pattern": "^scn_[A-Za-z0-9-]+$" },
+          "version": { "type": "integer", "minimum": 1 },
+          "ir": { "type": "object" },
+          "createdAt": { "type": "string", "format": "date-time" }
         },
         "required": ["id", "tenantId", "sceneId", "version", "ir", "createdAt"],
         "additionalProperties": false
@@ -823,29 +483,12 @@
       "BrowserPassSpecVersion": {
         "type": "object",
         "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^bps_[A-Za-z0-9-]+$"
-          },
-          "tenantId": {
-            "type": "string",
-            "pattern": "^ten_[A-Za-z0-9-]+$"
-          },
-          "sceneId": {
-            "type": "string",
-            "pattern": "^scn_[A-Za-z0-9-]+$"
-          },
-          "version": {
-            "type": "integer",
-            "minimum": 1
-          },
-          "spec": {
-            "type": "object"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          }
+          "id": { "type": "string", "pattern": "^bps_[A-Za-z0-9-]+$" },
+          "tenantId": { "type": "string", "pattern": "^ten_[A-Za-z0-9-]+$" },
+          "sceneId": { "type": "string", "pattern": "^scn_[A-Za-z0-9-]+$" },
+          "version": { "type": "integer", "minimum": 1 },
+          "spec": { "type": "object" },
+          "createdAt": { "type": "string", "format": "date-time" }
         },
         "required": [
           "id",
@@ -860,31 +503,13 @@
       "Evidence": {
         "type": "object",
         "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^evd_[A-Za-z0-9-]+$"
-          },
-          "tenantId": {
-            "type": "string",
-            "pattern": "^ten_[A-Za-z0-9-]+$"
-          },
-          "owner": {
-            "type": "string"
-          },
-          "label": {
-            "type": "string"
-          },
-          "measuredValue": {
-            "type": "string"
-          },
-          "confidence": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 1
-          },
-          "source": {
-            "type": "string"
-          }
+          "id": { "type": "string", "pattern": "^evd_[A-Za-z0-9-]+$" },
+          "tenantId": { "type": "string", "pattern": "^ten_[A-Za-z0-9-]+$" },
+          "owner": { "type": "string" },
+          "label": { "type": "string" },
+          "measuredValue": { "type": "string" },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+          "source": { "type": "string" }
         },
         "required": [
           "id",
@@ -903,21 +528,10 @@
           "error": {
             "type": "object",
             "properties": {
-              "code": {
-                "type": "string"
-              },
-              "message": {
-                "type": "string"
-              },
-              "correlationId": {
-                "type": "string"
-              },
-              "details": {
-                "type": "array",
-                "items": {
-                  "type": "object"
-                }
-              }
+              "code": { "type": "string" },
+              "message": { "type": "string" },
+              "correlationId": { "type": "string" },
+              "details": { "type": "array", "items": { "type": "object" } }
             },
             "required": ["code", "message", "correlationId", "details"],
             "additionalProperties": false
@@ -925,14 +539,72 @@
         },
         "required": ["error"],
         "additionalProperties": false
+      },
+      "SceneOperationBatchV1": {
+        "type": "object",
+        "properties": {
+          "schema": { "type": "string", "const": "scene-operation-batch-v1" },
+          "baseSceneDigest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "operations": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 16,
+            "items": { "type": "object" }
+          }
+        },
+        "required": ["schema", "baseSceneDigest", "operations"],
+        "additionalProperties": false
+      },
+      "MotionSceneSnapshotV1": {
+        "type": "object",
+        "properties": {
+          "schema": { "type": "string", "const": "motion-scene-snapshot-v1" },
+          "version": { "type": "integer", "minimum": 1 },
+          "sceneEtag": { "type": "string" },
+          "sceneDigest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "scene": { "type": "object" },
+          "history": { "type": "array", "items": { "type": "object" } },
+          "backendCapability": { "type": "object" },
+          "verification": { "type": ["object", "null"] }
+        },
+        "required": [
+          "schema",
+          "version",
+          "sceneEtag",
+          "sceneDigest",
+          "scene",
+          "history",
+          "backendCapability",
+          "verification"
+        ],
+        "additionalProperties": false
+      },
+      "DeliverablesV1": {
+        "type": "object",
+        "properties": {
+          "backend": { "type": "string", "enum": ["native", "adobe"] },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string" },
+                "kind": {
+                  "type": "string",
+                  "enum": ["mp4", "scene-package", "report"]
+                },
+                "downloadUrl": { "type": "string" }
+              },
+              "required": ["id", "kind", "downloadUrl"],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": ["backend", "items"],
+        "additionalProperties": false
       }
     },
-    "securitySchemes": {
-      "bearerAuth": {
-        "type": "http",
-        "scheme": "bearer"
-      }
-    }
+    "securitySchemes": { "bearerAuth": { "type": "http", "scheme": "bearer" } }
   },
   "paths": {
     "/v1/uploads": {
@@ -941,9 +613,7 @@
         "requestBody": {
           "content": {
             "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/Upload"
-              }
+              "schema": { "$ref": "#/components/schemas/Upload" }
             }
           }
         },
@@ -952,9 +622,7 @@
             "description": "Created",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Upload"
-                }
+                "schema": { "$ref": "#/components/schemas/Upload" }
               }
             }
           },
@@ -962,9 +630,7 @@
             "description": "Quarantined",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SafeErrorEnvelope"
-                }
+                "schema": { "$ref": "#/components/schemas/SafeErrorEnvelope" }
               }
             }
           }
@@ -977,9 +643,7 @@
         "requestBody": {
           "content": {
             "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/Job"
-              }
+              "schema": { "$ref": "#/components/schemas/Job" }
             }
           }
         },
@@ -988,9 +652,7 @@
             "description": "Queued",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Job"
-                }
+                "schema": { "$ref": "#/components/schemas/Job" }
               }
             }
           },
@@ -998,9 +660,7 @@
             "description": "Invalid request",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SafeErrorEnvelope"
-                }
+                "schema": { "$ref": "#/components/schemas/SafeErrorEnvelope" }
               }
             }
           }
@@ -1015,9 +675,7 @@
             "description": "Job",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Job"
-                }
+                "schema": { "$ref": "#/components/schemas/Job" }
               }
             }
           },
@@ -1025,9 +683,92 @@
             "description": "Not found",
             "content": {
               "application/json": {
+                "schema": { "$ref": "#/components/schemas/SafeErrorEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/jobs/{id}/motion-scene": {
+      "get": {
+        "operationId": "getMotionScene",
+        "responses": {
+          "200": {
+            "description": "Motion scene",
+            "content": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SafeErrorEnvelope"
+                  "$ref": "#/components/schemas/MotionSceneSnapshotV1"
                 }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patchMotionScene",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SceneOperationBatchV1" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Motion scene",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MotionSceneSnapshotV1"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version conflict",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SafeErrorEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/jobs/{id}/deliverables": {
+      "get": {
+        "operationId": "getDeliverables",
+        "responses": {
+          "200": {
+            "description": "Deliverables",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/DeliverablesV1" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/jobs/{id}/scene-package-download": {
+      "get": {
+        "operationId": "downloadScenePackage",
+        "responses": {
+          "200": {
+            "description": "Offline native scene package",
+            "content": {
+              "application/x-tar": {
+                "schema": { "type": "string", "format": "binary" }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SafeErrorEnvelope" }
               }
             }
           }
@@ -1040,9 +781,7 @@
         "requestBody": {
           "content": {
             "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/Review"
-              }
+              "schema": { "$ref": "#/components/schemas/Review" }
             }
           }
         },
@@ -1051,9 +790,7 @@
             "description": "Recorded",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Review"
-                }
+                "schema": { "$ref": "#/components/schemas/Review" }
               }
             }
           },
@@ -1061,9 +798,7 @@
             "description": "Stale approval",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SafeErrorEnvelope"
-                }
+                "schema": { "$ref": "#/components/schemas/SafeErrorEnvelope" }
               }
             }
           }
@@ -1080,9 +815,7 @@
               "application/json": {
                 "schema": {
                   "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Receipt"
-                  }
+                  "items": { "$ref": "#/components/schemas/Receipt" }
                 }
               }
             }

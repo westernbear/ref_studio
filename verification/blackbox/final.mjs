@@ -435,6 +435,7 @@ async function verifyF1() {
   );
   const previousRowSha256 = previousRows.at(-1)?.rowSha256 ?? null;
   const f1Row = {
+    schemaVersion: "rvs-evidence-index-receipt-row-v1",
     mode: "f1",
     receipt: f1Path,
     sha256: sha256(await bytes(f1Path)),

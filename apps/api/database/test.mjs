@@ -164,6 +164,18 @@ db.exec(
   "INSERT INTO jobs VALUES ('job_a','ten_test','usr_owner','upl_a','scene_a','QUEUED',0,0,'2026-08-22T00:00:00Z')",
 );
 db.exec(
+  "INSERT INTO motion_scene_versions VALUES ('msv_a','ten_test','job_a',1,'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','{}','{}',NULL,'2026-08-22T00:00:00Z'); INSERT INTO job_motion_scene_heads VALUES ('ten_test','job_a','msv_a')",
+);
+assert.throws(
+  () =>
+    db.exec("UPDATE motion_scene_versions SET scene_json='x' WHERE id='msv_a'"),
+  /MOTION_SCENE_VERSION_IMMUTABLE/,
+);
+assert.throws(
+  () => db.exec("DELETE FROM motion_scene_versions WHERE id='msv_a'"),
+  /MOTION_SCENE_VERSION_IMMUTABLE/,
+);
+db.exec(
   "INSERT INTO job_attempts VALUES ('att_a','ten_test','job_a',1,'QUEUED','2026-08-22T00:00:00Z')",
 );
 const rejection = (sql) => assert.throws(() => db.exec(sql));

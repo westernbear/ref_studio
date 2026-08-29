@@ -76,6 +76,9 @@ export function migrate(db) {
     [15, "./migrations/015_material_service_endpoints.sql", false],
     [16, "./migrations/016_codex_oauth_material_provider.sql", true],
     [17, "./migrations/017_codex_oauth_ai_provider.sql", true],
+    [18, "./migrations/018_motion_knowledge.sql", false],
+    [19, "./migrations/019_motion_scene_versions.sql", false],
+    [20, "./migrations/020_scene_package_artifacts.sql", true],
   ];
   for (const [version, file, disableForeignKeys] of migrations) {
     if (
@@ -84,6 +87,19 @@ export function migrate(db) {
         .get(version)
     )
       continue;
+    if (
+      version === 19 &&
+      !db
+        .prepare(
+          "SELECT 1 FROM sqlite_master WHERE type='table' AND name='jobs'",
+        )
+        .get()
+    ) {
+      db.prepare(
+        "INSERT INTO schema_migrations VALUES (?, datetime('now'))",
+      ).run(version);
+      continue;
+    }
     const migration = fs.readFileSync(new URL(file, import.meta.url), "utf8");
     if (disableForeignKeys) db.pragma("foreign_keys = OFF");
     db.exec("BEGIN IMMEDIATE");

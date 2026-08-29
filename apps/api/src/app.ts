@@ -56,6 +56,7 @@ import {
   type AdminMutationStore,
 } from "./admin-mutation.js";
 import { registerJobAttachments } from "./job-attachments.js";
+import { registerMotionScene } from "./motion-scene.js";
 import { registerRefinePrompt } from "./refine-prompt.js";
 import type { GenerateScene } from "./author-scene.js";
 import type { GeneratePatch } from "./patch-scene.js";
@@ -106,6 +107,8 @@ export type AppOptions = {
   readonly translateGenerate?: GenerateTranslation;
   readonly authorSceneGenerate?: GenerateScene;
   readonly materialGenerate?: GenerateImage;
+  readonly verifiedMotionAuthoring?: boolean;
+  readonly nativeSceneV2?: boolean;
 } & WorkerAppOptions;
 const header = (request: FastifyRequest, name: string): string | undefined => {
   const value = request.headers[name];
@@ -214,7 +217,12 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
   // needs the whole body as bytes to sniff and store -- see I1's fix in
   // this handler's own registration below, which buffers a Readable body
   // itself rather than changing this parser for every route that uses it.
-  for (const contentType of ["video/mp4", "video/quicktime", "video/webm"])
+  for (const contentType of [
+    "video/mp4",
+    "video/quicktime",
+    "video/webm",
+    "application/x-tar",
+  ])
     app.addContentTypeParser(contentType, (_request, body, done) => {
       done(null, body);
     });
@@ -880,6 +888,16 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
       options.creatorWorkflow,
       options.db,
       options.attachmentsRoot,
+    );
+  if (options.creatorWorkflow && options.db)
+    registerMotionScene(
+      app,
+      options.creatorWorkflow,
+      options.db,
+      (options.verifiedMotionAuthoring ??
+        process.env["RVS_VERIFIED_MOTION_AUTHORING"] === "true") &&
+        (options.nativeSceneV2 ??
+          process.env["RVS_NATIVE_SCENE_V2"] === "true"),
     );
   if (options.workers)
     registerWorkers(app, options.workers, {

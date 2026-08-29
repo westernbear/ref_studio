@@ -26,6 +26,8 @@
     "controls:coverage": "node scripts/controls/coverage.mjs",
     "verify:authority": "node verification/blackbox/verify-authority-root.mjs --root .omo/drafts/reference-video-studio-saas-authority-root.md",
     "qa:self-test": "node scripts/qa/self-test.mjs",
+    "test:evidence": "node scripts/qa/assert-evidence.test.mjs",
+    "test:concurrency": "pnpm --filter @rvs/api test --run src/tenant\\|idempotency\\|safe-error\\|auth.test.ts",
     "pilot:admission": "node scripts/pilot/admission.mjs",
     "pilot:run": "node scripts/pilot/run.mjs",
     "pilot:verify": "node scripts/pilot/verify.mjs",

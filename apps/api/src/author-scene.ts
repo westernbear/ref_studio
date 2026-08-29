@@ -17,6 +17,8 @@ import {
 } from "./author-scene-evidence.js";
 import { AUTHORING_SYSTEM_PROMPT } from "./author-scene.prompt.js";
 import { aiModelFromSettings } from "./ai-model-from-settings.js";
+import { hostMotionLookup } from "./motion-knowledge.js";
+import { generateVerifiedScene } from "./verified-scene-authoring.js";
 
 // Narrow view of `generateObject`, mirrors apps/api/src/safety-check.ts,
 // translate-evidence.ts and refine-prompt.ts so tests can inject a fake
@@ -126,6 +128,15 @@ export async function authorScene(params: {
   // (its own token, EVIDENCE_PROJECTION_TOO_LARGE) if the projection itself
   // is unexpectedly large, rather than silently truncating.
   const projectedEvidence = projectEvidenceForAuthoring(params.evidence);
+  const motionKnowledge = hostMotionLookup(params.db, params.config.brief).map(
+    (card) => ({
+      id: card.id,
+      definition: card.definition,
+      parameters: card.parameters,
+      capabilities: card.capabilities,
+      verifierRefs: card.verifierRefs,
+    }),
+  );
 
   // The canvas is a job-configuration fact, never a model decision -- a
   // model that returns a 9:16 spec for a 16:9 job must not silently choose
@@ -175,6 +186,10 @@ Every beat.startFrame/endFrame, every keyframe.frame, and every element.box must
 
 ${JSON.stringify(projectedEvidence)}
 
+## Motion knowledge (host-resolved before model invocation)
+
+${JSON.stringify(motionKnowledge)}
+
 ## Scene mode
 
 You decide the mode -- the creator never picks it. Set "mode" in your output to "SWAP" or "REINTERPRET" based on what the brief below actually asks for; see the system instructions for the criteria and which way to lean when it is ambiguous.
@@ -193,36 +208,33 @@ ${params.config.brief}
 
 Author a SceneSpec for a film of about ${params.config.durationSec} seconds.`;
 
-  const generated = await generate({
-    model,
-    schema: SceneSpecSchema,
-    system: AUTHORING_SYSTEM_PROMPT,
-    prompt,
+  const validated = await generateVerifiedScene({
+    generate: async (attempt, failures) =>
+      (
+        await generate({
+          model,
+          schema: SceneSpecSchema,
+          system: AUTHORING_SYSTEM_PROMPT,
+          prompt:
+            attempt === 1
+              ? prompt
+              : `${prompt}\n\n## Verification repair ${attempt}/4\n\nFix these predicate failures without changing the hard canvas or asset constraints: ${JSON.stringify(failures)}`,
+        })
+      ).object,
+    verify: (candidate) => {
+      const parsed = SceneSpecSchema.safeParse(candidate);
+      if (!parsed.success) throw new Error("SPEC_SCHEMA_INVALID");
+      const spec: SceneSpec = { ...parsed.data, canvas };
+      return validateSceneSpec(
+        spec,
+        resolvableAssetIds(
+          spec,
+          params.attachments,
+          evidenceOwnerIds(projectedEvidence),
+        ),
+      );
+    },
   });
-
-  const parsed = SceneSpecSchema.safeParse(generated.object);
-  if (!parsed.success) {
-    throw new Error("SPEC_SCHEMA_INVALID");
-  }
-
-  const spec: SceneSpec = { ...parsed.data, canvas };
-
-  // C1/C2: re-validate after the override, fail-closed. A model can author
-  // a perfectly self-consistent scene against a canvas it invented (the
-  // system prompt tells it not to, but a model can still get it wrong) --
-  // substituting the job's real canvas in can leave beats running past the
-  // end, or leave a gap the tiling rule forbids. This is also the one gate
-  // that enforces the rest of the spec-revision's fail-closed promises
-  // (unresolved asset refs, a generated asset with no provenance, and so
-  // on) for every spec authorScene ever produces.
-  const validated = validateSceneSpec(
-    spec,
-    resolvableAssetIds(
-      spec,
-      params.attachments,
-      evidenceOwnerIds(projectedEvidence),
-    ),
-  );
 
   return { spec: validated, beatSheet: beatSheetFor(validated) };
 }

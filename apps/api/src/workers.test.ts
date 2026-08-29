@@ -3018,6 +3018,17 @@ describe("generate-track material and render phases", () => {
       payload: filmBytes,
     });
     expect(uploaded.statusCode).toBe(201);
+    const packageBytes = Buffer.from("native-scene-package-tar");
+    const scenePackage = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${job.id}/artifacts/scene-package`,
+      headers: {
+        ...fixture.headers,
+        "content-type": "application/x-tar",
+      },
+      payload: packageBytes,
+    });
+    expect(scenePackage.statusCode).toBe(201);
     const sample = await fixture.app.inject({
       method: "POST",
       url: `/v1/workers/worker-a/jobs/${job.id}/safety-sample-artifact`,
@@ -3035,6 +3046,7 @@ describe("generate-track material and render phases", () => {
           protocol: "rvs.worker.v1",
           phase: "gen-render",
           artifactId: uploaded.json().artifactId,
+          scenePackageArtifactId: scenePackage.json().artifactId,
           safetySampleArtifactId: sample.json().artifactId,
           report: genRenderReport(job, filmBytes),
         },
@@ -3051,6 +3063,30 @@ describe("generate-track material and render phases", () => {
     expect(workflow.artifacts.get(uploaded.json().artifactId)?.kind).toBe(
       "generated-delivery",
     );
+    expect(workflow.scenePackages.get(job.id)?.id).toBe(
+      scenePackage.json().artifactId,
+    );
+    const deliverables = await fixture.app.inject({
+      method: "GET",
+      url: `/v1/jobs/${job.id}/deliverables`,
+      headers: fixture.tenantHeaders,
+    });
+    expect(deliverables.statusCode).toBe(200);
+    expect(deliverables.json().items).toEqual([
+      expect.objectContaining({ kind: "mp4" }),
+      expect.objectContaining({
+        id: scenePackage.json().artifactId,
+        kind: "scene-package",
+      }),
+    ]);
+    const download = await fixture.app.inject({
+      method: "GET",
+      url: `/v1/jobs/${job.id}/scene-package-download`,
+      headers: fixture.tenantHeaders,
+    });
+    expect(download.statusCode).toBe(200);
+    expect(download.headers["content-type"]).toContain("application/x-tar");
+    expect(download.rawPayload).toEqual(packageBytes);
     await fixture.app.close();
   });
 

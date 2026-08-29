@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   fixtureSpec,
+  sha256Hex,
   type GenerationConfig,
   type SceneSpec,
 } from "@rvs/contracts";
@@ -98,10 +99,12 @@ const fixture = (
     now: uploads.now,
     db,
     aiSecretKey: "test-secret-key-material",
+    verifiedMotionAuthoring: true,
+    nativeSceneV2: true,
     ...(generate ? { refinePromptGenerate: generate } : {}),
     ...(patchGenerate ? { patchSceneGenerate: patchGenerate } : {}),
   });
-  return { app, uploads, workflow, db, directory, uploadId: upload.id };
+  return { app, auth, uploads, workflow, db, directory, uploadId: upload.id };
 };
 
 const headersFor = (tenant: "ten_a" | "ten_b") => ({
@@ -232,6 +235,149 @@ describe("refine-prompt", () => {
         expect(proposal.startFrame).toBeGreaterThanOrEqual(0);
         expect(proposal.startFrame).toBeLessThanOrEqual(max);
       }
+    } finally {
+      state.db.close();
+      rmSync(state.directory, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("motion scene routes", () => {
+  it("versions a scene with ETag and rejects a stale digest without rebasing", async () => {
+    const state = fixture();
+    try {
+      const jobId = await createJob(state.app, state.uploadId, "motion-job");
+      const job = state.workflow.jobs.get(jobId);
+      expect(job).toBeDefined();
+      if (!job) return;
+      job.authoredScene = { spec: fixtureSpec, beatSheet: [] };
+      job.sceneSpecDigest = "ignored-by-version-store";
+      state.db.exec(
+        `INSERT INTO tenants VALUES ('ten_a','A','ORGANIZATION','ACTIVE',0,'2026-01-01T00:00:00Z');
+         INSERT INTO users VALUES ('usr_a','motion@example.test','A','2026-01-01T00:00:00Z');
+         INSERT INTO tenant_memberships VALUES ('ten_a','usr_a','OWNER','2026-01-01T00:00:00Z');
+         INSERT INTO uploads VALUES ('upl_motion','ten_a','x.mp4','video/mp4',1,'ACCEPTED',NULL,'2026-01-01T00:00:00Z','2027-01-01T00:00:00Z');`,
+      );
+      state.db
+        .prepare(
+          "INSERT INTO jobs(id,tenant_id,creator_id,upload_id,scene_id,state,attempt,deletion_epoch,created_at) VALUES(?,?,?,?,?,'QUEUED',0,0,?)",
+        )
+        .run(
+          jobId,
+          "ten_a",
+          "usr_a",
+          "upl_motion",
+          "scn_motion",
+          "2026-01-01T00:00:00Z",
+        );
+      const legacyRead = await state.app.inject({
+        method: "GET",
+        url: `/v1/jobs/${jobId}/motion-scene`,
+        headers: headersFor("ten_a"),
+      });
+      expect(legacyRead.statusCode).toBe(404);
+      expect(
+        state.db
+          .prepare("SELECT count(*) FROM motion_scene_versions")
+          .pluck()
+          .get(),
+      ).toBe(0);
+      const authoredDigest = sha256Hex(fixtureSpec);
+      const stale = await state.app.inject({
+        method: "PATCH",
+        url: `/v1/jobs/${jobId}/motion-scene`,
+        headers: {
+          ...headersFor("ten_a"),
+          "if-match": '"stale"',
+          "idempotency-key": "motion-stale",
+        },
+        payload: {
+          schema: "scene-operation-batch-v1",
+          baseSceneDigest: authoredDigest,
+          operations: [
+            {
+              kind: "set",
+              opId: "one",
+              path: "/mode",
+              value: "SWAP",
+              reason: "test",
+            },
+          ],
+        },
+      });
+      expect(stale.statusCode).toBe(409);
+      const updated = await state.app.inject({
+        method: "PATCH",
+        url: `/v1/jobs/${jobId}/motion-scene`,
+        headers: {
+          ...headersFor("ten_a"),
+          "if-match": `"${authoredDigest}"`,
+          "idempotency-key": "motion-update",
+        },
+        payload: {
+          schema: "scene-operation-batch-v1",
+          baseSceneDigest: authoredDigest,
+          operations: [
+            {
+              kind: "set",
+              opId: "one",
+              path: "/mode",
+              value: "SWAP",
+              reason: "test",
+            },
+          ],
+        },
+      });
+      expect(updated.statusCode, updated.body).toBe(200);
+      expect(updated.json().version).toBe(2);
+      expect(updated.json().verification).toMatchObject({
+        attempts: 1,
+        status: "PASS",
+      });
+      const replay = await state.app.inject({
+        method: "PATCH",
+        url: `/v1/jobs/${jobId}/motion-scene`,
+        headers: {
+          ...headersFor("ten_a"),
+          "if-match": `"${authoredDigest}"`,
+          "idempotency-key": "motion-update",
+        },
+        payload: {
+          schema: "scene-operation-batch-v1",
+          baseSceneDigest: authoredDigest,
+          operations: [
+            {
+              kind: "set",
+              opId: "one",
+              path: "/mode",
+              value: "SWAP",
+              reason: "test",
+            },
+          ],
+        },
+      });
+      expect(replay.statusCode, replay.body).toBe(200);
+      expect(replay.json().version).toBe(2);
+      const disabledApp = buildAuthApp({
+        store: state.auth,
+        expectedOrigin: "https://studio.invalid",
+        introspectSecret: "secret",
+        uploads: state.uploads,
+        creatorWorkflow: state.workflow,
+        db: state.db,
+        aiSecretKey: "test-secret-key-material",
+        now: state.uploads.now,
+        verifiedMotionAuthoring: false,
+        nativeSceneV2: false,
+      });
+      const stillReadable = await disabledApp.inject({
+        method: "GET",
+        url: `/v1/jobs/${jobId}/motion-scene`,
+        headers: headersFor("ten_a"),
+      });
+      expect(stillReadable.statusCode, stillReadable.body).toBe(200);
+      expect(stillReadable.json().version).toBe(2);
+      await disabledApp.close();
     } finally {
       state.db.close();
       rmSync(state.directory, { recursive: true, force: true });
@@ -590,6 +736,49 @@ const completeGenerateJob = (
 };
 
 describe("scene-patch chat (generate track)", () => {
+  const patchHeaders = (
+    state: ReturnType<typeof fixture>,
+    jobId: string,
+    key: string,
+  ) => ({
+    ...headersFor("ten_a"),
+    "idempotency-key": key,
+    "if-match": `"${state.workflow.jobs.get(jobId)?.sceneSpecDigest}"`,
+  });
+
+  it("requires the current scene ETag before generated refinement", async () => {
+    const state = fixture();
+    try {
+      const jobId = await createJob(
+        state.app,
+        state.uploadId,
+        "job-patch-etag",
+      );
+      completeGenerateJob(state.workflow, jobId);
+      const missing = await state.app.inject({
+        method: "POST",
+        url: `/v1/jobs/${jobId}/refine-prompt`,
+        headers: { ...headersFor("ten_a"), "idempotency-key": "missing-etag" },
+        payload: { prompt: "make it faster" },
+      });
+      const stale = await state.app.inject({
+        method: "POST",
+        url: `/v1/jobs/${jobId}/refine-prompt`,
+        headers: {
+          ...headersFor("ten_a"),
+          "idempotency-key": "stale-etag",
+          "if-match": `"${"0".repeat(64)}"`,
+        },
+        payload: { prompt: "make it faster" },
+      });
+      expect(missing.statusCode).toBe(428);
+      expect(stale.statusCode).toBe(409);
+      expect(state.workflow.jobs.get(jobId)?.state).toBe("COMPLETED");
+    } finally {
+      state.db.close();
+      rmSync(state.directory, { recursive: true, force: true });
+    }
+  });
   it("amends the scene, requeues the job for gen-render, and reports the changed beats", async () => {
     const recolored: SceneSpec = {
       ...fixtureSpec,
@@ -620,7 +809,7 @@ describe("scene-patch chat (generate track)", () => {
       const response = await state.app.inject({
         method: "POST",
         url: `/v1/jobs/${jobId}/refine-prompt`,
-        headers: { ...headersFor("ten_a"), "idempotency-key": "patch-1" },
+        headers: patchHeaders(state, jobId, "patch-1"),
         payload: { prompt: "use our brand purple #6633ee" },
       });
       expect(response.statusCode, response.body).toBe(200);
@@ -631,11 +820,21 @@ describe("scene-patch chat (generate track)", () => {
       const job = state.workflow.jobs.get(jobId);
       expect(job?.state).toBe("QUEUED");
       expect(job?.authoredScene?.spec.palette.hero).toBe("#6633ee");
-      expect(job?.artifact).toBeNull();
+      expect(job?.artifact).toMatchObject({ id: "genartifact_1" });
       expect(job?.progress?.fraction).toBe(0);
       // Left on the record, not only in this request's response -- see the
       // `lastPatchChangedBeatIds` docstring on the Job type.
       expect(job?.lastPatchChangedBeatIds).toEqual([]);
+      const versioned = await state.app.inject({
+        method: "GET",
+        url: `/v1/jobs/${jobId}/motion-scene`,
+        headers: headersFor("ten_a"),
+      });
+      expect(versioned.statusCode, versioned.body).toBe(200);
+      expect(versioned.json()).toMatchObject({
+        version: 2,
+        verification: { attempts: 1, status: "PASS" },
+      });
     } finally {
       state.db.close();
       rmSync(state.directory, { recursive: true, force: true });
@@ -671,7 +870,7 @@ describe("scene-patch chat (generate track)", () => {
       const response = await state.app.inject({
         method: "POST",
         url: `/v1/jobs/${jobId}/refine-prompt`,
-        headers: { ...headersFor("ten_a"), "idempotency-key": "patch-2" },
+        headers: patchHeaders(state, jobId, "patch-2"),
         payload: { prompt: "too busy" },
       });
       expect(response.statusCode, response.body).toBe(200);
@@ -690,7 +889,7 @@ describe("scene-patch chat (generate track)", () => {
       const response = await state.app.inject({
         method: "POST",
         url: `/v1/jobs/${jobId}/refine-prompt`,
-        headers: { ...headersFor("ten_a"), "idempotency-key": "patch-3" },
+        headers: patchHeaders(state, jobId, "patch-3"),
         payload: { prompt: "beat three is too fast" },
       });
       expect(response.statusCode).toBe(400);
@@ -730,7 +929,7 @@ describe("scene-patch chat (generate track)", () => {
       const response = await state.app.inject({
         method: "POST",
         url: `/v1/jobs/${jobId}/refine-prompt`,
-        headers: { ...headersFor("ten_a"), "idempotency-key": "patch-4" },
+        headers: patchHeaders(state, jobId, "patch-4"),
         payload: { prompt: "drop the search bar scene" },
       });
       expect(response.statusCode).toBe(400);
@@ -768,7 +967,7 @@ describe("scene-patch chat (generate track)", () => {
       const response = await state.app.inject({
         method: "POST",
         url: `/v1/jobs/${jobId}/refine-prompt`,
-        headers: { ...headersFor("ten_a"), "idempotency-key": "patch-5" },
+        headers: patchHeaders(state, jobId, "patch-5"),
         payload: { prompt: "too busy" },
       });
       expect(response.statusCode).toBe(409);
