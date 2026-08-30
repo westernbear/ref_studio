@@ -43,7 +43,7 @@ const projectedEvidence = {
   audioAnchors: [],
 };
 const brief =
-  "Use /home/fixture/private.mov Authorization: Bearer fixture.value api_key=sk-fixture123456";
+  "Use /home/fixture/private.mov ./private.mov ../private.mov assets/private.mov Authorization: Bearer fixture.value api_key=sk-fixture123456 while keeping motion/design prose";
 const input = {
   brief,
   knowledgeCards,
@@ -101,12 +101,20 @@ const overflow = {
     },
   ],
 };
+const legacyOverflow = {
+  ...legacy,
+  keyframeIntents: overflow.keyframeIntents,
+};
 const checks = {
   legacyAccepted: MotionPlanV1Schema.safeParse(legacy).success,
   legacyExtraRejected: !MotionPlanV1Schema.safeParse({ ...legacy, extra: true })
     .success,
   overflowRejected: !MotionPlanSemanticV1Schema.safeParse(overflow).success,
-  briefRedacted: !/\/home\/|Bearer|sk-fixture|api_key=/u.test(providerBrief),
+  legacyOverflowRejected: !MotionPlanV1Schema.safeParse(legacyOverflow).success,
+  briefRedacted:
+    !/\/home\/|\.\/private\.mov|\.\.\/private\.mov|assets\/private\.mov|Bearer|sk-fixture|api_key=/u.test(
+      providerBrief,
+    ) && providerBrief.includes("motion/design prose"),
   repeated: first.planDigest === second.planDigest,
   semanticOnly: !("scene" in first) && !("operations" in first),
   digests: Object.fromEntries(

@@ -117,7 +117,10 @@ export const redactMotionPlanBrief = (brief: string): string =>
       /(?:file:\/\/)?\/(?:home|Users|tmp|var|private|etc|root|opt|srv|mnt|Volumes)\/[^\s,;]+/gu,
       "[REDACTED_PATH]",
     )
-    .replace(/(?:\.\.\/)+(?:[^\s,;]+\/?)+/gu, "[REDACTED_PATH]");
+    .replace(
+      /(^|[\s"'(])(?:(?:\.{1,2}|[A-Za-z0-9._-]+)\/)+(?:[A-Za-z0-9._-]+\.[A-Za-z0-9]{1,10})(?=$|[\s,;:!?)"'])/gu,
+      "$1[REDACTED_PATH]",
+    );
 
 export async function generateMotionPlan(
   input: unknown,

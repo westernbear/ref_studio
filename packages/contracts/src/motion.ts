@@ -141,7 +141,8 @@ const LegacyMotionPlanV1Schema = z
       promptVersion: "legacy-v1",
       modelVersion: "legacy-v1",
     },
-  }));
+  }))
+  .superRefine(refineMotionPlanFrames);
 
 export const MotionPlanV1Schema = z.union([
   MotionPlanLedgerV1Schema,

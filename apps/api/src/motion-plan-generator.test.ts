@@ -117,6 +117,29 @@ describe("generateMotionPlan", () => {
     expect(providerBrief).toContain("[REDACTED_");
   });
 
+  it("Given ordinary relative file paths and prose, when sent to the provider, then every path is redacted without erasing prose", async () => {
+    let providerBrief = "";
+    const generate: GenerateMotionPlanCandidate = async (request) => {
+      providerBrief = request.brief;
+      return candidate;
+    };
+
+    await generateMotionPlan(
+      {
+        ...input,
+        brief:
+          "Use ./private.mov, ../private.mov, and assets/private.mov while keeping motion/design hierarchy prose.",
+      },
+      generate,
+    );
+
+    expect(providerBrief).not.toMatch(
+      /\.\/private\.mov|\.\.\/private\.mov|assets\/private\.mov/u,
+    );
+    expect(providerBrief.match(/\[REDACTED_PATH\]/gu)).toHaveLength(3);
+    expect(providerBrief).toContain("motion/design hierarchy prose");
+  });
+
   it("Given the generated ledger, when digests are independently recomputed, then bounded-input digests match", async () => {
     const generated = await generateMotionPlan(input, async () => candidate);
     const stable = (value: unknown): string => {

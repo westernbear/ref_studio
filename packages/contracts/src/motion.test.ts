@@ -118,6 +118,25 @@ describe("MotionPlanV1", () => {
     ).toBe(false);
   });
 
+  it("Given a legacy plan whose resulting keyframes overflow its default canvas, when parsed, then compatibility fails closed", () => {
+    expect(
+      MotionPlanV1Schema.safeParse({
+        schema: "motion-plan-v1",
+        intent: "Legacy overflow.",
+        keyframeIntents: [
+          {
+            elementId: "title",
+            anticipationFrames: 10_000,
+            overshootPercent: 8,
+            settleFrame: 449,
+            staggerFrames: 10_000,
+          },
+        ],
+        predicates: ["scene-spec"],
+      }).success,
+    ).toBe(false);
+  });
+
   it("Given resulting keyframes inside a supplied target beat, when parsed, then the plan is valid", () => {
     expect(
       MotionPlanV1Schema.safeParse({
