@@ -106,9 +106,16 @@ describe("authorScene", () => {
 
   it("returns the authored spec and a beat sheet", async () => {
     const generate: GenerateScene = async () => ({ object: fixtureSpec });
-    const out = await authorScene({ ...baseParams(), generate });
+    const out = await authorScene({ ...baseParams(), now: 1_000, generate });
+    const replay = await authorScene({
+      ...baseParams(),
+      now: 1_000,
+      generate,
+    });
     expect(out.spec.schema).toBe("scene-spec-v1");
     expect(out.beatSheet).toHaveLength(fixtureSpec.beats.length);
+    expect(replay.planDigest).toBe(out.planDigest);
+    expect(replay.spec).toEqual(out.spec);
   });
 
   it("exposes motion.lookup to the production model call only for the selected identity's fresh PASS", async () => {
