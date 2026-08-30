@@ -6,6 +6,18 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const script = fileURLToPath(import.meta.url);
+const parseResult = (value) => {
+  if (
+    !value ||
+    typeof value !== "object" ||
+    Object.keys(value).sort().join(",") !== "digest,version" ||
+    !Number.isInteger(value.version) ||
+    typeof value.digest !== "string" ||
+    !/^[a-f0-9]{64}$/u.test(value.digest)
+  )
+    throw new Error("INVALID_CONCURRENCY_RESPONSE");
+  return value;
+};
 
 if (process.argv[2] === "child") {
   const [
@@ -49,6 +61,7 @@ if (process.argv[2] === "child") {
               version: row.version,
               digest: row.sceneDigest,
             }),
+            parseResponse: parseResult,
           },
         });
         process.send?.({

@@ -3,6 +3,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
   MotionSceneRenderV1Schema,
   MotionSceneRollbackV1Schema,
+  MotionSceneSnapshotV1Schema,
   VerificationReportV1Schema,
 } from "../../../packages/contracts/src/motion.js";
 import { sha256Hex } from "../../../packages/contracts/src/canonical-json.js";
@@ -124,6 +125,7 @@ export function registerMotionSceneCommands(
           job,
           scopedKey,
           requestDigest,
+          (value) => MotionSceneSnapshotV1Schema.parse(value),
         );
         if (replay) {
           reply.send(replay);
@@ -149,6 +151,7 @@ export function registerMotionSceneCommands(
             key: scopedKey,
             requestDigest,
             response: (row) => motionSceneSnapshot(db, job, row),
+            parseResponse: (value) => MotionSceneSnapshotV1Schema.parse(value),
           },
         });
         const next = committed.row;

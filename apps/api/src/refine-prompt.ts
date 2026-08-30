@@ -11,7 +11,10 @@ import type { UploadStore } from "./uploads.js";
 import { assertLegalTransition } from "../../../packages/contracts/src/lifecycle.js";
 import { sha256Hex } from "../../../packages/contracts/src/canonical-json.js";
 import { applySceneOperations } from "./motion-scene.js";
-import { recordMotionSceneRefinement } from "./motion-scene-store.js";
+import {
+  recordMotionSceneRefinement,
+  replayMotionSceneMutation,
+} from "./motion-scene-store.js";
 
 const id = (prefix: string): string =>
   `${prefix}_${randomBytes(12).toString("base64url")}`;
@@ -70,6 +73,17 @@ export type ScenePatchChatResponse = {
   }[];
   readonly summary: string;
 };
+const ScenePatchChatResponseSchema = z
+  .object({
+    changedBeatIds: z.array(z.string()),
+    beatSheet: z.array(
+      z
+        .object({ beatId: z.string(), shot: z.string(), words: z.string() })
+        .strict(),
+    ),
+    summary: z.string(),
+  })
+  .strict();
 
 // REQUEST_CHANGES did the same thing as NEEDS_CHANGES -- the only branch below
 // is against LOOKS_GOOD -- so the review screen offered a third choice that
@@ -351,12 +365,24 @@ async function applyScenePatch(params: {
     beatSheet: patched.beatSheet,
     summary: patched.summary,
   };
-  recordMotionSceneRefinement(params.db, job, previous, normalized, {
-    key: `refine-prompt:${job.id}:${params.idempotencyKey}`,
-    requestDigest: params.requestDigest,
-    response,
-  });
-  job.authoredScene = { spec: normalized, beatSheet: patched.beatSheet };
+  const persisted = recordMotionSceneRefinement(
+    params.db,
+    job,
+    previous,
+    normalized,
+    {
+      key: `refine-prompt:${job.id}:${params.idempotencyKey}`,
+      requestDigest: params.requestDigest,
+      response,
+      parseResponse: (value) => ScenePatchChatResponseSchema.parse(value),
+    },
+  );
+  if (persisted.replayed && persisted.response) return persisted.response;
+  job.authoredScene = {
+    ...job.authoredScene,
+    spec: normalized,
+    beatSheet: patched.beatSheet,
+  };
   job.sceneSpecDigest = sha256Hex(normalized);
   // Kept on the job record (not only in this request's response) so a
   // future partial-rerender optimisation has something to act on -- see the
@@ -431,6 +457,14 @@ export function registerRefinePrompt(
             // instead. A restore-track job (no job.generation) takes
             // exactly the path it always has, below, completely unchanged.
             if (job.generation) {
+              const durableReplay = replayMotionSceneMutation(
+                db,
+                job,
+                `refine-prompt:${job.id}:${key}`,
+                refineRequestDigest,
+                (value) => ScenePatchChatResponseSchema.parse(value),
+              );
+              if (durableReplay) return [200, durableReplay];
               const match = header(request, "if-match");
               if (!match) throw new Error("PRECONDITION_REQUIRED");
               if (match !== `"${job.sceneSpecDigest}"`)

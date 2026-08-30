@@ -124,6 +124,7 @@ type CommitParams<T> = {
     readonly key: string;
     readonly requestDigest: string;
     readonly response: (row: MotionSceneVersionRow) => T;
+    readonly parseResponse: (value: unknown) => T;
   };
 };
 export type MotionSceneCommit<T> = {
@@ -136,6 +137,7 @@ export const replayMotionSceneMutation = <T>(
   job: Job,
   key: string,
   requestDigest: string,
+  parseResponse: (value: unknown) => T,
 ): T | null => {
   DigestSchema.parse(requestDigest);
   const replay = db
@@ -148,7 +150,7 @@ export const replayMotionSceneMutation = <T>(
   if (!replay) return null;
   if (replay.requestHash !== requestDigest)
     throw new MotionSceneError("IDEMPOTENCY_CONFLICT", 409);
-  return JSON.parse(replay.responseJson) as T;
+  return parseResponse(JSON.parse(replay.responseJson));
 };
 
 export const commitMotionSceneVersion = <T>(
@@ -164,6 +166,7 @@ export const commitMotionSceneVersion = <T>(
           job,
           params.idempotency.key,
           params.idempotency.requestDigest,
+          params.idempotency.parseResponse,
         );
         if (replay)
           return {
@@ -221,7 +224,7 @@ export const commitMotionSceneVersion = <T>(
         `INSERT INTO job_motion_scene_heads(tenant_id,job_id,version_id) VALUES(?,?,?) ON CONFLICT(tenant_id,job_id) DO UPDATE SET version_id=excluded.version_id`,
       ).run(job.tenantId, job.id, row.id);
       const response = params.idempotency
-        ? params.idempotency.response(row)
+        ? params.idempotency.parseResponse(params.idempotency.response(row))
         : null;
       if (params.idempotency)
         db.prepare(
@@ -261,8 +264,9 @@ export function recordMotionSceneRefinement<T>(
     readonly key: string;
     readonly requestDigest: string;
     readonly response: T;
+    readonly parseResponse: (value: unknown) => T;
   },
-): T | null {
+): { readonly response: T | null; readonly replayed: boolean } {
   return db
     .transaction(() => {
       if (idempotency) {
@@ -271,8 +275,9 @@ export function recordMotionSceneRefinement<T>(
           job,
           idempotency.key,
           idempotency.requestDigest,
+          idempotency.parseResponse,
         );
-        if (replay) return replay;
+        if (replay) return { response: replay, replayed: true };
       }
       const previousDigest = sha256Hex(previous);
       const current = findMotionSceneRow(db, job);
@@ -300,11 +305,12 @@ export function recordMotionSceneRefinement<T>(
                 key: idempotency.key,
                 requestDigest: idempotency.requestDigest,
                 response: () => idempotency.response,
+                parseResponse: idempotency.parseResponse,
               },
             }
           : {}),
       });
-      return committed.response;
+      return { response: committed.response, replayed: committed.replayed };
     })
     .immediate();
 }

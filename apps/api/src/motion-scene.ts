@@ -1,6 +1,9 @@
 import type Database from "better-sqlite3";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { SceneOperationBatchV1Schema } from "../../../packages/contracts/src/motion.js";
+import {
+  MotionSceneSnapshotV1Schema,
+  SceneOperationBatchV1Schema,
+} from "../../../packages/contracts/src/motion.js";
 import { SceneSpecSchema } from "../../../packages/contracts/src/scene-spec.js";
 import { sha256Hex } from "../../../packages/contracts/src/canonical-json.js";
 import { assertLegalTransition } from "../../../packages/contracts/src/lifecycle.js";
@@ -104,6 +107,7 @@ export function registerMotionScene(
           job,
           scopedKey,
           requestDigest,
+          (value) => MotionSceneSnapshotV1Schema.parse(value),
         );
         if (replay) {
           reply.send(replay);
@@ -152,6 +156,7 @@ export function registerMotionScene(
             key: scopedKey,
             requestDigest,
             response: (row) => motionSceneSnapshot(db, job, row),
+            parseResponse: (value) => MotionSceneSnapshotV1Schema.parse(value),
           },
         });
         const next = committed.row;

@@ -108,6 +108,24 @@ const fixture = (
   return { app, auth, uploads, workflow, db, directory, uploadId: upload.id };
 };
 
+const restartedApp = (
+  state: ReturnType<typeof fixture>,
+  patchGenerate: GeneratePatch,
+) =>
+  buildAuthApp({
+    store: state.auth,
+    expectedOrigin: "https://studio.invalid",
+    introspectSecret: "secret",
+    uploads: state.uploads,
+    creatorWorkflow: state.workflow,
+    now: state.uploads.now,
+    db: state.db,
+    aiSecretKey: "test-secret-key-material",
+    verifiedMotionAuthoring: true,
+    nativeSceneV2: true,
+    patchSceneGenerate: patchGenerate,
+  });
+
 const headersFor = (tenant: "ten_a" | "ten_b") => ({
   authorization: `Bearer secret-${tenant === "ten_a" ? "a" : "b"}`,
   "x-tenant-id": tenant,
@@ -872,6 +890,8 @@ describe("scene-patch chat (generate track)", () => {
       const job = state.workflow.jobs.get(jobId);
       expect(job?.state).toBe("QUEUED");
       expect(job?.authoredScene?.spec.palette.hero).toBe("#6633ee");
+      expect(job?.authoredScene?.motionPlan).toBeDefined();
+      expect(job?.authoredScene?.planDigest).toBe("0".repeat(64));
       expect(job?.artifact).toMatchObject({ id: "genartifact_1" });
       expect(job?.progress?.fraction).toBe(0);
       // Left on the record, not only in this request's response -- see the
@@ -888,6 +908,124 @@ describe("scene-patch chat (generate track)", () => {
         verification: { attempts: 1, status: "PASS" },
       });
     } finally {
+      state.db.close();
+      rmSync(state.directory, { recursive: true, force: true });
+    }
+  });
+
+  it("replays a persisted refine response after app restart without invoking the model again", async () => {
+    let calls = 0;
+    const patchGenerate: GeneratePatch = async () => {
+      calls += 1;
+      return { object: { spec: fixtureSpec, summary: "Persisted response" } };
+    };
+    const state = fixture(undefined, patchGenerate);
+    let app = state.app;
+    try {
+      updateAiProviderSettings(
+        state.db,
+        {
+          providerKind: "openai",
+          model: "gpt-4o",
+          apiKey: "sk-test",
+          enabled: true,
+        },
+        "admin",
+        1_000,
+        "test-secret-key-material",
+      );
+      const jobId = await createJob(app, state.uploadId, "job-restart-replay");
+      completeGenerateJob(state.workflow, state.db, jobId);
+      const requestHeaders = patchHeaders(state, jobId, "restart-replay");
+      const first = await app.inject({
+        method: "POST",
+        url: `/v1/jobs/${jobId}/refine-prompt`,
+        headers: requestHeaders,
+        payload: { prompt: "persist this" },
+      });
+      expect(first.statusCode, first.body).toBe(200);
+      await app.close();
+      app = restartedApp(state, patchGenerate);
+      const replay = await app.inject({
+        method: "POST",
+        url: `/v1/jobs/${jobId}/refine-prompt`,
+        headers: requestHeaders,
+        payload: { prompt: "persist this" },
+      });
+      expect(replay.statusCode, replay.body).toBe(200);
+      expect(replay.json()).toEqual(first.json());
+      expect(calls).toBe(1);
+      expect(
+        state.db
+          .prepare("SELECT version FROM motion_scene_versions ORDER BY version")
+          .pluck()
+          .all(),
+      ).toEqual([1, 2]);
+    } finally {
+      await app.close();
+      state.db.close();
+      rmSync(state.directory, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects malformed persisted refine JSON after restart before invoking the model", async () => {
+    let calls = 0;
+    const patchGenerate: GeneratePatch = async () => {
+      calls += 1;
+      return { object: { spec: fixtureSpec, summary: "Stored" } };
+    };
+    const state = fixture(undefined, patchGenerate);
+    let app = state.app;
+    try {
+      updateAiProviderSettings(
+        state.db,
+        {
+          providerKind: "openai",
+          model: "gpt-4o",
+          apiKey: "sk-test",
+          enabled: true,
+        },
+        "admin",
+        1_000,
+        "test-secret-key-material",
+      );
+      const jobId = await createJob(
+        app,
+        state.uploadId,
+        "job-malformed-replay",
+      );
+      completeGenerateJob(state.workflow, state.db, jobId);
+      const requestHeaders = patchHeaders(state, jobId, "malformed-replay");
+      const first = await app.inject({
+        method: "POST",
+        url: `/v1/jobs/${jobId}/refine-prompt`,
+        headers: requestHeaders,
+        payload: { prompt: "store this" },
+      });
+      expect(first.statusCode).toBe(200);
+      await app.close();
+      state.db
+        .prepare(
+          "UPDATE idempotency_keys SET response_json='{}' WHERE tenant_id='ten_a' AND key=?",
+        )
+        .run(`refine-prompt:${jobId}:malformed-replay`);
+      app = restartedApp(state, patchGenerate);
+      const rejected = await app.inject({
+        method: "POST",
+        url: `/v1/jobs/${jobId}/refine-prompt`,
+        headers: requestHeaders,
+        payload: { prompt: "store this" },
+      });
+      expect(rejected.statusCode).toBe(400);
+      expect(calls).toBe(1);
+      expect(
+        state.db
+          .prepare("SELECT count(*) FROM motion_scene_versions")
+          .pluck()
+          .get(),
+      ).toBe(2);
+    } finally {
+      await app.close();
       state.db.close();
       rmSync(state.directory, { recursive: true, force: true });
     }

@@ -257,6 +257,7 @@ describe("motion scene commands", () => {
         hostile,
         `motion-scene:${jobId}:missing`,
         "a".repeat(64),
+        (value) => value,
       ),
     ).toBeNull();
     expect(() =>
