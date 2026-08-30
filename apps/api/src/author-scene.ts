@@ -132,6 +132,9 @@ export async function authorScene(params: {
     params.db,
     params.config.brief,
   );
+  if (motionKnowledge.length === 0) {
+    throw new Error("MOTION_KNOWLEDGE_NOT_FOUND");
+  }
 
   // The canvas is a job-configuration fact, never a model decision -- a
   // model that returns a 9:16 spec for a 16:9 job must not silently choose

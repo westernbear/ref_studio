@@ -3,6 +3,7 @@ import { openApiDatabase } from "./durable-state.js";
 import {
   lookupMotionKnowledge,
   lookupMotionKnowledgeForBrief,
+  hostMotionLookup,
   modelMotionTools,
   MOTION_INTERNAL_FEATURES,
   MotionKnowledgeCardSchema,
@@ -58,6 +59,42 @@ describe("motion.lookup", () => {
       verifierRefs: expect.any(Array),
       sources: expect.any(Array),
     });
+    db.close();
+  });
+
+  it("Given exact and semantic motion in one brief, when authoring lookup runs, then it returns both cards exact-first", () => {
+    // Given
+    const db = openApiDatabase(":memory:");
+
+    // When
+    const results = lookupMotionKnowledgeForBrief(
+      db,
+      "Use effects while velocity evolves between keyframes.",
+    );
+
+    // Then
+    expect(results.map((card) => card.id)).toEqual([
+      "effects",
+      "timing-easing",
+    ]);
+    db.close();
+  });
+
+  it("Given the previous host lookup export, when compatibility is checked, then it delegates to the canonical adapter", () => {
+    // Given
+    const db = openApiDatabase(":memory:");
+
+    // When
+    const results = hostMotionLookup(
+      db,
+      "Use effects while velocity evolves between keyframes.",
+    );
+
+    // Then
+    expect(results.map((card) => card.id)).toEqual([
+      "effects",
+      "timing-easing",
+    ]);
     db.close();
   });
 

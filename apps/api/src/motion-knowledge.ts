@@ -131,20 +131,49 @@ export function lookupMotionKnowledgeForBrief(
   const tokens =
     normalized.match(/[\p{L}\p{N}]+(?:[%.-][\p{L}\p{N}]+)*/gu) ?? [];
   const matches = new Map<string, MotionKnowledgeCard>();
+  const add = (cards: readonly MotionKnowledgeCard[]): boolean => {
+    for (const card of cards) {
+      matches.set(card.id, card);
+      if (matches.size === 3) return true;
+    }
+    return false;
+  };
   for (let width = Math.min(tokens.length, 4); width > 0; width -= 1) {
     for (let start = 0; start + width <= tokens.length; start += 1) {
-      for (const card of lookupExactMotionKnowledge(
-        db,
-        tokens.slice(start, start + width).join(" "),
-      )) {
-        matches.set(card.id, card);
-        if (matches.size === 3) return [...matches.values()];
-      }
+      if (
+        add(
+          lookupExactMotionKnowledge(
+            db,
+            tokens.slice(start, start + width).join(" "),
+          ),
+        )
+      )
+        return [...matches.values()];
     }
   }
-  return matches.size > 0
-    ? [...matches.values()]
-    : lookupMotionKnowledge(db, brief);
+  if (add(lookupMotionKnowledge(db, brief))) return [...matches.values()];
+  for (let width = Math.min(tokens.length, 4); width > 2; width -= 1) {
+    for (let start = 0; start + width <= tokens.length; start += 1) {
+      if (
+        add(
+          lookupMotionKnowledge(
+            db,
+            tokens.slice(start, start + width).join(" "),
+          ),
+        )
+      )
+        return [...matches.values()];
+    }
+  }
+  return [...matches.values()];
+}
+
+// Compatibility wrapper: retains canonical exact-alias, then FTS5 brief lookup.
+export function hostMotionLookup(
+  db: Database.Database,
+  text: string,
+): readonly MotionKnowledgeCard[] {
+  return lookupMotionKnowledgeForBrief(db, text);
 }
 
 export function modelMotionTools(

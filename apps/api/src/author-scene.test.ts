@@ -52,7 +52,7 @@ describe("authorScene", () => {
     directory = mkdtempSync(join(tmpdir(), "rvs-author-scene-"));
     db = openApiDatabase(join(directory, "app.sqlite"));
     config = {
-      brief: "Meridian finds meeting times nobody hates.",
+      brief: "Use timing and easing for Meridian's meeting-time explainer.",
       durationSec: 20,
       aspect: "9:16",
       attachmentIds: ["att_1"],
@@ -110,6 +110,22 @@ describe("authorScene", () => {
     expect(capturedPrompt).toContain('"distinctions"');
     expect(capturedPrompt).toContain('"operationRefs"');
     expect(capturedPrompt).toContain('"sources"');
+  });
+
+  it("fails closed when the creator brief has no motion knowledge match", async () => {
+    // Given
+    const neverCalled: GenerateScene = async () => {
+      throw new Error("must not be called");
+    };
+
+    // When / Then
+    await expect(
+      authorScene({
+        ...baseParams(),
+        config: { ...config, brief: "legal compliance certification" },
+        generate: neverCalled,
+      }),
+    ).rejects.toThrow(/MOTION_KNOWLEDGE_NOT_FOUND/);
   });
 
   it("repairs semantic predicate failures no more than four times", async () => {
@@ -206,7 +222,7 @@ describe("authorScene", () => {
       config: {
         ...config,
         brief:
-          "Keep this reference video's exact shots and pacing, but swap in our new product screenshots and logo in place of the original content.",
+          "Keep this reference video's exact shots and pacing, use timing and easing, but swap in our new product screenshots and logo in place of the original content.",
       },
       generate,
     });
@@ -230,7 +246,7 @@ describe("authorScene", () => {
       config: {
         ...config,
         brief:
-          "Ignore what happens in the reference video -- just borrow its dark neon look and mood to build a brand-new scene announcing our conference.",
+          "Ignore what happens in the reference video -- use timing and easing, just borrow its dark neon look and mood to build a brand-new scene announcing our conference.",
       },
       generate,
     });
