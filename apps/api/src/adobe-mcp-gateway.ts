@@ -1,24 +1,17 @@
-import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
+import { createHmac, randomUUID } from "node:crypto";
 import type Database from "better-sqlite3";
 import {
   AdobeCommandEnvelopeV1Schema,
   AdobeCommandResultV1Schema,
-  AdobeRelaySignatureV1Schema,
   type AdobeCommandEnvelopeV1,
   type AdobeCommandResultV1,
-  type AdobeRelaySignatureV1,
 } from "../../../packages/contracts/src/adobe.js";
-import {
-  canonicalJson,
-  sha256Hex,
-} from "../../../packages/contracts/src/canonical-json.js";
+import { canonicalJson } from "../../../packages/contracts/src/canonical-json.js";
 import { z } from "zod";
 
 const KEY_LIFETIME_MS = 86_400_000;
-const MAX_SKEW_MS = 300_000;
 const RATE_WINDOW_MS = 60_000;
 const RATE_LIMIT = 60;
-const MAX_BODY_BYTES = 262_144;
 
 const DeviceRows = z.array(
   z.object({
@@ -55,15 +48,6 @@ export class AdobeRelayFailure extends Error {
 const isUniqueNonce = (error: unknown): boolean =>
   error instanceof Error &&
   error.message.includes("UNIQUE constraint failed: adobe_relay_nonces");
-
-const signingPayload = (signature: AdobeRelaySignatureV1): string =>
-  [
-    signature.keyId,
-    String(signature.timestampMs),
-    signature.requestId,
-    signature.nonce,
-    signature.bodyHash,
-  ].join("\n");
 
 export type AdobeGatewayStore = ReturnType<typeof createAdobeGatewayStore>;
 
@@ -232,49 +216,4 @@ export const createAdobeGatewayStore = (
   };
 
   return { enroll, list, key, consumeNonce, enqueue, status };
-};
-
-export const verifyAdobeRelay = (
-  store: AdobeGatewayStore,
-  body: unknown,
-  input: unknown,
-  now: number,
-): Readonly<{ tenantId: string; deviceId: string }> => {
-  const signature = AdobeRelaySignatureV1Schema.parse(input);
-  if (Math.abs(now - signature.timestampMs) > MAX_SKEW_MS)
-    throw new AdobeRelayFailure("ADOBE_RELAY_TIMESTAMP_INVALID");
-  const key = store.key(signature.keyId);
-  if (
-    key === undefined ||
-    key.revokedAtMs !== null ||
-    signature.timestampMs < key.notBeforeMs ||
-    signature.timestampMs >= key.expiresAtMs
-  )
-    throw new AdobeRelayFailure("ADOBE_RELAY_KEY_INVALID");
-  const canonical = canonicalJson(body);
-  if (
-    new TextEncoder().encode(canonical).byteLength > MAX_BODY_BYTES ||
-    sha256Hex(body) !== signature.bodyHash
-  )
-    throw new AdobeRelayFailure("ADOBE_RELAY_BODY_INVALID");
-  const expected = createHmac("sha256", key.secret)
-    .update(signingPayload(signature))
-    .digest();
-  const provided = Buffer.from(signature.signature, "hex");
-  if (
-    provided.length !== expected.length ||
-    !timingSafeEqual(provided, expected)
-  )
-    throw new AdobeRelayFailure("ADOBE_RELAY_SIGNATURE_INVALID");
-  const command = AdobeCommandEnvelopeV1Schema.parse(
-    z
-      .object({ version: z.literal(1), command: AdobeCommandEnvelopeV1Schema })
-      .strict()
-      .parse(body).command,
-  );
-  if (command.deviceId !== key.deviceId)
-    throw new AdobeRelayFailure("ADOBE_RELAY_BINDING_REJECTED");
-  if (!store.consumeNonce(key.deviceId, signature.keyId, signature.nonce))
-    throw new AdobeRelayFailure("ADOBE_RELAY_REPLAY");
-  return { tenantId: key.tenantId, deviceId: key.deviceId };
 };

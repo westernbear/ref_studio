@@ -9,8 +9,8 @@ import type { FeatureFlagSnapshot } from "./feature-flags.js";
 import {
   AdobeRelayFailure,
   createAdobeGatewayStore,
-  verifyAdobeRelay,
 } from "./adobe-mcp-gateway.js";
+import { verifyAdobeRelay } from "./adobe-relay-auth.js";
 import type Database from "better-sqlite3";
 
 const principal = (request: FastifyRequest): Principal | undefined =>
