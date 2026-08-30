@@ -93,7 +93,7 @@ export function compileMotionPlan(
     if (location === undefined)
       throw new MotionPlanCompilerError("MOTION_PLAN_UNKNOWN_ELEMENT");
     const offset = intent.targetBeat?.startFrame ?? 0;
-    const keyframes = keyframesFromMotionIntent({
+    const uniformKeyframes = keyframesFromMotionIntent({
       anticipationFrames: intent.anticipationFrames,
       overshootPercent: intent.overshootPercent,
       settleFrame: intent.settleFrame,
@@ -103,7 +103,7 @@ export function compileMotionPlan(
     const beat = scene.beats[location.beatIndex];
     if (
       beat === undefined ||
-      keyframes.some(
+      uniformKeyframes.some(
         (keyframe) =>
           !Number.isFinite(keyframe.frame) ||
           !Number.isFinite(keyframe.scale) ||
@@ -113,6 +113,14 @@ export function compileMotionPlan(
       )
     )
       throw new MotionPlanCompilerError("MOTION_PLAN_KEYFRAME_OUT_OF_BOUNDS");
+    const keyframes =
+      scene.schema === "scene-spec-v1"
+        ? uniformKeyframes
+        : uniformKeyframes.map(({ scale, ...keyframe }) => ({
+            ...keyframe,
+            scaleX: scale,
+            scaleY: scale,
+          }));
     const path = `/beats/${location.beatIndex}/elements/${location.elementIndex}/keyframes`;
     return {
       kind: "set" as const,

@@ -1,5 +1,6 @@
 import {
   SceneSpecSchema,
+  type KeyframeV1,
   type SceneSpec,
 } from "../../../packages/contracts/src/scene-spec.js";
 import { validateSceneSpec } from "../../../packages/contracts/src/spec-validate.js";
@@ -170,7 +171,7 @@ export function keyframesFromMotionIntent(intent: {
   readonly settleFrame: number;
   readonly staggerFrames: number;
   readonly elementIndex: number;
-}): SceneSpec["beats"][number]["elements"][number]["keyframes"] {
+}): readonly KeyframeV1[] {
   const start = intent.elementIndex * intent.staggerFrames;
   return [
     { frame: start, scale: 1, ease: "easeIn" },

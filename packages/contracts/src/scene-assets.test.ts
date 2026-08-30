@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { fixtureSpec } from "./scene-spec.fixture.js";
-import type { SceneSpec, SpecAsset } from "./scene-spec.js";
+import type { SceneSpecV1, SpecAsset } from "./scene-spec.js";
 import { planSceneAssets, SceneAssetError } from "./scene-assets.js";
 
 const specWith = (
   assets: readonly SpecAsset[],
   assetRefs: readonly string[] = [],
-): SceneSpec => ({
+): SceneSpecV1 => ({
   ...fixtureSpec,
   assets,
   beats: [

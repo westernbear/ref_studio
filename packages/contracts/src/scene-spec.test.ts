@@ -78,4 +78,93 @@ describe("SceneSpecSchema", () => {
       black: 1000,
     });
   });
+
+  it("accepts v2 transform fields and rejects them on v1", () => {
+    const v2 = JSON.parse(JSON.stringify(fixtureSpec)) as Record<
+      string,
+      unknown
+    > & {
+      beats: { elements: Record<string, unknown>[] }[];
+    };
+    v2["schema"] = "scene-spec-v2";
+    for (const beat of v2.beats)
+      for (const element of beat.elements) {
+        element["anchor"] = { x: 0, y: 0 };
+        element["keyframes"] = (
+          element["keyframes"] as Record<string, unknown>[]
+        ).map(({ scale, ...keyframe }) => ({
+          ...keyframe,
+          ...(typeof scale === "number"
+            ? { scaleX: scale, scaleY: scale }
+            : {}),
+        }));
+      }
+    Object.assign(v2.beats[0]!.elements[0]!, {
+      anchor: { x: 420, y: 80 },
+      parentElementId: undefined,
+      keyframes: [
+        {
+          frame: 0,
+          opacity: 1,
+          x: 0,
+          y: 0,
+          rotation: -15,
+          scaleX: 1.25,
+          scaleY: 0.8,
+          ease: "easeInOut",
+        },
+      ],
+    });
+    expect(() => SceneSpecSchema.parse(v2)).not.toThrow();
+
+    const v1 = JSON.parse(JSON.stringify(v2)) as Record<string, unknown>;
+    v1["schema"] = "scene-spec-v1";
+    expect(() => SceneSpecSchema.parse(v1)).toThrow();
+  });
+
+  it("rejects non-finite v2 transform values and unknown fields", () => {
+    for (const patch of [
+      { rotation: Number.POSITIVE_INFINITY },
+      { scaleX: Number.NaN },
+      { scaleY: Number.NEGATIVE_INFINITY },
+      { surprise: 1 },
+    ]) {
+      const v2 = JSON.parse(JSON.stringify(fixtureSpec)) as Record<
+        string,
+        unknown
+      > & {
+        beats: { elements: Record<string, unknown>[] }[];
+      };
+      v2["schema"] = "scene-spec-v2";
+      v2.beats[0]!.elements[0]!["anchor"] = { x: 0, y: 0 };
+      v2.beats[0]!.elements[0]!["keyframes"] = [
+        { frame: 0, ease: "linear", ...patch },
+      ];
+      expect(() => SceneSpecSchema.parse(v2)).toThrow();
+    }
+  });
+
+  it("accepts finite negative and large v2 transforms", () => {
+    const v2 = JSON.parse(JSON.stringify(fixtureSpec)) as Record<
+      string,
+      unknown
+    > & {
+      beats: { elements: Record<string, unknown>[] }[];
+    };
+    v2["schema"] = "scene-spec-v2";
+    for (const [beatIndex, beat] of v2.beats.entries())
+      for (const element of beat.elements) {
+        element["anchor"] = { x: -1_000_000, y: 1_000_000 };
+        element["keyframes"] = [
+          {
+            frame: beatIndex * 200,
+            rotation: -360_000,
+            scaleX: -10_000,
+            scaleY: 10_000,
+            ease: "linear",
+          },
+        ];
+      }
+    expect(() => SceneSpecSchema.parse(v2)).not.toThrow();
+  });
 });

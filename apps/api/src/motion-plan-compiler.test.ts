@@ -121,6 +121,30 @@ describe("compileMotionPlan", () => {
     expect(result.resultingSceneDigest).toMatch(/^[a-f0-9]{64}$/u);
   });
 
+  it("compiles uniform scale intent into both v2 axes", () => {
+    const v2 = SceneSpecSchema.parse({
+      ...scene,
+      schema: "scene-spec-v2",
+      beats: scene.beats.map((beat) => ({
+        ...beat,
+        elements: beat.elements.map((element) => ({
+          ...element,
+          anchor: { x: 0, y: 0 },
+        })),
+      })),
+    });
+    const result = compile(plan, v2);
+    const batch = result.batches[0];
+    expect(batch?.operations[0]?.value).toEqual([
+      { frame: 0, scaleX: 1, scaleY: 1, ease: "easeIn" },
+      { frame: 12, scaleX: 1.08, scaleY: 1.08, ease: "easeOut" },
+      { frame: 36, scaleX: 1, scaleY: 1, ease: "easeInOut" },
+    ]);
+    expect(batch).toBeDefined();
+    if (batch === undefined) return;
+    expect(() => applySceneOperations(v2, batch)).not.toThrow();
+  });
+
   it.each([
     [
       "unknown element",
