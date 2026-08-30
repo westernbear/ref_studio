@@ -99,7 +99,7 @@ const evaluate = (
           .filter(
             (keyframe) =>
               keyframe.frame < beat.startFrame ||
-              keyframe.frame > beat.endFrame,
+              keyframe.frame >= beat.endFrame,
           )
           .map((keyframe) => `${element.elementId}@${keyframe.frame}`),
       ),
@@ -166,7 +166,7 @@ const evaluate = (
       ...scene.beats.flatMap((beat) =>
         beat.elements.map((element) => element.content ?? ""),
       ),
-    ].filter((value) => /^https?:\/\//iu.test(value));
+    ].filter((value) => /https?:\/\//iu.test(value));
     return finding(
       predicateId,
       external.length === 0,

@@ -170,4 +170,55 @@ describe("motion predicate evaluator", () => {
       "reduced-motion",
     ]);
   });
+
+  it("rejects embedded case-insensitive URL tokens and keyframes at the exclusive beat end", () => {
+    const first = fixtureSpec.beats[0]!;
+    const scene = {
+      ...fixtureSpec,
+      beats: [
+        {
+          ...first,
+          elements: [
+            {
+              ...first.elements[0]!,
+              content: "ordinary prose before HtTpS://evil.invalid/path after",
+              keyframes: [{ frame: first.endFrame, ease: "linear" as const }],
+            },
+          ],
+        },
+        ...fixtureSpec.beats.slice(1),
+      ],
+    };
+    const report = verifyMotionScene(scene, {
+      requestedPredicateIds: ["keyframe-timing"],
+      context: context(),
+    });
+    expect(
+      report.findings
+        .filter((entry) => !entry.pass)
+        .map((entry) => entry.predicateId),
+    ).toEqual(["no-external-url", "keyframe-timing"]);
+  });
+
+  it("preserves ordinary prose that does not contain a URL token", () => {
+    const first = fixtureSpec.beats[0]!;
+    const scene = {
+      ...fixtureSpec,
+      beats: [
+        {
+          ...first,
+          elements: [
+            {
+              ...first.elements[0]!,
+              content: "HTTPS is a protocol, but this is not a URL.",
+            },
+          ],
+        },
+        ...fixtureSpec.beats.slice(1),
+      ],
+    };
+    expect(verifyMotionScene(scene, { context: context() }).status).toBe(
+      "PASS",
+    );
+  });
 });
