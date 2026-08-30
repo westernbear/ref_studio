@@ -293,6 +293,20 @@ export function recordMotionSceneRefinement<T>(
           previous,
           verifyMotionScene(previous),
         );
+      if (sha256Hex(next) === previousDigest) {
+        if (!idempotency) return { response: null, replayed: false };
+        const response = idempotency.parseResponse(idempotency.response);
+        db.prepare(
+          "INSERT INTO idempotency_keys(tenant_id,key,request_hash,response_json,created_at) VALUES(?,?,?,?,?)",
+        ).run(
+          job.tenantId,
+          idempotency.key,
+          idempotency.requestDigest,
+          JSON.stringify(response),
+          new Date().toISOString(),
+        );
+        return { response, replayed: false };
+      }
       const committed = commitMotionSceneVersion({
         db,
         job,
@@ -338,5 +352,9 @@ export const motionSceneSnapshot = (
     verification: row.verificationJson
       ? VerificationReportV1Schema.parse(JSON.parse(row.verificationJson))
       : null,
+    planDigest: row.planDigest,
+    predecessorVersion: row.predecessorVersion,
+    artifactDigest: row.artifactDigest,
+    predicateIds: PredicateIdsSchema.parse(JSON.parse(row.predicateIdsJson)),
   });
 };

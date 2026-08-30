@@ -65,20 +65,7 @@ export function registerMotionScene(
     async (request: FastifyRequest<{ Params: { jobId: string } }>, reply) => {
       try {
         const job = jobFor(request);
-        let row = findMotionSceneRow(db, job);
-        if (
-          !row &&
-          admissionEnabled &&
-          job.generation &&
-          job.authoredScene?.motionPlan &&
-          job.authoredScene.planDigest
-        )
-          row = insertMotionSceneVersion(
-            db,
-            job,
-            job.authoredScene.spec,
-            verifyMotionScene(job.authoredScene.spec),
-          );
+        const row = findMotionSceneRow(db, job);
         if (!row) throw new MotionSceneError("RESOURCE_NOT_FOUND", 404);
         reply.send(motionSceneSnapshot(db, job, row));
       } catch (error) {
@@ -101,7 +88,11 @@ export function registerMotionScene(
           throw new MotionSceneError("PRECONDITION_REQUIRED", 428);
         const batch = SceneOperationBatchV1Schema.parse(request.body);
         const scopedKey = `motion-scene:${job.id}:${key}`;
-        const requestDigest = sha256Hex(batch);
+        const requestDigest = sha256Hex({
+          route: `/v1/jobs/${job.id}/motion-scene`,
+          ifMatch: match,
+          body: batch,
+        });
         const replay = replayMotionSceneMutation(
           db,
           job,
@@ -191,5 +182,5 @@ export function registerMotionScene(
     },
   );
   registerMotionSceneCommands(app, store, db);
-  registerMotionDeliverables(app, store);
+  registerMotionDeliverables(app, store, db);
 }

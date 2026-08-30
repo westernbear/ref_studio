@@ -22,6 +22,8 @@ import {
   type GenerateImage,
 } from "./openai-image-material.js";
 import { getMaterialProviderSettings } from "./material-provider-settings.js";
+import { verifyMotionScene } from "./motion-operations.js";
+import { insertMotionSceneVersion } from "./motion-scene-store.js";
 import { runSafetyCheck, type GenerateSafetyVerdict } from "./safety-check.js";
 import {
   enrichEvidenceTranslations,
@@ -2007,6 +2009,12 @@ export function registerWorkers(
       // on property insertion order and could never agree with the
       // worker's canonicalJson-based digest of the same spec.
       current.sceneSpecDigest = sha256Hex(authored.spec);
+      insertMotionSceneVersion(
+        db,
+        current,
+        authored.spec,
+        verifyMotionScene(authored.spec),
+      );
       current.automaticRetries = 0;
       current.failureCode = null;
       // Straight on to material generation: the scene names assets, and

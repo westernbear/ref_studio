@@ -50,6 +50,40 @@ describe("motion scene authoring", () => {
     expect(second[0]?.frame).toBe(6);
   });
 
+  it("rejects immutable and escaped pointer paths before applying a mixed batch", () => {
+    for (const path of [
+      "/schema",
+      "/canvas/width",
+      "/assets/0/provenance",
+      "/beats/00/elements/0/content",
+      "/beats/0/elements/0/~1schema",
+      "/beats/0/elements/0/elementId",
+    ])
+      expect(() =>
+        applySceneOperations(fixtureSpec, {
+          schema: "scene-operation-batch-v1",
+          baseSceneDigest: "a".repeat(64),
+          operations: [
+            {
+              kind: "set",
+              opId: "allowed-first",
+              path: "/palette/hero",
+              value: "#6633ee",
+              reason: "must remain atomic",
+            },
+            {
+              kind: "set",
+              opId: `denied-${path}`,
+              path,
+              value: "mutated",
+              reason: "boundary probe",
+            },
+          ],
+        }),
+      ).toThrow("INVALID_OPERATION");
+    expect(fixtureSpec.palette.hero).not.toBe("#6633ee");
+  });
+
   it("stops after four failed verification attempts and preserves the safe scene", async () => {
     let verificationCalls = 0;
     const result = await verifyAndRepair(

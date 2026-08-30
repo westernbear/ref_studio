@@ -312,6 +312,10 @@ export const MotionSceneSnapshotV1Schema = z
     ),
     backendCapability: BackendCapabilitySnapshotV1Schema,
     verification: VerificationReportV1Schema.nullable(),
+    planDigest: DigestSchema.nullable(),
+    predecessorVersion: z.number().int().positive().nullable(),
+    artifactDigest: DigestSchema.nullable(),
+    predicateIds: z.array(z.enum(MOTION_PREDICATE_IDS)).max(64),
   })
   .strict();
 export type MotionSceneSnapshotV1 = z.infer<typeof MotionSceneSnapshotV1Schema>;

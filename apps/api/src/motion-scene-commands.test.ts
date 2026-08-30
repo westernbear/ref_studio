@@ -1,4 +1,5 @@
 import { mkdtempSync, rmSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fixtureSpec } from "@rvs/contracts";
@@ -27,7 +28,13 @@ describe("motion scene commands", () => {
     directory = mkdtempSync(join(tmpdir(), "rvs-motion-command-"));
     fixture = createMotionCommandFixture(directory, {
       patchSceneGenerate: async () => ({
-        object: { spec: fixtureSpec, summary: "Updated the opening title" },
+        object: {
+          spec: {
+            ...fixtureSpec,
+            palette: { ...fixtureSpec.palette, hero: "#6633ee" },
+          },
+          summary: "Updated the opening title",
+        },
       }),
     });
   });
@@ -129,6 +136,74 @@ describe("motion scene commands", () => {
     ).toBe(2);
   });
 
+  it("publishes only hash-valid deliverables bound to the current passing scene", async () => {
+    const jobId = await createCompletedGeneratedJob(fixture);
+    const job = fixture.workflow.jobs.get(jobId);
+    if (!job) throw new Error("fixture job missing");
+    const deliveryBytes = Buffer.from("verified-mp4");
+    const packageBytes = Buffer.from("verified-scene-package");
+    const artifact = {
+      id: "artifact-safe",
+      jobId,
+      tenantId: "ten_a",
+      kind: "generated-delivery" as const,
+      filename: "delivery.mp4",
+      contentType: "video/mp4" as const,
+      bytes: deliveryBytes,
+      sha256: createHash("sha256").update(deliveryBytes).digest("hex"),
+      sizeBytes: deliveryBytes.byteLength,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      expiresAt: "2099-01-01T00:00:00.000Z",
+      report: null,
+    };
+    const scenePackage = {
+      ...artifact,
+      id: "scene-package-safe",
+      kind: "scene-package" as const,
+      filename: "scene-package.tar",
+      contentType: "application/x-tar" as const,
+      bytes: packageBytes,
+      sha256: createHash("sha256").update(packageBytes).digest("hex"),
+      sizeBytes: packageBytes.byteLength,
+    };
+    fixture.workflow.artifacts.set(artifact.id, artifact);
+    fixture.workflow.scenePackages.set(jobId, scenePackage);
+
+    const listed = await fixture.app.inject({
+      method: "GET",
+      url: `/v1/jobs/${jobId}/deliverables`,
+      headers,
+    });
+    expect(listed.statusCode, listed.body).toBe(200);
+    expect(
+      listed.json().items.map(({ kind }: { kind: string }) => kind),
+    ).toEqual(["mp4", "scene-package"]);
+    const downloaded = await fixture.app.inject({
+      method: "GET",
+      url: `/v1/jobs/${jobId}/delivery-download`,
+      headers,
+    });
+    expect(downloaded.statusCode).toBe(200);
+    expect(downloaded.rawPayload).toEqual(deliveryBytes);
+
+    fixture.workflow.artifacts.set(artifact.id, {
+      ...artifact,
+      bytes: Buffer.from("corrupt"),
+    });
+    const rejected = await fixture.app.inject({
+      method: "GET",
+      url: `/v1/jobs/${jobId}/deliverables`,
+      headers,
+    });
+    expect(rejected.statusCode).toBe(404);
+    const rejectedDownload = await fixture.app.inject({
+      method: "GET",
+      url: `/v1/jobs/${jobId}/delivery-download`,
+      headers,
+    });
+    expect(rejectedDownload.statusCode).toBe(404);
+  });
+
   it("rolls back version, head, and replay when durable response insertion aborts", async () => {
     const jobId = await createCompletedGeneratedJob(fixture);
     const initial = await fixture.app.inject({
@@ -154,8 +229,8 @@ describe("motion scene commands", () => {
           {
             kind: "set",
             opId: "fault",
-            path: "/mode",
-            value: "SWAP",
+            path: "/palette/hero",
+            value: "#6633ee",
             reason: "fault injection",
           },
         ],
@@ -211,8 +286,8 @@ describe("motion scene commands", () => {
           {
             kind: "set",
             opId: "head-fault",
-            path: "/mode",
-            value: "SWAP",
+            path: "/palette/hero",
+            value: "#6633ee",
             reason: "head fault injection",
           },
         ],

@@ -65,6 +65,34 @@ const pointerSegments = (path: string): readonly string[] =>
     .split("/")
     .map((part) => part.replaceAll("~1", "/").replaceAll("~0", "~"));
 
+const INDEX = "(?:0|[1-9][0-9]*)";
+const EDITABLE_PATHS = [
+  /^\/palette\/(?:hero|cool|warm|background)$/u,
+  new RegExp(`^/beats/${INDEX}/elements/${INDEX}/content$`, "u"),
+  new RegExp(`^/beats/${INDEX}/elements/${INDEX}/box/(?:x|y)$`, "u"),
+  new RegExp(`^/beats/${INDEX}/elements/${INDEX}/keyframes$`, "u"),
+  new RegExp(
+    `^/beats/${INDEX}/elements/${INDEX}/keyframes/${INDEX}/(?:frame|x|y|scale|opacity|ease)$`,
+    "u",
+  ),
+  new RegExp(`^/beats/${INDEX}/elements/${INDEX}/effects$`, "u"),
+] as const;
+const UNSET_PATH = new RegExp(
+  `^/beats/${INDEX}/elements/${INDEX}/(?:content|box/(?:x|y)|keyframes/${INDEX}/(?:x|y|scale|opacity))$`,
+  "u",
+);
+
+const assertEditableOperation = (
+  operation: SceneOperationBatchV1["operations"][number],
+): void => {
+  if (
+    operation.path.includes("~") ||
+    !EDITABLE_PATHS.some((pattern) => pattern.test(operation.path)) ||
+    (operation.kind === "unset" && !UNSET_PATH.test(operation.path))
+  )
+    throw new MotionSceneError("INVALID_OPERATION", 422);
+};
+
 const applyAt = (
   current: unknown,
   segments: readonly string[],
@@ -116,6 +144,7 @@ export function applySceneOperations(
   batch: SceneOperationBatchV1,
 ): SceneSpec {
   let candidate: unknown = scene;
+  for (const operation of batch.operations) assertEditableOperation(operation);
   for (const operation of batch.operations)
     candidate = applyAt(
       candidate,

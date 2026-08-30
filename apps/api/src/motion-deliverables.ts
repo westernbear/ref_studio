@@ -1,10 +1,12 @@
 import { createReadStream } from "node:fs";
+import type Database from "better-sqlite3";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { safeEnvelope } from "./boundary.js";
 import type {
   CreatorWorkflowStore,
   StoredArtifact,
 } from "./creator-workflow.js";
+import { currentDeliveryGate } from "./motion-artifact-gate.js";
 
 const body = (artifact: StoredArtifact) =>
   artifact.storagePath
@@ -14,6 +16,7 @@ const body = (artifact: StoredArtifact) =>
 export function registerMotionDeliverables(
   app: FastifyInstance,
   store: CreatorWorkflowStore,
+  db: Database.Database,
 ): void {
   const owned = (request: FastifyRequest<{ Params: { jobId: string } }>) => {
     const job = store.jobs.get(request.params.jobId);
@@ -26,25 +29,31 @@ export function registerMotionDeliverables(
     async (request, reply) => {
       try {
         const job = owned(request);
-        const scenePackage = store.scenePackages.get(job.id);
+        const gated = currentDeliveryGate(db, store, job);
+        if (!gated) throw new Error("ARTIFACT_UNAVAILABLE");
         reply.send({
-          backend: "native",
+          backend: gated.backend,
           items: [
-            ...(job.artifact
+            {
+              id: gated.delivery.id,
+              kind: "mp4",
+              downloadUrl: `/v1/jobs/${job.id}/delivery-download`,
+            },
+            ...(gated.backend === "native" && gated.scenePackage
               ? [
                   {
-                    id: job.artifact.id,
-                    kind: "mp4",
-                    downloadUrl: `/v1/jobs/${job.id}/delivery-download`,
+                    id: gated.scenePackage.id,
+                    kind: "scene-package",
+                    downloadUrl: `/v1/jobs/${job.id}/scene-package-download`,
                   },
                 ]
               : []),
-            ...(scenePackage
+            ...(gated.backend === "adobe" && gated.delivery.report
               ? [
                   {
-                    id: scenePackage.id,
-                    kind: "scene-package",
-                    downloadUrl: `/v1/jobs/${job.id}/scene-package-download`,
+                    id: gated.delivery.id,
+                    kind: "report",
+                    downloadUrl: `/v1/jobs/${job.id}/report-download`,
                   },
                 ]
               : []),
@@ -64,7 +73,9 @@ export function registerMotionDeliverables(
     async (request, reply) => {
       try {
         const job = owned(request);
-        const artifact = store.scenePackages.get(job.id);
+        const gated = currentDeliveryGate(db, store, job);
+        const artifact =
+          gated?.backend === "native" ? gated.scenePackage : null;
         if (!artifact) throw new Error("ARTIFACT_UNAVAILABLE");
         return reply
           .header("content-type", artifact.contentType)

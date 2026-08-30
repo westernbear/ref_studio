@@ -10,6 +10,8 @@ import {
 } from "./creator-workflow.js";
 import { openApiDatabase } from "./durable-state.js";
 import type { GeneratePatch } from "./patch-scene.js";
+import { verifyMotionScene } from "./motion-operations.js";
+import { insertMotionSceneVersion } from "./motion-scene-store.js";
 import { createUpload, finalizeUpload, type UploadStore } from "./uploads.js";
 
 export const motionCommandHeaders = {
@@ -189,5 +191,11 @@ export async function createCompletedGeneratedJob(
       `scene-${jobId}`,
       "2026-01-01T00:00:00Z",
     );
+  insertMotionSceneVersion(
+    fixture.db,
+    job,
+    fixtureSpec,
+    verifyMotionScene(fixtureSpec),
+  );
   return jobId;
 }

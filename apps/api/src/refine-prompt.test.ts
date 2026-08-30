@@ -150,6 +150,17 @@ const createJob = async (
   return created.json().id as string;
 };
 
+const restoreHeaders = (
+  state: ReturnType<typeof fixture>,
+  jobId: string,
+  key: string,
+  tenantId = "ten_a",
+) => ({
+  ...headersFor(tenantId),
+  "idempotency-key": key,
+  "if-match": state.workflow.jobs.get(jobId)?.etag ?? "missing",
+});
+
 describe("refine-prompt", () => {
   it("proposes heuristic candidates when no provider is configured", async () => {
     const state = fixture();
@@ -158,7 +169,7 @@ describe("refine-prompt", () => {
       const response = await state.app.inject({
         method: "POST",
         url: `/v1/jobs/${jobId}/refine-prompt`,
-        headers: { ...headersFor("ten_a"), "idempotency-key": "refine-1" },
+        headers: restoreHeaders(state, jobId, "refine-1"),
         payload: { prompt: "make it more dramatic" },
       });
       expect(response.statusCode, response.body).toBe(200);
@@ -182,7 +193,7 @@ describe("refine-prompt", () => {
       const response = await state.app.inject({
         method: "POST",
         url: `/v1/jobs/${jobId}/refine-prompt`,
-        headers: { ...headersFor("ten_b"), "idempotency-key": "refine-2" },
+        headers: restoreHeaders(state, jobId, "refine-2", "ten_b"),
         payload: { prompt: "make it more dramatic" },
       });
       expect(response.statusCode).toBe(404);
@@ -199,14 +210,14 @@ describe("refine-prompt", () => {
       const empty = await state.app.inject({
         method: "POST",
         url: `/v1/jobs/${jobId}/refine-prompt`,
-        headers: { ...headersFor("ten_a"), "idempotency-key": "refine-3" },
+        headers: restoreHeaders(state, jobId, "refine-3"),
         payload: { prompt: "" },
       });
       expect(empty.statusCode).toBe(400);
       const oversized = await state.app.inject({
         method: "POST",
         url: `/v1/jobs/${jobId}/refine-prompt`,
-        headers: { ...headersFor("ten_a"), "idempotency-key": "refine-4" },
+        headers: restoreHeaders(state, jobId, "refine-4"),
         payload: { prompt: "x".repeat(2001) },
       });
       expect(oversized.statusCode).toBe(400);
@@ -243,7 +254,7 @@ describe("refine-prompt", () => {
       const response = await state.app.inject({
         method: "POST",
         url: `/v1/jobs/${jobId}/refine-prompt`,
-        headers: { ...headersFor("ten_a"), "idempotency-key": "refine-5" },
+        headers: restoreHeaders(state, jobId, "refine-5"),
         payload: { prompt: "make it more dramatic" },
       });
       expect(response.statusCode, response.body).toBe(200);
@@ -342,8 +353,8 @@ describe("motion scene routes", () => {
             {
               kind: "set",
               opId: "one",
-              path: "/mode",
-              value: "SWAP",
+              path: "/palette/hero",
+              value: "#6633ee",
               reason: "test",
             },
           ],
@@ -365,8 +376,8 @@ describe("motion scene routes", () => {
             {
               kind: "set",
               opId: "one",
-              path: "/mode",
-              value: "SWAP",
+              path: "/palette/hero",
+              value: "#6633ee",
               reason: "test",
             },
           ],
@@ -393,8 +404,8 @@ describe("motion scene routes", () => {
             {
               kind: "set",
               opId: "one",
-              path: "/mode",
-              value: "SWAP",
+              path: "/palette/hero",
+              value: "#6633ee",
               reason: "test",
             },
           ],
@@ -960,7 +971,7 @@ describe("scene-patch chat (generate track)", () => {
           .prepare("SELECT version FROM motion_scene_versions ORDER BY version")
           .pluck()
           .all(),
-      ).toEqual([1, 2]);
+      ).toEqual([1]);
     } finally {
       await app.close();
       state.db.close();
@@ -1023,7 +1034,7 @@ describe("scene-patch chat (generate track)", () => {
           .prepare("SELECT count(*) FROM motion_scene_versions")
           .pluck()
           .get(),
-      ).toBe(2);
+      ).toBe(1);
     } finally {
       await app.close();
       state.db.close();
@@ -1031,7 +1042,7 @@ describe("scene-patch chat (generate track)", () => {
     }
   });
 
-  it("reports the beats the diff finds changed, not what the model claims", async () => {
+  it("rejects immutable beat metadata even when the model reports a change", async () => {
     const changedSpec: SceneSpec = {
       ...fixtureSpec,
       beats: fixtureSpec.beats.map((beat) =>
@@ -1063,8 +1074,10 @@ describe("scene-patch chat (generate track)", () => {
         headers: patchHeaders(state, jobId, "patch-2"),
         payload: { prompt: "too busy" },
       });
-      expect(response.statusCode, response.body).toBe(200);
-      expect(response.json().changedBeatIds).toEqual(["beat-close"]);
+      expect(response.statusCode).toBe(400);
+      expect(state.workflow.jobs.get(jobId)?.authoredScene?.spec).toEqual(
+        fixtureSpec,
+      );
     } finally {
       state.db.close();
       rmSync(state.directory, { recursive: true, force: true });
@@ -1185,7 +1198,7 @@ describe("restore-track chat is unaffected by the scene-patch route", () => {
       const response = await state.app.inject({
         method: "POST",
         url: `/v1/jobs/${jobId}/refine-prompt`,
-        headers: { ...headersFor("ten_a"), "idempotency-key": "restore-1" },
+        headers: restoreHeaders(state, jobId, "restore-1"),
         payload: { prompt: "make it more dramatic" },
       });
       expect(response.statusCode, response.body).toBe(200);

@@ -119,7 +119,11 @@ export function registerMotionSceneCommands(
         const { match, key } = requiredHeaders(request);
         const body = MotionSceneRollbackV1Schema.parse(request.body);
         const scopedKey = `motion-scene-rollback:${job.id}:${key}`;
-        const requestDigest = sha256Hex(body);
+        const requestDigest = sha256Hex({
+          route: `/v1/jobs/${job.id}/motion-scene/rollback`,
+          ifMatch: match,
+          body,
+        });
         const replay = replayMotionSceneMutation(
           db,
           job,
@@ -175,7 +179,11 @@ export function registerMotionSceneCommands(
         const { match, key } = requiredHeaders(request);
         const body = MotionSceneRenderV1Schema.parse(request.body);
         const scopedKey = `motion-scene-render:${job.id}:${key}`;
-        const requestDigest = sha256Hex(body);
+        const requestDigest = sha256Hex({
+          route: `/v1/jobs/${job.id}/motion-scene/render`,
+          ifMatch: match,
+          body,
+        });
         const replay = replayFor(db, job, scopedKey, requestDigest);
         if (replay) {
           reply.code(202).send(JSON.parse(replay));
@@ -198,20 +206,22 @@ export function registerMotionSceneCommands(
           verification.sceneDigest !== current.sceneDigest
         )
           throw new MotionSceneError("SCENE_VERIFICATION_FAILED", 409);
-        queue(store, job, scene, current.sceneDigest);
         const response = {
           state: "QUEUED" as const,
           sceneDigest: current.sceneDigest,
         };
-        db.prepare(
-          "INSERT INTO idempotency_keys(tenant_id,key,request_hash,response_json,created_at) VALUES(?,?,?,?,?)",
-        ).run(
-          job.tenantId,
-          scopedKey,
-          requestDigest,
-          JSON.stringify(response),
-          new Date().toISOString(),
-        );
+        db.transaction(() => {
+          db.prepare(
+            "INSERT INTO idempotency_keys(tenant_id,key,request_hash,response_json,created_at) VALUES(?,?,?,?,?)",
+          ).run(
+            job.tenantId,
+            scopedKey,
+            requestDigest,
+            JSON.stringify(response),
+            new Date().toISOString(),
+          );
+          queue(store, job, scene, current.sceneDigest);
+        }).immediate();
         reply.code(202).send(response);
       } catch (error) {
         fail(reply, error);

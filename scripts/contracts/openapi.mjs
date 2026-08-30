@@ -425,7 +425,29 @@ const schemas = {
         type: "array",
         minItems: 1,
         maxItems: 16,
-        items: { type: "object" },
+        items: {
+          oneOf: [
+            object(
+              {
+                kind: { type: "string", const: "set" },
+                opId: string(),
+                path: string(),
+                value: {},
+                reason: string(),
+              },
+              ["kind", "opId", "path", "value", "reason"],
+            ),
+            object(
+              {
+                kind: { type: "string", const: "unset" },
+                opId: string(),
+                path: string(),
+                reason: string(),
+              },
+              ["kind", "opId", "path", "reason"],
+            ),
+          ],
+        },
       },
     },
     ["schema", "baseSceneDigest", "operations"],
@@ -451,6 +473,10 @@ const schemas = {
       history: { type: "array", items: { type: "object" } },
       backendCapability: { type: "object" },
       verification: { type: ["object", "null"] },
+      planDigest: { type: ["string", "null"], pattern: "^[a-f0-9]{64}$" },
+      predecessorVersion: { type: ["integer", "null"], minimum: 1 },
+      artifactDigest: { type: ["string", "null"], pattern: "^[a-f0-9]{64}$" },
+      predicateIds: { type: "array", items: string() },
     },
     [
       "schema",
@@ -461,6 +487,10 @@ const schemas = {
       "history",
       "backendCapability",
       "verification",
+      "planDigest",
+      "predecessorVersion",
+      "artifactDigest",
+      "predicateIds",
     ],
   ),
   DeliverablesV1: object(
@@ -486,6 +516,22 @@ const schemas = {
 };
 const ref = (name) => ({ $ref: `#/components/schemas/${name}` });
 const json = (schema) => ({ content: { "application/json": { schema } } });
+const jobIdParameter = {
+  name: "id",
+  in: "path",
+  required: true,
+  schema: string(),
+};
+const mutationHeaders = [
+  { name: "If-Match", in: "header", required: true, schema: string() },
+  { name: "Idempotency-Key", in: "header", required: true, schema: string() },
+];
+const safeErrors = Object.fromEntries(
+  [400, 404, 409, 422, 428].map((status) => [
+    status,
+    { description: "Request rejected", ...json(ref("SafeErrorEnvelope")) },
+  ]),
+);
 const document = {
   openapi: "3.1.0",
   info: { title: "Reference Video Studio API", version: "v1" },
@@ -530,6 +576,7 @@ const document = {
       },
     },
     "/v1/jobs/{id}/motion-scene": {
+      parameters: [jobIdParameter],
       get: {
         operationId: "getMotionScene",
         responses: {
@@ -541,20 +588,19 @@ const document = {
       },
       patch: {
         operationId: "patchMotionScene",
+        parameters: mutationHeaders,
         requestBody: json(ref("SceneOperationBatchV1")),
         responses: {
           200: {
             description: "Motion scene",
             ...json(ref("MotionSceneSnapshotV1")),
           },
-          409: {
-            description: "Version conflict",
-            ...json(ref("SafeErrorEnvelope")),
-          },
+          ...safeErrors,
         },
       },
     },
     "/v1/jobs/{id}/deliverables": {
+      parameters: [jobIdParameter],
       get: {
         operationId: "getDeliverables",
         responses: {
@@ -566,35 +612,34 @@ const document = {
       },
     },
     "/v1/jobs/{id}/motion-scene/rollback": {
+      parameters: [jobIdParameter],
       post: {
         operationId: "rollbackMotionScene",
+        parameters: mutationHeaders,
         requestBody: json(ref("MotionSceneRollbackV1")),
         responses: {
           200: {
             description: "New version restored from history",
             ...json(ref("MotionSceneSnapshotV1")),
           },
-          409: {
-            description: "Version conflict",
-            ...json(ref("SafeErrorEnvelope")),
-          },
+          ...safeErrors,
         },
       },
     },
     "/v1/jobs/{id}/motion-scene/render": {
+      parameters: [jobIdParameter],
       post: {
         operationId: "renderMotionScene",
+        parameters: mutationHeaders,
         requestBody: json(ref("MotionSceneRenderV1")),
         responses: {
           202: { description: "Queued", ...json({ type: "object" }) },
-          409: {
-            description: "Version conflict",
-            ...json(ref("SafeErrorEnvelope")),
-          },
+          ...safeErrors,
         },
       },
     },
     "/v1/jobs/{id}/scene-package-download": {
+      parameters: [jobIdParameter],
       get: {
         operationId: "downloadScenePackage",
         responses: {
@@ -605,6 +650,48 @@ const document = {
                 schema: { type: "string", format: "binary" },
               },
             },
+          },
+          404: { description: "Not found", ...json(ref("SafeErrorEnvelope")) },
+        },
+      },
+    },
+    "/v1/jobs/{id}/refine-prompt": {
+      parameters: [jobIdParameter],
+      post: {
+        operationId: "refinePrompt",
+        parameters: mutationHeaders,
+        requestBody: json(
+          object({ prompt: string(), locale: string() }, ["prompt"]),
+        ),
+        responses: {
+          200: { description: "Refined", ...json({ type: "object" }) },
+          ...safeErrors,
+        },
+      },
+    },
+    "/v1/jobs/{id}/delivery-download": {
+      parameters: [jobIdParameter],
+      get: {
+        operationId: "downloadDelivery",
+        responses: {
+          200: {
+            description: "MP4",
+            content: {
+              "video/mp4": { schema: { type: "string", format: "binary" } },
+            },
+          },
+          404: { description: "Not found", ...json(ref("SafeErrorEnvelope")) },
+        },
+      },
+    },
+    "/v1/jobs/{id}/report-download": {
+      parameters: [jobIdParameter],
+      get: {
+        operationId: "downloadReport",
+        responses: {
+          200: {
+            description: "Verification report",
+            ...json({ type: "object" }),
           },
           404: { description: "Not found", ...json(ref("SafeErrorEnvelope")) },
         },
@@ -645,7 +732,7 @@ if (
   )
 )
   throw new Error("OPENAPI_COMPONENTS_NOT_CONCRETE");
-const client = `export type ApiOperation = "createUpload" | "createJob" | "getJob" | "getMotionScene" | "patchMotionScene" | "rollbackMotionScene" | "renderMotionScene" | "getDeliverables" | "downloadScenePackage" | "createReview" | "listReceipts"\nexport const paths = { uploads: "/v1/uploads", jobs: "/v1/jobs", motionScene: "/v1/jobs/{id}/motion-scene", motionSceneRollback: "/v1/jobs/{id}/motion-scene/rollback", motionSceneRender: "/v1/jobs/{id}/motion-scene/render", deliverables: "/v1/jobs/{id}/deliverables", scenePackage: "/v1/jobs/{id}/scene-package-download", reviews: "/v1/reviews", receipts: "/v1/receipts" } as const\n`;
+const client = `import type { MotionSceneRenderV1, MotionSceneRollbackV1, MotionSceneSnapshotV1, SceneOperationBatchV1 } from "../src/motion.js"\nexport type MotionMutationHeaders = Readonly<{ "If-Match": string; "Idempotency-Key": string }>\nexport type MotionApiRequests = Readonly<{ patchMotionScene: { headers: MotionMutationHeaders; body: SceneOperationBatchV1 }; rollbackMotionScene: { headers: MotionMutationHeaders; body: MotionSceneRollbackV1 }; renderMotionScene: { headers: MotionMutationHeaders; body: MotionSceneRenderV1 }; refinePrompt: { headers: MotionMutationHeaders; body: Readonly<{ prompt: string; locale?: string }> } }>\nexport type MotionApiResponses = Readonly<{ getMotionScene: MotionSceneSnapshotV1; patchMotionScene: MotionSceneSnapshotV1; rollbackMotionScene: MotionSceneSnapshotV1 }>\nexport type ApiOperation = "createUpload" | "createJob" | "getJob" | "getMotionScene" | "patchMotionScene" | "rollbackMotionScene" | "renderMotionScene" | "getDeliverables" | "downloadScenePackage" | "downloadDelivery" | "downloadReport" | "refinePrompt" | "createReview" | "listReceipts"\nexport const paths = { uploads: "/v1/uploads", jobs: "/v1/jobs", motionScene: "/v1/jobs/{id}/motion-scene", motionSceneRollback: "/v1/jobs/{id}/motion-scene/rollback", motionSceneRender: "/v1/jobs/{id}/motion-scene/render", refinePrompt: "/v1/jobs/{id}/refine-prompt", deliverables: "/v1/jobs/{id}/deliverables", delivery: "/v1/jobs/{id}/delivery-download", report: "/v1/jobs/{id}/report-download", scenePackage: "/v1/jobs/{id}/scene-package-download", reviews: "/v1/reviews", receipts: "/v1/receipts" } as const\n`;
 const openApi = await format(JSON.stringify(document), { parser: "json" });
 const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
 if (check) {
@@ -684,7 +771,7 @@ if (check) {
   process.stdout.write(
     JSON.stringify({
       status: "generated",
-      operations: 11,
+      operations: 14,
       schemas: Object.keys(schemas).length,
     }) + "\n",
   );
