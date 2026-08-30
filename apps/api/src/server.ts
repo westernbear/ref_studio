@@ -1,4 +1,5 @@
 import Database from "better-sqlite3";
+import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
@@ -6,6 +7,8 @@ import {
   BackendCapabilitySnapshotV1Schema,
   VerificationReportV1Schema,
 } from "../../../packages/contracts/src/motion.js";
+import { sha256Hex } from "../../../packages/contracts/src/canonical-json.js";
+import { SceneSpecSchema } from "../../../packages/contracts/src/scene-spec.js";
 import { IdempotencyStore } from "./boundary.js";
 import type {
   AdminAudit,
@@ -39,6 +42,7 @@ import {
   type CreatorWorkflowStore,
 } from "./creator-workflow.js";
 import { inspectUploadedMedia } from "./media-validation.js";
+import { beatSheetFor } from "./author-scene.js";
 import { listMotionToolCanaries } from "./motion-canary.js";
 import {
   loadFeatureFlagSnapshot,
@@ -126,8 +130,13 @@ const AdminJobRows = z.array(
 );
 const AdminMotionSceneRow = z.object({
   version: z.number().int().positive(),
+  sceneDigest: z.string().regex(/^[a-f0-9]{64}$/u),
   capabilityJson: z.string(),
   verificationJson: z.string().nullable(),
+  planDigest: z
+    .string()
+    .regex(/^[a-f0-9]{64}$/u)
+    .nullable(),
 });
 const AdminReceiptRows = z.array(
   z.object({
@@ -421,8 +430,10 @@ export function loadAdminReadStore(
     );
     const motionSceneStatement = writableDb.prepare(
       `SELECT v.version,
+              v.scene_digest AS sceneDigest,
               v.capability_json AS capabilityJson,
-              v.verification_json AS verificationJson
+              v.verification_json AS verificationJson,
+              v.plan_digest AS planDigest
          FROM job_motion_scene_heads h
          JOIN motion_scene_versions v
            ON v.id = h.version_id AND v.tenant_id = h.tenant_id
@@ -511,17 +522,86 @@ export function loadAdminReadStore(
           );
         if (workflow.scenePackages.has(job.id))
           deliverables.push("scene-package");
+        const adobeCommand = z
+          .object({
+            id: z.string(),
+            deviceId: z.string(),
+            status: z.enum([
+              "QUEUED",
+              "RUNNING",
+              "SUCCEEDED",
+              "FAILED",
+              "CANCELLED",
+            ]),
+            createdAtMs: z.number().int().nonnegative(),
+          })
+          .optional()
+          .parse(
+            writableDb
+              .prepare(
+                `SELECT id, device_id AS deviceId, status, created_at_ms AS createdAtMs
+                   FROM adobe_commands
+                  WHERE tenant_id=? AND job_id=?
+                  ORDER BY created_at_ms DESC, id DESC LIMIT 1`,
+              )
+              .get(job.tenantId, job.id),
+          );
+        const adobeDevice = adobeCommand
+          ? z
+              .object({
+                id: z.string(),
+                status: z.enum(["ENROLLED", "REVOKED"]),
+              })
+              .nullable()
+              .parse(
+                writableDb
+                  .prepare(
+                    "SELECT id,status FROM adobe_devices WHERE tenant_id=? AND id=?",
+                  )
+                  .get(job.tenantId, adobeCommand.deviceId) ?? null,
+              )
+          : null;
+        const renderHash = workflow.artifacts.get(job.id)?.sha256 ?? null;
+        const packageHash = workflow.scenePackages.get(job.id)?.sha256 ?? null;
         return {
           backend: backend.backend,
+          planDigest: row.planDigest,
+          knowledgeCardIds:
+            liveJob?.authoredScene?.motionPlan?.knowledgeCardIds ?? [],
           version: row.version,
+          sceneDigest: row.sceneDigest,
           verificationStatus: verification?.status ?? "PENDING",
           verificationAttempts: verification?.attempts ?? 0,
           passedFindings:
             verification?.findings.filter((finding) => finding.pass).length ??
             0,
           totalFindings: verification?.findings.length ?? 0,
+          predicateFindings:
+            verification?.findings.map((finding) => ({
+              predicateId: finding.predicateId,
+              pass: finding.pass,
+              remediation: finding.remediation,
+            })) ?? [],
           capabilities: backend.capabilities,
+          capabilitySnapshotDigest: sha256Hex(backend),
           deliverables,
+          renderHash,
+          packageHash,
+          workerRuntime: liveJob?.runtimePreflight?.runtimeDigest ?? null,
+          adobeDevice,
+          adobeCommand: adobeCommand
+            ? {
+                id: adobeCommand.id,
+                status: adobeCommand.status,
+                ageMs: Math.max(0, Date.now() - adobeCommand.createdAtMs),
+              }
+            : null,
+          failureRemediation:
+            adobeCommand?.status === "FAILED"
+              ? "retry the failed Adobe command after checking the enrolled device"
+              : verification?.status === "FAIL"
+                ? "repair predicate failures before rerendering"
+                : null,
         };
       },
       motionCanaries: () => listMotionToolCanaries(writableDb),
@@ -654,6 +734,145 @@ export function createApiServer(config: ApiServerConfig) {
       reviews,
       db,
       aiSecretKey: config.introspectSecret,
+      recordAuditEvent: (event) => {
+        db.prepare(
+          `INSERT INTO audit_events
+            (id,tenant_id,actor_id,action,target_type,target_id,decision,correlation_id,created_at)
+           VALUES (?,?,?,?,?,?,?,?,?)`,
+        ).run(
+          event.id,
+          event.tenantId,
+          event.actorId,
+          event.action,
+          event.targetType,
+          event.targetId,
+          event.outcome,
+          event.correlationId,
+          event.createdAt,
+        );
+      },
+      motionActions: {
+        retryCommand: (tenantId, commandId) => {
+          const changed = db
+            .prepare(
+              "UPDATE adobe_commands SET status='QUEUED',result_json=NULL,updated_at_ms=? WHERE tenant_id=? AND id=? AND status='FAILED'",
+            )
+            .run(Date.now(), tenantId, commandId).changes;
+          if (changed !== 1) throw new Error("ADOBE_COMMAND_NOT_RETRYABLE");
+          return { commandId, status: "QUEUED" };
+        },
+        cancelCommand: (tenantId, commandId) => {
+          const changed = db
+            .prepare(
+              "UPDATE adobe_commands SET status='CANCELLED',updated_at_ms=? WHERE tenant_id=? AND id=? AND status='RUNNING'",
+            )
+            .run(Date.now(), tenantId, commandId).changes;
+          if (changed !== 1) throw new Error("ADOBE_COMMAND_NOT_CANCELLABLE");
+          return { commandId, status: "CANCELLED" };
+        },
+        disableAdmission: (tenantId, deviceId) => {
+          const changed = db.transaction(() => {
+            const count = db
+              .prepare(
+                "UPDATE adobe_devices SET status='REVOKED' WHERE tenant_id=? AND id=? AND status='ENROLLED'",
+              )
+              .run(tenantId, deviceId).changes;
+            if (count === 1)
+              db.prepare(
+                "UPDATE adobe_device_keys SET revoked_at_ms=? WHERE tenant_id=? AND device_id=? AND revoked_at_ms IS NULL",
+              ).run(Date.now(), tenantId, deviceId);
+            return count;
+          })();
+          if (changed !== 1) throw new Error("ADOBE_DEVICE_NOT_ENROLLED");
+          return { deviceId, status: "REVOKED", admissionEnabled: false };
+        },
+        requestRollback: (tenantId, jobId) => {
+          const job = creatorWorkflow.jobs.get(jobId);
+          if (!job || job.tenantId !== tenantId)
+            throw new Error("RESOURCE_NOT_FOUND");
+          if (job.state !== "COMPLETED")
+            throw new Error("MOTION_ROLLBACK_NOT_READY");
+          const result = db.transaction(() => {
+            const head = z
+              .object({ version: z.number().int().positive() })
+              .parse(
+                db
+                  .prepare(
+                    "SELECT v.version FROM job_motion_scene_heads h JOIN motion_scene_versions v ON v.id=h.version_id AND v.tenant_id=h.tenant_id WHERE h.tenant_id=? AND h.job_id=?",
+                  )
+                  .get(tenantId, jobId),
+              );
+            const target = z
+              .object({
+                sceneJson: z.string(),
+                sceneDigest: z.string(),
+                capabilityJson: z.string(),
+                verificationJson: z.string().nullable(),
+                planDigest: z.string().nullable(),
+                artifactDigest: z.string().nullable(),
+                predicateIdsJson: z.string(),
+              })
+              .parse(
+                db
+                  .prepare(
+                    `SELECT scene_json AS sceneJson,scene_digest AS sceneDigest,capability_json AS capabilityJson,
+                          verification_json AS verificationJson,plan_digest AS planDigest,artifact_digest AS artifactDigest,
+                          predicate_ids_json AS predicateIdsJson
+                     FROM motion_scene_versions WHERE tenant_id=? AND job_id=? AND version=?`,
+                  )
+                  .get(tenantId, jobId, head.version - 1),
+              );
+            const nextVersion = head.version + 1;
+            const versionId = `msv_${randomUUID()}`;
+            db.prepare(
+              `INSERT INTO motion_scene_versions
+                (id,tenant_id,job_id,version,scene_digest,scene_json,capability_json,verification_json,created_at,plan_digest,predecessor_version,artifact_digest,predicate_ids_json)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+            ).run(
+              versionId,
+              tenantId,
+              jobId,
+              nextVersion,
+              target.sceneDigest,
+              target.sceneJson,
+              target.capabilityJson,
+              target.verificationJson,
+              new Date().toISOString(),
+              target.planDigest,
+              head.version,
+              target.artifactDigest,
+              target.predicateIdsJson,
+            );
+            db.prepare(
+              "UPDATE job_motion_scene_heads SET version_id=? WHERE tenant_id=? AND job_id=?",
+            ).run(versionId, tenantId, jobId);
+            return { ...target, version: nextVersion };
+          })();
+          const scene = SceneSpecSchema.parse(JSON.parse(result.sceneJson));
+          job.authoredScene = {
+            ...job.authoredScene,
+            spec: scene,
+            beatSheet: beatSheetFor(scene),
+          };
+          job.sceneSpecDigest = result.sceneDigest;
+          job.state = "QUEUED";
+          job.progress = {
+            phase: "prepare",
+            stage: "admin-rollback",
+            fraction: 0,
+            framesProcessed: null,
+            framesTotal: null,
+          };
+          job.updatedAt = new Date().toISOString();
+          job.etag = `"${result.sceneDigest}"`;
+          return {
+            jobId,
+            status: "QUEUED",
+            version: result.version,
+            sceneDigest: result.sceneDigest,
+          };
+        },
+      },
     },
     reviews,
     workers,

@@ -249,13 +249,26 @@ const fixture = (): Fixture => {
       job.id === "job_a"
         ? {
             backend: "native",
+            planDigest: "1".repeat(64),
+            knowledgeCardIds: ["timing-easing"],
             version: 3,
+            sceneDigest: "2".repeat(64),
             verificationStatus: "PASS",
             verificationAttempts: 2,
             passedFindings: 4,
             totalFindings: 4,
+            predicateFindings: [
+              { predicateId: "scene-spec", pass: true, remediation: "none" },
+            ],
             capabilities: ["text", "shape", "opacity"],
+            capabilitySnapshotDigest: "3".repeat(64),
             deliverables: ["mp4", "scene-package"],
+            renderHash: "4".repeat(64),
+            packageHash: "5".repeat(64),
+            workerRuntime: "6".repeat(64),
+            adobeDevice: null,
+            adobeCommand: null,
+            failureRemediation: null,
           }
         : null,
     motionCanaries: () => [
@@ -339,12 +352,12 @@ describe("admin-read", () => {
     expect(response.body).not.toMatch(/apiKey|prompt|rawResponse|secret/i);
     await app.close();
   });
-  it("returns filterable motion authoring status without scene digests or paths", async () => {
+  it("returns filterable redacted motion operations with integrity digests", async () => {
     const data = fixture();
     const app = appFor(data);
     const response = await app.inject({
       method: "GET",
-      url: "/admin/jobs?backend=native&verification=PASS",
+      url: "/admin/jobs?backend=native&verification=PASS&capability=opacity",
       headers: headers("super"),
     });
 
@@ -352,19 +365,28 @@ describe("admin-read", () => {
     expect(response.json().items).toEqual([
       expect.objectContaining({
         id: "job_a",
-        motion: {
+        motion: expect.objectContaining({
           backend: "native",
+          planDigest: "1".repeat(64),
+          knowledgeCardIds: ["timing-easing"],
           version: 3,
+          sceneDigest: "2".repeat(64),
           verificationStatus: "PASS",
           verificationAttempts: 2,
           passedFindings: 4,
           totalFindings: 4,
           capabilities: ["text", "shape", "opacity"],
           deliverables: ["mp4", "scene-package"],
-        },
+          capabilitySnapshotDigest: "3".repeat(64),
+          renderHash: "4".repeat(64),
+          packageHash: "5".repeat(64),
+          workerRuntime: "6".repeat(64),
+        }),
       }),
     ]);
-    expect(response.body).not.toMatch(/sceneDigest|sceneEtag|privatePath/u);
+    expect(response.body).not.toMatch(
+      /apiKey|relaySecret|privatePath|rawPrompt|aepBytes/iu,
+    );
 
     const empty = await app.inject({
       method: "GET",

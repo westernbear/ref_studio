@@ -34,13 +34,40 @@ export type AdminJob = {
 };
 export type AdminMotionSummary = {
   readonly backend: "native" | "adobe";
+  readonly planDigest: string | null;
+  readonly knowledgeCardIds: readonly string[];
   readonly version: number;
+  readonly sceneDigest: string;
   readonly verificationStatus: "PASS" | "FAIL" | "PENDING";
   readonly verificationAttempts: number;
   readonly passedFindings: number;
   readonly totalFindings: number;
+  readonly predicateFindings: readonly {
+    readonly predicateId: string;
+    readonly pass: boolean;
+    readonly remediation: string;
+  }[];
   readonly capabilities: readonly string[];
+  readonly capabilitySnapshotDigest: string;
   readonly deliverables: readonly ("mp4" | "scene-package" | "report")[];
+  readonly renderHash: string | null;
+  readonly packageHash: string | null;
+  readonly workerRuntime: string | null;
+  readonly adobeDevice: {
+    readonly id: string;
+    readonly status: "ENROLLED" | "REVOKED";
+  } | null;
+  readonly adobeCommand: {
+    readonly id: string;
+    readonly status:
+      | "QUEUED"
+      | "RUNNING"
+      | "SUCCEEDED"
+      | "FAILED"
+      | "CANCELLED";
+    readonly ageMs: number;
+  } | null;
+  readonly failureRemediation: string | null;
 };
 export type AdminReceipt = {
   readonly id: string;
@@ -172,6 +199,7 @@ type Query = {
   readonly capability?: string;
   readonly backend?: string;
   readonly verification?: string;
+  readonly commandState?: string;
 };
 const includes = (query: string | undefined, ...values: unknown[]): boolean =>
   !query ||
@@ -439,7 +467,11 @@ export function registerAdminRead(
               (!query.state || item.state === query.state) &&
               (!query.backend || item.motion?.backend === query.backend) &&
               (!query.verification ||
-                item.motion?.verificationStatus === query.verification),
+                item.motion?.verificationStatus === query.verification) &&
+              (!query.capability ||
+                item.motion?.capabilities.includes(query.capability)) &&
+              (!query.commandState ||
+                item.motion?.adobeCommand?.status === query.commandState),
           );
         auth.audit({
           action: "TENANT_VIEWED",
@@ -506,7 +538,11 @@ export function registerAdminRead(
               (!query.state || item.state === query.state) &&
               (!query.backend || item.motion?.backend === query.backend) &&
               (!query.verification ||
-                item.motion?.verificationStatus === query.verification),
+                item.motion?.verificationStatus === query.verification) &&
+              (!query.capability ||
+                item.motion?.capabilities.includes(query.capability)) &&
+              (!query.commandState ||
+                item.motion?.adobeCommand?.status === query.commandState),
           );
         auth.audit({
           action: "TENANT_VIEWED",
