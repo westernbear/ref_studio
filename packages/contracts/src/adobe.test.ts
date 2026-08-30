@@ -53,6 +53,13 @@ describe("Adobe MCP v1 boundary", () => {
         args: { compName: "Main", layerIndex: 1 },
       }).success,
     ).toBe(false);
+    expect(
+      AdobeCommandEnvelopeV1Schema.safeParse({
+        ...base,
+        tool: "adobe.layer.get_v1",
+        args: { compHandle: "comp:main", layerHandle: "layer:title" },
+      }).success,
+    ).toBe(false);
   });
 
   test("rejects unknown result and capability fields", () => {
