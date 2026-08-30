@@ -199,6 +199,40 @@ describe("Adobe MCP gateway", () => {
       status: "QUEUED",
       result: null,
     });
+    const resultBody = {
+      version: 1,
+      result: {
+        version: 1,
+        commandId: "cmd-adobe-1",
+        nonce: "nonce-cmd-adobe-1",
+        sceneDigest,
+        deviceId: enrollment.deviceId,
+        jobId: "job-adobe-1",
+        status: "SUCCEEDED",
+        beforeDigest: sceneDigest,
+        afterDigest: sceneDigest,
+        changedFields: [],
+        warnings: [],
+        payload: { uploadId: "upl-http-local" },
+        mp4: {
+          sha256: "b".repeat(64),
+          codec: "h264",
+          profile: "High",
+          frameCount: 30,
+          durationSeconds: 1,
+          width: 320,
+          height: 240,
+        },
+      },
+    };
+    const completed = await app.inject({
+      method: "POST",
+      url: "/v1/adobe/results",
+      headers: signedHeaders(resultBody, enrollment, "relay-result-1"),
+      payload: resultBody,
+    });
+    expect(completed.statusCode, completed.body).toBe(200);
+    expect(completed.json().result).toEqual(resultBody.result);
     expect(canonicalJson(JSON.parse(canonicalJson(body)))).toBe(
       canonicalJson(body),
     );
@@ -286,6 +320,50 @@ describe("Adobe MCP gateway", () => {
     expect(log).not.toContain("private prompt");
     warning.mockRestore();
     await app.close();
+    db.close();
+  });
+
+  it("stores only bound terminal delivery metadata", () => {
+    const db = prepareDb();
+    const gateway = createAdobeGatewayStore(
+      db,
+      () => 1_000,
+      "gateway-test-secret",
+    );
+    const enrollment = gateway.enroll("ten_platform", "Studio Mac");
+    gateway.enqueue("ten_platform", command(enrollment.deviceId));
+    const result = {
+      version: 1 as const,
+      commandId: "cmd-adobe-1",
+      nonce: "nonce-cmd-adobe-1",
+      sceneDigest,
+      deviceId: enrollment.deviceId,
+      jobId: "job-adobe-1",
+      status: "SUCCEEDED" as const,
+      beforeDigest: sceneDigest,
+      afterDigest: sceneDigest,
+      changedFields: [],
+      warnings: [],
+      payload: { uploadId: "upl-local-1" },
+      mp4: {
+        sha256: "b".repeat(64),
+        codec: "h264" as const,
+        profile: "High" as const,
+        frameCount: 30,
+        durationSeconds: 1,
+        width: 320,
+        height: 240,
+      },
+    };
+    expect(() =>
+      gateway.complete("ten_platform", {
+        ...result,
+        nonce: "nonce-tampered-result",
+      }),
+    ).toThrow("ADOBE_RELAY_BINDING_REJECTED");
+    expect(gateway.complete("ten_platform", result).result).toEqual(result);
+    expect(JSON.stringify(result)).not.toContain(".aep");
+    expect(JSON.stringify(result)).not.toContain("token");
     db.close();
   });
 });

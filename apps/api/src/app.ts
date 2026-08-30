@@ -287,7 +287,8 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
     if (
       request.url.startsWith("/v1/") &&
       !request.url.startsWith("/v1/workers/") &&
-      request.url !== "/v1/adobe/relay"
+      request.url !== "/v1/adobe/relay" &&
+      request.url !== "/v1/adobe/results"
     ) {
       const tenant = header(request, "x-tenant-id");
       const authorization = header(request, "authorization");

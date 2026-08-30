@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
   AdobeDeviceEnrollmentRequestV1Schema,
   AdobeRelayRequestV1Schema,
+  AdobeRelayResultRequestV1Schema,
 } from "../../../packages/contracts/src/adobe.js";
 import type { Principal } from "./auth.js";
 import { safeEnvelope } from "./boundary.js";
@@ -131,6 +132,26 @@ export const registerAdobeMcpRoutes = (
             requestId: request.headers["x-rvs-request-id"] ?? null,
           }),
         );
+        return reject(reply, error);
+      }
+    },
+  );
+
+  app.post(
+    "/v1/adobe/results",
+    { bodyLimit: 262_144 },
+    async (request, reply) => {
+      try {
+        if (!flags.adobeMcp) return reply.code(404).send();
+        const input = AdobeRelayResultRequestV1Schema.parse(request.body);
+        const authenticated = verifyAdobeRelay(
+          store,
+          input,
+          signatureHeaders(request),
+          now(),
+        );
+        return reply.send(store.complete(authenticated.tenantId, input.result));
+      } catch (error) {
         return reject(reply, error);
       }
     },

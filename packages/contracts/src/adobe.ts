@@ -308,6 +308,9 @@ export const AdobeCommandResultV1Schema = z
     mp4: z
       .object({
         sha256: DigestSchema,
+        codec: z.literal("h264"),
+        profile: z.literal("High"),
+        frameCount: FiniteSchema.int().positive(),
         durationSeconds: FiniteSchema.positive(),
         width: FiniteSchema.int().positive(),
         height: FiniteSchema.int().positive(),
@@ -362,6 +365,10 @@ export const AdobeRelayRequestV1Schema = z
   .object({ version: z.literal(1), command: AdobeCommandEnvelopeV1Schema })
   .strict();
 export type AdobeRelayRequestV1 = z.infer<typeof AdobeRelayRequestV1Schema>;
+
+export const AdobeRelayResultRequestV1Schema = z
+  .object({ version: z.literal(1), result: AdobeCommandResultV1Schema })
+  .strict();
 
 export const AdobeDeviceEnrollmentRequestV1Schema = z
   .object({

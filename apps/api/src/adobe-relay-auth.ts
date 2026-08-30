@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import {
   AdobeCommandEnvelopeV1Schema,
+  AdobeCommandResultV1Schema,
   AdobeRelaySignatureV1Schema,
   type AdobeRelaySignatureV1,
 } from "../../../packages/contracts/src/adobe.js";
@@ -57,11 +58,13 @@ export const verifyAdobeRelay = (
     !timingSafeEqual(provided, expected)
   )
     throw new AdobeRelayFailure("ADOBE_RELAY_SIGNATURE_INVALID");
-  const command =
+  const binding =
     typeof body === "object" && body !== null && "command" in body
       ? AdobeCommandEnvelopeV1Schema.parse(body.command)
-      : AdobeCommandEnvelopeV1Schema.parse(undefined);
-  if (command.deviceId !== key.deviceId)
+      : typeof body === "object" && body !== null && "result" in body
+        ? AdobeCommandResultV1Schema.parse(body.result)
+        : AdobeCommandEnvelopeV1Schema.parse(undefined);
+  if (binding.deviceId !== key.deviceId)
     throw new AdobeRelayFailure("ADOBE_RELAY_BINDING_REJECTED");
   if (!store.consumeNonce(key.deviceId, signature.keyId, signature.nonce))
     throw new AdobeRelayFailure("ADOBE_RELAY_REPLAY");

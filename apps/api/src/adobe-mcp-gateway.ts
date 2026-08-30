@@ -224,5 +224,39 @@ export const createAdobeGatewayStore = (
     };
   };
 
-  return { enroll, list, key, consumeNonce, enqueue, status };
+  const complete = (tenantId: string, resultInput: AdobeCommandResultV1) => {
+    const result = AdobeCommandResultV1Schema.parse(resultInput);
+    const stored = db
+      .prepare(
+        "SELECT command_json FROM adobe_commands WHERE tenant_id=? AND id=? AND device_id=? AND job_id=?",
+      )
+      .pluck()
+      .get(tenantId, result.commandId, result.deviceId, result.jobId);
+    if (typeof stored !== "string")
+      throw new AdobeRelayFailure("ADOBE_RELAY_BINDING_REJECTED");
+    const command = AdobeCommandEnvelopeV1Schema.parse(JSON.parse(stored));
+    if (
+      command.nonce !== result.nonce ||
+      command.sceneDigest !== result.sceneDigest
+    )
+      throw new AdobeRelayFailure("ADOBE_RELAY_BINDING_REJECTED");
+    const changed = db
+      .prepare(
+        "UPDATE adobe_commands SET status=?,result_json=?,updated_at_ms=? WHERE tenant_id=? AND id=? AND device_id=? AND job_id=? AND status IN ('QUEUED','RUNNING')",
+      )
+      .run(
+        result.status,
+        canonicalJson(result),
+        now(),
+        tenantId,
+        result.commandId,
+        result.deviceId,
+        result.jobId,
+      ).changes;
+    if (changed !== 1)
+      throw new AdobeRelayFailure("ADOBE_RELAY_BINDING_REJECTED");
+    return status(tenantId, result.commandId);
+  };
+
+  return { enroll, list, key, consumeNonce, enqueue, status, complete };
 };
