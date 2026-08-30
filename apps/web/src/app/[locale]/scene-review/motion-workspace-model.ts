@@ -84,7 +84,11 @@ export const workspaceViewState = ({
     return "running";
   if (state === "QUEUED") return "queued";
   if (scene.scene.beats.length === 0) return "empty";
-  if (scene.backendCapability.capabilities.length === 0) return "unsupported";
+  if (
+    !scene.backendCapability.capabilities.includes("x") ||
+    !scene.backendCapability.capabilities.includes("y")
+  )
+    return "unsupported";
   if (scene.verification?.status === "FAIL") return "repair";
   if (state === "COMPLETED")
     return deliverableCount > 0 ? "success" : "partial";

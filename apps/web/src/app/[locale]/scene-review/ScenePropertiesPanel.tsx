@@ -41,16 +41,19 @@ export function ScenePropertiesPanel({
   const element = selectedElement(scene, selection);
   const keyframe = element?.keyframes[keyframeIndex];
   const disabled = busy || isJobWorking(job.state) || !element;
+  const supports = (capability: string): boolean =>
+    scene.backendCapability.capabilities.includes(capability);
 
   const apply = async (data: FormData): Promise<void> => {
     if (!element) return;
     const base = `/beats/${selection.beatIndex}/elements/${selection.elementIndex}`;
     const fields = [
-      ["box-x", `${base}/box/x`, numberFrom(data, "box-x", element.box.x)],
-      ["box-y", `${base}/box/y`, numberFrom(data, "box-y", element.box.y)],
+      ["box-x", `${base}/box/x`, numberFrom(data, "box-x", element.box.x), "x"],
+      ["box-y", `${base}/box/y`, numberFrom(data, "box-y", element.box.y), "y"],
     ] as const;
-    const operations: SceneOperationBatchV1["operations"][number][] =
-      fields.map(([name, path, value]) => ({
+    const operations: SceneOperationBatchV1["operations"][number][] = fields
+      .filter((field) => supports(field[3]))
+      .map(([name, path, value]) => ({
         kind: "set",
         opId: `${name}-v${scene.version}`,
         path,
@@ -62,44 +65,47 @@ export function ScenePropertiesPanel({
       const scale = isKeyframeV2(keyframe)
         ? (keyframe.scaleX ?? 1)
         : (keyframe.scale ?? 1);
-      operations.push(
-        {
+      if (supports("uniform-scale"))
+        operations.push({
           kind: "set",
           opId: `scale-v${scene.version}`,
           path: `${keyframeBase}/${isKeyframeV2(keyframe) ? "scaleX" : "scale"}`,
           value: numberFrom(data, "scale", scale),
           reason: "properties panel edit",
-        },
-        {
+        });
+      if (supports("opacity"))
+        operations.push({
           kind: "set",
           opId: `opacity-v${scene.version}`,
           path: `${keyframeBase}/opacity`,
           value: numberFrom(data, "opacity", keyframe.opacity ?? 1),
           reason: "properties panel edit",
-        },
-        {
+        });
+      if (supports("x"))
+        operations.push({
           kind: "set",
           opId: `keyframe-x-v${scene.version}`,
           path: `${keyframeBase}/x`,
           value: numberFrom(data, "keyframe-x", keyframe.x ?? 0),
           reason: "properties panel edit",
-        },
-        {
+        });
+      if (supports("y"))
+        operations.push({
           kind: "set",
           opId: `keyframe-y-v${scene.version}`,
           path: `${keyframeBase}/y`,
           value: numberFrom(data, "keyframe-y", keyframe.y ?? 0),
           reason: "properties panel edit",
-        },
-        {
+        });
+      if (supports("easing"))
+        operations.push({
           kind: "set",
           opId: `ease-v${scene.version}`,
           path: `${keyframeBase}/ease`,
           value: String(data.get("ease") ?? keyframe.ease),
           reason: "properties panel edit",
-        },
-      );
-      if (isKeyframeV2(keyframe))
+        });
+      if (isKeyframeV2(keyframe) && supports("per-axis-scale"))
         operations.push({
           kind: "set",
           opId: `scale-y-v${scene.version}`,
@@ -108,7 +114,7 @@ export function ScenePropertiesPanel({
           reason: "properties panel edit",
         });
     }
-    if (element.kind === "text")
+    if (element.kind === "text" && supports("text"))
       operations.push({
         kind: "set",
         opId: `content-v${scene.version}`,
@@ -145,7 +151,9 @@ export function ScenePropertiesPanel({
                 type="number"
                 min={field === "width" || field === "height" ? 1 : undefined}
                 defaultValue={element.box[field]}
-                disabled={field === "width" || field === "height"}
+                disabled={
+                  field === "width" || field === "height" || !supports(field)
+                }
                 title={
                   field === "width" || field === "height"
                     ? t("unsupportedProperty")
@@ -181,6 +189,7 @@ export function ScenePropertiesPanel({
                       ? (keyframe.scaleX ?? 1)
                       : (keyframe.scale ?? 1)
                   }
+                  disabled={!supports("uniform-scale")}
                 />
               </label>
               <label className="motion-field">
@@ -192,6 +201,7 @@ export function ScenePropertiesPanel({
                   max="1"
                   step="0.01"
                   defaultValue={keyframe.opacity ?? 1}
+                  disabled={!supports("opacity")}
                 />
               </label>
               <label className="motion-field">
@@ -200,6 +210,7 @@ export function ScenePropertiesPanel({
                   name="keyframe-x"
                   type="number"
                   defaultValue={keyframe.x ?? 0}
+                  disabled={!supports("x")}
                 />
               </label>
               <label className="motion-field">
@@ -208,11 +219,16 @@ export function ScenePropertiesPanel({
                   name="keyframe-y"
                   type="number"
                   defaultValue={keyframe.y ?? 0}
+                  disabled={!supports("y")}
                 />
               </label>
               <label className="motion-field motion-field-wide">
                 <span>{t("easing")}</span>
-                <select name="ease" defaultValue={keyframe.ease}>
+                <select
+                  name="ease"
+                  defaultValue={keyframe.ease}
+                  disabled={!supports("easing")}
+                >
                   {["linear", "easeIn", "easeOut", "easeInOut"].map((ease) => (
                     <option key={ease}>{ease}</option>
                   ))}

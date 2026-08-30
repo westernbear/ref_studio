@@ -151,7 +151,7 @@ export function MotionActionCard({
         </div>
         <label className="motion-field">
           <span>{t("backend")}</span>
-          <select value={scene.backendCapability.backend} disabled>
+          <select value={adobeReady ? "adobe" : "native"} disabled>
             <option value="native">{t("nativeBackend")}</option>
             <option value="adobe">{t("adobeBackend")}</option>
           </select>
