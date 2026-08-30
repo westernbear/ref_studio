@@ -34,3 +34,14 @@ The fixture API was started by `node test/motion-workspace-browser-server.mjs` o
 ## Browse limitation
 
 The required gstack browse executable was not installed (`NEEDS_SETUP`). Its own instructions require an explicit one-time user confirmation before installing; no setup was performed. Chromium/Playwright completed the equivalent live browser scenarios above.
+
+## Stop-hook direct verification
+
+At exact HEAD `f82ea33f46872b5cea8e200af51a41ea50b9a19d`, direct rerun passed:
+
+- `pnpm --filter @rvs/web exec vitest run test/motion-workspace-model.test.mjs test/motion-workspace-responsive.test.mjs test/motion-workspace-localization.test.mjs`: 3 files / 26 tests passed.
+- `pnpm --filter @rvs/web exec tsc --noEmit`: passed.
+- `pnpm exec prettier --check` for all touched workspace components and tests: passed.
+- `git diff --check`: passed.
+
+The model test covers both starting tabs for ArrowLeft, ArrowRight, Home, End, and unrelated keys. The exact commit remains HEAD; no validation failure was observed.
