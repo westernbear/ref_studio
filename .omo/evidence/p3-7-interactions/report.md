@@ -30,6 +30,8 @@
 - `creator-desktop.png`: `08e927059ed142e2445c5f92b811cc4d314cf4f3d341afe65d671d6f8ea2431d`
 - `creator-320-editor.png`: `5f4f1d1d181eec4917626a3d10165810876d49e562c3846dafb971b18cb63fa4`
 - `native-package/manifest.json`: `4f55ea45b95ce9cd0a60be1e50afadcfc04c78b6791341160b252872b231816b`
+- Machine-readable browser observations: `browser-observations.json`
+- Focus-state capture: `native-focus.png`
 
 ## Adversarial and cleanup receipt
 
