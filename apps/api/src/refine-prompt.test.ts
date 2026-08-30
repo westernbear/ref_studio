@@ -442,6 +442,7 @@ describe("motion scene routes", () => {
         },
       });
       expect(stale.statusCode).toBe(409);
+      expect(stale.json().error.code).toBe("VERSION_CONFLICT");
       const updated = await state.app.inject({
         method: "PATCH",
         url: `/v1/jobs/${jobId}/motion-scene`,

@@ -50,6 +50,25 @@ describe("tenant boundary", () => {
     });
     expect(JSON.stringify(output)).not.toMatch(/private|secret|stack|bytes/);
   });
+
+  it.each([
+    "VERSION_CONFLICT",
+    "PRECONDITION_REQUIRED",
+    "SCENE_VERIFICATION_FAILED",
+    "IDEMPOTENCY_CONFLICT",
+  ] as const)("preserves the stable motion error code %s", (code) => {
+    const output = safeEnvelope(
+      new Error(code, { cause: new Error("/private/token stack") }),
+      "cor_motion",
+    );
+    expect(output.error).toEqual({
+      code,
+      message: "The request could not be completed.",
+      correlationId: "cor_motion",
+      details: [],
+    });
+    expect(JSON.stringify(output)).not.toMatch(/private|token|stack|cause/);
+  });
 });
 
 describe("idempotency boundary", () => {

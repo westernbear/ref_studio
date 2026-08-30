@@ -39,6 +39,19 @@ describe("safe errors", () => {
     expect(result.code).toBe("INTERNAL_ERROR");
     expect(JSON.stringify(result)).not.toMatch(/private|stack trace/);
   });
+  it.each([
+    "VERSION_CONFLICT",
+    "PRECONDITION_REQUIRED",
+    "SCENE_VERIFICATION_FAILED",
+    "IDEMPOTENCY_CONFLICT",
+  ] as const)("retains stable motion code %s without diagnostics", (code) => {
+    const result = normalizeError(
+      new Error(code, { cause: new Error("secret stack") }),
+      "cor_motion",
+    );
+    expect(result.code).toBe(code);
+    expect(JSON.stringify(result)).not.toMatch(/secret|stack|cause/);
+  });
 });
 describe("IR ownership", () => {
   it("rejects ownerless scene tracks", () => {
