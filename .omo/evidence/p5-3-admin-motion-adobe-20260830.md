@@ -10,7 +10,7 @@
 
 ## Binary scenarios
 
-1. Admin read/filter: `GET /admin/jobs?backend=adobe&capability=opacity&commandState=QUEUED` returned exactly the seeded `job_admin_motion`; the panel rendered scene/plan/capability integrity values, Adobe device and command state.
+1. Admin read/filter: `GET /admin/jobs?backend=adobe&capability=opacity&commandState=QUEUED` returned exactly the seeded `job_admin_motion`; the panel rendered the content-addressed `plan_<digest>` ID, scene/plan/capability integrity values, Adobe device and command state.
 2. Real retry: signed-in browser clicked `Retry Adobe command`; SQLite `adobe_commands.status` changed from `FAILED` to `QUEUED`, the retry control disappeared, and the refreshed detail reported `QUEUED`.
 3. False success: `command-succeeded/retry` returned HTTP 400 in `admin-mutation.test.ts`; no allowed audit event was created.
 4. Tenant/auth boundary: assigned ops fixture succeeds only for `tenant-a`; mismatched command/device IDs fail before mutation. An unauthenticated live admin request returned HTTP 403.

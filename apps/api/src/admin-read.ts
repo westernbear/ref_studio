@@ -34,6 +34,7 @@ export type AdminJob = {
 };
 export type AdminMotionSummary = {
   readonly backend: "native" | "adobe";
+  readonly planId: string | null;
   readonly planDigest: string | null;
   readonly knowledgeCardIds: readonly string[];
   readonly version: number;

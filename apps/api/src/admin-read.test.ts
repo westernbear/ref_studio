@@ -249,6 +249,7 @@ const fixture = (): Fixture => {
       job.id === "job_a"
         ? {
             backend: "native",
+            planId: `plan_${"1".repeat(64)}`,
             planDigest: "1".repeat(64),
             knowledgeCardIds: ["timing-easing"],
             version: 3,
@@ -367,6 +368,7 @@ describe("admin-read", () => {
         id: "job_a",
         motion: expect.objectContaining({
           backend: "native",
+          planId: `plan_${"1".repeat(64)}`,
           planDigest: "1".repeat(64),
           knowledgeCardIds: ["timing-easing"],
           version: 3,

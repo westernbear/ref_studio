@@ -704,6 +704,7 @@
       "creator": "Creator",
       "motionBackend": "Motion backend",
       "sceneVersion": "Scene version",
+      "planId": "Plan ID",
       "planDigest": "Plan digest",
       "knowledgeCards": "Knowledge cards",
       "sceneDigest": "Scene digest",

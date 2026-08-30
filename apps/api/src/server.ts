@@ -565,6 +565,7 @@ export function loadAdminReadStore(
         const packageHash = workflow.scenePackages.get(job.id)?.sha256 ?? null;
         return {
           backend: backend.backend,
+          planId: row.planDigest ? `plan_${row.planDigest}` : null,
           planDigest: row.planDigest,
           knowledgeCardIds:
             liveJob?.authoredScene?.motionPlan?.knowledgeCardIds ?? [],

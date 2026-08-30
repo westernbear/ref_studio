@@ -110,6 +110,7 @@ describe("admin surface contracts", () => {
       "verificationFindings",
       "capabilities",
       "deliverables",
+      "planId",
       "planDigest",
       "knowledgeCards",
       "sceneDigest",

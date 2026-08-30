@@ -779,6 +779,10 @@ const adminJobDetails = (t: T): readonly Column[] => [
     value: (row) => text(motionField(row, "version"), t("notAvailable")),
   },
   {
+    label: t("fields.planId"),
+    value: (row) => text(motionField(row, "planId"), t("notAvailable")),
+  },
+  {
     label: t("fields.planDigest"),
     value: (row) => text(motionField(row, "planDigest"), t("notAvailable")),
   },

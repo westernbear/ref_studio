@@ -704,6 +704,7 @@
       "creator": "생성자",
       "motionBackend": "모션 백엔드",
       "sceneVersion": "씬 버전",
+      "planId": "플랜 ID",
       "planDigest": "플랜 다이제스트",
       "knowledgeCards": "지식 카드",
       "sceneDigest": "씬 다이제스트",
