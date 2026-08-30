@@ -1,8 +1,29 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { format } from "prettier";
 
 const root = resolve(import.meta.dirname, "../..");
+const option = (name) => {
+  const index = process.argv.indexOf(name);
+  if (index === -1) return undefined;
+  const value = process.argv[index + 1];
+  if (value === undefined || value.startsWith("--"))
+    throw new Error(`OPENAPI_OPTION_VALUE_REQUIRED:${name}`);
+  return resolve(root, value);
+};
+const check = process.argv.includes("--check");
+const contractMirror =
+  option("--contracts-mirror") ??
+  resolve(root, "packages/contracts/generated/openapi.json");
+const apiMirror =
+  option("--api-mirror") ?? resolve(root, "apps/api/openapi.json");
+if (process.argv.includes("--help")) {
+  process.stdout.write(
+    "Usage: node scripts/contracts/openapi.mjs [--check] [--contracts-mirror <path>] [--api-mirror <path>]\n",
+  );
+  process.exit(0);
+}
 const string = (format) =>
   format === undefined ? { type: "string" } : { type: "string", format };
 const id = (prefix) => ({
@@ -625,23 +646,46 @@ if (
 )
   throw new Error("OPENAPI_COMPONENTS_NOT_CONCRETE");
 const client = `export type ApiOperation = "createUpload" | "createJob" | "getJob" | "getMotionScene" | "patchMotionScene" | "rollbackMotionScene" | "renderMotionScene" | "getDeliverables" | "downloadScenePackage" | "createReview" | "listReceipts"\nexport const paths = { uploads: "/v1/uploads", jobs: "/v1/jobs", motionScene: "/v1/jobs/{id}/motion-scene", motionSceneRollback: "/v1/jobs/{id}/motion-scene/rollback", motionSceneRender: "/v1/jobs/{id}/motion-scene/render", deliverables: "/v1/jobs/{id}/deliverables", scenePackage: "/v1/jobs/{id}/scene-package-download", reviews: "/v1/reviews", receipts: "/v1/receipts" } as const\n`;
-await mkdir(resolve(root, "packages/contracts/generated"), { recursive: true });
-await writeFile(
-  resolve(root, "packages/contracts/generated/openapi.json"),
-  await format(JSON.stringify(document), { parser: "json" }),
-);
-await writeFile(
-  resolve(root, "packages/contracts/generated/client.ts"),
-  await format(client, { parser: "typescript" }),
-);
-await writeFile(
-  resolve(root, "apps/api/openapi.json"),
-  await format(JSON.stringify(document), { parser: "json" }),
-);
-process.stdout.write(
-  JSON.stringify({
-    status: "generated",
-    operations: 11,
-    schemas: Object.keys(schemas).length,
-  }) + "\n",
-);
+const openApi = await format(JSON.stringify(document), { parser: "json" });
+const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
+if (check) {
+  const canonical = Buffer.from(openApi);
+  const mirrors = await Promise.all(
+    [contractMirror, apiMirror].map(async (path) => ({
+      path,
+      bytes: await readFile(path),
+    })),
+  );
+  const mismatches = mirrors.filter(({ bytes }) => !bytes.equals(canonical));
+  if (mismatches.length > 0) {
+    process.stderr.write(
+      `OPENAPI_MIRROR_MISMATCH ${mismatches.map(({ path }) => path).join(" ")}\n`,
+    );
+    process.exitCode = 1;
+  }
+  process.stdout.write(
+    `${JSON.stringify({
+      status: mismatches.length === 0 ? "verified" : "mismatch",
+      canonicalSha256: hash(canonical),
+      contractsMirrorSha256: hash(mirrors[0].bytes),
+      apiMirrorSha256: hash(mirrors[1].bytes),
+    })}\n`,
+  );
+} else {
+  await mkdir(resolve(root, "packages/contracts/generated"), {
+    recursive: true,
+  });
+  await writeFile(contractMirror, openApi);
+  await writeFile(apiMirror, openApi);
+  await writeFile(
+    resolve(root, "packages/contracts/generated/client.ts"),
+    await format(client, { parser: "typescript" }),
+  );
+  process.stdout.write(
+    JSON.stringify({
+      status: "generated",
+      operations: 11,
+      schemas: Object.keys(schemas).length,
+    }) + "\n",
+  );
+}
