@@ -48,16 +48,6 @@ export function ScenePropertiesPanel({
     const fields = [
       ["box-x", `${base}/box/x`, numberFrom(data, "box-x", element.box.x)],
       ["box-y", `${base}/box/y`, numberFrom(data, "box-y", element.box.y)],
-      [
-        "box-width",
-        `${base}/box/width`,
-        numberFrom(data, "box-width", element.box.width),
-      ],
-      [
-        "box-height",
-        `${base}/box/height`,
-        numberFrom(data, "box-height", element.box.height),
-      ],
     ] as const;
     const operations: SceneOperationBatchV1["operations"][number][] =
       fields.map(([name, path, value]) => ({
@@ -155,6 +145,12 @@ export function ScenePropertiesPanel({
                 type="number"
                 min={field === "width" || field === "height" ? 1 : undefined}
                 defaultValue={element.box[field]}
+                disabled={field === "width" || field === "height"}
+                title={
+                  field === "width" || field === "height"
+                    ? t("unsupportedProperty")
+                    : undefined
+                }
               />
             </label>
           ))}

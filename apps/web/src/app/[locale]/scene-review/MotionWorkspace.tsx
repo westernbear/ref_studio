@@ -71,6 +71,7 @@ export function MotionWorkspace({
         deliverables={workspace.deliverables}
         messages={workspace.messages}
         busy={workspace.busy}
+        viewState={workspace.viewState}
         canUndo={workspace.canUndo}
         onRefine={workspace.refine}
         onUndo={() => workspace.undo(t("undoEvent"))}
@@ -78,6 +79,7 @@ export function MotionWorkspace({
           workspace.rollback(version, t("rollbackEvent", { version }))
         }
         onRender={workspace.render}
+        onRefresh={workspace.refresh}
       />
       <div
         className="motion-workspace-separator"
@@ -127,6 +129,7 @@ export function MotionWorkspace({
         scene={workspace.scene}
         deliverables={workspace.deliverables}
         busy={workspace.busy}
+        viewState={workspace.viewState}
         onApply={workspace.applyOperations}
       />
       <nav

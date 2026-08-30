@@ -205,6 +205,61 @@
     "promptAriaLabel": "모션 장면 수정",
     "sending": "적용 중...",
     "send": "전송",
+    "refreshScene": "현재 장면 다시 불러오기",
+    "states": {
+      "initial": {
+        "title": "장면 준비 완료",
+        "detail": "레이어를 선택하거나 수정 내용을 입력하세요."
+      },
+      "loading": {
+        "title": "수정 적용 중",
+        "detail": "서버가 수정을 확인할 때까지 현재 장면을 복구할 수 있습니다."
+      },
+      "empty": {
+        "title": "빈 장면",
+        "detail": "이 장면에는 편집할 수 있는 비트가 없습니다."
+      },
+      "unsupported": {
+        "title": "편집할 수 없음",
+        "detail": "이 백엔드가 장면 편집에 필요한 기능을 보고하지 않았습니다."
+      },
+      "error": {
+        "title": "작업 실패",
+        "detail": "이전의 안전한 장면을 유지했습니다. 다시 불러온 뒤 재시도하세요."
+      },
+      "conflict": {
+        "title": "새 버전 사용 가능",
+        "detail": "다른 세션이 장면을 수정했습니다. 자동 병합하지 않으므로 편집 전에 다시 불러오세요."
+      },
+      "repair": {
+        "title": "검증 수정 필요",
+        "detail": "아래 실패 규칙을 확인하고 수정을 요청하세요. 마지막 안전 장면은 그대로 유지됩니다."
+      },
+      "queued": {
+        "title": "대기 중",
+        "detail": "검증된 장면 수정이 렌더러를 기다리고 있습니다."
+      },
+      "running": {
+        "title": "렌더 중",
+        "detail": "아래에서 진행률과 현재 단계를 확인할 수 있습니다."
+      },
+      "success": {
+        "title": "렌더 완료",
+        "detail": "검증된 전달물을 내려받을 수 있습니다."
+      },
+      "partial": {
+        "title": "일부 결과 완료",
+        "detail": "작업은 끝났지만 일부 전달물이 아직 준비되지 않았습니다."
+      },
+      "cancelled": {
+        "title": "취소됨",
+        "detail": "마지막 안전 장면과 완료된 전달물을 보존했습니다."
+      },
+      "offline": {
+        "title": "연결 끊김",
+        "detail": "확인되지 않은 장면이 마지막 안전 버전을 덮어쓰지 않도록 편집을 일시 중지했습니다."
+      }
+    },
     "actionTitle": "작업: 모션 장면",
     "version": "버전 {version}",
     "verificationResult": "검증 {status} · {attempts}회 시도",
@@ -259,6 +314,7 @@
     "easing": "이징",
     "applying": "적용 중...",
     "applyProperties": "속성 적용",
+    "unsupportedProperty": "이 백엔드는 이 속성 수정을 지원하지 않습니다.",
     "editorTitle": "모션 편집기",
     "moveEvent": "캔버스에서 {id}을(를) x {x}, y {y}만큼 이동했습니다",
     "propertyEvent": "속성에서 {id}을(를) 수정했습니다",
@@ -275,6 +331,7 @@
       "JOB_NOT_READY_FOR_PATCH": "현재 렌더가 끝난 뒤 장면을 수정하세요.",
       "MOTION_AUTHORING_DISABLED": "검증형 모션 저작이 새 수정을 받지 않고 있습니다.",
       "INVALID_SCENE": "이 수정은 장면을 무효로 만들기 때문에 이전 장면을 유지했습니다.",
+      "INVALID_OPERATION": "이 백엔드는 해당 속성 수정을 지원하지 않습니다. 이전 장면을 유지했습니다.",
       "NETWORK_INTERRUPTED": "연결이 끊겼습니다. 다시 시도하세요.",
       "INVALID_RESPONSE": "서버가 잘못된 모션 응답을 반환했습니다.",
       "unknown": "모션 작업 실패: {code}."

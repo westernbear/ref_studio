@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   elementFrameState,
   type SceneSelection,
+  type WorkspaceViewState,
 } from "./motion-workspace-model";
 
 type Props = Readonly<{
@@ -14,6 +15,7 @@ type Props = Readonly<{
   frame: number;
   videoUrl: string | null;
   busy: boolean;
+  viewState: WorkspaceViewState;
   onFrame: (frame: number) => void;
   onSelect: (selection: SceneSelection) => void;
   onMove: (deltaX: number, deltaY: number) => Promise<void>;
@@ -33,6 +35,7 @@ export function SceneCanvas({
   frame,
   videoUrl,
   busy,
+  viewState,
   onFrame,
   onSelect,
   onMove,
@@ -73,7 +76,12 @@ export function SceneCanvas({
   };
 
   return (
-    <section className="scene-canvas" aria-labelledby="scene-canvas-title">
+    <section
+      className="scene-canvas"
+      aria-labelledby="scene-canvas-title"
+      aria-busy={viewState === "loading" || viewState === "running"}
+      data-state={viewState}
+    >
       <header className="scene-canvas-toolbar">
         <h2 id="scene-canvas-title">{t("canvasTitle")}</h2>
         <div role="group" aria-label={t("zoomControls")}>
@@ -99,6 +107,11 @@ export function SceneCanvas({
         </div>
       </header>
       <div className="scene-canvas-stage">
+        {viewState === "empty" || viewState === "unsupported" ? (
+          <p className="scene-canvas-placeholder">
+            {t(`states.${viewState}.detail`)}
+          </p>
+        ) : null}
         <div
           className="scene-canvas-surface"
           ref={surface}

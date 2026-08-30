@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -60,7 +61,7 @@ const patchSceneGenerate = async ({ prompt }) => {
 };
 
 const fixture = createMotionCommandFixture(directory, {
-  expectedOrigin: "http://127.0.0.1:3100",
+  expectedOrigin: process.env.RVS_BROWSER_ORIGIN ?? "http://127.0.0.1:3100",
   patchSceneGenerate,
 });
 const jobId = await createCompletedGeneratedJob(fixture);
@@ -82,7 +83,7 @@ fixture.workflow.artifacts.set("artifact-safe", {
   filename: "motion-workspace.mp4",
   contentType: "video/mp4",
   bytes: videoBytes,
-  sha256: "a".repeat(64),
+  sha256: createHash("sha256").update(videoBytes).digest("hex"),
   sizeBytes: videoBytes.byteLength,
   createdAt: "2026-08-29T00:00:00.000Z",
   expiresAt: "2099-01-01T00:00:00.000Z",
@@ -97,7 +98,7 @@ fixture.workflow.scenePackages.set(jobId, {
   filename: "motion-workspace.tar",
   contentType: "application/x-tar",
   bytes: scenePackage,
-  sha256: "b".repeat(64),
+  sha256: createHash("sha256").update(scenePackage).digest("hex"),
   sizeBytes: scenePackage.byteLength,
   createdAt: "2026-08-29T00:00:00.000Z",
   expiresAt: "2099-01-01T00:00:00.000Z",

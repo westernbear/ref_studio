@@ -8,7 +8,10 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import type { JobProgress } from "../../../lib/job-progress";
 import { ScenePropertiesPanel } from "./ScenePropertiesPanel";
-import type { SceneSelection } from "./motion-workspace-model";
+import type {
+  SceneSelection,
+  WorkspaceViewState,
+} from "./motion-workspace-model";
 
 type Props = Readonly<{
   job: JobProgress;
@@ -16,6 +19,7 @@ type Props = Readonly<{
   selection: SceneSelection;
   frame: number;
   busy: boolean;
+  viewState: WorkspaceViewState;
   onFrame: (frame: number) => void;
   onSelect: (selection: SceneSelection) => void;
   onApply: (
@@ -25,12 +29,17 @@ type Props = Readonly<{
 }>;
 
 export function SceneInspector(props: Props) {
-  const { scene, selection, frame, onFrame, onSelect } = props;
+  const { scene, selection, frame, onFrame, onSelect, viewState } = props;
   const t = useTranslations("MotionWorkspace");
   const [tab, setTab] = useState<"timeline" | "properties">("timeline");
 
   return (
-    <section className="scene-inspector" aria-label={t("inspectorTitle")}>
+    <section
+      className="scene-inspector"
+      aria-label={t("inspectorTitle")}
+      aria-busy={viewState === "loading" || viewState === "running"}
+      data-state={viewState}
+    >
       <div className="scene-inspector-tabs" role="tablist">
         <button
           type="button"

@@ -7,6 +7,29 @@ import type {
   KeyframeV2,
   SpecElement,
 } from "@rvs/contracts/scene-spec";
+import { SceneSpecSchema } from "@rvs/contracts/scene-spec";
+import type { JobProgress } from "../../../lib/job-progress";
+
+export type WorkspaceMessage =
+  | Readonly<{ id: string; role: "assistant"; text: string }>
+  | Readonly<{ id: string; role: "user"; text: string }>
+  | Readonly<{ id: string; role: "operation"; text: string }>
+  | Readonly<{ id: string; role: "error"; text: string }>;
+
+export const workspaceMessage = (
+  role: WorkspaceMessage["role"],
+  text: string,
+): WorkspaceMessage => ({ id: crypto.randomUUID(), role, text });
+
+export const queuedMotionJob = (job: JobProgress): JobProgress => ({
+  ...job,
+  state: "QUEUED",
+  progressPhase: "prepare",
+  progressStage: "scene-patch",
+  progressFraction: 0,
+  framesProcessed: null,
+  framesTotal: null,
+});
 
 export type SceneSelection = Readonly<{
   beatIndex: number;
@@ -19,6 +42,86 @@ export type ElementFrameState = Readonly<{
   x: number;
   y: number;
 }>;
+
+export type WorkspaceViewState =
+  | "initial"
+  | "loading"
+  | "empty"
+  | "unsupported"
+  | "error"
+  | "conflict"
+  | "repair"
+  | "queued"
+  | "running"
+  | "success"
+  | "partial"
+  | "cancelled"
+  | "offline";
+
+type WorkspaceStateInput = Readonly<{
+  state: string;
+  progressFraction: number;
+  busy: boolean;
+  online: boolean;
+  errorCode: string | null;
+  scene: MotionSceneSnapshotV1;
+  deliverableCount: number;
+}>;
+
+export const workspaceViewState = ({
+  state,
+  busy,
+  online,
+  errorCode,
+  scene,
+  deliverableCount,
+}: WorkspaceStateInput): WorkspaceViewState => {
+  if (!online || errorCode === "NETWORK_INTERRUPTED") return "offline";
+  if (errorCode === "VERSION_CONFLICT") return "conflict";
+  if (busy) return "loading";
+  if (state === "CANCELLED") return "cancelled";
+  if (["PREPARING", "RENDERING", "ASSEMBLING"].includes(state))
+    return "running";
+  if (state === "QUEUED") return "queued";
+  if (scene.scene.beats.length === 0) return "empty";
+  if (scene.backendCapability.capabilities.length === 0) return "unsupported";
+  if (scene.verification?.status === "FAIL") return "repair";
+  if (state === "COMPLETED")
+    return deliverableCount > 0 ? "success" : "partial";
+  if (errorCode) return "error";
+  return "initial";
+};
+
+export const optimisticScene = (
+  snapshot: MotionSceneSnapshotV1,
+  operations: SceneOperationBatchV1["operations"],
+): MotionSceneSnapshotV1 => {
+  const candidate: unknown = structuredClone(snapshot.scene);
+  for (const operation of operations) {
+    const segments = operation.path.split("/").slice(1);
+    const key = segments.pop();
+    if (!key || ["__proto__", "constructor", "prototype"].includes(key))
+      return snapshot;
+    let parent: unknown = candidate;
+    for (const segment of segments) {
+      if (
+        parent === null ||
+        typeof parent !== "object" ||
+        ["__proto__", "constructor", "prototype"].includes(segment)
+      )
+        return snapshot;
+      parent = Reflect.get(parent, segment);
+    }
+    if (parent === null || typeof parent !== "object") return snapshot;
+    const changed =
+      operation.kind === "set"
+        ? Reflect.set(parent, key, operation.value)
+        : Reflect.deleteProperty(parent, key);
+    if (!changed) return snapshot;
+  }
+  const parsed = SceneSpecSchema.safeParse(candidate);
+  return parsed.success ? { ...snapshot, scene: parsed.data } : snapshot;
+};
 
 export const clampSplitRatio = (ratio: number): number =>
   Math.min(70, Math.max(30, ratio));

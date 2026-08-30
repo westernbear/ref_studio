@@ -4,7 +4,9 @@ import {
   clampSplitRatio,
   elementFrameState,
   moveElementOperations,
+  optimisticScene,
   sceneIntegrity,
+  workspaceViewState,
 } from "../src/app/[locale]/scene-review/motion-workspace-model.ts";
 
 const snapshot = {
@@ -108,5 +110,80 @@ describe("motion workspace model", () => {
       capabilities: snapshot.backendCapability.capabilities,
       predicateIds: ["scene-spec"],
     });
+  });
+
+  it("previews direct operations without changing immutable history", () => {
+    const next = optimisticScene(
+      snapshot,
+      moveElementOperations(snapshot, 0, 0, 12, -6),
+    );
+    expect(next.scene.beats[0].elements[0].box.x).toBe(
+      snapshot.scene.beats[0].elements[0].box.x + 12,
+    );
+    expect(next.history).toBe(snapshot.history);
+    expect(snapshot.scene.beats[0].elements[0].box.x).toBe(
+      fixtureSpec.beats[0].elements[0].box.x,
+    );
+  });
+
+  it.each([
+    [{ online: false }, "offline"],
+    [{ errorCode: "VERSION_CONFLICT" }, "conflict"],
+    [{ busy: true }, "loading"],
+    [{ state: "CANCELLED" }, "cancelled"],
+    [{ state: "RENDERING", progressFraction: 0.4 }, "running"],
+    [{ state: "QUEUED" }, "queued"],
+    [{ scene: { ...snapshot, scene: { ...fixtureSpec, beats: [] } } }, "empty"],
+    [
+      {
+        scene: {
+          ...snapshot,
+          backendCapability: {
+            ...snapshot.backendCapability,
+            capabilities: [],
+          },
+        },
+      },
+      "unsupported",
+    ],
+    [
+      {
+        scene: {
+          ...snapshot,
+          verification: {
+            ...snapshot.verification,
+            status: "FAIL",
+            findings: [
+              {
+                predicateId: "scene-spec",
+                pass: false,
+                target: "scene",
+                observed: "invalid",
+                expected: "valid",
+                remediation: "repair scene",
+              },
+            ],
+          },
+        },
+      },
+      "repair",
+    ],
+    [{ state: "COMPLETED", deliverableCount: 0 }, "partial"],
+    [{ state: "COMPLETED", deliverableCount: 1 }, "success"],
+    [{ errorCode: "INVALID_RESPONSE" }, "error"],
+    [{}, "initial"],
+  ])("classifies the visible workspace state %#", (overrides, expected) => {
+    expect(
+      workspaceViewState({
+        state: "READY",
+        progressFraction: 0,
+        busy: false,
+        online: true,
+        errorCode: null,
+        scene: snapshot,
+        deliverableCount: 0,
+        ...overrides,
+      }),
+    ).toBe(expected);
   });
 });
