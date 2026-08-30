@@ -8,6 +8,7 @@ import {
   type SceneSpec,
 } from "@rvs/contracts";
 import { describe, expect, it } from "vitest";
+import type Database from "better-sqlite3";
 import { buildAuthApp } from "./app.js";
 import { hashBearer, type AuthStore } from "./auth.js";
 import { updateAiProviderSettings } from "./ai-provider-settings.js";
@@ -282,6 +283,31 @@ describe("motion scene routes", () => {
           .pluck()
           .get(),
       ).toBe(0);
+      job.authoredScene = {
+        ...job.authoredScene,
+        motionPlan: {
+          schema: "motion-plan-v1",
+          intent: "route fixture",
+          knowledgeCardIds: [],
+          requiredCapabilities: [],
+          canvas: { width: 1920, height: 1080, fps: 30, frameCount: 450 },
+          keyframeIntents: [],
+          predicateIds: ["scene-spec"],
+          reproducibility: {
+            knowledgeCardDigest: "0".repeat(64),
+            promptDigest: "0".repeat(64),
+            modelDigest: "0".repeat(64),
+            evidenceDigest: "0".repeat(64),
+            capabilitySnapshotDigest: "0".repeat(64),
+            planDigest: "0".repeat(64),
+            knowledgeCardIds: [],
+            requiredCapabilities: [],
+            promptVersion: "fixture-v1",
+            modelVersion: "fixture-v1",
+          },
+        },
+        planDigest: "0".repeat(64),
+      };
       const authoredDigest = sha256Hex(fixtureSpec);
       const stale = await state.app.inject({
         method: "PATCH",
@@ -700,11 +726,15 @@ const generation: GenerationConfig = {
 
 const completeGenerateJob = (
   workflow: ReturnType<typeof createCreatorWorkflowStore>,
+  db: Database.Database,
   jobId: string,
   spec: SceneSpec = fixtureSpec,
 ) => {
   const job = workflow.jobs.get(jobId);
   if (!job) throw new Error("fixture job missing");
+  db.exec(
+    "INSERT OR IGNORE INTO tenants VALUES ('ten_a','A','ORGANIZATION','ACTIVE',0,'2026-01-01T00:00:00Z')",
+  );
   job.generation = generation;
   job.evidence = { sceneInput: { owners: [] } };
   job.authoredScene = {
@@ -714,6 +744,28 @@ const completeGenerateJob = (
       shot: beat.shot,
       words: "",
     })),
+    motionPlan: {
+      schema: "motion-plan-v1",
+      intent: "refine fixture",
+      knowledgeCardIds: [],
+      requiredCapabilities: [],
+      canvas: { width: 1920, height: 1080, fps: 30, frameCount: 450 },
+      keyframeIntents: [],
+      predicateIds: ["scene-spec"],
+      reproducibility: {
+        knowledgeCardDigest: "0".repeat(64),
+        promptDigest: "0".repeat(64),
+        modelDigest: "0".repeat(64),
+        evidenceDigest: "0".repeat(64),
+        capabilitySnapshotDigest: "0".repeat(64),
+        planDigest: "0".repeat(64),
+        knowledgeCardIds: [],
+        requiredCapabilities: [],
+        promptVersion: "fixture-v1",
+        modelVersion: "fixture-v1",
+      },
+    },
+    planDigest: "0".repeat(64),
   };
   job.sceneSpecDigest = "a".repeat(64);
   job.lastPatchChangedBeatIds = null;
@@ -754,7 +806,7 @@ describe("scene-patch chat (generate track)", () => {
         state.uploadId,
         "job-patch-etag",
       );
-      completeGenerateJob(state.workflow, jobId);
+      completeGenerateJob(state.workflow, state.db, jobId);
       const missing = await state.app.inject({
         method: "POST",
         url: `/v1/jobs/${jobId}/refine-prompt`,
@@ -805,7 +857,7 @@ describe("scene-patch chat (generate track)", () => {
         "test-secret-key-material",
       );
       const jobId = await createJob(state.app, state.uploadId, "job-patch-1");
-      completeGenerateJob(state.workflow, jobId);
+      completeGenerateJob(state.workflow, state.db, jobId);
       const response = await state.app.inject({
         method: "POST",
         url: `/v1/jobs/${jobId}/refine-prompt`,
@@ -866,7 +918,7 @@ describe("scene-patch chat (generate track)", () => {
         "test-secret-key-material",
       );
       const jobId = await createJob(state.app, state.uploadId, "job-patch-2");
-      completeGenerateJob(state.workflow, jobId);
+      completeGenerateJob(state.workflow, state.db, jobId);
       const response = await state.app.inject({
         method: "POST",
         url: `/v1/jobs/${jobId}/refine-prompt`,
@@ -885,7 +937,7 @@ describe("scene-patch chat (generate track)", () => {
     const state = fixture();
     try {
       const jobId = await createJob(state.app, state.uploadId, "job-patch-3");
-      completeGenerateJob(state.workflow, jobId);
+      completeGenerateJob(state.workflow, state.db, jobId);
       const response = await state.app.inject({
         method: "POST",
         url: `/v1/jobs/${jobId}/refine-prompt`,
@@ -925,7 +977,7 @@ describe("scene-patch chat (generate track)", () => {
         "test-secret-key-material",
       );
       const jobId = await createJob(state.app, state.uploadId, "job-patch-4");
-      completeGenerateJob(state.workflow, jobId);
+      completeGenerateJob(state.workflow, state.db, jobId);
       const response = await state.app.inject({
         method: "POST",
         url: `/v1/jobs/${jobId}/refine-prompt`,
@@ -962,7 +1014,7 @@ describe("scene-patch chat (generate track)", () => {
         "test-secret-key-material",
       );
       const jobId = await createJob(state.app, state.uploadId, "job-patch-5");
-      const job = completeGenerateJob(state.workflow, jobId);
+      const job = completeGenerateJob(state.workflow, state.db, jobId);
       job.state = "RENDERING";
       const response = await state.app.inject({
         method: "POST",

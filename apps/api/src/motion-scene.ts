@@ -16,9 +16,11 @@ import { registerMotionDeliverables } from "./motion-deliverables.js";
 import { registerMotionSceneCommands } from "./motion-scene-commands.js";
 import {
   currentMotionSceneRow,
+  commitMotionSceneVersion,
   findMotionSceneRow,
   insertMotionSceneVersion,
   motionSceneSnapshot,
+  replayMotionSceneMutation,
 } from "./motion-scene-store.js";
 
 export {
@@ -61,7 +63,13 @@ export function registerMotionScene(
       try {
         const job = jobFor(request);
         let row = findMotionSceneRow(db, job);
-        if (!row && admissionEnabled && job.generation && job.authoredScene)
+        if (
+          !row &&
+          admissionEnabled &&
+          job.generation &&
+          job.authoredScene?.motionPlan &&
+          job.authoredScene.planDigest
+        )
           row = insertMotionSceneVersion(
             db,
             job,
@@ -90,23 +98,24 @@ export function registerMotionScene(
           throw new MotionSceneError("PRECONDITION_REQUIRED", 428);
         const batch = SceneOperationBatchV1Schema.parse(request.body);
         const scopedKey = `motion-scene:${job.id}:${key}`;
-        const replay = db
-          .prepare(
-            "SELECT response_json AS responseJson, request_hash AS requestHash FROM idempotency_keys WHERE tenant_id=? AND key=?",
-          )
-          .get(job.tenantId, scopedKey) as
-          | { readonly responseJson: string; readonly requestHash: string }
-          | undefined;
         const requestDigest = sha256Hex(batch);
+        const replay = replayMotionSceneMutation(
+          db,
+          job,
+          scopedKey,
+          requestDigest,
+        );
         if (replay) {
-          if (replay.requestHash !== requestDigest)
-            throw new MotionSceneError("IDEMPOTENCY_CONFLICT", 409);
-          reply.send(JSON.parse(replay.responseJson));
+          reply.send(replay);
           return;
         }
         let current = findMotionSceneRow(db, job);
         if (!current) {
-          if (!admissionEnabled || !job.authoredScene)
+          if (
+            !admissionEnabled ||
+            !job.authoredScene?.motionPlan ||
+            !job.authoredScene.planDigest
+          )
             throw new MotionSceneError("RESOURCE_NOT_FOUND", 404);
           const authoredDigest = sha256Hex(job.authoredScene.spec);
           if (
@@ -133,8 +142,25 @@ export function registerMotionScene(
         const verification = verifyMotionScene(applied);
         if (verification.status !== "PASS")
           throw new MotionSceneError("SCENE_VERIFICATION_FAILED", 409);
-        const next = insertMotionSceneVersion(db, job, applied, verification);
+        const committed = commitMotionSceneVersion({
+          db,
+          job,
+          scene: applied,
+          verification,
+          expectedSceneDigest: current.sceneDigest,
+          idempotency: {
+            key: scopedKey,
+            requestDigest,
+            response: (row) => motionSceneSnapshot(db, job, row),
+          },
+        });
+        const next = committed.row;
+        if (committed.replayed) {
+          reply.send(committed.response);
+          return;
+        }
         job.authoredScene = {
+          ...job.authoredScene,
           spec: applied,
           beatSheet: beatSheetFor(applied),
         };
@@ -153,17 +179,7 @@ export function registerMotionScene(
         }
         job.updatedAt = new Date(store.now()).toISOString();
         job.etag = etag(next.sceneDigest);
-        const response = motionSceneSnapshot(db, job, next);
-        db.prepare(
-          "INSERT INTO idempotency_keys(tenant_id,key,request_hash,response_json,created_at) VALUES(?,?,?,?,?)",
-        ).run(
-          job.tenantId,
-          scopedKey,
-          requestDigest,
-          JSON.stringify(response),
-          new Date().toISOString(),
-        );
-        reply.send(response);
+        reply.send(committed.response);
       } catch (error) {
         fail(reply, error);
       }

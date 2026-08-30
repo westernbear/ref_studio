@@ -264,7 +264,12 @@ export async function selectInitialStartFrame(params: {
 // report for why this was the narrower, safer scope rather than allowing a
 // patch to interrupt an in-flight render.
 function assertPatchable(job: Job): void {
-  if (job.state !== "COMPLETED" || !job.authoredScene || !job.sceneSpecDigest)
+  if (
+    job.state !== "COMPLETED" ||
+    !job.authoredScene?.motionPlan ||
+    !job.authoredScene.planDigest ||
+    !job.sceneSpecDigest
+  )
     throw new Error("JOB_NOT_READY_FOR_PATCH");
 }
 
@@ -280,6 +285,8 @@ async function applyScenePatch(params: {
   readonly db: Database.Database;
   readonly aiSecretKey: string;
   readonly generate: GeneratePatch | undefined;
+  readonly idempotencyKey: string;
+  readonly requestDigest: string;
 }): Promise<ScenePatchChatResponse> {
   const { store, job } = params;
   assertPatchable(job);
@@ -339,7 +346,16 @@ async function applyScenePatch(params: {
       },
     ],
   });
-  recordMotionSceneRefinement(params.db, job, previous, normalized);
+  const response: ScenePatchChatResponse = {
+    changedBeatIds: patched.changedBeatIds,
+    beatSheet: patched.beatSheet,
+    summary: patched.summary,
+  };
+  recordMotionSceneRefinement(params.db, job, previous, normalized, {
+    key: `refine-prompt:${job.id}:${params.idempotencyKey}`,
+    requestDigest: params.requestDigest,
+    response,
+  });
   job.authoredScene = { spec: normalized, beatSheet: patched.beatSheet };
   job.sceneSpecDigest = sha256Hex(normalized);
   // Kept on the job record (not only in this request's response) so a
@@ -366,11 +382,7 @@ async function applyScenePatch(params: {
   job.state = "QUEUED";
   job.updatedAt = new Date(now).toISOString();
   job.etag = `"${createHash("sha256").update(job.updatedAt).digest("hex")}"`;
-  return {
-    changedBeatIds: patched.changedBeatIds,
-    beatSheet: patched.beatSheet,
-    summary: patched.summary,
-  };
+  return response;
 }
 
 export function registerRefinePrompt(
@@ -397,13 +409,14 @@ export function registerRefinePrompt(
       try {
         const key = header(request, "idempotency-key");
         if (!key) throw new Error("INVALID_REQUEST");
+        const refineRequestDigest = requestHash({
+          body: request.body ?? {},
+          ifMatch: header(request, "if-match") ?? null,
+        });
         const replay = await idempotency.executeAsync(
           "refine-prompt",
           key,
-          requestHash({
-            body: request.body ?? {},
-            ifMatch: header(request, "if-match") ?? null,
-          }),
+          refineRequestDigest,
           tenant(request),
           async () => {
             const job = store.jobs.get(request.params.jobId);
@@ -429,6 +442,8 @@ export function registerRefinePrompt(
                 db,
                 aiSecretKey,
                 generate: patchGenerate,
+                idempotencyKey: key,
+                requestDigest: refineRequestDigest,
               });
               return [200, response];
             }

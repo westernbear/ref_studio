@@ -9,7 +9,14 @@ import {
   createMotionCommandFixture,
   motionCommandHeaders as headers,
 } from "./motion-scene-command-fixture.js";
-import { insertMotionSceneVersion } from "./motion-scene-store.js";
+import {
+  commitMotionSceneVersion,
+  findMotionSceneRow,
+  insertMotionSceneVersion,
+  motionSceneRowForVersion,
+  motionSceneSnapshot,
+  replayMotionSceneMutation,
+} from "./motion-scene-store.js";
 import { verifyMotionScene } from "./motion-operations.js";
 
 describe("motion scene commands", () => {
@@ -40,6 +47,18 @@ describe("motion scene commands", () => {
     });
     expect(initial.statusCode, initial.body).toBe(200);
     expect(initial.json().version).toBe(1);
+    expect(
+      fixture.db
+        .prepare(
+          "SELECT plan_digest AS planDigest, predecessor_version AS predecessorVersion, artifact_digest AS artifactDigest, predicate_ids_json AS predicateIdsJson FROM motion_scene_versions WHERE version=1",
+        )
+        .get(),
+    ).toEqual({
+      planDigest: "0".repeat(64),
+      predecessorVersion: null,
+      artifactDigest: null,
+      predicateIdsJson: '["scene-spec"]',
+    });
 
     const changed = await fixture.app.inject({
       method: "PATCH",
@@ -100,6 +119,178 @@ describe("motion scene commands", () => {
     });
     expect(replay.statusCode, replay.body).toBe(200);
     expect(replay.json().version).toBe(3);
+    expect(
+      fixture.db
+        .prepare(
+          "SELECT predecessor_version FROM motion_scene_versions WHERE version=3",
+        )
+        .pluck()
+        .get(),
+    ).toBe(2);
+  });
+
+  it("rolls back version, head, and replay when durable response insertion aborts", async () => {
+    const jobId = await createCompletedGeneratedJob(fixture);
+    const initial = await fixture.app.inject({
+      method: "GET",
+      url: `/v1/jobs/${jobId}/motion-scene`,
+      headers,
+    });
+    fixture.db.exec(
+      "CREATE TRIGGER reject_scene_replay BEFORE INSERT ON idempotency_keys WHEN NEW.key LIKE 'motion-scene:%' BEGIN SELECT RAISE(ABORT,'TEST_REPLAY_ABORT'); END",
+    );
+    const rejected = await fixture.app.inject({
+      method: "PATCH",
+      url: `/v1/jobs/${jobId}/motion-scene`,
+      headers: {
+        ...headers,
+        "if-match": initial.json().sceneEtag,
+        "idempotency-key": "fault",
+      },
+      payload: {
+        schema: "scene-operation-batch-v1",
+        baseSceneDigest: initial.json().sceneDigest,
+        operations: [
+          {
+            kind: "set",
+            opId: "fault",
+            path: "/mode",
+            value: "SWAP",
+            reason: "fault injection",
+          },
+        ],
+      },
+    });
+    expect(rejected.statusCode).toBe(400);
+    expect(
+      fixture.db
+        .prepare("SELECT count(*) FROM motion_scene_versions")
+        .pluck()
+        .get(),
+    ).toBe(1);
+    expect(
+      fixture.db
+        .prepare(
+          "SELECT v.version FROM job_motion_scene_heads h JOIN motion_scene_versions v ON v.id=h.version_id",
+        )
+        .pluck()
+        .get(),
+    ).toBe(1);
+    expect(
+      fixture.db
+        .prepare(
+          "SELECT count(*) FROM idempotency_keys WHERE key LIKE 'motion-scene:%'",
+        )
+        .pluck()
+        .get(),
+    ).toBe(0);
+  });
+
+  it("rolls back the immutable version when head advancement aborts", async () => {
+    const jobId = await createCompletedGeneratedJob(fixture);
+    const initial = await fixture.app.inject({
+      method: "GET",
+      url: `/v1/jobs/${jobId}/motion-scene`,
+      headers,
+    });
+    fixture.db.exec(
+      "CREATE TRIGGER reject_scene_head BEFORE UPDATE ON job_motion_scene_heads BEGIN SELECT RAISE(ABORT,'TEST_HEAD_ABORT'); END",
+    );
+    const rejected = await fixture.app.inject({
+      method: "PATCH",
+      url: `/v1/jobs/${jobId}/motion-scene`,
+      headers: {
+        ...headers,
+        "if-match": initial.json().sceneEtag,
+        "idempotency-key": "head-fault",
+      },
+      payload: {
+        schema: "scene-operation-batch-v1",
+        baseSceneDigest: initial.json().sceneDigest,
+        operations: [
+          {
+            kind: "set",
+            opId: "head-fault",
+            path: "/mode",
+            value: "SWAP",
+            reason: "head fault injection",
+          },
+        ],
+      },
+    });
+    expect(rejected.statusCode).toBe(400);
+    expect(
+      fixture.db
+        .prepare("SELECT version FROM motion_scene_versions ORDER BY version")
+        .pluck()
+        .all(),
+    ).toEqual([1]);
+    expect(
+      fixture.db
+        .prepare(
+          "SELECT count(*) FROM idempotency_keys WHERE key LIKE 'motion-scene:%'",
+        )
+        .pluck()
+        .get(),
+    ).toBe(0);
+  });
+
+  it("validates metadata and scopes every scene lookup and replay to its tenant", async () => {
+    const jobId = await createCompletedGeneratedJob(fixture);
+    await fixture.app.inject({
+      method: "GET",
+      url: `/v1/jobs/${jobId}/motion-scene`,
+      headers,
+    });
+    const job = fixture.workflow.jobs.get(jobId);
+    expect(job).toBeDefined();
+    if (!job) return;
+    fixture.db.exec(
+      "INSERT INTO tenants VALUES ('ten_b','B','ORGANIZATION','ACTIVE',0,'2026-01-01T00:00:00Z')",
+    );
+    const hostile = { ...job, tenantId: "ten_b" };
+    expect(findMotionSceneRow(fixture.db, hostile)).toBeUndefined();
+    expect(motionSceneRowForVersion(fixture.db, hostile, 1)).toBeUndefined();
+    expect(
+      replayMotionSceneMutation(
+        fixture.db,
+        hostile,
+        `motion-scene:${jobId}:missing`,
+        "a".repeat(64),
+      ),
+    ).toBeNull();
+    expect(() =>
+      commitMotionSceneVersion({
+        db: fixture.db,
+        job,
+        scene: fixtureSpec,
+        verification: verifyMotionScene(fixtureSpec),
+        artifactDigest: "artifact-safe",
+      }),
+    ).toThrow();
+    const row = commitMotionSceneVersion({
+      db: fixture.db,
+      job,
+      scene: fixtureSpec,
+      verification: verifyMotionScene(fixtureSpec),
+      artifactDigest: "f".repeat(64),
+    }).row;
+    expect(row.artifactDigest).toBe("f".repeat(64));
+    expect(() => motionSceneSnapshot(fixture.db, hostile, row)).toThrow();
+    fixture.db
+      .prepare(
+        `INSERT INTO motion_scene_versions
+         (id,tenant_id,job_id,version,scene_digest,scene_json,capability_json,verification_json,created_at,predicate_ids_json)
+         SELECT 'msv_corrupt',tenant_id,job_id,99,scene_digest,scene_json,capability_json,verification_json,created_at,'["unknown-predicate"]'
+           FROM motion_scene_versions WHERE id=?`,
+      )
+      .run(row.id);
+    fixture.db
+      .prepare(
+        "UPDATE job_motion_scene_heads SET version_id='msv_corrupt' WHERE tenant_id=? AND job_id=?",
+      )
+      .run(job.tenantId, job.id);
+    expect(() => findMotionSceneRow(fixture.db, job)).toThrow();
   });
 
   it("requeues the current verified scene and rejects a stale scene ETag", async () => {

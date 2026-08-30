@@ -164,7 +164,20 @@ db.exec(
   "INSERT INTO jobs VALUES ('job_a','ten_test','usr_owner','upl_a','scene_a','QUEUED',0,0,'2026-08-22T00:00:00Z')",
 );
 db.exec(
-  "INSERT INTO motion_scene_versions VALUES ('msv_a','ten_test','job_a',1,'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','{}','{}',NULL,'2026-08-22T00:00:00Z'); INSERT INTO job_motion_scene_heads VALUES ('ten_test','job_a','msv_a')",
+  "INSERT INTO motion_scene_versions (id,tenant_id,job_id,version,scene_digest,scene_json,capability_json,verification_json,created_at) VALUES ('msv_a','ten_test','job_a',1,'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','{}','{}',NULL,'2026-08-22T00:00:00Z'); INSERT INTO job_motion_scene_heads VALUES ('ten_test','job_a','msv_a')",
+);
+assert.deepEqual(
+  db
+    .prepare(
+      "SELECT plan_digest, predecessor_version, artifact_digest, predicate_ids_json FROM motion_scene_versions WHERE id='msv_a'",
+    )
+    .get(),
+  {
+    plan_digest: null,
+    predecessor_version: null,
+    artifact_digest: null,
+    predicate_ids_json: "[]",
+  },
 );
 assert.throws(
   () =>
@@ -179,6 +192,15 @@ db.exec(
   "INSERT INTO job_attempts VALUES ('att_a','ten_test','job_a',1,'QUEUED','2026-08-22T00:00:00Z')",
 );
 const rejection = (sql) => assert.throws(() => db.exec(sql));
+rejection(
+  "INSERT INTO motion_scene_versions (id,tenant_id,job_id,version,scene_digest,scene_json,capability_json,created_at,plan_digest) VALUES ('bad_digest','ten_test','job_a',2,'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb','{}','{}','now','GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG')",
+);
+rejection(
+  "INSERT INTO motion_scene_versions (id,tenant_id,job_id,version,scene_digest,scene_json,capability_json,created_at,predecessor_version) VALUES ('bad_predecessor','ten_test','job_a',2,'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb','{}','{}','now',0)",
+);
+rejection(
+  "INSERT INTO motion_scene_versions (id,tenant_id,job_id,version,scene_digest,scene_json,capability_json,created_at,predicate_ids_json) VALUES ('bad_json','ten_test','job_a',2,'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb','{}','{}','now','{}')",
+);
 rejection(
   "INSERT INTO cas_objects VALUES ('cas_x','ten_platform','x','video/mp4',1,'source','2026-08-23T00:00:00Z'); INSERT INTO uploads VALUES ('upl_x','ten_test','x','video/mp4',1,'ACCEPTED','cas_x','2026-08-22T00:00:00Z','2026-08-23T00:00:00Z')",
 );

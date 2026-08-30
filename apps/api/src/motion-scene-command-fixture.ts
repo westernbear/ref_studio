@@ -139,6 +139,28 @@ export async function createCompletedGeneratedJob(
       shot: beat.shot,
       words: "",
     })),
+    motionPlan: {
+      schema: "motion-plan-v1",
+      intent: "fixture",
+      knowledgeCardIds: [],
+      requiredCapabilities: [],
+      canvas: { width: 1920, height: 1080, fps: 30, frameCount: 450 },
+      keyframeIntents: [],
+      predicateIds: ["scene-spec"],
+      reproducibility: {
+        knowledgeCardDigest: "0".repeat(64),
+        promptDigest: "0".repeat(64),
+        modelDigest: "0".repeat(64),
+        evidenceDigest: "0".repeat(64),
+        capabilitySnapshotDigest: "0".repeat(64),
+        planDigest: "0".repeat(64),
+        knowledgeCardIds: [],
+        requiredCapabilities: [],
+        promptVersion: "fixture-v1",
+        modelVersion: "fixture-v1",
+      },
+    },
+    planDigest: "0".repeat(64),
   };
   job.sceneSpecDigest = sha256Hex(fixtureSpec);
   job.preparationStage = "READY";
