@@ -1,7 +1,9 @@
+import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import {
   generateMotionPlan,
   MotionPlanGeneratorInputSchema,
+  redactMotionPlanBrief,
   type GenerateMotionPlanCandidate,
 } from "./motion-plan-generator.js";
 
@@ -64,13 +66,91 @@ describe("generateMotionPlan", () => {
       planDigest: first.planDigest,
       knowledgeCardIds: ["timing-easing"],
       requiredCapabilities: ["position", "scale"],
+      knowledgeCardDigest: first.plan.reproducibility.knowledgeCardDigest,
+      promptDigest: first.plan.reproducibility.promptDigest,
+      modelDigest: first.plan.reproducibility.modelDigest,
+      evidenceDigest: first.plan.reproducibility.evidenceDigest,
       capabilitySnapshotDigest:
         first.plan.reproducibility.capabilitySnapshotDigest,
       promptVersion: "motion-plan-prompt-v1",
       modelVersion: "fake-model-v1",
     });
+    expect(first.plan.reproducibility).toMatchObject({
+      planDigest: first.planDigest,
+      knowledgeCardIds: ["timing-easing"],
+      requiredCapabilities: ["position", "scale"],
+      promptVersion: "motion-plan-prompt-v1",
+      modelVersion: "fake-model-v1",
+    });
+    for (const field of [
+      "knowledgeCardDigest",
+      "promptDigest",
+      "modelDigest",
+      "evidenceDigest",
+      "capabilitySnapshotDigest",
+      "planDigest",
+    ] as const)
+      expect(first.plan.reproducibility[field]).toMatch(/^[a-f0-9]{64}$/u);
     expect("scene" in first).toBe(false);
     expect("operations" in first).toBe(false);
+  });
+
+  it("Given path and token-like brief content, when sent to the provider, then sensitive spans are redacted", async () => {
+    let providerBrief = "";
+    const generate: GenerateMotionPlanCandidate = async (request) => {
+      providerBrief = request.brief;
+      return candidate;
+    };
+
+    await generateMotionPlan(
+      {
+        ...input,
+        brief:
+          "Use /home/alice/private.mov, C:\\Users\\Alice\\private.mov, Authorization: Bearer abc.def.ghi, api_key=sk-probe123456789.\nraw_provider_payload={fixture}",
+      },
+      generate,
+    );
+
+    expect(providerBrief).not.toMatch(
+      /\/home\/|C:\\Users|Bearer\s+abc|sk-probe|api_key=|raw_provider_payload/u,
+    );
+    expect(providerBrief).toContain("[REDACTED_");
+  });
+
+  it("Given the generated ledger, when digests are independently recomputed, then bounded-input digests match", async () => {
+    const generated = await generateMotionPlan(input, async () => candidate);
+    const stable = (value: unknown): string => {
+      if (Array.isArray(value)) return `[${value.map(stable).join(",")}]`;
+      if (typeof value === "object" && value !== null)
+        return `{${Object.entries(value)
+          .sort(([left], [right]) => left.localeCompare(right))
+          .map(([key, child]) => `${JSON.stringify(key)}:${stable(child)}`)
+          .join(",")}}`;
+      return JSON.stringify(value);
+    };
+    const digest = (value: unknown): string =>
+      createHash("sha256").update(stable(value), "utf8").digest("hex");
+
+    expect(generated.plan.reproducibility.knowledgeCardDigest).toBe(
+      digest(input.knowledgeCards),
+    );
+    expect(generated.plan.reproducibility.modelDigest).toBe(
+      digest({ modelVersion: input.modelVersion }),
+    );
+    expect(generated.plan.reproducibility.promptDigest).toBe(
+      digest({
+        brief: redactMotionPlanBrief(input.brief),
+        promptVersion: input.promptVersion,
+      }),
+    );
+    expect(generated.plan.reproducibility.evidenceDigest).toBe(
+      digest(input.projectedEvidence),
+    );
+    expect(generated.plan.reproducibility.capabilitySnapshotDigest).toBe(
+      digest(input.capabilitySnapshot),
+    );
+    const { planDigest, ...reproducibility } = generated.plan.reproducibility;
+    expect(planDigest).toBe(digest({ ...generated.plan, reproducibility }));
   });
 
   it.each([

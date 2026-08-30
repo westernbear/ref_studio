@@ -93,18 +93,54 @@ export type GenerateMotionPlanCandidate = (
   schema: typeof MotionPlanSemanticV1Schema,
 ) => Promise<unknown>;
 
+export const redactMotionPlanBrief = (brief: string): string =>
+  brief
+    .replace(
+      /\b(?:raw[_-]?provider[_-]?payload|providerPayload)\b\s*[:=]\s*[^\r\n]*/giu,
+      "[REDACTED_PROVIDER_PAYLOAD]",
+    )
+    .replace(
+      /\b(?:authorization\s*:\s*)?bearer\s+[A-Za-z0-9._~+/-]+=*/giu,
+      "[REDACTED_SECRET]",
+    )
+    .replace(
+      /\b(?:api[_-]?key|access[_-]?token|token)\s*[:=]\s*["']?[^\s,;"']+/giu,
+      "[REDACTED_SECRET]",
+    )
+    .replace(
+      /\b(?:sk-[A-Za-z0-9_-]{8,}|ghp_[A-Za-z0-9_]{8,}|github_pat_[A-Za-z0-9_]{8,}|xox[baprs]-[A-Za-z0-9-]{8,}|AIza[A-Za-z0-9_-]{8,})\b/gu,
+      "[REDACTED_SECRET]",
+    )
+    .replace(/\\\\[^\\\s]+\\[^\s,;]+/gu, "[REDACTED_PATH]")
+    .replace(/\b[A-Za-z]:\\(?:[^\\\s,;]+\\)*[^\\\s,;]+/gu, "[REDACTED_PATH]")
+    .replace(
+      /(?:file:\/\/)?\/(?:home|Users|tmp|var|private|etc|root|opt|srv|mnt|Volumes)\/[^\s,;]+/gu,
+      "[REDACTED_PATH]",
+    )
+    .replace(/(?:\.\.\/)+(?:[^\s,;]+\/?)+/gu, "[REDACTED_PATH]");
+
 export async function generateMotionPlan(
   input: unknown,
   generate: GenerateMotionPlanCandidate,
 ) {
   const parsed = MotionPlanGeneratorInputSchema.parse(input);
+  const providerRequest = {
+    ...parsed,
+    brief: redactMotionPlanBrief(parsed.brief),
+  };
   const candidate: MotionPlanSemanticV1 = MotionPlanSemanticV1Schema.parse(
-    await generate(parsed, MotionPlanSemanticV1Schema),
+    await generate(providerRequest, MotionPlanSemanticV1Schema),
   );
   const plan = normalizeMotionPlan(candidate, {
     jobCanvas: parsed.jobCanvas,
     knowledgeCardIds: parsed.knowledgeCards.map((card) => card.id),
     capabilitySnapshot: parsed.capabilitySnapshot,
+    knowledgeCardDigest: sha256Hex(parsed.knowledgeCards),
+    promptDigest: sha256Hex({
+      brief: providerRequest.brief,
+      promptVersion: parsed.promptVersion,
+    }),
+    modelDigest: sha256Hex({ modelVersion: parsed.modelVersion }),
     evidenceDigest: sha256Hex(parsed.projectedEvidence),
     promptVersion: parsed.promptVersion,
     modelVersion: parsed.modelVersion,
@@ -117,6 +153,10 @@ export async function generateMotionPlan(
       planDigest,
       knowledgeCardIds: plan.knowledgeCardIds,
       requiredCapabilities: plan.requiredCapabilities,
+      knowledgeCardDigest: plan.reproducibility.knowledgeCardDigest,
+      promptDigest: plan.reproducibility.promptDigest,
+      modelDigest: plan.reproducibility.modelDigest,
+      evidenceDigest: plan.reproducibility.evidenceDigest,
       capabilitySnapshotDigest: plan.reproducibility.capabilitySnapshotDigest,
       promptVersion: plan.reproducibility.promptVersion,
       modelVersion: plan.reproducibility.modelVersion,

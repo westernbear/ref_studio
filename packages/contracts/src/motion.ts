@@ -26,6 +26,13 @@ export const KeyframeIntentV1Schema = z
     overshootPercent: FiniteNumberSchema.min(0).max(100),
     settleFrame: FiniteNumberSchema.int().min(0).max(216_000),
     staggerFrames: FiniteNumberSchema.int().min(0).max(10_000),
+    targetBeat: z
+      .object({
+        startFrame: FiniteNumberSchema.int().nonnegative().max(215_999),
+        endFrame: FiniteNumberSchema.int().min(1).max(216_000),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 export type KeyframeIntentV1 = z.infer<typeof KeyframeIntentV1Schema>;
@@ -46,12 +53,25 @@ const refineMotionPlanFrames = (
   value: z.infer<typeof MotionPlanSemanticObjectV1Schema>,
   context: z.RefinementCtx,
 ): void => {
-  for (const intent of value.keyframeIntents) {
-    if (intent.settleFrame >= value.canvas.frameCount)
+  for (const [index, intent] of value.keyframeIntents.entries()) {
+    const beatStart = intent.targetBeat?.startFrame ?? 0;
+    const beatEnd = intent.targetBeat?.endFrame ?? value.canvas.frameCount;
+    const startFrame = beatStart + index * intent.staggerFrames;
+    const anticipationFrame = startFrame + intent.anticipationFrames;
+    const settleFrame = startFrame + intent.settleFrame;
+    if (
+      beatStart >= beatEnd ||
+      beatEnd > value.canvas.frameCount ||
+      anticipationFrame > settleFrame ||
+      [startFrame, anticipationFrame, settleFrame].some(
+        (frame) => frame < beatStart || frame >= beatEnd,
+      )
+    )
       context.addIssue({
         code: "custom",
-        path: ["keyframeIntents"],
-        message: "settleFrame must be inside the job canvas",
+        path: ["keyframeIntents", index],
+        message:
+          "resulting keyframes must be ordered inside canvas and target beat",
       });
   }
 };
@@ -60,16 +80,73 @@ export const MotionPlanSemanticV1Schema =
   MotionPlanSemanticObjectV1Schema.superRefine(refineMotionPlanFrames);
 export type MotionPlanSemanticV1 = z.infer<typeof MotionPlanSemanticV1Schema>;
 
-export const MotionPlanV1Schema = MotionPlanSemanticObjectV1Schema.extend({
-  reproducibility: z
-    .object({
-      evidenceDigest: DigestSchema,
-      capabilitySnapshotDigest: DigestSchema,
-      promptVersion: z.string().min(1).max(128),
-      modelVersion: z.string().min(1).max(128),
-    })
-    .strict(),
-}).superRefine(refineMotionPlanFrames);
+const ReproducibilityMetadataV1Schema = z
+  .object({
+    knowledgeCardDigest: DigestSchema,
+    promptDigest: DigestSchema,
+    modelDigest: DigestSchema,
+    evidenceDigest: DigestSchema,
+    capabilitySnapshotDigest: DigestSchema,
+    planDigest: DigestSchema,
+    knowledgeCardIds: z.array(z.string().min(1).max(128)).max(15),
+    requiredCapabilities: z.array(z.string().min(1).max(128)).max(64),
+    promptVersion: z.string().min(1).max(128),
+    modelVersion: z.string().min(1).max(128),
+  })
+  .strict();
+
+const MotionPlanLedgerV1Schema = MotionPlanSemanticObjectV1Schema.extend({
+  reproducibility: ReproducibilityMetadataV1Schema,
+}).superRefine((value, context) => {
+  refineMotionPlanFrames(value, context);
+  if (
+    value.knowledgeCardIds.join("\0") !==
+      value.reproducibility.knowledgeCardIds.join("\0") ||
+    value.requiredCapabilities.join("\0") !==
+      value.reproducibility.requiredCapabilities.join("\0")
+  )
+    context.addIssue({
+      code: "custom",
+      path: ["reproducibility"],
+      message: "reproducibility ledger must match plan card and capability IDs",
+    });
+});
+
+const LEGACY_DIGEST = "0".repeat(64);
+const LegacyMotionPlanV1Schema = z
+  .object({
+    schema: z.literal("motion-plan-v1"),
+    intent: z.string().min(1).max(2_000),
+    keyframeIntents: z.array(KeyframeIntentV1Schema).max(64),
+    predicates: z.array(z.enum(MOTION_PREDICATE_IDS)).max(64),
+  })
+  .strict()
+  .transform((legacy) => ({
+    schema: legacy.schema,
+    intent: legacy.intent,
+    knowledgeCardIds: [],
+    requiredCapabilities: [],
+    canvas: { width: 1_920, height: 1_080, fps: 30, frameCount: 450 },
+    keyframeIntents: legacy.keyframeIntents,
+    predicateIds: legacy.predicates,
+    reproducibility: {
+      knowledgeCardDigest: LEGACY_DIGEST,
+      promptDigest: LEGACY_DIGEST,
+      modelDigest: LEGACY_DIGEST,
+      evidenceDigest: LEGACY_DIGEST,
+      capabilitySnapshotDigest: LEGACY_DIGEST,
+      planDigest: LEGACY_DIGEST,
+      knowledgeCardIds: [],
+      requiredCapabilities: [],
+      promptVersion: "legacy-v1",
+      modelVersion: "legacy-v1",
+    },
+  }));
+
+export const MotionPlanV1Schema = z.union([
+  MotionPlanLedgerV1Schema,
+  LegacyMotionPlanV1Schema,
+]);
 export type MotionPlanV1 = z.infer<typeof MotionPlanV1Schema>;
 
 const SceneOperationSchema = z.discriminatedUnion("kind", [

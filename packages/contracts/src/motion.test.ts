@@ -19,14 +19,44 @@ const validPlan = {
   ],
   predicateIds: ["scene-spec", "native-element-kinds"],
   reproducibility: {
+    knowledgeCardDigest: "c".repeat(64),
+    promptDigest: "d".repeat(64),
+    modelDigest: "e".repeat(64),
     evidenceDigest: "a".repeat(64),
     capabilitySnapshotDigest: "b".repeat(64),
+    planDigest: "f".repeat(64),
+    knowledgeCardIds: ["timing-anticipation"],
+    requiredCapabilities: ["position", "scale"],
     promptVersion: "motion-plan-prompt-v1",
     modelVersion: "fake-model-v1",
   },
 } as const;
 
 describe("MotionPlanV1", () => {
+  it("Given a legacy predicates wire shape, when parsed, then strict compatibility defaults produce a ledger plan", () => {
+    const parsed = MotionPlanV1Schema.parse({
+      schema: "motion-plan-v1",
+      intent: "Legacy title motion.",
+      keyframeIntents: [],
+      predicates: ["scene-spec"],
+    });
+
+    expect(parsed.predicateIds).toEqual(["scene-spec"]);
+    expect(parsed.reproducibility.promptVersion).toBe("legacy-v1");
+  });
+
+  it("Given an unknown legacy wire field, when parsed, then compatibility remains strict", () => {
+    expect(
+      MotionPlanV1Schema.safeParse({
+        schema: "motion-plan-v1",
+        intent: "Legacy title motion.",
+        keyframeIntents: [],
+        predicates: ["scene-spec"],
+        token: "forbidden",
+      }).success,
+    ).toBe(false);
+  });
+
   it("Given a complete semantic plan, when parsed, then it is accepted", () => {
     expect(MotionPlanV1Schema.safeParse(validPlan).success).toBe(true);
   });
@@ -70,6 +100,37 @@ describe("MotionPlanV1", () => {
     expect(
       MotionPlanV1Schema.safeParse({ ...validPlan, ...patch }).success,
     ).toBe(false);
+  });
+
+  it("Given resulting keyframes overflow the canvas, when parsed, then the plan fails closed", () => {
+    expect(
+      MotionPlanV1Schema.safeParse({
+        ...validPlan,
+        keyframeIntents: [
+          {
+            ...validPlan.keyframeIntents[0],
+            anticipationFrames: 10_000,
+            settleFrame: 449,
+            staggerFrames: 10_000,
+          },
+        ],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("Given resulting keyframes inside a supplied target beat, when parsed, then the plan is valid", () => {
+    expect(
+      MotionPlanV1Schema.safeParse({
+        ...validPlan,
+        keyframeIntents: [
+          {
+            ...validPlan.keyframeIntents[0],
+            settleFrame: 18,
+            targetBeat: { startFrame: 30, endFrame: 60 },
+          },
+        ],
+      }).success,
+    ).toBe(true);
   });
 });
 
