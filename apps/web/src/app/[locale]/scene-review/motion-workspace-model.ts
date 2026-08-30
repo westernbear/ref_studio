@@ -157,6 +157,18 @@ export const optimisticScene = (
 export const clampSplitRatio = (ratio: number): number =>
   Math.min(70, Math.max(30, ratio));
 
+export const tabIndexForKey = (
+  key: string,
+  current: number,
+  lastIndex: number,
+): number | null => {
+  if (key === "Home") return 0;
+  if (key === "End") return lastIndex;
+  if (key === "ArrowLeft") return current === 0 ? lastIndex : current - 1;
+  if (key === "ArrowRight") return current === lastIndex ? 0 : current + 1;
+  return null;
+};
+
 export const sceneIntegrity = (snapshot: MotionSceneSnapshotV1) => ({
   planDigest: snapshot.planDigest,
   artifactDigest: snapshot.artifactDigest,

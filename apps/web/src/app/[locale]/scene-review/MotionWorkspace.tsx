@@ -9,7 +9,7 @@ import { useEffect, useRef, useState } from "react";
 import type { JobProgress } from "../../../lib/job-progress";
 import { CompilerChatPanel } from "./CompilerChatPanel";
 import { MotionEditorPanel } from "./MotionEditorPanel";
-import { clampSplitRatio } from "./motion-workspace-model";
+import { clampSplitRatio, tabIndexForKey } from "./motion-workspace-model";
 import { useMotionWorkspace } from "./useMotionWorkspace";
 
 const SPLIT_STORAGE_KEY = "rvs.motion-workspace.split-ratio";
@@ -160,12 +160,13 @@ export function MotionWorkspace({
           tabIndex={mobilePane === "chat" ? 0 : -1}
           onClick={() => selectMobilePane("chat")}
           onKeyDown={(event) => {
-            if (
-              ["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)
-            ) {
-              event.preventDefault();
-              selectMobilePane("editor", event.currentTarget);
-            }
+            const next = tabIndexForKey(event.key, 0, 1);
+            if (next === null) return;
+            event.preventDefault();
+            selectMobilePane(
+              next === 0 ? "chat" : "editor",
+              event.currentTarget,
+            );
           }}
         >
           {t("chatTab")}
@@ -179,12 +180,13 @@ export function MotionWorkspace({
           tabIndex={mobilePane === "editor" ? 0 : -1}
           onClick={() => selectMobilePane("editor")}
           onKeyDown={(event) => {
-            if (
-              ["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)
-            ) {
-              event.preventDefault();
-              selectMobilePane("chat", event.currentTarget);
-            }
+            const next = tabIndexForKey(event.key, 1, 1);
+            if (next === null) return;
+            event.preventDefault();
+            selectMobilePane(
+              next === 0 ? "chat" : "editor",
+              event.currentTarget,
+            );
           }}
         >
           {t("editorTab")}

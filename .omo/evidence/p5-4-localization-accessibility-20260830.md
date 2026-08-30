@@ -28,7 +28,7 @@ The fixture API was started by `node test/motion-workspace-browser-server.mjs` o
 - Axe WCAG 2 A/AA + 2.1 A/AA: zero violations in both locales.
 - Reduced motion: every element resolved to no animation or 0s/0.01ms duration in both locales.
 - Console: zero errors in both locales.
-- Reverification after the semantic-tab repair: on both EN and KO, `ArrowLeft` from Chat selected Editor, `ArrowRight` and `End` from Editor selected Chat, and both controlled workspace panes reported `role=tabpanel` with reciprocal tab IDs.
+- Reverification after the semantic-tab repair: on both EN and KO, ArrowLeft/ArrowRight wrap, Home selects Chat, End selects Editor, and both controlled workspace panes reported `role=tabpanel` with reciprocal tab IDs.
 - Screenshot artifacts: `p5-4-browser/en-US-{1440,1280,768,390,375,320}.png` and `p5-4-browser/ko-KR-{1440,1280,768,390,375,320}.png`. Visual inspection included EN 1280 and KO 320; Korean wrapping remained legible and no horizontal scrolling occurred.
 
 ## Browse limitation

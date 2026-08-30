@@ -12,6 +12,7 @@ import type {
   SceneSelection,
   WorkspaceViewState,
 } from "./motion-workspace-model";
+import { tabIndexForKey } from "./motion-workspace-model";
 
 type Props = Readonly<{
   job: JobProgress;
@@ -60,12 +61,13 @@ export function SceneInspector(props: Props) {
           tabIndex={tab === "timeline" ? 0 : -1}
           onClick={() => selectTab("timeline")}
           onKeyDown={(event) => {
-            if (
-              ["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)
-            ) {
-              event.preventDefault();
-              selectTab("properties", event.currentTarget);
-            }
+            const next = tabIndexForKey(event.key, 0, 1);
+            if (next === null) return;
+            event.preventDefault();
+            selectTab(
+              next === 0 ? "timeline" : "properties",
+              event.currentTarget,
+            );
           }}
         >
           {t("timeline")}
@@ -79,12 +81,13 @@ export function SceneInspector(props: Props) {
           tabIndex={tab === "properties" ? 0 : -1}
           onClick={() => selectTab("properties")}
           onKeyDown={(event) => {
-            if (
-              ["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)
-            ) {
-              event.preventDefault();
-              selectTab("timeline", event.currentTarget);
-            }
+            const next = tabIndexForKey(event.key, 1, 1);
+            if (next === null) return;
+            event.preventDefault();
+            selectTab(
+              next === 0 ? "timeline" : "properties",
+              event.currentTarget,
+            );
           }}
         >
           {t("properties")}

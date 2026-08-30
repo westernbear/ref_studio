@@ -7,6 +7,7 @@ import {
   optimisticScene,
   sceneIntegrity,
   scenePropertySupported,
+  tabIndexForKey,
   workspaceViewState,
 } from "../src/app/[locale]/scene-review/motion-workspace-model.ts";
 
@@ -43,6 +44,20 @@ describe("motion workspace model", () => {
     expect(clampSplitRatio(12)).toBe(30);
     expect(clampSplitRatio(52)).toBe(52);
     expect(clampSplitRatio(91)).toBe(70);
+  });
+
+  it("uses APG keyboard semantics for two-tab controls", () => {
+    expect(
+      ["ArrowLeft", "ArrowRight", "Home", "End"].map((key) =>
+        tabIndexForKey(key, 0, 1),
+      ),
+    ).toEqual([1, 1, 0, 1]);
+    expect(
+      ["ArrowLeft", "ArrowRight", "Home", "End"].map((key) =>
+        tabIndexForKey(key, 1, 1),
+      ),
+    ).toEqual([0, 0, 0, 1]);
+    expect(tabIndexForKey("Enter", 0, 1)).toBeNull();
   });
 
   it("builds the same versioned scene operations for direct canvas movement", () => {
