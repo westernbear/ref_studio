@@ -38,3 +38,8 @@ Source of truth: `packages/contracts/src/errors.ts`.
 | `ADOBE_RELAY_SIGNATURE_INVALID` | Re-enroll device key |
 | `ADOBE_AE_READBACK_FAILED` | Inspect working copy, then retry |
 | `ADOBE_CRASH_RECOVERY` | One serialized retry only |
+
+
+## Full catalog
+
+All codes are defined in `packages/contracts/src/errors.ts` (`ErrorCodes` + `CATALOG`). Prefer that file when extending remediations. This page highlights the motion/Adobe subset operators hit most often.

@@ -75,7 +75,16 @@ export function useMotionWorkspace({
         ? error.remediation
         : undefined;
     setErrorCode(code);
-    add(workspaceMessage("error", code, remediation));
+    add(
+      workspaceMessage("error", code, remediation, {
+        ...(error instanceof MotionWorkspaceApiError && error.docsUrl
+          ? { docsUrl: error.docsUrl }
+          : {}),
+        ...(error instanceof MotionWorkspaceApiError && error.causeCategory
+          ? { causeCategory: error.causeCategory }
+          : {}),
+      }),
+    );
   };
 
   useEffect(() => {

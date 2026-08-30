@@ -638,7 +638,12 @@
             "type": ["string", "null"],
             "pattern": "^[a-f0-9]{64}$"
           },
-          "predicateIds": { "type": "array", "items": { "type": "string" } }
+          "predicateIds": { "type": "array", "items": { "type": "string" } },
+          "knowledgeCardIds": {
+            "type": "array",
+            "items": { "type": "string" },
+            "maxItems": 15
+          }
         },
         "required": [
           "schema",
@@ -652,7 +657,8 @@
           "planDigest",
           "predecessorVersion",
           "artifactDigest",
-          "predicateIds"
+          "predicateIds",
+          "knowledgeCardIds"
         ],
         "additionalProperties": false
       },

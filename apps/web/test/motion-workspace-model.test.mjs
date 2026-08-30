@@ -37,6 +37,11 @@ const snapshot = {
     status: "PASS",
     findings: [],
   },
+  planDigest: null,
+  predecessorVersion: null,
+  artifactDigest: null,
+  predicateIds: [],
+  knowledgeCardIds: [],
 };
 
 describe("motion workspace model", () => {
@@ -125,6 +130,7 @@ describe("motion workspace model", () => {
       sceneDigest: sha256Hex(fixtureSpec),
       capabilities: snapshot.backendCapability.capabilities,
       predicateIds: ["scene-spec"],
+      knowledgeCardIds: [],
     });
   });
 

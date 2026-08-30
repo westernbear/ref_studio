@@ -16,7 +16,7 @@ import {
   type SceneSpec,
 } from "../../../packages/contracts/src/scene-spec.js";
 import type { Job } from "./creator-workflow.js";
-import { MotionSceneError, verifyMotionScene } from "./motion-operations.js";
+import { MotionSceneError, verifyMotionSceneForJob } from "./motion-operations.js";
 
 const DigestSchema = z.string().regex(/^[a-f0-9]{64}$/u);
 const PredicateIdsSchema = z.array(z.enum(MOTION_PREDICATE_IDS)).max(64);
@@ -283,7 +283,7 @@ export function recordMotionSceneRefinement<T>(
       const current = findMotionSceneRow(db, job);
       if (current && current.sceneDigest !== previousDigest)
         throw new MotionSceneError("VERSION_CONFLICT", 409);
-      const verification = verifyMotionScene(next);
+      const verification = verifyMotionSceneForJob(next, job);
       if (verification.status !== "PASS")
         throw new MotionSceneError("SCENE_VERIFICATION_FAILED", 409);
       if (!current)
@@ -291,7 +291,7 @@ export function recordMotionSceneRefinement<T>(
           db,
           job,
           previous,
-          verifyMotionScene(previous),
+          verifyMotionSceneForJob(previous, job),
         );
       if (sha256Hex(next) === previousDigest) {
         if (!idempotency) return { response: null, replayed: false };
@@ -356,5 +356,11 @@ export const motionSceneSnapshot = (
     predecessorVersion: row.predecessorVersion,
     artifactDigest: row.artifactDigest,
     predicateIds: PredicateIdsSchema.parse(JSON.parse(row.predicateIdsJson)),
+    knowledgeCardIds: (() => {
+      const parsed = job.authoredScene?.motionPlan
+        ? MotionPlanV1Schema.safeParse(job.authoredScene.motionPlan)
+        : null;
+      return parsed?.success ? parsed.data.knowledgeCardIds : [];
+    })(),
   });
 };

@@ -210,6 +210,7 @@ export const ADMIN_MUTATION_ROUTES: readonly (readonly [
   // operator has typed but not yet saved, which does not belong in a query
   // string.
   ["POST", ["provider-models"]],
+  ["POST", ["motion-provider-canaries", "run"]],
 ];
 const matchesAdminRoute = (method: string, path: readonly string[]): boolean =>
   ADMIN_MUTATION_ROUTES.some(

@@ -31,6 +31,11 @@ import {
 import type { ReviewStore } from "./reviews.js";
 import type { UploadStore } from "./uploads.js";
 import { retireWorker, type WorkerStore } from "./workers.js";
+import {
+  ensureFreshMotionToolCanary,
+  listMotionToolCanaries,
+} from "./motion-canary.js";
+import { emitMotionEvent } from "../../../packages/contracts/src/motion-observability.js";
 
 // UploadRecord carries no etag/version field of its own; this derives a
 // content-addressed one (changes whenever `state` changes) so quarantine
@@ -870,4 +875,80 @@ export function registerAdminMutation(
         ),
       );
   });
+  app.post(
+    "/admin/motion-provider-canaries/run",
+    async (request: FastifyRequest<{ Body: Body }>, reply: FastifyReply) => {
+      try {
+        const principal = (
+          request as FastifyRequest & { adminMutationPrincipal?: Principal }
+        ).adminMutationPrincipal;
+        if (!principal) throw new Error("ADMIN_ACCESS_DENIED");
+        if (adminRole(principal) !== "SUPER_ADMIN")
+          throw new Error("ADMIN_ACCESS_DENIED");
+        const key = requestHeader(request, "idempotency-key");
+        if (!key) throw new Error("INVALID_REQUEST");
+        const db = store.db;
+        if (!db) throw new Error("RESOURCE_NOT_FOUND");
+        const settings = getAiProviderSettings(db);
+        const tenantId =
+          typeof request.body?.tenantId === "string" &&
+          request.body.tenantId.length > 0
+            ? request.body.tenantId
+            : principal.tenantId;
+        const correlation = String(request.headers["x-correlation-id"] ?? "");
+        const digest = requestHash({
+          route: "/admin/motion-provider-canaries/run",
+          tenantId,
+          providerKind: settings.providerKind,
+          model: settings.model,
+        });
+        const replay = await store.idempotency.executeAsync(
+          "POST:/admin/motion-provider-canaries/run",
+          key,
+          digest,
+          tenantId,
+          async () => {
+            const canary = await ensureFreshMotionToolCanary({
+              db,
+              tenantId,
+              providerKind: settings.providerKind,
+              model: settings.model,
+              now: store.now(),
+              ttlMs: 0,
+            });
+            emitMotionEvent("canary.status", correlation || `cor_${key}`, {
+              status: canary.status,
+              source: "admin",
+              providerKind: canary.providerKind,
+              model: canary.model,
+            });
+            return [
+              200,
+              {
+                canary,
+                items: listMotionToolCanaries(db),
+              } as unknown as Record<string, unknown>,
+            ] as const;
+          },
+        );
+        store.auditEvents.push({
+          id: id("audit"),
+          tenantId,
+          actorId: principal.userId,
+          action: "MOTION_PROVIDER_CANARY_RUN",
+          targetType: "motion-canary",
+          targetId: `${settings.providerKind}:${settings.model}`,
+          before: null,
+          after: replay.response[1],
+          reason: "admin canary run",
+          correlationId: correlation,
+          outcome: "ALLOWED",
+          createdAt: new Date(store.now()).toISOString(),
+        });
+        reply.code(replay.response[0]).send(replay.response[1]);
+      } catch (error) {
+        fail(reply, error);
+      }
+    },
+  );
 }

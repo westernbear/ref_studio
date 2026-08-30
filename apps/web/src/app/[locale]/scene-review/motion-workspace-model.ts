@@ -19,17 +19,27 @@ export type WorkspaceMessage =
       role: "error";
       text: string;
       remediation?: string;
+      docsUrl?: string;
+      causeCategory?: string;
     }>;
 
 export const workspaceMessage = (
   role: WorkspaceMessage["role"],
   text: string,
   remediation?: string,
+  extras?: { docsUrl?: string; causeCategory?: string },
 ): WorkspaceMessage => {
   if (role === "error")
-    return remediation
-      ? { id: crypto.randomUUID(), role, text, remediation }
-      : { id: crypto.randomUUID(), role, text };
+    return {
+      id: crypto.randomUUID(),
+      role,
+      text,
+      ...(remediation ? { remediation } : {}),
+      ...(extras?.docsUrl ? { docsUrl: extras.docsUrl } : {}),
+      ...(extras?.causeCategory
+        ? { causeCategory: extras.causeCategory }
+        : {}),
+    };
   return { id: crypto.randomUUID(), role, text };
 };
 
@@ -187,6 +197,7 @@ export const sceneIntegrity = (snapshot: MotionSceneSnapshotV1) => ({
   sceneDigest: snapshot.sceneDigest,
   capabilities: snapshot.backendCapability.capabilities,
   predicateIds: snapshot.predicateIds,
+  knowledgeCardIds: snapshot.knowledgeCardIds,
 });
 
 export const isKeyframeV2 = (

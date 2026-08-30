@@ -15,7 +15,7 @@ import { assertLegalTransition } from "../../../packages/contracts/src/lifecycle
 import { beatSheetFor } from "./author-scene.js";
 import { safeEnvelope } from "./boundary.js";
 import type { CreatorWorkflowStore, Job } from "./creator-workflow.js";
-import { MotionSceneError, verifyMotionScene } from "./motion-operations.js";
+import { MotionSceneError, verifyMotionSceneForJob } from "./motion-operations.js";
 import {
   currentMotionSceneRow,
   commitMotionSceneVersion,
@@ -145,7 +145,7 @@ export function registerMotionSceneCommands(
         if (!target) throw new MotionSceneError("RESOURCE_NOT_FOUND", 404);
         assertQueueable(job);
         const scene = SceneSpecSchema.parse(JSON.parse(target.sceneJson));
-        const verification = verifyMotionScene(scene);
+        const verification = verifyMotionSceneForJob(scene, job);
         if (verification.status !== "PASS")
           throw new MotionSceneError("SCENE_VERIFICATION_FAILED", 409);
         const committed = commitMotionSceneVersion({
@@ -203,7 +203,7 @@ export function registerMotionSceneCommands(
             )
           : null;
         const scene = SceneSpecSchema.parse(JSON.parse(current.sceneJson));
-        const verification = verifyMotionScene(scene);
+        const verification = verifyMotionSceneForJob(scene, job);
         if (
           storedVerification?.status !== "PASS" ||
           storedVerification.sceneDigest !== current.sceneDigest ||

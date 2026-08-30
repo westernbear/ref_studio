@@ -316,6 +316,7 @@ export const MotionSceneSnapshotV1Schema = z
     predecessorVersion: z.number().int().positive().nullable(),
     artifactDigest: DigestSchema.nullable(),
     predicateIds: z.array(z.enum(MOTION_PREDICATE_IDS)).max(64),
+    knowledgeCardIds: z.array(z.string().min(1).max(128)).max(15),
   })
   .strict();
 export type MotionSceneSnapshotV1 = z.infer<typeof MotionSceneSnapshotV1Schema>;

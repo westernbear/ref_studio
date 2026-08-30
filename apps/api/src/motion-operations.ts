@@ -4,18 +4,31 @@ import {
   type SceneSpec,
 } from "../../../packages/contracts/src/scene-spec.js";
 import { validateSceneSpec } from "../../../packages/contracts/src/spec-validate.js";
-import type { SceneOperationBatchV1 } from "../../../packages/contracts/src/motion.js";
+import {
+  MotionPlanV1Schema,
+  type SceneOperationBatchV1,
+} from "../../../packages/contracts/src/motion.js";
+import type { MotionPredicateId } from "../../../packages/contracts/src/motion-predicates.js";
 import { sha256Hex } from "../../../packages/contracts/src/canonical-json.js";
 import {
   assertResourceBudget,
   ResourceBudgetError,
 } from "../../../packages/contracts/src/resource-budgets.js";
+import { emitMotionEvent } from "../../../packages/contracts/src/motion-observability.js";
 import { verifyMotionScene as evaluateMotionScene } from "./motion-predicates.js";
 import { verifyAndRepair as runVerificationAttempts } from "./verified-scene-authoring.js";
+import type { Job } from "./creator-workflow.js";
 
-export function verifyMotionScene(scene: SceneSpec) {
+export function verifyMotionScene(
+  scene: SceneSpec,
+  options?: {
+    readonly requestedPredicateIds?: readonly MotionPredicateId[];
+  },
+) {
   return evaluateMotionScene(scene, {
-    requestedPredicateIds: ["element-kind-capability"],
+    requestedPredicateIds: options?.requestedPredicateIds ?? [
+      "element-kind-capability",
+    ],
     context: {
       capabilitySnapshot: {
         schema: "backend-capability-snapshot-v1",
@@ -26,6 +39,23 @@ export function verifyMotionScene(scene: SceneSpec) {
       resolvableAssetIds: new Set(scene.assets.map((asset) => asset.assetId)),
     },
   });
+}
+
+/** Evaluate the job's MotionPlan predicate set (plus mandatory IDs). */
+export function verifyMotionSceneForJob(scene: SceneSpec, job: Job) {
+  const parsed = job.authoredScene?.motionPlan
+    ? MotionPlanV1Schema.safeParse(job.authoredScene.motionPlan)
+    : null;
+  const fromPlan =
+    parsed?.success && parsed.data.predicateIds.length > 0
+      ? parsed.data.predicateIds
+      : [];
+  // Always include element-kind-capability for route/store mutations so forged
+  // PASS reports cannot admit unsupported element kinds.
+  const requestedPredicateIds = [
+    ...new Set<MotionPredicateId>(["element-kind-capability", ...fromPlan]),
+  ];
+  return verifyMotionScene(scene, { requestedPredicateIds });
 }
 
 export async function verifyAndRepair(
@@ -155,6 +185,11 @@ export function applySceneOperations(
       throw new MotionSceneError("RESOURCE_BUDGET_EXCEEDED", 422);
     throw error;
   }
+  emitMotionEvent(
+    "operations.count",
+    `cor_ops_${batch.baseSceneDigest.slice(0, 12)}`,
+    { count: batch.operations.length },
+  );
   let candidate: unknown = scene;
   for (const operation of batch.operations) assertEditableOperation(operation);
   for (const operation of batch.operations)

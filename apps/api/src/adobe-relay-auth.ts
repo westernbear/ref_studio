@@ -10,12 +10,15 @@ import {
   sha256Hex,
 } from "../../../packages/contracts/src/canonical-json.js";
 import {
+  RESOURCE_BUDGETS,
+} from "../../../packages/contracts/src/resource-budgets.js";
+import {
   AdobeRelayFailure,
   type AdobeGatewayStore,
 } from "./adobe-mcp-gateway.js";
 
 const MAX_SKEW_MS = 300_000;
-const MAX_BODY_BYTES = 262_144;
+const MAX_BODY_BYTES = RESOURCE_BUDGETS.maxRelayBodyBytes;
 
 const signingPayload = (signature: AdobeRelaySignatureV1): string =>
   [

@@ -31,6 +31,8 @@ export class MotionWorkspaceApiError extends Error {
   constructor(
     readonly code: string,
     readonly remediation?: string,
+    readonly causeCategory?: string,
+    readonly docsUrl?: string,
   ) {
     super(code);
   }
@@ -39,12 +41,19 @@ export class MotionWorkspaceApiError extends Error {
 const errorPayload = (
   body: unknown,
   status: number,
-): { code: string; remediation?: string } => {
+): {
+  code: string;
+  remediation?: string;
+  causeCategory?: string;
+  docsUrl?: string;
+} => {
   const parsed = z
     .looseObject({
       error: z.looseObject({
         code: z.string(),
         remediation: z.string().optional(),
+        causeCategory: z.string().optional(),
+        docsUrl: z.string().optional(),
       }),
     })
     .safeParse(body);
@@ -53,6 +62,12 @@ const errorPayload = (
     code: parsed.data.error.code,
     ...(parsed.data.error.remediation
       ? { remediation: parsed.data.error.remediation }
+      : {}),
+    ...(parsed.data.error.causeCategory
+      ? { causeCategory: parsed.data.error.causeCategory }
+      : {}),
+    ...(parsed.data.error.docsUrl
+      ? { docsUrl: parsed.data.error.docsUrl }
       : {}),
   };
 };
@@ -67,7 +82,12 @@ const checked = async <T>(
   const body = await json(response);
   if (!response.ok) {
     const payload = errorPayload(body, response.status);
-    throw new MotionWorkspaceApiError(payload.code, payload.remediation);
+    throw new MotionWorkspaceApiError(
+      payload.code,
+      payload.remediation,
+      payload.causeCategory,
+      payload.docsUrl,
+    );
   }
   const parsed = schema.safeParse(body);
   if (!parsed.success) throw new MotionWorkspaceApiError("INVALID_RESPONSE");

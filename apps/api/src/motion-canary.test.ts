@@ -203,3 +203,25 @@ describe("motion provider tool canary", () => {
     db.close();
   });
 });
+
+describe("ensureFreshMotionToolCanary", () => {
+  it("executes canary when no PASS exists and admits motion.lookup", async () => {
+    const { ensureFreshMotionToolCanary } = await import("./motion-canary.js");
+    const db = openApiDatabase(":memory:");
+    const now = Date.parse("2026-08-30T00:00:00Z");
+    const canary = await ensureFreshMotionToolCanary({
+      db,
+      tenantId: "tenant-a",
+      providerKind: "openai",
+      model: "gpt-test",
+      now,
+      ttlMs: 600_000,
+      adapter: adapter(validCard),
+    });
+    expect(canary.status).toBe("PASS");
+    expect(
+      modelMotionTools(canary, canary, now + 1, 600_000),
+    ).toEqual(["motion.lookup"]);
+    db.close();
+  });
+});

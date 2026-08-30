@@ -26,6 +26,7 @@ const snapshot = {
   predecessorVersion: null,
   artifactDigest: null,
   predicateIds: [],
+  knowledgeCardIds: [],
 };
 const operations = [
   {
