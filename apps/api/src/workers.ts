@@ -15,6 +15,7 @@ import { planSceneAssets } from "../../../packages/contracts/src/scene-assets.js
 import type { SceneSpec } from "../../../packages/contracts/src/scene-spec.js";
 import { z } from "zod";
 import { authorScene, type GenerateScene } from "./author-scene.js";
+import type { GenerateMotionPlanCandidate } from "./motion-plan-generator.js";
 import {
   generateImageMaterial,
   MaterialProviderError,
@@ -1217,6 +1218,7 @@ type WorkerRouteOptions = Readonly<{
   safetyCheckGenerate: GenerateSafetyVerdict | undefined;
   translateGenerate: GenerateTranslation | undefined;
   authorSceneGenerate: GenerateScene | undefined;
+  authorSceneGeneratePlan: GenerateMotionPlanCandidate | undefined;
   materialGenerate: GenerateImage | undefined;
 }>;
 
@@ -1237,6 +1239,7 @@ export function registerWorkers(
     safetyCheckGenerate,
     translateGenerate,
     authorSceneGenerate,
+    authorSceneGeneratePlan,
     materialGenerate,
   } = options;
   // Read fresh on every claim rather than captured at boot, so changing an
@@ -1992,6 +1995,9 @@ export function registerWorkers(
         db,
         aiSecretKey,
         ...(authorSceneGenerate ? { generate: authorSceneGenerate } : {}),
+        ...(authorSceneGeneratePlan
+          ? { generatePlan: authorSceneGeneratePlan }
+          : {}),
       });
       const current = workflow?.jobs.get(jobId);
       if (!current || current.preparationStage !== "AUTHORING_RUNNING") return;

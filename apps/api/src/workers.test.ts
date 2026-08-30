@@ -36,6 +36,7 @@ import { updateAiProviderSettings } from "./ai-provider-settings.js";
 import { updateMaterialProviderSettings } from "./material-provider-settings.js";
 import { openApiDatabase } from "./durable-state.js";
 import type { GenerateScene } from "./author-scene.js";
+import type { GenerateMotionPlanCandidate } from "./motion-plan-generator.js";
 import type { GenerateImage } from "./openai-image-material.js";
 import type { GenerateSafetyVerdict } from "./safety-check.js";
 import type { GenerateTranslation } from "./translate-evidence.js";
@@ -65,7 +66,7 @@ const registration = (capabilities: readonly string[]) => ({
 const sha256 = (value: Uint8Array | string): string =>
   createHash("sha256").update(value).digest("hex");
 const generationConfig: GenerationConfig = {
-  brief: "Meridian finds meeting times nobody hates.",
+  brief: "Use timing and easing as Meridian finds meeting times nobody hates.",
   durationSec: 20,
   aspect: "9:16",
   attachmentIds: [],
@@ -331,6 +332,7 @@ type FixtureOptions = Readonly<{
   safetyCheckGenerate?: GenerateSafetyVerdict;
   translateGenerate?: GenerateTranslation;
   authorSceneGenerate?: GenerateScene;
+  authorSceneGeneratePlan?: GenerateMotionPlanCandidate;
   materialGenerate?: GenerateImage;
 }>;
 const appFixture = (
@@ -377,6 +379,29 @@ const appFixture = (
     safetyCheckGenerate: options.safetyCheckGenerate,
     translateGenerate: options.translateGenerate,
     authorSceneGenerate: options.authorSceneGenerate,
+    authorSceneGeneratePlan:
+      options.authorSceneGeneratePlan ??
+      (options.authorSceneGenerate
+        ? async (request) => ({
+            schema: "motion-plan-v1",
+            intent: "Apply bounded timing to the headline.",
+            knowledgeCardIds: [
+              request.knowledgeCards[0]?.id ?? "timing-easing",
+            ],
+            requiredCapabilities: ["keyframes", "easing"],
+            canvas: request.jobCanvas,
+            keyframeIntents: [
+              {
+                elementId: "headline",
+                anticipationFrames: 12,
+                overshootPercent: 8,
+                settleFrame: 36,
+                staggerFrames: 6,
+              },
+            ],
+            predicateIds: ["scene-spec", "native-element-kinds"],
+          })
+        : undefined),
     materialGenerate: options.materialGenerate,
   });
   app.addHook("onClose", async () => {
@@ -1436,6 +1461,15 @@ describe("worker registration API", () => {
       expect(finished?.sceneSpecDigest).toMatch(/^[a-f0-9]{64}$/);
       expect(finished?.authoredScene?.beatSheet).toHaveLength(
         fixtureSpec.beats.length,
+      );
+      const creatorJob = await fixture.app.inject({
+        method: "GET",
+        url: `/v1/jobs/${job.id}`,
+        headers: fixture.tenantHeaders,
+      });
+      expect(creatorJob.statusCode).toBe(200);
+      expect(creatorJob.json().planDigest).toBe(
+        finished?.authoredScene?.planDigest,
       );
       // The canvas comes from the job's own generation config (9:16, 20s),
       // never from whatever the fixture spec happened to carry.

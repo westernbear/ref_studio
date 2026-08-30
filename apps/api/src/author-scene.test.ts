@@ -11,6 +11,7 @@ import { updateAiProviderSettings } from "./ai-provider-settings.js";
 import { authorScene, type GenerateScene } from "./author-scene.js";
 import { openApiDatabase } from "./durable-state.js";
 import { MOTION_LOOKUP_TOOL_SCHEMA_DIGEST } from "./motion-knowledge.js";
+import type { GenerateMotionPlanCandidate } from "./motion-plan-generator.js";
 
 const AI_SECRET_KEY = "test-secret-key-material";
 
@@ -84,6 +85,23 @@ describe("authorScene", () => {
     tenantId: "tenant-a",
     db,
     aiSecretKey: AI_SECRET_KEY,
+    generatePlan: (async (request) => ({
+      schema: "motion-plan-v1",
+      intent: "Apply bounded timing to the headline.",
+      knowledgeCardIds: [request.knowledgeCards[0]?.id ?? "timing-easing"],
+      requiredCapabilities: ["keyframes", "easing"],
+      canvas: request.jobCanvas,
+      keyframeIntents: [
+        {
+          elementId: "headline",
+          anticipationFrames: 12,
+          overshootPercent: 8,
+          settleFrame: 36,
+          staggerFrames: 6,
+        },
+      ],
+      predicateIds: ["scene-spec", "native-element-kinds"],
+    })) satisfies GenerateMotionPlanCandidate,
   });
 
   it("returns the authored spec and a beat sheet", async () => {
@@ -171,7 +189,102 @@ describe("authorScene", () => {
     };
     const authored = await authorScene({ ...baseParams(), generate });
     expect(calls).toBe(4);
-    expect(authored.spec).toEqual(fixtureSpec);
+    expect(authored.spec.beats[0]?.elements[0]?.keyframes).toEqual([
+      { frame: 0, scale: 1, ease: "easeIn" },
+      { frame: 12, scale: 1.08, ease: "easeOut" },
+      { frame: 36, scale: 1, ease: "easeInOut" },
+    ]);
+    expect(authored.verification?.attempts).toBe(4);
+    expect(authored.verification?.findings).toHaveLength(5);
+  });
+
+  it("plans before drafting and repairs a concrete compiler failure", async () => {
+    const order: string[] = [];
+    const prompts: string[] = [];
+    const generatePlan: GenerateMotionPlanCandidate = async (request) => {
+      order.push("plan");
+      return {
+        schema: "motion-plan-v1",
+        intent: "Animate the headline.",
+        knowledgeCardIds: [request.knowledgeCards[0]?.id ?? "timing-easing"],
+        requiredCapabilities: ["keyframes"],
+        canvas: request.jobCanvas,
+        keyframeIntents: [
+          {
+            elementId: "headline",
+            anticipationFrames: 12,
+            overshootPercent: 8,
+            settleFrame: 36,
+            staggerFrames: 6,
+          },
+        ],
+        predicateIds: ["scene-spec"],
+      };
+    };
+    let drafts = 0;
+    const generate: GenerateScene = async (options) => {
+      order.push("draft");
+      prompts.push(options.prompt);
+      drafts += 1;
+      if (drafts === 1)
+        return {
+          object: {
+            ...fixtureSpec,
+            beats: fixtureSpec.beats.map((beat, beatIndex) =>
+              beatIndex === 0
+                ? {
+                    ...beat,
+                    elements: beat.elements.map((element) => ({
+                      ...element,
+                      elementId: "wrong-headline",
+                    })),
+                  }
+                : beat,
+            ),
+          },
+        };
+      return { object: fixtureSpec };
+    };
+
+    const authored = await authorScene({
+      ...baseParams(),
+      generatePlan,
+      generate,
+    });
+
+    expect(order).toEqual(["plan", "draft", "draft"]);
+    expect(prompts[1]).toContain("MOTION_PLAN_UNKNOWN_ELEMENT");
+    expect(authored.verification?.attempts).toBe(2);
+    expect(authored.planDigest).toBe(
+      authored.motionPlan?.reproducibility.planDigest,
+    );
+    expect(authored.spec.beats[0]?.elements[0]?.keyframes[1]).toEqual({
+      frame: 12,
+      scale: 1.08,
+      ease: "easeOut",
+    });
+  });
+
+  it("fails before drafting when the semantic plan requires an unavailable capability", async () => {
+    let sceneCalls = 0;
+    const generate: GenerateScene = async () => {
+      sceneCalls += 1;
+      return { object: fixtureSpec };
+    };
+    const generatePlan: GenerateMotionPlanCandidate = async (request) => ({
+      schema: "motion-plan-v1",
+      intent: "Use an unsupported camera.",
+      knowledgeCardIds: [request.knowledgeCards[0]?.id ?? "timing-easing"],
+      requiredCapabilities: ["camera"],
+      canvas: request.jobCanvas,
+      keyframeIntents: [],
+      predicateIds: ["scene-spec"],
+    });
+
+    await expect(
+      authorScene({ ...baseParams(), generatePlan, generate }),
+    ).rejects.toThrow(/MOTION_PLAN_UNAVAILABLE_CAPABILITY/u);
+    expect(sceneCalls).toBe(0);
   });
 
   it("fails when no provider is configured", async () => {

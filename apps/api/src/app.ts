@@ -59,6 +59,7 @@ import { registerJobAttachments } from "./job-attachments.js";
 import { registerMotionScene } from "./motion-scene.js";
 import { registerRefinePrompt } from "./refine-prompt.js";
 import type { GenerateScene } from "./author-scene.js";
+import type { GenerateMotionPlanCandidate } from "./motion-plan-generator.js";
 import type { GeneratePatch } from "./patch-scene.js";
 import type { GenerateImage } from "./openai-image-material.js";
 import type { GenerateSafetyVerdict } from "./safety-check.js";
@@ -106,6 +107,7 @@ export type AppOptions = {
   readonly safetyCheckGenerate?: GenerateSafetyVerdict;
   readonly translateGenerate?: GenerateTranslation;
   readonly authorSceneGenerate?: GenerateScene;
+  readonly authorSceneGeneratePlan?: GenerateMotionPlanCandidate;
   readonly materialGenerate?: GenerateImage;
   readonly verifiedMotionAuthoring?: boolean;
   readonly nativeSceneV2?: boolean;
@@ -912,6 +914,7 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
       safetyCheckGenerate: options.safetyCheckGenerate,
       translateGenerate: options.translateGenerate,
       authorSceneGenerate: options.authorSceneGenerate,
+      authorSceneGeneratePlan: options.authorSceneGeneratePlan,
       materialGenerate: options.materialGenerate,
     });
   return app;

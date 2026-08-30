@@ -14,8 +14,30 @@ describe("verified scene authoring", () => {
         return candidate;
       },
     });
-    expect(result).toBe(4);
+    expect(result).toEqual({
+      value: 4,
+      attempts: 4,
+      failures: ["predicate failed", "predicate failed", "predicate failed"],
+    });
     expect(attempts).toEqual([1, 2, 3, 4]);
+  });
+
+  it("passes concrete failures to the next repair attempt", async () => {
+    const received: string[][] = [];
+    const result = await generateVerifiedScene({
+      generate: async (attempt, failures) => {
+        received.push([...failures]);
+        return attempt;
+      },
+      verify: (candidate) => {
+        if (candidate === 1) throw new Error("MOTION_PLAN_UNKNOWN_ELEMENT");
+        return candidate;
+      },
+    });
+
+    expect(received).toEqual([[], ["MOTION_PLAN_UNKNOWN_ELEMENT"]]);
+    expect(result.attempts).toBe(2);
+    expect(result.failures).toEqual(["MOTION_PLAN_UNKNOWN_ELEMENT"]);
   });
 
   it("fails after four attempts", async () => {

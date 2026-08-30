@@ -627,6 +627,7 @@ const projection = (
   runtimePreflight: job.runtimePreflight,
   ...(job.generation ? { generation: job.generation } : {}),
   beatSheet: job.authoredScene?.beatSheet ?? null,
+  planDigest: job.authoredScene?.planDigest ?? null,
   lastPatchChangedBeatIds: job.lastPatchChangedBeatIds,
   evidenceDigest: job.evidenceDigest,
   irDigest: job.irDigest,

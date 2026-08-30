@@ -8,6 +8,10 @@ import {
   SceneSpecSchema,
   type SceneSpec,
 } from "../../../packages/contracts/src/scene-spec.js";
+import type {
+  MotionPlanV1,
+  VerificationReportV1,
+} from "../../../packages/contracts/src/motion.js";
 import { validateSceneSpec } from "../../../packages/contracts/src/spec-validate.js";
 import type Database from "better-sqlite3";
 import { generateObject, tool, type LanguageModel, type ToolSet } from "ai";
@@ -26,6 +30,15 @@ import {
   modelMotionTools,
 } from "./motion-knowledge.js";
 import { generateVerifiedScene } from "./verified-scene-authoring.js";
+import {
+  generateMotionPlan,
+  type GenerateMotionPlanCandidate,
+} from "./motion-plan-generator.js";
+import {
+  applyMotionPlan,
+  authoringVerificationReport,
+  nativeAuthoringCapabilities,
+} from "./author-scene-motion.js";
 
 // Narrow view of `generateObject`, mirrors apps/api/src/safety-check.ts,
 // translate-evidence.ts and refine-prompt.ts so tests can inject a fake
@@ -45,6 +58,9 @@ export type AuthoredScene = {
     readonly shot: string;
     readonly words: string;
   }[];
+  readonly motionPlan?: MotionPlanV1;
+  readonly planDigest?: string;
+  readonly verification?: VerificationReportV1;
 };
 
 // Text that appears on screen for a beat, for the beat-sheet summary shown
@@ -126,6 +142,7 @@ export async function authorScene(params: {
   readonly now?: number;
   readonly motionCanaryTtlMs?: number;
   readonly generate?: GenerateScene;
+  readonly generatePlan?: GenerateMotionPlanCandidate;
 }): Promise<AuthoredScene> {
   const model = aiModelFromSettings(params.db, params.aiSecretKey);
   if (!model) {
@@ -183,6 +200,37 @@ export async function authorScene(params: {
     fps: DELIVERY_FPS,
     frameCount: frameCountFor(params.config.durationSec),
   };
+  const capabilitySnapshot = nativeAuthoringCapabilities(
+    new Date(params.now ?? Date.now()).toISOString(),
+  );
+  const generatedPlan = await generateMotionPlan(
+    {
+      brief: params.config.brief,
+      knowledgeCards: motionKnowledge.map((card) => ({
+        id: card.id,
+        definition: `${card.definition.en}\n${card.definition.ko}`,
+        capabilities: card.capabilities,
+      })),
+      projectedEvidence,
+      jobCanvas: canvas,
+      attachmentIds: params.attachments.map(
+        (attachment) => attachment.attachmentId,
+      ),
+      capabilitySnapshot,
+      promptVersion: "motion-authoring-v1",
+      modelVersion: settings.model,
+    },
+    params.generatePlan ??
+      (async (request, schema) =>
+        (
+          await generateObject({
+            model,
+            schema,
+            system: AUTHORING_SYSTEM_PROMPT,
+            prompt: JSON.stringify(request),
+          })
+        ).object),
+  );
 
   // The creator's brief and attachment identifiers are untrusted input --
   // fenced in their own delimited block, distinct from the instructions
@@ -220,6 +268,10 @@ ${JSON.stringify(projectedEvidence)}
 
 ${JSON.stringify(motionKnowledge)}
 
+## Motion plan (host-validated; element identifiers must match)
+
+${JSON.stringify(generatedPlan.plan)}
+
 ## Scene mode
 
 You decide the mode -- the creator never picks it. Set "mode" in your output to "SWAP" or "REINTERPRET" based on what the brief below actually asks for; see the system instructions for the criteria and which way to lean when it is ambiguous.
@@ -256,7 +308,7 @@ Author a SceneSpec for a film of about ${params.config.durationSec} seconds.`;
       const parsed = SceneSpecSchema.safeParse(candidate);
       if (!parsed.success) throw new Error("SPEC_SCHEMA_INVALID");
       const spec: SceneSpec = { ...parsed.data, canvas };
-      return validateSceneSpec(
+      const draft = validateSceneSpec(
         spec,
         resolvableAssetIds(
           spec,
@@ -264,8 +316,33 @@ Author a SceneSpec for a film of about ${params.config.durationSec} seconds.`;
           evidenceOwnerIds(projectedEvidence),
         ),
       );
+      const applied = applyMotionPlan(
+        generatedPlan.plan,
+        draft,
+        capabilitySnapshot,
+      );
+      return validateSceneSpec(
+        applied,
+        resolvableAssetIds(
+          applied,
+          params.attachments,
+          evidenceOwnerIds(projectedEvidence),
+        ),
+      );
     },
   });
 
-  return { spec: validated, beatSheet: beatSheetFor(validated) };
+  const verification = authoringVerificationReport(
+    validated.value,
+    generatedPlan.plan,
+    validated.attempts,
+    validated.failures,
+  );
+  return {
+    spec: validated.value,
+    beatSheet: beatSheetFor(validated.value),
+    motionPlan: generatedPlan.plan,
+    planDigest: generatedPlan.planDigest,
+    verification,
+  };
 }
