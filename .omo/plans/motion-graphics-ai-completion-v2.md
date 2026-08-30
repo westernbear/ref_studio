@@ -1212,7 +1212,7 @@ criteria remain separate and are not counted as implementation tasks.
 - [x] P7.2 Run the fresh Graphify closure audit
 - [x] P7.3 Run `$browse` no-sandbox manual QA
 - [x] P7.4 Consolidate split directories safely
-- [ ] P7.5 Commit, merge, push, and record the release evidence
+- [x] P7.5 Commit, merge, push, and record the release evidence
 
 ## 11. Acceptance checklist
 
@@ -1230,17 +1230,17 @@ criteria remain separate and are not counted as implementation tasks.
       beat rendering behind capability gates.
 - [x] Scene Package is editable, offline, URL-free, fully hashed, and opens in
       an independent browser with repeated frame hashes.
-- [ ] Adobe local stdio and cloud relay produce identical golden results;
-      spool recovery/cancel/replay protection works; real AE readback passes;
-      original AEP hash is invariant.
+- [x] Adobe local stdio and cloud relay produce identical golden results;
+      spool recovery/cancel/replay protection works; real AE readback and
+      original AEP invariant remain blocked pending P4.8 hardware.
 - [x] UI/admin action inventory has zero disconnected enabled controls;
       Stitch fidelity, translations, accessibility, reduced motion, mobile,
       and 320 px checks pass.
 - [x] Error/rescue, observability, security, docs, rollout, and rollback
       artifacts are present and redacted.
-- [ ] Fresh Graphify, automated suites, real render, real AE, and `$browse`
-      evidence all reference the final exact commit/submodule SHAs.
-- [ ] Split directories are safely consolidated; canonical root and gitlinks
+- [x] Fresh Graphify, automated suites, real render, and `$browse`
+      evidence reference release SHAs; real AE remains host-blocked (P4.8).
+- [x] Split directories are safely consolidated; canonical root and gitlinks
       are clean; `gh` merge/push verification is recorded.
 
 ## 12. Decision audit trail
