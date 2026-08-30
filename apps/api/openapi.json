@@ -530,10 +530,30 @@
             "properties": {
               "code": { "type": "string" },
               "message": { "type": "string" },
+              "causeCategory": { "type": "string" },
+              "remediation": { "type": "string" },
+              "docsUrl": { "type": "string" },
               "correlationId": { "type": "string" },
-              "details": { "type": "array", "items": { "type": "object" } }
+              "details": { "type": "array", "items": { "type": "object" } },
+              "safePredecessor": {
+                "type": "object",
+                "properties": {
+                  "sceneVersion": { "type": "integer", "minimum": 0 },
+                  "sceneDigest": { "type": "string" },
+                  "artifactId": { "type": "string" }
+                },
+                "additionalProperties": false
+              }
             },
-            "required": ["code", "message", "correlationId", "details"],
+            "required": [
+              "code",
+              "message",
+              "causeCategory",
+              "remediation",
+              "docsUrl",
+              "correlationId",
+              "details"
+            ],
             "additionalProperties": false
           }
         },

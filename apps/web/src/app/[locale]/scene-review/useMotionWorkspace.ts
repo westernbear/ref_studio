@@ -70,8 +70,12 @@ export function useMotionWorkspace({
       error instanceof MotionWorkspaceApiError
         ? error.code
         : "NETWORK_INTERRUPTED";
+    const remediation =
+      error instanceof MotionWorkspaceApiError
+        ? error.remediation
+        : undefined;
     setErrorCode(code);
-    add(workspaceMessage("error", code));
+    add(workspaceMessage("error", code, remediation));
   };
 
   useEffect(() => {

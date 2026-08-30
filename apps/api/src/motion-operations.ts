@@ -6,6 +6,10 @@ import {
 import { validateSceneSpec } from "../../../packages/contracts/src/spec-validate.js";
 import type { SceneOperationBatchV1 } from "../../../packages/contracts/src/motion.js";
 import { sha256Hex } from "../../../packages/contracts/src/canonical-json.js";
+import {
+  assertResourceBudget,
+  ResourceBudgetError,
+} from "../../../packages/contracts/src/resource-budgets.js";
 import { verifyMotionScene as evaluateMotionScene } from "./motion-predicates.js";
 import { verifyAndRepair as runVerificationAttempts } from "./verified-scene-authoring.js";
 
@@ -144,6 +148,13 @@ export function applySceneOperations(
   scene: SceneSpec,
   batch: SceneOperationBatchV1,
 ): SceneSpec {
+  try {
+    assertResourceBudget("maxSceneOperations", batch.operations.length);
+  } catch (error) {
+    if (error instanceof ResourceBudgetError)
+      throw new MotionSceneError("RESOURCE_BUDGET_EXCEEDED", 422);
+    throw error;
+  }
   let candidate: unknown = scene;
   for (const operation of batch.operations) assertEditableOperation(operation);
   for (const operation of batch.operations)
@@ -155,6 +166,18 @@ export function applySceneOperations(
     );
   const parsed = SceneSpecSchema.safeParse(candidate);
   if (!parsed.success) throw new MotionSceneError("INVALID_SCENE", 422);
+  const elementCount = parsed.data.beats.reduce(
+    (total, beat) => total + beat.elements.length,
+    0,
+  );
+  try {
+    assertResourceBudget("maxSceneElements", elementCount);
+    assertResourceBudget("maxFrameCount", parsed.data.canvas.frameCount);
+  } catch (error) {
+    if (error instanceof ResourceBudgetError)
+      throw new MotionSceneError("RESOURCE_BUDGET_EXCEEDED", 422);
+    throw error;
+  }
   try {
     return validateSceneSpec(
       parsed.data,

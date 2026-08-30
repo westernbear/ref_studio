@@ -45,3 +45,11 @@ At exact HEAD `f82ea33f46872b5cea8e200af51a41ea50b9a19d`, direct rerun passed:
 - `git diff --check`: passed.
 
 The model test covers both starting tabs for ArrowLeft, ArrowRight, Home, End, and unrelated keys. The exact commit remains HEAD; no validation failure was observed.
+
+## Stop-hook second direct verification
+
+At exact HEAD `21536bfad989526f2e00deefbf896be8d0814517`, a second direct invocation of `pnpm --filter @rvs/web exec vitest run test/motion-workspace-model.test.mjs test/motion-workspace-responsive.test.mjs test/motion-workspace-localization.test.mjs` passed all 3 files / 26 tests. `pnpm --filter @rvs/web exec tsc --noEmit` and `git diff --check` also exited successfully. This verification found no failure requiring remediation.
+
+## Stop-hook third direct verification
+
+At exact HEAD `21536bfad989526f2e00deefbf896be8d0814517`, direct execution again passed the same 3 focused files / 26 tests, TypeScript no-emit, Prettier checks for all touched workspace files, and `git diff --check`. No failed assertion, compiler error, formatting error, or whitespace error was observed.

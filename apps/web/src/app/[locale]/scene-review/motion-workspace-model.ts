@@ -14,12 +14,24 @@ export type WorkspaceMessage =
   | Readonly<{ id: string; role: "assistant"; text: string }>
   | Readonly<{ id: string; role: "user"; text: string }>
   | Readonly<{ id: string; role: "operation"; text: string }>
-  | Readonly<{ id: string; role: "error"; text: string }>;
+  | Readonly<{
+      id: string;
+      role: "error";
+      text: string;
+      remediation?: string;
+    }>;
 
 export const workspaceMessage = (
   role: WorkspaceMessage["role"],
   text: string,
-): WorkspaceMessage => ({ id: crypto.randomUUID(), role, text });
+  remediation?: string,
+): WorkspaceMessage => {
+  if (role === "error")
+    return remediation
+      ? { id: crypto.randomUUID(), role, text, remediation }
+      : { id: crypto.randomUUID(), role, text };
+  return { id: crypto.randomUUID(), role, text };
+};
 
 export const queuedMotionJob = (job: JobProgress): JobProgress => ({
   ...job,

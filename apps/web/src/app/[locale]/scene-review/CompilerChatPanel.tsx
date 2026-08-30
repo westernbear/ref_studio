@@ -57,7 +57,11 @@ export function CompilerChatPanel({
   const visibleText = (entry: WorkspaceMessage): string => {
     if (entry.role !== "error") return entry.text;
     const key = `errors.${entry.text}`;
-    return t.has(key) ? t(key) : t("errors.unknown", { code: entry.text });
+    const message = t.has(key)
+      ? t(key)
+      : t("errors.unknown", { code: entry.text });
+    if (!entry.remediation) return message;
+    return `${message} ${t("errors.nextStep", { step: entry.remediation })}`;
   };
 
   const send = async (): Promise<void> => {

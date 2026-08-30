@@ -330,11 +330,16 @@
       "PRECONDITION_REQUIRED": "The current scene version is required for this action.",
       "JOB_NOT_READY_FOR_PATCH": "Wait for the current render to finish before changing the scene.",
       "MOTION_AUTHORING_DISABLED": "Verified motion authoring is not accepting new changes.",
+      "MOTION_KNOWLEDGE_NOT_FOUND": "No supported motion knowledge matched the brief. Edit the brief to a supported domain term.",
+      "SCENE_VERIFICATION_FAILED": "Scene verification failed. Review failed predicates and repair within four attempts.",
+      "RESOURCE_BUDGET_EXCEEDED": "A resource budget was exceeded. Reduce scene size, operations, or frames and retry.",
       "INVALID_SCENE": "That change would make the scene invalid, so the previous scene was kept.",
       "INVALID_OPERATION": "This backend does not support that property change. The previous scene was kept.",
       "NETWORK_INTERRUPTED": "The connection was interrupted. Try again.",
       "INVALID_RESPONSE": "The server returned an invalid motion response.",
-      "unknown": "Motion action failed: {code}."
+      "ADOBE_RELAY_REPLAY": "Adobe rejected a replayed command. Send a fresh nonce.",
+      "unknown": "Motion action failed: {code}.",
+      "nextStep": "Next: {step}"
     }
   },
   "ThinkingIndicator": {

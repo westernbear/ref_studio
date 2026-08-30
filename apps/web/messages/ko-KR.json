@@ -330,11 +330,16 @@
       "PRECONDITION_REQUIRED": "이 작업에는 현재 장면 버전이 필요합니다.",
       "JOB_NOT_READY_FOR_PATCH": "현재 렌더가 끝난 뒤 장면을 수정하세요.",
       "MOTION_AUTHORING_DISABLED": "검증형 모션 저작이 새 수정을 받지 않고 있습니다.",
+      "MOTION_KNOWLEDGE_NOT_FOUND": "지원되는 모션 지식과 일치하지 않습니다. 지원 도메인 용어로 요청을 수정하세요.",
+      "SCENE_VERIFICATION_FAILED": "장면 검증에 실패했습니다. 실패한 조건을 확인하고 최대 4회까지 수정하세요.",
+      "RESOURCE_BUDGET_EXCEEDED": "리소스 한도를 초과했습니다. 장면 크기·작업·프레임을 줄인 뒤 다시 시도하세요.",
       "INVALID_SCENE": "이 수정은 장면을 무효로 만들기 때문에 이전 장면을 유지했습니다.",
       "INVALID_OPERATION": "이 백엔드는 해당 속성 수정을 지원하지 않습니다. 이전 장면을 유지했습니다.",
       "NETWORK_INTERRUPTED": "연결이 끊겼습니다. 다시 시도하세요.",
       "INVALID_RESPONSE": "서버가 잘못된 모션 응답을 반환했습니다.",
-      "unknown": "모션 작업 실패: {code}."
+      "ADOBE_RELAY_REPLAY": "Adobe가 재전송된 명령을 거부했습니다. 새 nonce로 보내세요.",
+      "unknown": "모션 작업 실패: {code}.",
+      "nextStep": "다음: {step}"
     }
   },
   "ThinkingIndicator": {

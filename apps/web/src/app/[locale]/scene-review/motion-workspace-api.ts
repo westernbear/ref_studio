@@ -28,16 +28,33 @@ const RenderResponseSchema = z.strictObject({
 export type RefineResult = z.infer<typeof PatchResponseSchema>;
 
 export class MotionWorkspaceApiError extends Error {
-  constructor(readonly code: string) {
+  constructor(
+    readonly code: string,
+    readonly remediation?: string,
+  ) {
     super(code);
   }
 }
 
-const errorCode = (body: unknown, status: number): string => {
+const errorPayload = (
+  body: unknown,
+  status: number,
+): { code: string; remediation?: string } => {
   const parsed = z
-    .looseObject({ error: z.looseObject({ code: z.string() }) })
+    .looseObject({
+      error: z.looseObject({
+        code: z.string(),
+        remediation: z.string().optional(),
+      }),
+    })
     .safeParse(body);
-  return parsed.success ? parsed.data.error.code : `HTTP_${status}`;
+  if (!parsed.success) return { code: `HTTP_${status}` };
+  return {
+    code: parsed.data.error.code,
+    ...(parsed.data.error.remediation
+      ? { remediation: parsed.data.error.remediation }
+      : {}),
+  };
 };
 
 const json = async (response: Response): Promise<unknown> =>
@@ -48,8 +65,10 @@ const checked = async <T>(
   schema: z.ZodType<T>,
 ): Promise<T> => {
   const body = await json(response);
-  if (!response.ok)
-    throw new MotionWorkspaceApiError(errorCode(body, response.status));
+  if (!response.ok) {
+    const payload = errorPayload(body, response.status);
+    throw new MotionWorkspaceApiError(payload.code, payload.remediation);
+  }
   const parsed = schema.safeParse(body);
   if (!parsed.success) throw new MotionWorkspaceApiError("INVALID_RESPONSE");
   return parsed.data;
