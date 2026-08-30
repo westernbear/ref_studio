@@ -79,6 +79,10 @@ export function migrate(db) {
     [18, "./migrations/018_motion_knowledge.sql", false],
     [19, "./migrations/019_motion_scene_versions.sql", false],
     [20, "./migrations/020_scene_package_artifacts.sql", true],
+    [21, "./migrations/021_motion_provider_canaries.sql", false],
+    [22, "./migrations/022_motion_plan_metadata.sql", false],
+    [23, "./migrations/023_adobe_devices_commands.sql", false],
+    [24, "./migrations/024_adobe_device_nonce_scope.sql", true],
   ];
   for (const [version, file, disableForeignKeys] of migrations) {
     if (
@@ -88,10 +92,10 @@ export function migrate(db) {
     )
       continue;
     if (
-      version === 19 &&
+      (version === 19 || version === 22) &&
       !db
         .prepare(
-          "SELECT 1 FROM sqlite_master WHERE type='table' AND name='jobs'",
+          `SELECT 1 FROM sqlite_master WHERE type='table' AND name='${version === 19 ? "jobs" : "motion_scene_versions"}'`,
         )
         .get()
     ) {

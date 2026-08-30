@@ -169,6 +169,21 @@ const valid = {
   claimedStatus: "PASS",
   exitCode: 0,
   assertions: [{ name: "writer", status: "PASS" }],
+  implementationCommit: (
+    await run("git", ["rev-parse", "HEAD"], { cwd: workspace })
+  ).stdout.trim(),
+  submoduleGitlinks: Object.fromEntries(
+    (await run("git", ["ls-tree", "-r", "HEAD"], { cwd: workspace })).stdout
+      .trim()
+      .split("\n")
+      .filter((line) => line.startsWith("160000 "))
+      .map((line) => {
+        const [, sha, path] = line.match(
+          /^160000 commit ([a-f0-9]{40})\t(.+)$/,
+        );
+        return [path, sha];
+      }),
+  ),
 };
 const validPath = await writeFixture("valid-evidence.json", valid);
 const validIndex = resolve(temp, "valid-index.jsonl");

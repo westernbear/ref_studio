@@ -1,0 +1,19 @@
+$ vitest run
+
+ RUN  v3.2.4 /home/singlerr/ref_studio-motion-complete/packages/contracts
+
+ ✓ src/spec-validate.test.ts (19 tests) 39ms
+ ✓ src/adobe.test.ts (5 tests) 69ms
+ ✓ src/scene-spec.test.ts (12 tests) 47ms
+ ✓ src/generation.test.ts (5 tests) 9ms
+ ✓ src/motion.test.ts (13 tests) 19ms
+ ✓ src/contracts.test.ts (41 tests) 29ms
+ ✓ src/resource-budgets.test.ts (4 tests) 8ms
+ ✓ src/motion-predicates.test.ts (2 tests) 14ms
+ ✓ src/scene-assets.test.ts (12 tests) 11ms
+
+ Test Files  9 passed (9)
+      Tests  113 passed (113)
+   Start at  21:44:15
+   Duration  1.44s (transform 389ms, setup 0ms, collect 1.31s, tests 246ms, environment 2ms, prepare 874ms)
+

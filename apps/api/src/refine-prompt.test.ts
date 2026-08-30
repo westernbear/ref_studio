@@ -8,6 +8,7 @@ import {
   type SceneSpec,
 } from "@rvs/contracts";
 import { describe, expect, it } from "vitest";
+import type Database from "better-sqlite3";
 import { buildAuthApp } from "./app.js";
 import { hashBearer, type AuthStore } from "./auth.js";
 import { updateAiProviderSettings } from "./ai-provider-settings.js";
@@ -99,13 +100,37 @@ const fixture = (
     now: uploads.now,
     db,
     aiSecretKey: "test-secret-key-material",
-    verifiedMotionAuthoring: true,
-    nativeSceneV2: true,
+    featureFlags: {
+      verifiedMotionAuthoring: true,
+      nativeSceneV2: true,
+      adobeMcp: false,
+    },
     ...(generate ? { refinePromptGenerate: generate } : {}),
     ...(patchGenerate ? { patchSceneGenerate: patchGenerate } : {}),
   });
   return { app, auth, uploads, workflow, db, directory, uploadId: upload.id };
 };
+
+const restartedApp = (
+  state: ReturnType<typeof fixture>,
+  patchGenerate: GeneratePatch,
+) =>
+  buildAuthApp({
+    store: state.auth,
+    expectedOrigin: "https://studio.invalid",
+    introspectSecret: "secret",
+    uploads: state.uploads,
+    creatorWorkflow: state.workflow,
+    now: state.uploads.now,
+    db: state.db,
+    aiSecretKey: "test-secret-key-material",
+    featureFlags: {
+      verifiedMotionAuthoring: true,
+      nativeSceneV2: true,
+      adobeMcp: false,
+    },
+    patchSceneGenerate: patchGenerate,
+  });
 
 const headersFor = (tenant: "ten_a" | "ten_b") => ({
   authorization: `Bearer secret-${tenant === "ten_a" ? "a" : "b"}`,
@@ -131,6 +156,17 @@ const createJob = async (
   return created.json().id as string;
 };
 
+const restoreHeaders = (
+  state: ReturnType<typeof fixture>,
+  jobId: string,
+  key: string,
+  tenantId = "ten_a",
+) => ({
+  ...headersFor(tenantId),
+  "idempotency-key": key,
+  "if-match": state.workflow.jobs.get(jobId)?.etag ?? "missing",
+});
+
 describe("refine-prompt", () => {
   it("proposes heuristic candidates when no provider is configured", async () => {
     const state = fixture();
@@ -139,7 +175,7 @@ describe("refine-prompt", () => {
       const response = await state.app.inject({
         method: "POST",
         url: `/v1/jobs/${jobId}/refine-prompt`,
-        headers: { ...headersFor("ten_a"), "idempotency-key": "refine-1" },
+        headers: restoreHeaders(state, jobId, "refine-1"),
         payload: { prompt: "make it more dramatic" },
       });
       expect(response.statusCode, response.body).toBe(200);
@@ -163,7 +199,7 @@ describe("refine-prompt", () => {
       const response = await state.app.inject({
         method: "POST",
         url: `/v1/jobs/${jobId}/refine-prompt`,
-        headers: { ...headersFor("ten_b"), "idempotency-key": "refine-2" },
+        headers: restoreHeaders(state, jobId, "refine-2", "ten_b"),
         payload: { prompt: "make it more dramatic" },
       });
       expect(response.statusCode).toBe(404);
@@ -180,14 +216,14 @@ describe("refine-prompt", () => {
       const empty = await state.app.inject({
         method: "POST",
         url: `/v1/jobs/${jobId}/refine-prompt`,
-        headers: { ...headersFor("ten_a"), "idempotency-key": "refine-3" },
+        headers: restoreHeaders(state, jobId, "refine-3"),
         payload: { prompt: "" },
       });
       expect(empty.statusCode).toBe(400);
       const oversized = await state.app.inject({
         method: "POST",
         url: `/v1/jobs/${jobId}/refine-prompt`,
-        headers: { ...headersFor("ten_a"), "idempotency-key": "refine-4" },
+        headers: restoreHeaders(state, jobId, "refine-4"),
         payload: { prompt: "x".repeat(2001) },
       });
       expect(oversized.statusCode).toBe(400);
@@ -224,7 +260,7 @@ describe("refine-prompt", () => {
       const response = await state.app.inject({
         method: "POST",
         url: `/v1/jobs/${jobId}/refine-prompt`,
-        headers: { ...headersFor("ten_a"), "idempotency-key": "refine-5" },
+        headers: restoreHeaders(state, jobId, "refine-5"),
         payload: { prompt: "make it more dramatic" },
       });
       expect(response.statusCode, response.body).toBe(200);
@@ -282,7 +318,107 @@ describe("motion scene routes", () => {
           .pluck()
           .get(),
       ).toBe(0);
+      job.authoredScene = {
+        ...job.authoredScene,
+        motionPlan: {
+          schema: "motion-plan-v1",
+          intent: "route fixture",
+          knowledgeCardIds: [],
+          requiredCapabilities: [],
+          canvas: { width: 1920, height: 1080, fps: 30, frameCount: 450 },
+          keyframeIntents: [],
+          predicateIds: ["scene-spec"],
+          reproducibility: {
+            knowledgeCardDigest: "0".repeat(64),
+            promptDigest: "0".repeat(64),
+            modelDigest: "0".repeat(64),
+            evidenceDigest: "0".repeat(64),
+            capabilitySnapshotDigest: "0".repeat(64),
+            planDigest: "0".repeat(64),
+            knowledgeCardIds: [],
+            requiredCapabilities: [],
+            promptVersion: "fixture-v1",
+            modelVersion: "fixture-v1",
+          },
+        },
+        planDigest: "0".repeat(64),
+      };
       const authoredDigest = sha256Hex(fixtureSpec);
+      const jobBeforeRejectedPatch = structuredClone(job);
+      const rejectedImmutable = await state.app.inject({
+        method: "PATCH",
+        url: `/v1/jobs/${jobId}/motion-scene`,
+        headers: {
+          ...headersFor("ten_a"),
+          "if-match": `"${authoredDigest}"`,
+          "idempotency-key": "motion-invalid-schema",
+        },
+        payload: {
+          schema: "scene-operation-batch-v1",
+          baseSceneDigest: authoredDigest,
+          operations: [
+            {
+              kind: "set",
+              opId: "immutable-schema",
+              path: "/schema",
+              value: "scene-spec-v1",
+              reason: "adversarial immutable field",
+            },
+          ],
+        },
+      });
+      expect(rejectedImmutable.statusCode).toBe(422);
+      const rejectedProvenance = await state.app.inject({
+        method: "PATCH",
+        url: `/v1/jobs/${jobId}/motion-scene`,
+        headers: {
+          ...headersFor("ten_a"),
+          "if-match": `"${authoredDigest}"`,
+          "idempotency-key": "motion-invalid-provenance",
+        },
+        payload: {
+          schema: "scene-operation-batch-v1",
+          baseSceneDigest: authoredDigest,
+          operations: [
+            {
+              kind: "set",
+              opId: "allowed-first",
+              path: "/palette/hero",
+              value: "#6633ee",
+              reason: "mixed batch atomicity",
+            },
+            {
+              kind: "set",
+              opId: "immutable-provenance",
+              path: "/assets/0/provenance",
+              value: { source: "injected" },
+              reason: "adversarial provenance field",
+            },
+          ],
+        },
+      });
+      expect(rejectedProvenance.statusCode).toBe(422);
+      expect(
+        state.db
+          .prepare("SELECT count(*) FROM motion_scene_versions")
+          .pluck()
+          .get(),
+      ).toBe(0);
+      expect(
+        state.db
+          .prepare("SELECT count(*) FROM job_motion_scene_heads")
+          .pluck()
+          .get(),
+      ).toBe(0);
+      expect(
+        state.db
+          .prepare(
+            "SELECT count(*) FROM idempotency_keys WHERE key LIKE 'motion-scene:%'",
+          )
+          .pluck()
+          .get(),
+      ).toBe(0);
+      expect(job).toEqual(jobBeforeRejectedPatch);
       const stale = await state.app.inject({
         method: "PATCH",
         url: `/v1/jobs/${jobId}/motion-scene`,
@@ -298,14 +434,15 @@ describe("motion scene routes", () => {
             {
               kind: "set",
               opId: "one",
-              path: "/mode",
-              value: "SWAP",
+              path: "/palette/hero",
+              value: "#6633ee",
               reason: "test",
             },
           ],
         },
       });
       expect(stale.statusCode).toBe(409);
+      expect(stale.json().error.code).toBe("VERSION_CONFLICT");
       const updated = await state.app.inject({
         method: "PATCH",
         url: `/v1/jobs/${jobId}/motion-scene`,
@@ -321,8 +458,8 @@ describe("motion scene routes", () => {
             {
               kind: "set",
               opId: "one",
-              path: "/mode",
-              value: "SWAP",
+              path: "/palette/hero",
+              value: "#6633ee",
               reason: "test",
             },
           ],
@@ -349,8 +486,8 @@ describe("motion scene routes", () => {
             {
               kind: "set",
               opId: "one",
-              path: "/mode",
-              value: "SWAP",
+              path: "/palette/hero",
+              value: "#6633ee",
               reason: "test",
             },
           ],
@@ -367,8 +504,11 @@ describe("motion scene routes", () => {
         db: state.db,
         aiSecretKey: "test-secret-key-material",
         now: state.uploads.now,
-        verifiedMotionAuthoring: false,
-        nativeSceneV2: false,
+        featureFlags: {
+          verifiedMotionAuthoring: false,
+          nativeSceneV2: false,
+          adobeMcp: false,
+        },
       });
       const stillReadable = await disabledApp.inject({
         method: "GET",
@@ -377,6 +517,31 @@ describe("motion scene routes", () => {
       });
       expect(stillReadable.statusCode, stillReadable.body).toBe(200);
       expect(stillReadable.json().version).toBe(2);
+      const idempotencyBefore = state.db
+        .prepare("SELECT COUNT(*) AS count FROM idempotency_keys")
+        .get() as { count: number };
+      job.generation = {
+        brief: "feature flag admission fixture",
+        durationSec: 20,
+        aspect: "9:16",
+        attachmentIds: [],
+      };
+      const deniedRefine = await disabledApp.inject({
+        method: "POST",
+        url: `/v1/jobs/${jobId}/refine-prompt`,
+        headers: {
+          ...headersFor("ten_a"),
+          "if-match": stillReadable.json().sceneEtag,
+          "idempotency-key": "disabled-refine",
+        },
+        payload: { prompt: "change the title" },
+      });
+      const idempotencyAfter = state.db
+        .prepare("SELECT COUNT(*) AS count FROM idempotency_keys")
+        .get() as { count: number };
+      expect(deniedRefine.statusCode).toBe(403);
+      expect(deniedRefine.json().error.code).toBe("MOTION_AUTHORING_DISABLED");
+      expect(idempotencyAfter.count).toBe(idempotencyBefore.count);
       await disabledApp.close();
     } finally {
       state.db.close();
@@ -700,11 +865,15 @@ const generation: GenerationConfig = {
 
 const completeGenerateJob = (
   workflow: ReturnType<typeof createCreatorWorkflowStore>,
+  db: Database.Database,
   jobId: string,
   spec: SceneSpec = fixtureSpec,
 ) => {
   const job = workflow.jobs.get(jobId);
   if (!job) throw new Error("fixture job missing");
+  db.exec(
+    "INSERT OR IGNORE INTO tenants VALUES ('ten_a','A','ORGANIZATION','ACTIVE',0,'2026-01-01T00:00:00Z')",
+  );
   job.generation = generation;
   job.evidence = { sceneInput: { owners: [] } };
   job.authoredScene = {
@@ -714,6 +883,28 @@ const completeGenerateJob = (
       shot: beat.shot,
       words: "",
     })),
+    motionPlan: {
+      schema: "motion-plan-v1",
+      intent: "refine fixture",
+      knowledgeCardIds: [],
+      requiredCapabilities: [],
+      canvas: { width: 1920, height: 1080, fps: 30, frameCount: 450 },
+      keyframeIntents: [],
+      predicateIds: ["scene-spec"],
+      reproducibility: {
+        knowledgeCardDigest: "0".repeat(64),
+        promptDigest: "0".repeat(64),
+        modelDigest: "0".repeat(64),
+        evidenceDigest: "0".repeat(64),
+        capabilitySnapshotDigest: "0".repeat(64),
+        planDigest: "0".repeat(64),
+        knowledgeCardIds: [],
+        requiredCapabilities: [],
+        promptVersion: "fixture-v1",
+        modelVersion: "fixture-v1",
+      },
+    },
+    planDigest: "0".repeat(64),
   };
   job.sceneSpecDigest = "a".repeat(64);
   job.lastPatchChangedBeatIds = null;
@@ -754,7 +945,7 @@ describe("scene-patch chat (generate track)", () => {
         state.uploadId,
         "job-patch-etag",
       );
-      completeGenerateJob(state.workflow, jobId);
+      completeGenerateJob(state.workflow, state.db, jobId);
       const missing = await state.app.inject({
         method: "POST",
         url: `/v1/jobs/${jobId}/refine-prompt`,
@@ -805,7 +996,7 @@ describe("scene-patch chat (generate track)", () => {
         "test-secret-key-material",
       );
       const jobId = await createJob(state.app, state.uploadId, "job-patch-1");
-      completeGenerateJob(state.workflow, jobId);
+      completeGenerateJob(state.workflow, state.db, jobId);
       const response = await state.app.inject({
         method: "POST",
         url: `/v1/jobs/${jobId}/refine-prompt`,
@@ -820,6 +1011,8 @@ describe("scene-patch chat (generate track)", () => {
       const job = state.workflow.jobs.get(jobId);
       expect(job?.state).toBe("QUEUED");
       expect(job?.authoredScene?.spec.palette.hero).toBe("#6633ee");
+      expect(job?.authoredScene?.motionPlan).toBeDefined();
+      expect(job?.authoredScene?.planDigest).toBe("0".repeat(64));
       expect(job?.artifact).toMatchObject({ id: "genartifact_1" });
       expect(job?.progress?.fraction).toBe(0);
       // Left on the record, not only in this request's response -- see the
@@ -841,7 +1034,125 @@ describe("scene-patch chat (generate track)", () => {
     }
   });
 
-  it("reports the beats the diff finds changed, not what the model claims", async () => {
+  it("replays a persisted refine response after app restart without invoking the model again", async () => {
+    let calls = 0;
+    const patchGenerate: GeneratePatch = async () => {
+      calls += 1;
+      return { object: { spec: fixtureSpec, summary: "Persisted response" } };
+    };
+    const state = fixture(undefined, patchGenerate);
+    let app = state.app;
+    try {
+      updateAiProviderSettings(
+        state.db,
+        {
+          providerKind: "openai",
+          model: "gpt-4o",
+          apiKey: "sk-test",
+          enabled: true,
+        },
+        "admin",
+        1_000,
+        "test-secret-key-material",
+      );
+      const jobId = await createJob(app, state.uploadId, "job-restart-replay");
+      completeGenerateJob(state.workflow, state.db, jobId);
+      const requestHeaders = patchHeaders(state, jobId, "restart-replay");
+      const first = await app.inject({
+        method: "POST",
+        url: `/v1/jobs/${jobId}/refine-prompt`,
+        headers: requestHeaders,
+        payload: { prompt: "persist this" },
+      });
+      expect(first.statusCode, first.body).toBe(200);
+      await app.close();
+      app = restartedApp(state, patchGenerate);
+      const replay = await app.inject({
+        method: "POST",
+        url: `/v1/jobs/${jobId}/refine-prompt`,
+        headers: requestHeaders,
+        payload: { prompt: "persist this" },
+      });
+      expect(replay.statusCode, replay.body).toBe(200);
+      expect(replay.json()).toEqual(first.json());
+      expect(calls).toBe(1);
+      expect(
+        state.db
+          .prepare("SELECT version FROM motion_scene_versions ORDER BY version")
+          .pluck()
+          .all(),
+      ).toEqual([1]);
+    } finally {
+      await app.close();
+      state.db.close();
+      rmSync(state.directory, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects malformed persisted refine JSON after restart before invoking the model", async () => {
+    let calls = 0;
+    const patchGenerate: GeneratePatch = async () => {
+      calls += 1;
+      return { object: { spec: fixtureSpec, summary: "Stored" } };
+    };
+    const state = fixture(undefined, patchGenerate);
+    let app = state.app;
+    try {
+      updateAiProviderSettings(
+        state.db,
+        {
+          providerKind: "openai",
+          model: "gpt-4o",
+          apiKey: "sk-test",
+          enabled: true,
+        },
+        "admin",
+        1_000,
+        "test-secret-key-material",
+      );
+      const jobId = await createJob(
+        app,
+        state.uploadId,
+        "job-malformed-replay",
+      );
+      completeGenerateJob(state.workflow, state.db, jobId);
+      const requestHeaders = patchHeaders(state, jobId, "malformed-replay");
+      const first = await app.inject({
+        method: "POST",
+        url: `/v1/jobs/${jobId}/refine-prompt`,
+        headers: requestHeaders,
+        payload: { prompt: "store this" },
+      });
+      expect(first.statusCode).toBe(200);
+      await app.close();
+      state.db
+        .prepare(
+          "UPDATE idempotency_keys SET response_json='{}' WHERE tenant_id='ten_a' AND key=?",
+        )
+        .run(`refine-prompt:${jobId}:malformed-replay`);
+      app = restartedApp(state, patchGenerate);
+      const rejected = await app.inject({
+        method: "POST",
+        url: `/v1/jobs/${jobId}/refine-prompt`,
+        headers: requestHeaders,
+        payload: { prompt: "store this" },
+      });
+      expect(rejected.statusCode).toBe(400);
+      expect(calls).toBe(1);
+      expect(
+        state.db
+          .prepare("SELECT count(*) FROM motion_scene_versions")
+          .pluck()
+          .get(),
+      ).toBe(1);
+    } finally {
+      await app.close();
+      state.db.close();
+      rmSync(state.directory, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects immutable beat metadata even when the model reports a change", async () => {
     const changedSpec: SceneSpec = {
       ...fixtureSpec,
       beats: fixtureSpec.beats.map((beat) =>
@@ -866,15 +1177,17 @@ describe("scene-patch chat (generate track)", () => {
         "test-secret-key-material",
       );
       const jobId = await createJob(state.app, state.uploadId, "job-patch-2");
-      completeGenerateJob(state.workflow, jobId);
+      completeGenerateJob(state.workflow, state.db, jobId);
       const response = await state.app.inject({
         method: "POST",
         url: `/v1/jobs/${jobId}/refine-prompt`,
         headers: patchHeaders(state, jobId, "patch-2"),
         payload: { prompt: "too busy" },
       });
-      expect(response.statusCode, response.body).toBe(200);
-      expect(response.json().changedBeatIds).toEqual(["beat-close"]);
+      expect(response.statusCode).toBe(400);
+      expect(state.workflow.jobs.get(jobId)?.authoredScene?.spec).toEqual(
+        fixtureSpec,
+      );
     } finally {
       state.db.close();
       rmSync(state.directory, { recursive: true, force: true });
@@ -885,7 +1198,7 @@ describe("scene-patch chat (generate track)", () => {
     const state = fixture();
     try {
       const jobId = await createJob(state.app, state.uploadId, "job-patch-3");
-      completeGenerateJob(state.workflow, jobId);
+      completeGenerateJob(state.workflow, state.db, jobId);
       const response = await state.app.inject({
         method: "POST",
         url: `/v1/jobs/${jobId}/refine-prompt`,
@@ -925,7 +1238,7 @@ describe("scene-patch chat (generate track)", () => {
         "test-secret-key-material",
       );
       const jobId = await createJob(state.app, state.uploadId, "job-patch-4");
-      completeGenerateJob(state.workflow, jobId);
+      completeGenerateJob(state.workflow, state.db, jobId);
       const response = await state.app.inject({
         method: "POST",
         url: `/v1/jobs/${jobId}/refine-prompt`,
@@ -962,7 +1275,7 @@ describe("scene-patch chat (generate track)", () => {
         "test-secret-key-material",
       );
       const jobId = await createJob(state.app, state.uploadId, "job-patch-5");
-      const job = completeGenerateJob(state.workflow, jobId);
+      const job = completeGenerateJob(state.workflow, state.db, jobId);
       job.state = "RENDERING";
       const response = await state.app.inject({
         method: "POST",
@@ -995,7 +1308,7 @@ describe("restore-track chat is unaffected by the scene-patch route", () => {
       const response = await state.app.inject({
         method: "POST",
         url: `/v1/jobs/${jobId}/refine-prompt`,
-        headers: { ...headersFor("ten_a"), "idempotency-key": "restore-1" },
+        headers: restoreHeaders(state, jobId, "restore-1"),
         payload: { prompt: "make it more dramatic" },
       });
       expect(response.statusCode, response.body).toBe(200);

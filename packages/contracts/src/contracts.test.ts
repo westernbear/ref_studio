@@ -37,7 +37,35 @@ describe("safe errors", () => {
       "cor_test",
     );
     expect(result.code).toBe("INTERNAL_ERROR");
+    expect(result.causeCategory).toBe("internal");
+    expect(result.remediation.length).toBeGreaterThan(0);
+    expect(result.docsUrl).toBe("/docs/errors#INTERNAL_ERROR");
     expect(JSON.stringify(result)).not.toMatch(/private|stack trace/);
+  });
+  it.each([
+    "VERSION_CONFLICT",
+    "PRECONDITION_REQUIRED",
+    "SCENE_VERIFICATION_FAILED",
+    "IDEMPOTENCY_CONFLICT",
+    "MOTION_KNOWLEDGE_NOT_FOUND",
+    "ADOBE_RELAY_REPLAY",
+  ] as const)("retains stable motion code %s without diagnostics", (code) => {
+    const result = normalizeError(
+      new Error(code, { cause: new Error("secret stack") }),
+      "cor_motion",
+      {
+        safePredecessor: {
+          sceneVersion: 3,
+          sceneDigest: "a".repeat(64),
+        },
+      },
+    );
+    expect(result.code).toBe(code);
+    expect(result.causeCategory.length).toBeGreaterThan(0);
+    expect(result.remediation.length).toBeGreaterThan(0);
+    expect(result.docsUrl).toBe(`/docs/errors#${code}`);
+    expect(result.safePredecessor?.sceneVersion).toBe(3);
+    expect(JSON.stringify(result)).not.toMatch(/secret stack|stack trace/);
   });
 });
 describe("IR ownership", () => {

@@ -13,15 +13,18 @@ import {
   moveElementOperations,
   selectedElement,
   type SceneSelection,
+  type WorkspaceViewState,
 } from "./motion-workspace-model";
 import { SceneCanvas } from "./SceneCanvas";
 import { SceneInspector } from "./SceneInspector";
 
 type Props = Readonly<{
+  id: string;
   job: JobProgress;
   scene: MotionSceneSnapshotV1;
   deliverables: MotionDeliverablesV1;
   busy: boolean;
+  viewState: WorkspaceViewState;
   onApply: (
     operations: SceneOperationBatchV1["operations"],
     eventText: string,
@@ -29,10 +32,12 @@ type Props = Readonly<{
 }>;
 
 export function MotionEditorPanel({
+  id,
   job,
   scene,
   deliverables,
   busy,
+  viewState,
   onApply,
 }: Props) {
   const t = useTranslations("MotionWorkspace");
@@ -42,6 +47,11 @@ export function MotionEditorPanel({
   });
   const [frame, setFrame] = useState(scene.scene.beats[0]?.startFrame ?? 0);
   const video = deliverables.items.find((item) => item.kind === "mp4");
+  const interactionBlocked =
+    busy ||
+    ["offline", "conflict", "cancelled", "unsupported", "loading"].includes(
+      viewState,
+    );
 
   const move = async (deltaX: number, deltaY: number): Promise<void> => {
     const element = selectedElement(scene, selection);
@@ -60,8 +70,10 @@ export function MotionEditorPanel({
 
   return (
     <section
+      id={id}
       className="motion-editor motion-workspace-pane"
-      aria-label={t("editorTitle")}
+      role="tabpanel"
+      aria-labelledby="motion-workspace-editor-tab"
       data-mobile-pane="editor"
     >
       <SceneCanvas
@@ -69,7 +81,8 @@ export function MotionEditorPanel({
         selection={selection}
         frame={frame}
         videoUrl={video ? proxiedDownloadUrl(video.downloadUrl) : null}
-        busy={busy}
+        busy={interactionBlocked}
+        viewState={viewState}
         onFrame={setFrame}
         onSelect={setSelection}
         onMove={move}
@@ -79,7 +92,8 @@ export function MotionEditorPanel({
         scene={scene}
         selection={selection}
         frame={frame}
-        busy={busy}
+        busy={interactionBlocked}
+        viewState={viewState}
         onFrame={setFrame}
         onSelect={setSelection}
         onApply={onApply}

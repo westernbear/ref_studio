@@ -1,0 +1,55 @@
+{
+  "schema": "rvs.p3-7-browser-evidence.v1",
+  "browser": {
+    "driver": "$browse",
+    "sandbox": false,
+    "environment": "GSTACK_CHROMIUM_NO_SANDBOX=1"
+  },
+  "productCommits": {
+    "root": "0e068bd",
+    "worker": "db91c12"
+  },
+  "native": {
+    "url": "file:///home/singlerr/ref_studio-motion-complete/.omo/evidence/p3-7-interactions/native-package/index.html",
+    "desktopViewport": [1280, 720],
+    "mobileViewport": [320, 568],
+    "focus": { "target": "headline", "focused": true, "outline": "solid" },
+    "keyboard": {
+      "input": "Shift+ArrowRight",
+      "before": "translate(0 0)",
+      "after": "translate(10 0)"
+    },
+    "unsupported": {
+      "input": "Delete",
+      "before": "translate(10 0)",
+      "after": "translate(10 0)"
+    },
+    "pointerSelection": "hero-image",
+    "reducedMotion": { "matches": true, "playControlAfterClick": "Play" },
+    "targets": [
+      { "id": "headline", "width": 400, "height": 100 },
+      { "id": "hero-image", "width": 44, "height": 44 },
+      { "id": "closer", "width": 400, "height": 100 }
+    ],
+    "externalScripts": [],
+    "consoleErrors": [],
+    "mobile": { "scrollWidth": 320, "overflow": false }
+  },
+  "creator": {
+    "url": "http://127.0.0.1:3117/en-US/scene-review?jobId=job_aM1JcOxM1Yx_5eca",
+    "desktopViewport": [1280, 720],
+    "mobileViewport": [320, 568],
+    "keyboardMutation": { "input": "Shift+ArrowRight", "httpStatus": 200, "resultVersion": 2 },
+    "desktopTarget": { "width": 666.09375, "height": 44, "touchAction": "none" },
+    "mobileEditorTarget": { "width": 222.4375, "height": 44 },
+    "focus": { "focused": true, "outline": "solid", "outlineWidth": "2px" },
+    "hoverHandler": false,
+    "mobile": { "scrollWidth": 320, "overflow": false },
+    "consoleErrors": []
+  },
+  "cleanup": {
+    "apiFixtureStopped": true,
+    "nextServerStopped": true,
+    "portsClosed": [3117, 3199]
+  }
+}

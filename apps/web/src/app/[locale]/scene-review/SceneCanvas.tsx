@@ -6,7 +6,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   elementFrameState,
   type SceneSelection,
+  type WorkspaceViewState,
 } from "./motion-workspace-model";
+import { resolveSceneInteraction } from "./scene-interactions";
 
 type Props = Readonly<{
   scene: MotionSceneSnapshotV1;
@@ -14,6 +16,7 @@ type Props = Readonly<{
   frame: number;
   videoUrl: string | null;
   busy: boolean;
+  viewState: WorkspaceViewState;
   onFrame: (frame: number) => void;
   onSelect: (selection: SceneSelection) => void;
   onMove: (deltaX: number, deltaY: number) => Promise<void>;
@@ -33,6 +36,7 @@ export function SceneCanvas({
   frame,
   videoUrl,
   busy,
+  viewState,
   onFrame,
   onSelect,
   onMove,
@@ -73,7 +77,12 @@ export function SceneCanvas({
   };
 
   return (
-    <section className="scene-canvas" aria-labelledby="scene-canvas-title">
+    <section
+      className="scene-canvas"
+      aria-labelledby="scene-canvas-title"
+      aria-busy={viewState === "loading" || viewState === "running"}
+      data-state={viewState}
+    >
       <header className="scene-canvas-toolbar">
         <h2 id="scene-canvas-title">{t("canvasTitle")}</h2>
         <div role="group" aria-label={t("zoomControls")}>
@@ -99,6 +108,11 @@ export function SceneCanvas({
         </div>
       </header>
       <div className="scene-canvas-stage">
+        {viewState === "empty" || viewState === "unsupported" ? (
+          <p className="scene-canvas-placeholder">
+            {t(`states.${viewState}.detail`)}
+          </p>
+        ) : null}
         <div
           className="scene-canvas-surface"
           ref={surface}
@@ -129,6 +143,13 @@ export function SceneCanvas({
               ((element.box.x + state.x) / scene.scene.canvas.width) * 100;
             const top =
               ((element.box.y + state.y) / scene.scene.canvas.height) * 100;
+            const target = { beatIndex: activeBeatIndex, elementIndex };
+            const applyInteraction = (value: unknown): void => {
+              const action = resolveSceneInteraction(value);
+              if (!action) return;
+              onSelect(action.target);
+              if (action.kind === "move") void onMove(action.x, action.y);
+            };
             return (
               <button
                 type="button"
@@ -146,15 +167,11 @@ export function SceneCanvas({
                   opacity: state.opacity,
                   transform: `translate(${offsetX}px, ${offsetY}px) scale(${state.scale})`,
                 }}
-                onClick={() =>
-                  onSelect({
-                    beatIndex: activeBeatIndex,
-                    elementIndex,
-                  })
-                }
+                onClick={() => applyInteraction({ kind: "pointer", target })}
+                onFocus={() => applyInteraction({ kind: "focus", target })}
                 onPointerDown={(event) => {
                   event.currentTarget.setPointerCapture(event.pointerId);
-                  onSelect({ beatIndex: activeBeatIndex, elementIndex });
+                  applyInteraction({ kind: "pointer", target });
                   setDrag({
                     pointerId: event.pointerId,
                     startX: event.clientX,
@@ -179,20 +196,16 @@ export function SceneCanvas({
                 }
                 onPointerCancel={() => setDrag(null)}
                 onKeyDown={(event) => {
-                  const amount = event.shiftKey ? 10 : 1;
-                  const delta: readonly [number, number] | null =
-                    event.key === "ArrowLeft"
-                      ? [-amount, 0]
-                      : event.key === "ArrowRight"
-                        ? [amount, 0]
-                        : event.key === "ArrowUp"
-                          ? [0, -amount]
-                          : event.key === "ArrowDown"
-                            ? [0, amount]
-                            : null;
-                  if (delta) {
+                  const action = resolveSceneInteraction({
+                    kind: "keyboard",
+                    target,
+                    key: event.key,
+                    shiftKey: event.shiftKey,
+                  });
+                  if (action?.kind === "move") {
                     event.preventDefault();
-                    void onMove(delta[0], delta[1]);
+                    onSelect(action.target);
+                    void onMove(action.x, action.y);
                   }
                 }}
               >

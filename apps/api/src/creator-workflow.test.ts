@@ -12,6 +12,7 @@ import { updateAiProviderSettings } from "./ai-provider-settings.js";
 import { updateMaterialProviderSettings } from "./material-provider-settings.js";
 import { openApiDatabase } from "./durable-state.js";
 import { createReviewStore } from "./reviews.js";
+import type { FeatureFlagSnapshot } from "./feature-flags.js";
 import {
   createAttachment,
   createUpload,
@@ -33,7 +34,14 @@ const preflight = {
   runtimeDigest: RUNTIME_DIGEST,
 } as const;
 
-const fixture = (db?: ReturnType<typeof openApiDatabase>) => {
+const fixture = (
+  db?: ReturnType<typeof openApiDatabase>,
+  featureFlags: FeatureFlagSnapshot = {
+    verifiedMotionAuthoring: true,
+    nativeSceneV2: true,
+    adobeMcp: false,
+  },
+) => {
   const assignments: Assignment[] = (
     ["T1", "T2", "T3", "T4", "T5"] as const
   ).map((gate) => ({
@@ -93,6 +101,7 @@ const fixture = (db?: ReturnType<typeof openApiDatabase>) => {
     creatorWorkflow: workflow,
     reviews,
     now: uploads.now,
+    featureFlags,
     ...(db ? { db, aiSecretKey: "secret" } : {}),
   });
   return { app, uploads, workflow, reviews, uploadId: upload.id };
@@ -101,6 +110,80 @@ const fixture = (db?: ReturnType<typeof openApiDatabase>) => {
 const headers = { authorization: "Bearer secret-a", "x-tenant-id": "t1" };
 
 describe("generation config on job creation", () => {
+  it.each([
+    [false, false, false],
+    [false, false, true],
+    [false, true, false],
+    [false, true, true],
+    [true, false, false],
+    [true, false, true],
+    [true, true, false],
+    [true, true, true],
+  ] as const)(
+    "uses only verified authoring for HTTP generation admission (%s,%s,%s)",
+    async (verifiedMotionAuthoring, nativeSceneV2, adobeMcp) => {
+      const state = fixture(undefined, {
+        verifiedMotionAuthoring,
+        nativeSceneV2,
+        adobeMcp,
+      });
+      const response = await state.app.inject({
+        method: "POST",
+        url: "/v1/jobs",
+        headers: {
+          ...headers,
+          "idempotency-key": `matrix-${verifiedMotionAuthoring}-${nativeSceneV2}-${adobeMcp}`,
+        },
+        payload: {
+          uploadId: state.uploadId,
+          sourceFps: 30,
+          startFrame: 0,
+          outputProfile: "vertical-1080p30",
+          generation: {
+            brief: "matrix",
+            durationSec: 20,
+            aspect: "9:16",
+            attachmentIds: [],
+          },
+        },
+      });
+
+      expect(response.statusCode).toBe(verifiedMotionAuthoring ? 201 : 403);
+      await state.app.close();
+    },
+  );
+
+  it("blocks only new generation admission when verified authoring is off", async () => {
+    const state = fixture(undefined, {
+      verifiedMotionAuthoring: false,
+      nativeSceneV2: false,
+      adobeMcp: false,
+    });
+    const before = state.workflow.jobs.size;
+    const created = await state.app.inject({
+      method: "POST",
+      url: "/v1/jobs",
+      headers: { ...headers, "idempotency-key": "flag-off" },
+      payload: {
+        uploadId: state.uploadId,
+        sourceFps: 30,
+        startFrame: 0,
+        outputProfile: "vertical-1080p30",
+        generation: {
+          brief: "신발 광고",
+          durationSec: 20,
+          aspect: "9:16",
+          attachmentIds: [],
+        },
+      },
+    });
+
+    expect(created.statusCode).toBe(403);
+    expect(created.json().error.code).toBe("MOTION_AUTHORING_DISABLED");
+    expect(state.workflow.jobs.size).toBe(before);
+    await state.app.close();
+  });
+
   it("stores the generation config on the job", async () => {
     const state = fixture();
     const created = await state.app.inject({

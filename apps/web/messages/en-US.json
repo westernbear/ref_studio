@@ -205,10 +205,74 @@
     "promptAriaLabel": "Change the motion scene",
     "sending": "Applying...",
     "send": "Send",
+    "refreshScene": "Reload current scene",
+    "states": {
+      "initial": {
+        "title": "Scene ready",
+        "detail": "Choose a layer or describe a change."
+      },
+      "loading": {
+        "title": "Applying change",
+        "detail": "The current scene remains recoverable until the server confirms this change."
+      },
+      "empty": {
+        "title": "Empty scene",
+        "detail": "No editable beats are available in this scene."
+      },
+      "unsupported": {
+        "title": "Editing unavailable",
+        "detail": "This backend did not report the capabilities required to edit this scene."
+      },
+      "error": {
+        "title": "Action failed",
+        "detail": "The previous safe scene was kept. Reload and try again."
+      },
+      "conflict": {
+        "title": "Newer version available",
+        "detail": "Another session changed this scene. Reload before editing; changes are never rebased automatically."
+      },
+      "repair": {
+        "title": "Verification needs repair",
+        "detail": "Review the failed rules below and submit a correction. The last safe scene remains available."
+      },
+      "queued": {
+        "title": "Queued",
+        "detail": "The verified scene change is waiting for a renderer."
+      },
+      "running": {
+        "title": "Rendering",
+        "detail": "Progress and the active stage update below."
+      },
+      "success": {
+        "title": "Render complete",
+        "detail": "Verified deliverables are ready to download."
+      },
+      "partial": {
+        "title": "Partial result",
+        "detail": "The job finished, but one or more deliverables are not ready."
+      },
+      "cancelled": {
+        "title": "Cancelled",
+        "detail": "The last safe scene and completed deliverables were preserved."
+      },
+      "offline": {
+        "title": "Connection interrupted",
+        "detail": "Edits are paused so an unconfirmed scene cannot replace the last safe version."
+      }
+    },
     "actionTitle": "Action: Motion Scene",
     "version": "Version {version}",
     "verificationResult": "Verification {status} · {attempts} attempt(s)",
     "verificationPending": "Verification pending",
+    "planDigest": "Plan digest",
+    "knowledgeCards": "Knowledge cards",
+    "knowledgeCardsUnavailable": "This scene snapshot does not expose knowledge-card IDs.",
+    "capabilities": "Capabilities",
+    "predicateIds": "Verification rules",
+    "commandLifecycle": "Command lifecycle",
+    "artifactIntegrity": "Artifact integrity",
+    "metadataUnavailable": "Unavailable",
+    "verificationFindings": "Verification findings",
     "renderProgress": "Render progress",
     "backend": "Backend",
     "nativeBackend": "Native renderer",
@@ -250,6 +314,7 @@
     "easing": "Easing",
     "applying": "Applying...",
     "applyProperties": "Apply properties",
+    "unsupportedProperty": "This backend does not support changing this property.",
     "editorTitle": "Motion editor",
     "moveEvent": "Moved {id} by x {x}, y {y} in Canvas",
     "propertyEvent": "Updated {id} in Properties",
@@ -265,10 +330,16 @@
       "PRECONDITION_REQUIRED": "The current scene version is required for this action.",
       "JOB_NOT_READY_FOR_PATCH": "Wait for the current render to finish before changing the scene.",
       "MOTION_AUTHORING_DISABLED": "Verified motion authoring is not accepting new changes.",
+      "MOTION_KNOWLEDGE_NOT_FOUND": "No supported motion knowledge matched the brief. Edit the brief to a supported domain term.",
+      "SCENE_VERIFICATION_FAILED": "Scene verification failed. Review failed predicates and repair within four attempts.",
+      "RESOURCE_BUDGET_EXCEEDED": "A resource budget was exceeded. Reduce scene size, operations, or frames and retry.",
       "INVALID_SCENE": "That change would make the scene invalid, so the previous scene was kept.",
+      "INVALID_OPERATION": "This backend does not support that property change. The previous scene was kept.",
       "NETWORK_INTERRUPTED": "The connection was interrupted. Try again.",
       "INVALID_RESPONSE": "The server returned an invalid motion response.",
-      "unknown": "Motion action failed: {code}."
+      "ADOBE_RELAY_REPLAY": "Adobe rejected a replayed command. Send a fresh nonce.",
+      "unknown": "Motion action failed: {code}.",
+      "nextStep": "Next: {step}"
     }
   },
   "ThinkingIndicator": {
@@ -638,11 +709,26 @@
       "creator": "Creator",
       "motionBackend": "Motion backend",
       "sceneVersion": "Scene version",
+      "planId": "Plan ID",
+      "planDigest": "Plan digest",
+      "knowledgeCards": "Knowledge cards",
+      "sceneDigest": "Scene digest",
       "verification": "Verification",
       "verificationAttempts": "Verification attempts",
       "verificationFindings": "Verification findings",
+      "predicateFindings": "Predicate findings",
       "capabilities": "Capabilities",
+      "capability": "Capability",
+      "capabilitySnapshot": "Capability snapshot digest",
       "deliverables": "Deliverables",
+      "renderHash": "Render hash",
+      "packageHash": "Package hash",
+      "workerRuntime": "Worker runtime digest",
+      "adobeDevice": "Adobe device",
+      "adobeCommand": "Adobe command",
+      "commandStatus": "Command status",
+      "commandAge": "Command age (ms)",
+      "failureRemediation": "Failure remediation",
       "preparation": "Preparation",
       "updated": "Updated",
       "upload": "Upload",
@@ -692,6 +778,16 @@
     "notAuthored": "Not authored",
     "notAvailable": "Not available",
     "findingsPassed": "{passed} of {total} passed",
+    "capabilityPlaceholder": "Capability ID",
+    "actions": {
+      "retryAdobe": "Retry Adobe command",
+      "cancelAdobe": "Cancel Adobe command",
+      "disableAdmission": "Disable device admission",
+      "requestRollback": "Request rollback",
+      "working": "Working...",
+      "requestAccepted": "Action accepted. Refreshing live state.",
+      "requestFailed": "Action failed"
+    },
     "jobSearchPlaceholder": "Job, organization, or creator",
     "tenantIdPlaceholder": "Organization ID",
     "noJobsMatch": "No compiler jobs match these filters.",

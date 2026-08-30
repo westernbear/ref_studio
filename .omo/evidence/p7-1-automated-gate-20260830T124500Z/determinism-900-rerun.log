@@ -1,0 +1,13 @@
+
+ RUN  v3.2.4 /home/singlerr/ref_studio-motion-complete/apps/worker
+
+ ✓ src/generated-video-delivery.test.ts (1 test) 13ms
+ ✓ src/gen-render-delivery.determinism.test.ts (2 tests) 13506ms
+   ✓ renderGeneratedDelivery determinism > produces identical frames, metadata and packages across independent processes and CPU load  11318ms
+   ✓ renderGeneratedDelivery determinism > renders a 16:9 scene at 1920x1080, not the portrait default  2186ms
+
+ Test Files  2 passed (2)
+      Tests  3 passed (3)
+   Start at  21:55:05
+   Duration  14.22s (transform 310ms, setup 0ms, collect 594ms, tests 13.52s, environment 1ms, prepare 175ms)
+

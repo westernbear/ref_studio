@@ -139,6 +139,35 @@ legacyDb.exec(
 );
 legacyDb.close();
 
+const adobeLegacyDb = new Database(":memory:");
+adobeLegacyDb.pragma("foreign_keys = ON");
+adobeLegacyDb.exec(
+  "CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL); CREATE TABLE adobe_device_keys (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, device_id TEXT NOT NULL, not_before_ms INTEGER NOT NULL, expires_at_ms INTEGER NOT NULL, revoked_at_ms INTEGER); CREATE TABLE adobe_relay_nonces (key_id TEXT NOT NULL, nonce TEXT NOT NULL, consumed_at_ms INTEGER NOT NULL, PRIMARY KEY(key_id,nonce), FOREIGN KEY(key_id) REFERENCES adobe_device_keys(id)); INSERT INTO adobe_device_keys VALUES ('key_old_a','ten_old','device_old',1,100,NULL),('key_old_b','ten_old','device_old',2,200,NULL); INSERT INTO adobe_relay_nonces VALUES ('key_old_a','nonce_replayed',10),('key_old_b','nonce_replayed',20)",
+);
+const migrationRecord = adobeLegacyDb.prepare(
+  "INSERT INTO schema_migrations VALUES (?,datetime('now'))",
+);
+for (let version = 1; version <= 23; version += 1) migrationRecord.run(version);
+migrate(adobeLegacyDb);
+assert.deepEqual(
+  adobeLegacyDb
+    .prepare(
+      "SELECT device_id,nonce,consumed_at_ms FROM adobe_relay_nonces ORDER BY device_id,nonce",
+    )
+    .all(),
+  [{ device_id: "device_old", nonce: "nonce_replayed", consumed_at_ms: 10 }],
+);
+assert.equal(
+  adobeLegacyDb
+    .prepare(
+      "SELECT version FROM schema_migrations ORDER BY version DESC LIMIT 1",
+    )
+    .pluck()
+    .get(),
+  24,
+);
+adobeLegacyDb.close();
+
 const db = new Database(":memory:");
 db.pragma("foreign_keys = ON");
 migrate(db);
@@ -164,7 +193,20 @@ db.exec(
   "INSERT INTO jobs VALUES ('job_a','ten_test','usr_owner','upl_a','scene_a','QUEUED',0,0,'2026-08-22T00:00:00Z')",
 );
 db.exec(
-  "INSERT INTO motion_scene_versions VALUES ('msv_a','ten_test','job_a',1,'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','{}','{}',NULL,'2026-08-22T00:00:00Z'); INSERT INTO job_motion_scene_heads VALUES ('ten_test','job_a','msv_a')",
+  "INSERT INTO motion_scene_versions (id,tenant_id,job_id,version,scene_digest,scene_json,capability_json,verification_json,created_at) VALUES ('msv_a','ten_test','job_a',1,'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','{}','{}',NULL,'2026-08-22T00:00:00Z'); INSERT INTO job_motion_scene_heads VALUES ('ten_test','job_a','msv_a')",
+);
+assert.deepEqual(
+  db
+    .prepare(
+      "SELECT plan_digest, predecessor_version, artifact_digest, predicate_ids_json FROM motion_scene_versions WHERE id='msv_a'",
+    )
+    .get(),
+  {
+    plan_digest: null,
+    predecessor_version: null,
+    artifact_digest: null,
+    predicate_ids_json: "[]",
+  },
 );
 assert.throws(
   () =>
@@ -179,6 +221,15 @@ db.exec(
   "INSERT INTO job_attempts VALUES ('att_a','ten_test','job_a',1,'QUEUED','2026-08-22T00:00:00Z')",
 );
 const rejection = (sql) => assert.throws(() => db.exec(sql));
+rejection(
+  "INSERT INTO motion_scene_versions (id,tenant_id,job_id,version,scene_digest,scene_json,capability_json,created_at,plan_digest) VALUES ('bad_digest','ten_test','job_a',2,'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb','{}','{}','now','GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG')",
+);
+rejection(
+  "INSERT INTO motion_scene_versions (id,tenant_id,job_id,version,scene_digest,scene_json,capability_json,created_at,predecessor_version) VALUES ('bad_predecessor','ten_test','job_a',2,'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb','{}','{}','now',0)",
+);
+rejection(
+  "INSERT INTO motion_scene_versions (id,tenant_id,job_id,version,scene_digest,scene_json,capability_json,created_at,predicate_ids_json) VALUES ('bad_json','ten_test','job_a',2,'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb','{}','{}','now','{}')",
+);
 rejection(
   "INSERT INTO cas_objects VALUES ('cas_x','ten_platform','x','video/mp4',1,'source','2026-08-23T00:00:00Z'); INSERT INTO uploads VALUES ('upl_x','ten_test','x','video/mp4',1,'ACCEPTED','cas_x','2026-08-22T00:00:00Z','2026-08-23T00:00:00Z')",
 );
@@ -244,10 +295,31 @@ rejection(
   "UPDATE runtime_review_receipts SET value_json='{\"changed\":true}' WHERE id='runtime_rcpt'",
 );
 rejection("DELETE FROM runtime_review_receipts WHERE id='runtime_rcpt'");
+db.exec(
+  "INSERT INTO adobe_devices VALUES ('device_db','ten_test','Studio Mac','ENROLLED',1,NULL); INSERT INTO adobe_device_keys VALUES ('key_db','ten_test','device_db',1,10000,NULL); INSERT INTO adobe_relay_nonces VALUES ('device_db','key_db','nonce_db',2); INSERT INTO adobe_commands VALUES ('cmd_db','ten_test','device_db','job_a','{}','QUEUED',NULL,2,2)",
+);
+db.exec(
+  "INSERT INTO adobe_device_keys VALUES ('key_db_rotated','ten_test','device_db',2,20000,NULL)",
+);
+rejection(
+  "INSERT INTO adobe_relay_nonces VALUES ('device_db','key_db_rotated','nonce_db',3)",
+);
+rejection(
+  "INSERT INTO adobe_device_keys VALUES ('key_cross','ten_platform','device_db',1,10000,NULL)",
+);
+rejection("UPDATE adobe_relay_nonces SET consumed_at_ms=3");
+rejection("DELETE FROM adobe_relay_nonces");
+assert.equal(
+  db
+    .prepare("SELECT status FROM adobe_commands WHERE id='cmd_db'")
+    .pluck()
+    .get(),
+  "QUEUED",
+);
 console.log(
   JSON.stringify({
     integrity: db.pragma("integrity_check", { simple: true }),
-    negativeCases: 6,
+    negativeCases: 10,
     duplicateCasAllowed: true,
     singleClaim: true,
     orderedReceipts: true,

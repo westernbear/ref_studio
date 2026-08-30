@@ -1,0 +1,6 @@
+{
+  "interaction": true,
+  "pointer": true,
+  "keyboard": true,
+  "focus": true
+}

@@ -1,4 +1,5 @@
 import { mkdtempSync, rmSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fixtureSpec } from "@rvs/contracts";
@@ -9,7 +10,14 @@ import {
   createMotionCommandFixture,
   motionCommandHeaders as headers,
 } from "./motion-scene-command-fixture.js";
-import { insertMotionSceneVersion } from "./motion-scene-store.js";
+import {
+  commitMotionSceneVersion,
+  findMotionSceneRow,
+  insertMotionSceneVersion,
+  motionSceneRowForVersion,
+  motionSceneSnapshot,
+  replayMotionSceneMutation,
+} from "./motion-scene-store.js";
 import { verifyMotionScene } from "./motion-operations.js";
 
 describe("motion scene commands", () => {
@@ -20,7 +28,13 @@ describe("motion scene commands", () => {
     directory = mkdtempSync(join(tmpdir(), "rvs-motion-command-"));
     fixture = createMotionCommandFixture(directory, {
       patchSceneGenerate: async () => ({
-        object: { spec: fixtureSpec, summary: "Updated the opening title" },
+        object: {
+          spec: {
+            ...fixtureSpec,
+            palette: { ...fixtureSpec.palette, hero: "#6633ee" },
+          },
+          summary: "Updated the opening title",
+        },
       }),
     });
   });
@@ -40,6 +54,18 @@ describe("motion scene commands", () => {
     });
     expect(initial.statusCode, initial.body).toBe(200);
     expect(initial.json().version).toBe(1);
+    expect(
+      fixture.db
+        .prepare(
+          "SELECT plan_digest AS planDigest, predecessor_version AS predecessorVersion, artifact_digest AS artifactDigest, predicate_ids_json AS predicateIdsJson FROM motion_scene_versions WHERE version=1",
+        )
+        .get(),
+    ).toEqual({
+      planDigest: "0".repeat(64),
+      predecessorVersion: null,
+      artifactDigest: null,
+      predicateIdsJson: '["scene-spec"]',
+    });
 
     const changed = await fixture.app.inject({
       method: "PATCH",
@@ -100,6 +126,286 @@ describe("motion scene commands", () => {
     });
     expect(replay.statusCode, replay.body).toBe(200);
     expect(replay.json().version).toBe(3);
+    expect(
+      fixture.db
+        .prepare(
+          "SELECT predecessor_version FROM motion_scene_versions WHERE version=3",
+        )
+        .pluck()
+        .get(),
+    ).toBe(2);
+  });
+
+  it("keeps existing scene reads available while native admission is off without recording writes", async () => {
+    await fixture.app.close();
+    fixture.db.close();
+    fixture = createMotionCommandFixture(directory, {
+      featureFlags: {
+        verifiedMotionAuthoring: true,
+        nativeSceneV2: false,
+        adobeMcp: false,
+      },
+    });
+    const jobId = await createCompletedGeneratedJob(fixture);
+    const current = await fixture.app.inject({
+      method: "GET",
+      url: `/v1/jobs/${jobId}/motion-scene`,
+      headers,
+    });
+    const before = fixture.db
+      .prepare("SELECT COUNT(*) AS count FROM idempotency_keys")
+      .get() as { count: number };
+    const denied = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/jobs/${jobId}/motion-scene/render`,
+      headers: {
+        ...headers,
+        "if-match": current.json().sceneEtag,
+        "idempotency-key": "native-off",
+      },
+      payload: { schema: "motion-scene-render-v1" },
+    });
+    const after = fixture.db
+      .prepare("SELECT COUNT(*) AS count FROM idempotency_keys")
+      .get() as { count: number };
+
+    expect(current.statusCode).toBe(200);
+    expect(denied.statusCode).toBe(403);
+    expect(denied.json().error.code).toBe("MOTION_AUTHORING_DISABLED");
+    expect(after.count).toBe(before.count);
+  });
+
+  it("publishes only hash-valid deliverables bound to the current passing scene", async () => {
+    const jobId = await createCompletedGeneratedJob(fixture);
+    const job = fixture.workflow.jobs.get(jobId);
+    if (!job) throw new Error("fixture job missing");
+    const deliveryBytes = Buffer.from("verified-mp4");
+    const packageBytes = Buffer.from("verified-scene-package");
+    const artifact = {
+      id: "artifact-safe",
+      jobId,
+      tenantId: "ten_a",
+      kind: "generated-delivery" as const,
+      filename: "delivery.mp4",
+      contentType: "video/mp4" as const,
+      bytes: deliveryBytes,
+      sha256: createHash("sha256").update(deliveryBytes).digest("hex"),
+      sizeBytes: deliveryBytes.byteLength,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      expiresAt: "2099-01-01T00:00:00.000Z",
+      report: null,
+    };
+    const scenePackage = {
+      ...artifact,
+      id: "scene-package-safe",
+      kind: "scene-package" as const,
+      filename: "scene-package.tar",
+      contentType: "application/x-tar" as const,
+      bytes: packageBytes,
+      sha256: createHash("sha256").update(packageBytes).digest("hex"),
+      sizeBytes: packageBytes.byteLength,
+    };
+    fixture.workflow.artifacts.set(artifact.id, artifact);
+    fixture.workflow.scenePackages.set(jobId, scenePackage);
+
+    const listed = await fixture.app.inject({
+      method: "GET",
+      url: `/v1/jobs/${jobId}/deliverables`,
+      headers,
+    });
+    expect(listed.statusCode, listed.body).toBe(200);
+    expect(
+      listed.json().items.map(({ kind }: { kind: string }) => kind),
+    ).toEqual(["mp4", "scene-package"]);
+    const downloaded = await fixture.app.inject({
+      method: "GET",
+      url: `/v1/jobs/${jobId}/delivery-download`,
+      headers,
+    });
+    expect(downloaded.statusCode).toBe(200);
+    expect(downloaded.rawPayload).toEqual(deliveryBytes);
+
+    fixture.workflow.artifacts.set(artifact.id, {
+      ...artifact,
+      bytes: Buffer.from("corrupt"),
+    });
+    const rejected = await fixture.app.inject({
+      method: "GET",
+      url: `/v1/jobs/${jobId}/deliverables`,
+      headers,
+    });
+    expect(rejected.statusCode).toBe(404);
+    const rejectedDownload = await fixture.app.inject({
+      method: "GET",
+      url: `/v1/jobs/${jobId}/delivery-download`,
+      headers,
+    });
+    expect(rejectedDownload.statusCode).toBe(404);
+  });
+
+  it("rolls back version, head, and replay when durable response insertion aborts", async () => {
+    const jobId = await createCompletedGeneratedJob(fixture);
+    const initial = await fixture.app.inject({
+      method: "GET",
+      url: `/v1/jobs/${jobId}/motion-scene`,
+      headers,
+    });
+    fixture.db.exec(
+      "CREATE TRIGGER reject_scene_replay BEFORE INSERT ON idempotency_keys WHEN NEW.key LIKE 'motion-scene:%' BEGIN SELECT RAISE(ABORT,'TEST_REPLAY_ABORT'); END",
+    );
+    const rejected = await fixture.app.inject({
+      method: "PATCH",
+      url: `/v1/jobs/${jobId}/motion-scene`,
+      headers: {
+        ...headers,
+        "if-match": initial.json().sceneEtag,
+        "idempotency-key": "fault",
+      },
+      payload: {
+        schema: "scene-operation-batch-v1",
+        baseSceneDigest: initial.json().sceneDigest,
+        operations: [
+          {
+            kind: "set",
+            opId: "fault",
+            path: "/palette/hero",
+            value: "#6633ee",
+            reason: "fault injection",
+          },
+        ],
+      },
+    });
+    expect(rejected.statusCode).toBe(400);
+    expect(
+      fixture.db
+        .prepare("SELECT count(*) FROM motion_scene_versions")
+        .pluck()
+        .get(),
+    ).toBe(1);
+    expect(
+      fixture.db
+        .prepare(
+          "SELECT v.version FROM job_motion_scene_heads h JOIN motion_scene_versions v ON v.id=h.version_id",
+        )
+        .pluck()
+        .get(),
+    ).toBe(1);
+    expect(
+      fixture.db
+        .prepare(
+          "SELECT count(*) FROM idempotency_keys WHERE key LIKE 'motion-scene:%'",
+        )
+        .pluck()
+        .get(),
+    ).toBe(0);
+  });
+
+  it("rolls back the immutable version when head advancement aborts", async () => {
+    const jobId = await createCompletedGeneratedJob(fixture);
+    const initial = await fixture.app.inject({
+      method: "GET",
+      url: `/v1/jobs/${jobId}/motion-scene`,
+      headers,
+    });
+    fixture.db.exec(
+      "CREATE TRIGGER reject_scene_head BEFORE UPDATE ON job_motion_scene_heads BEGIN SELECT RAISE(ABORT,'TEST_HEAD_ABORT'); END",
+    );
+    const rejected = await fixture.app.inject({
+      method: "PATCH",
+      url: `/v1/jobs/${jobId}/motion-scene`,
+      headers: {
+        ...headers,
+        "if-match": initial.json().sceneEtag,
+        "idempotency-key": "head-fault",
+      },
+      payload: {
+        schema: "scene-operation-batch-v1",
+        baseSceneDigest: initial.json().sceneDigest,
+        operations: [
+          {
+            kind: "set",
+            opId: "head-fault",
+            path: "/palette/hero",
+            value: "#6633ee",
+            reason: "head fault injection",
+          },
+        ],
+      },
+    });
+    expect(rejected.statusCode).toBe(400);
+    expect(
+      fixture.db
+        .prepare("SELECT version FROM motion_scene_versions ORDER BY version")
+        .pluck()
+        .all(),
+    ).toEqual([1]);
+    expect(
+      fixture.db
+        .prepare(
+          "SELECT count(*) FROM idempotency_keys WHERE key LIKE 'motion-scene:%'",
+        )
+        .pluck()
+        .get(),
+    ).toBe(0);
+  });
+
+  it("validates metadata and scopes every scene lookup and replay to its tenant", async () => {
+    const jobId = await createCompletedGeneratedJob(fixture);
+    await fixture.app.inject({
+      method: "GET",
+      url: `/v1/jobs/${jobId}/motion-scene`,
+      headers,
+    });
+    const job = fixture.workflow.jobs.get(jobId);
+    expect(job).toBeDefined();
+    if (!job) return;
+    fixture.db.exec(
+      "INSERT INTO tenants VALUES ('ten_b','B','ORGANIZATION','ACTIVE',0,'2026-01-01T00:00:00Z')",
+    );
+    const hostile = { ...job, tenantId: "ten_b" };
+    expect(findMotionSceneRow(fixture.db, hostile)).toBeUndefined();
+    expect(motionSceneRowForVersion(fixture.db, hostile, 1)).toBeUndefined();
+    expect(
+      replayMotionSceneMutation(
+        fixture.db,
+        hostile,
+        `motion-scene:${jobId}:missing`,
+        "a".repeat(64),
+        (value) => value,
+      ),
+    ).toBeNull();
+    expect(() =>
+      commitMotionSceneVersion({
+        db: fixture.db,
+        job,
+        scene: fixtureSpec,
+        verification: verifyMotionScene(fixtureSpec),
+        artifactDigest: "artifact-safe",
+      }),
+    ).toThrow();
+    const row = commitMotionSceneVersion({
+      db: fixture.db,
+      job,
+      scene: fixtureSpec,
+      verification: verifyMotionScene(fixtureSpec),
+      artifactDigest: "f".repeat(64),
+    }).row;
+    expect(row.artifactDigest).toBe("f".repeat(64));
+    expect(() => motionSceneSnapshot(fixture.db, hostile, row)).toThrow();
+    fixture.db
+      .prepare(
+        `INSERT INTO motion_scene_versions
+         (id,tenant_id,job_id,version,scene_digest,scene_json,capability_json,verification_json,created_at,predicate_ids_json)
+         SELECT 'msv_corrupt',tenant_id,job_id,99,scene_digest,scene_json,capability_json,verification_json,created_at,'["unknown-predicate"]'
+           FROM motion_scene_versions WHERE id=?`,
+      )
+      .run(row.id);
+    fixture.db
+      .prepare(
+        "UPDATE job_motion_scene_heads SET version_id='msv_corrupt' WHERE tenant_id=? AND job_id=?",
+      )
+      .run(job.tenantId, job.id);
+    expect(() => findMotionSceneRow(fixture.db, job)).toThrow();
   });
 
   it("requeues the current verified scene and rejects a stale scene ETag", async () => {

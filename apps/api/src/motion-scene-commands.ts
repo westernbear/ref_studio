@@ -3,6 +3,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
   MotionSceneRenderV1Schema,
   MotionSceneRollbackV1Schema,
+  MotionSceneSnapshotV1Schema,
   VerificationReportV1Schema,
 } from "../../../packages/contracts/src/motion.js";
 import { sha256Hex } from "../../../packages/contracts/src/canonical-json.js";
@@ -17,9 +18,10 @@ import type { CreatorWorkflowStore, Job } from "./creator-workflow.js";
 import { MotionSceneError, verifyMotionScene } from "./motion-operations.js";
 import {
   currentMotionSceneRow,
-  insertMotionSceneVersion,
+  commitMotionSceneVersion,
   motionSceneRowForVersion,
   motionSceneSnapshot,
+  replayMotionSceneMutation,
 } from "./motion-scene-store.js";
 
 type JobRequest = FastifyRequest<{ Params: { jobId: string } }>;
@@ -48,7 +50,7 @@ const requiredHeaders = (
 
 const replayFor = (
   db: Database.Database,
-  tenantId: string,
+  job: Job,
   key: string,
   requestDigest: string,
 ): string | null => {
@@ -56,31 +58,13 @@ const replayFor = (
     .prepare(
       "SELECT response_json AS responseJson, request_hash AS requestHash FROM idempotency_keys WHERE tenant_id=? AND key=?",
     )
-    .get(tenantId, key) as
-    | { readonly responseJson: string; readonly requestHash: string }
+    .get(job.tenantId, key) as
+    | { responseJson: string; requestHash: string }
     | undefined;
   if (!replay) return null;
   if (replay.requestHash !== requestDigest)
     throw new MotionSceneError("IDEMPOTENCY_CONFLICT", 409);
   return replay.responseJson;
-};
-
-const record = (
-  db: Database.Database,
-  job: Job,
-  key: string,
-  requestDigest: string,
-  response: unknown,
-): void => {
-  db.prepare(
-    "INSERT INTO idempotency_keys(tenant_id,key,request_hash,response_json,created_at) VALUES(?,?,?,?,?)",
-  ).run(
-    job.tenantId,
-    key,
-    requestDigest,
-    JSON.stringify(response),
-    new Date().toISOString(),
-  );
 };
 
 const queue = (
@@ -90,7 +74,11 @@ const queue = (
   digest: string,
 ): void => {
   assertQueueable(job);
-  job.authoredScene = { spec: scene, beatSheet: beatSheetFor(scene) };
+  job.authoredScene = {
+    ...job.authoredScene,
+    spec: scene,
+    beatSheet: beatSheetFor(scene),
+  };
   job.sceneSpecDigest = digest;
   assertLegalTransition(job.state, "QUEUED");
   job.state = "QUEUED";
@@ -115,6 +103,7 @@ export function registerMotionSceneCommands(
   app: FastifyInstance,
   store: CreatorWorkflowStore,
   db: Database.Database,
+  admissionEnabled: boolean,
 ): void {
   const owned = (request: JobRequest): Job => {
     const job = store.jobs.get(request.params.jobId);
@@ -128,13 +117,25 @@ export function registerMotionSceneCommands(
     async (request: JobRequest, reply) => {
       try {
         const job = owned(request);
+        if (!admissionEnabled)
+          throw new MotionSceneError("MOTION_AUTHORING_DISABLED", 403);
         const { match, key } = requiredHeaders(request);
         const body = MotionSceneRollbackV1Schema.parse(request.body);
         const scopedKey = `motion-scene-rollback:${job.id}:${key}`;
-        const requestDigest = sha256Hex(body);
-        const replay = replayFor(db, job.tenantId, scopedKey, requestDigest);
+        const requestDigest = sha256Hex({
+          route: `/v1/jobs/${job.id}/motion-scene/rollback`,
+          ifMatch: match,
+          body,
+        });
+        const replay = replayMotionSceneMutation(
+          db,
+          job,
+          scopedKey,
+          requestDigest,
+          (value) => MotionSceneSnapshotV1Schema.parse(value),
+        );
         if (replay) {
-          reply.send(JSON.parse(replay));
+          reply.send(replay);
           return;
         }
         const current = currentMotionSceneRow(db, job);
@@ -147,11 +148,26 @@ export function registerMotionSceneCommands(
         const verification = verifyMotionScene(scene);
         if (verification.status !== "PASS")
           throw new MotionSceneError("SCENE_VERIFICATION_FAILED", 409);
-        const next = insertMotionSceneVersion(db, job, scene, verification);
+        const committed = commitMotionSceneVersion({
+          db,
+          job,
+          scene,
+          verification,
+          expectedSceneDigest: current.sceneDigest,
+          idempotency: {
+            key: scopedKey,
+            requestDigest,
+            response: (row) => motionSceneSnapshot(db, job, row),
+            parseResponse: (value) => MotionSceneSnapshotV1Schema.parse(value),
+          },
+        });
+        const next = committed.row;
+        if (committed.replayed) {
+          reply.send(committed.response);
+          return;
+        }
         queue(store, job, scene, next.sceneDigest);
-        const response = motionSceneSnapshot(db, job, next);
-        record(db, job, scopedKey, requestDigest, response);
-        reply.send(response);
+        reply.send(committed.response);
       } catch (error) {
         fail(reply, error);
       }
@@ -163,11 +179,17 @@ export function registerMotionSceneCommands(
     async (request: JobRequest, reply) => {
       try {
         const job = owned(request);
+        if (!admissionEnabled)
+          throw new MotionSceneError("MOTION_AUTHORING_DISABLED", 403);
         const { match, key } = requiredHeaders(request);
         const body = MotionSceneRenderV1Schema.parse(request.body);
         const scopedKey = `motion-scene-render:${job.id}:${key}`;
-        const requestDigest = sha256Hex(body);
-        const replay = replayFor(db, job.tenantId, scopedKey, requestDigest);
+        const requestDigest = sha256Hex({
+          route: `/v1/jobs/${job.id}/motion-scene/render`,
+          ifMatch: match,
+          body,
+        });
+        const replay = replayFor(db, job, scopedKey, requestDigest);
         if (replay) {
           reply.code(202).send(JSON.parse(replay));
           return;
@@ -189,12 +211,22 @@ export function registerMotionSceneCommands(
           verification.sceneDigest !== current.sceneDigest
         )
           throw new MotionSceneError("SCENE_VERIFICATION_FAILED", 409);
-        queue(store, job, scene, current.sceneDigest);
         const response = {
           state: "QUEUED" as const,
           sceneDigest: current.sceneDigest,
         };
-        record(db, job, scopedKey, requestDigest, response);
+        db.transaction(() => {
+          db.prepare(
+            "INSERT INTO idempotency_keys(tenant_id,key,request_hash,response_json,created_at) VALUES(?,?,?,?,?)",
+          ).run(
+            job.tenantId,
+            scopedKey,
+            requestDigest,
+            JSON.stringify(response),
+            new Date().toISOString(),
+          );
+          queue(store, job, scene, current.sceneDigest);
+        }).immediate();
         reply.code(202).send(response);
       } catch (error) {
         fail(reply, error);

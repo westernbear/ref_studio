@@ -38,6 +38,10 @@ const jobForceTerminateButton = readFileSync(
   resolve(root, "apps/web/src/components/AdminJobForceTerminateButton.tsx"),
   "utf8",
 );
+const motionActionButton = readFileSync(
+  resolve(root, "apps/web/src/components/AdminMotionActionButton.tsx"),
+  "utf8",
+);
 const aiProviderSettingsForm = readFileSync(
   resolve(root, "apps/web/src/components/AiProviderSettingsForm.tsx"),
   "utf8",
@@ -92,10 +96,12 @@ describe("admin surface contracts", () => {
     expect(routes).toContain("details={adminJobDetails(t)}");
     expect(routes).toContain("details={creatorJobDetails(t)}");
   });
-  it("shows live motion backend, verification, version, and deliverables on admin jobs", () => {
+  it("shows redacted motion and Adobe operations with live filters and actions", () => {
     expect(routes).toContain('field(row, "motion")');
     expect(routes).toContain('name="backend"');
     expect(routes).toContain('name="verification"');
+    expect(routes).toContain('name="capability"');
+    expect(routes).toContain('name="commandState"');
     for (const key of [
       "motionBackend",
       "sceneVersion",
@@ -104,8 +110,34 @@ describe("admin surface contracts", () => {
       "verificationFindings",
       "capabilities",
       "deliverables",
+      "planId",
+      "planDigest",
+      "knowledgeCards",
+      "sceneDigest",
+      "predicateFindings",
+      "capabilitySnapshot",
+      "renderHash",
+      "packageHash",
+      "workerRuntime",
+      "adobeDevice",
+      "adobeCommand",
+      "commandStatus",
+      "commandAge",
+      "failureRemediation",
     ])
       expect(messages.AdminSlug.fields[key]).toBeTruthy();
+    for (const action of [
+      "/retry",
+      "/cancel",
+      "/disable-admission",
+      "/request-rollback",
+    ])
+      expect(routes).toContain(action);
+    expect(motionActionButton).toContain("idempotency-key");
+    expect(motionActionButton).toContain("tenantId");
+    expect(motionActionButton).not.toMatch(
+      /apiKey|relaySecret|privatePath|rawPrompt|aepBytes/u,
+    );
   });
   it("keeps the motion job table readable at tablet and mobile widths", () => {
     expect(routes).toContain('tableClassName="admin-job-motion-table"');

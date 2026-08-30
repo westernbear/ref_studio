@@ -190,12 +190,37 @@ const fixture = () => {
     now: () => 1_000,
   };
   const reviews = createReviewStore();
+  const persistedMotionAudit: string[] = [];
   const mutations = {
     ...createAdminMutationStore(),
     workers,
     workflow,
     uploads,
     reviews,
+    motionActions: {
+      retryCommand: (tenantId: string, commandId: string) => {
+        if (tenantId !== "tenant-a" || commandId !== "command-failed")
+          throw new Error("ADOBE_COMMAND_NOT_RETRYABLE");
+        return { commandId, status: "QUEUED" };
+      },
+      cancelCommand: (tenantId: string, commandId: string) => {
+        if (tenantId !== "tenant-a" || commandId !== "command-running")
+          throw new Error("ADOBE_COMMAND_NOT_CANCELLABLE");
+        return { commandId, status: "CANCELLED" };
+      },
+      disableAdmission: (tenantId: string, deviceId: string) => {
+        if (tenantId !== "tenant-a" || deviceId !== "device-ready")
+          throw new Error("ADOBE_DEVICE_NOT_ENROLLED");
+        return { deviceId, status: "REVOKED", admissionEnabled: false };
+      },
+      requestRollback: (tenantId: string, jobId: string) => {
+        if (tenantId !== "tenant-a" || jobId !== "job-a")
+          throw new Error("MOTION_ROLLBACK_NOT_READY");
+        return { jobId, status: "QUEUED", version: 2 };
+      },
+    },
+    recordAuditEvent: (event: { readonly id: string }) =>
+      persistedMotionAudit.push(event.id),
   };
   for (const id of ["tenant-a", "tenant-b"])
     mutations.tenants.set(id, {
@@ -206,7 +231,7 @@ const fixture = () => {
       planMetadata: {},
       quotaBytes: 100,
     });
-  return { auth, mutations, workflow, uploads };
+  return { auth, mutations, workflow, uploads, persistedMotionAudit };
 };
 const appFor = (
   data: ReturnType<typeof fixture>,
@@ -229,6 +254,45 @@ const headers = (userId: string, key: string, ifMatch = '"1"') => ({
 const body = (reason = "operator reason") => ({ reason });
 
 describe("admin-mutation", () => {
+  it("executes motion and Adobe actions with audited real results and rejects false success", async () => {
+    const data = fixture();
+    const app = appFor(data);
+    const cases = [
+      ["/admin/adobe/commands/command-failed/retry", "retry-command", "QUEUED"],
+      [
+        "/admin/adobe/commands/command-running/cancel",
+        "cancel-command",
+        "CANCELLED",
+      ],
+      [
+        "/admin/adobe/devices/device-ready/disable-admission",
+        "disable-device",
+        "REVOKED",
+      ],
+      ["/admin/jobs/job-a/request-rollback", "rollback-job", "QUEUED"],
+    ] as const;
+    for (const [url, key, status] of cases) {
+      const response = await app.inject({
+        method: "POST",
+        url,
+        headers: headers("ops", key, JOB_A_ETAG),
+        payload: { reason: "incident recovery", tenantId: "tenant-a" },
+      });
+      expect(response.statusCode, response.body).toBe(202);
+      expect(response.json().status).toBe(status);
+    }
+    const falseSuccess = await app.inject({
+      method: "POST",
+      url: "/admin/adobe/commands/command-succeeded/retry",
+      headers: headers("ops", "false-success", JOB_A_ETAG),
+      payload: { reason: "must not lie", tenantId: "tenant-a" },
+    });
+    expect(falseSuccess.statusCode).toBe(400);
+    expect(
+      data.mutations.auditEvents.filter((event) => event.outcome === "ALLOWED"),
+    ).toHaveLength(4);
+    expect(data.persistedMotionAudit).toHaveLength(4);
+  });
   it("does not intercept the admin sign-in route", async () => {
     const response = await appFor(fixture()).inject({
       method: "POST",

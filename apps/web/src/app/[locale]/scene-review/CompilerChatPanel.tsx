@@ -8,37 +8,47 @@ import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import { isJobWorking, type JobProgress } from "../../../lib/job-progress";
 import { MotionActionCard } from "./MotionActionCard";
+import type { WorkspaceViewState } from "./motion-workspace-model";
 import type { WorkspaceMessage } from "./useMotionWorkspace";
 
 type Props = Readonly<{
+  id: string;
   job: JobProgress;
   scene: MotionSceneSnapshotV1;
   deliverables: MotionDeliverablesV1;
   messages: readonly WorkspaceMessage[];
   busy: boolean;
+  viewState: WorkspaceViewState;
   canUndo: boolean;
   onRefine: (prompt: string) => Promise<void>;
   onUndo: () => Promise<void>;
   onRollback: (version: number) => Promise<void>;
   onRender: () => Promise<void>;
+  onRefresh: () => Promise<void>;
 }>;
 
 export function CompilerChatPanel({
+  id,
   job,
   scene,
   deliverables,
   messages,
   busy,
+  viewState,
   canUndo,
   onRefine,
   onUndo,
   onRollback,
   onRender,
+  onRefresh,
 }: Props) {
   const t = useTranslations("MotionWorkspace");
   const [prompt, setPrompt] = useState("");
   const history = useRef<HTMLDivElement | null>(null);
-  const blocked = busy || isJobWorking(job.state);
+  const blocked =
+    busy ||
+    isJobWorking(job.state) ||
+    ["offline", "conflict", "cancelled", "unsupported"].includes(viewState);
 
   useEffect(() => {
     history.current?.scrollTo({ top: history.current.scrollHeight });
@@ -47,7 +57,11 @@ export function CompilerChatPanel({
   const visibleText = (entry: WorkspaceMessage): string => {
     if (entry.role !== "error") return entry.text;
     const key = `errors.${entry.text}`;
-    return t.has(key) ? t(key) : t("errors.unknown", { code: entry.text });
+    const message = t.has(key)
+      ? t(key)
+      : t("errors.unknown", { code: entry.text });
+    if (!entry.remediation) return message;
+    return `${message} ${t("errors.nextStep", { step: entry.remediation })}`;
   };
 
   const send = async (): Promise<void> => {
@@ -59,8 +73,11 @@ export function CompilerChatPanel({
 
   return (
     <section
+      id={id}
       className="compiler-chat motion-workspace-pane"
-      aria-labelledby="compiler-chat-title"
+      role="tabpanel"
+      aria-labelledby="motion-workspace-chat-tab"
+      aria-label={t("chatTitle")}
       data-mobile-pane="chat"
     >
       <header className="compiler-chat-header">
@@ -70,6 +87,28 @@ export function CompilerChatPanel({
         </div>
       </header>
       <div className="compiler-chat-history" ref={history} aria-live="polite">
+        <div
+          className="motion-workspace-status"
+          data-state={viewState}
+          role={
+            ["error", "conflict", "offline"].includes(viewState)
+              ? "alert"
+              : "status"
+          }
+          aria-busy={viewState === "loading" || viewState === "running"}
+        >
+          <strong>{t(`states.${viewState}.title`)}</strong>
+          <span>{t(`states.${viewState}.detail`)}</span>
+          {["error", "conflict", "offline"].includes(viewState) ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void onRefresh()}
+            >
+              {t("refreshScene")}
+            </button>
+          ) : null}
+        </div>
         {messages.map((entry) => (
           <article
             key={entry.id}
@@ -97,6 +136,8 @@ export function CompilerChatPanel({
           onUndo={onUndo}
           onRollback={onRollback}
           onRender={onRender}
+          viewState={viewState}
+          onRefresh={onRefresh}
         />
       </div>
       <form
@@ -112,6 +153,7 @@ export function CompilerChatPanel({
         <textarea
           id="motion-workspace-prompt"
           value={prompt}
+          disabled={blocked}
           onChange={(event) => setPrompt(event.target.value)}
           onKeyDown={(event) => {
             if (

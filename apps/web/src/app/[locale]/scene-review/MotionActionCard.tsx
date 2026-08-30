@@ -12,6 +12,8 @@ import {
   type JobProgress,
 } from "../../../lib/job-progress";
 import { proxiedDownloadUrl } from "./motion-workspace-api";
+import { sceneIntegrity } from "./motion-workspace-model";
+import type { WorkspaceViewState } from "./motion-workspace-model";
 
 type Props = Readonly<{
   job: JobProgress;
@@ -19,9 +21,11 @@ type Props = Readonly<{
   deliverables: MotionDeliverablesV1;
   busy: boolean;
   canUndo: boolean;
+  viewState: WorkspaceViewState;
   onUndo: () => Promise<void>;
   onRollback: (version: number) => Promise<void>;
   onRender: () => Promise<void>;
+  onRefresh: () => Promise<void>;
 }>;
 
 export function MotionActionCard({
@@ -30,9 +34,11 @@ export function MotionActionCard({
   deliverables,
   busy,
   canUndo,
+  viewState,
   onUndo,
   onRollback,
   onRender,
+  onRefresh,
 }: Props) {
   const t = useTranslations("MotionWorkspace");
   const tState = useTranslations("JobState");
@@ -40,6 +46,17 @@ export function MotionActionCard({
   const working = isJobWorking(job.state);
   const verificationPassed = scene.verification?.status === "PASS";
   const progress = Math.max(0, Math.min(1, job.progressFraction));
+  const integrity = sceneIntegrity(scene);
+  const actionBlocked =
+    busy ||
+    working ||
+    ["offline", "conflict", "cancelled", "unsupported", "loading"].includes(
+      viewState,
+    );
+  const adobeReady =
+    scene.backendCapability.backend === "adobe" &&
+    scene.backendCapability.capabilities.includes("ENROLLED") &&
+    scene.backendCapability.capabilities.includes("READY");
 
   useEffect(() => setVersion(scene.version), [scene.version]);
 
@@ -53,6 +70,12 @@ export function MotionActionCard({
         <strong data-state={job.state}>{tState(jobStateKey(job.state))}</strong>
       </header>
       <div className="motion-action-body">
+        {viewState === "repair" ? (
+          <div className="motion-repair-callout" role="alert">
+            <strong>{t("states.repair.title")}</strong>
+            <span>{t("states.repair.detail")}</span>
+          </div>
+        ) : null}
         <div className="motion-action-summary">
           <span>{t("version", { version: scene.version })}</span>
           <span>
@@ -64,6 +87,58 @@ export function MotionActionCard({
               : t("verificationPending")}
           </span>
         </div>
+        <dl
+          className="motion-action-metadata"
+          data-testid="motion-scene-metadata"
+        >
+          <div>
+            <dt>{t("planDigest")}</dt>
+            <dd>{integrity.planDigest ?? t("metadataUnavailable")}</dd>
+          </div>
+          <div>
+            <dt>{t("knowledgeCards")}</dt>
+            <dd>{t("knowledgeCardsUnavailable")}</dd>
+          </div>
+          <div>
+            <dt>{t("capabilities")}</dt>
+            <dd>
+              {integrity.capabilities.join(", ") || t("metadataUnavailable")}
+            </dd>
+          </div>
+          <div>
+            <dt>{t("predicateIds")}</dt>
+            <dd>
+              {integrity.predicateIds.join(", ") || t("metadataUnavailable")}
+            </dd>
+          </div>
+          <div>
+            <dt>{t("commandLifecycle")}</dt>
+            <dd>
+              {[job.state, job.progressPhase, job.progressStage]
+                .filter(Boolean)
+                .join(" / ")}
+            </dd>
+          </div>
+          <div>
+            <dt>{t("artifactIntegrity")}</dt>
+            <dd>{integrity.artifactDigest ?? integrity.sceneDigest}</dd>
+          </div>
+        </dl>
+        {scene.verification?.findings.length ? (
+          <ul
+            className="motion-verification-findings"
+            aria-label={t("verificationFindings")}
+          >
+            {scene.verification.findings.map((finding) => (
+              <li key={finding.predicateId} data-pass={finding.pass}>
+                <strong>{finding.predicateId}</strong>
+                <span>
+                  {finding.pass ? finding.observed : finding.remediation}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
         <div
           className="motion-progress"
           role="progressbar"
@@ -76,12 +151,12 @@ export function MotionActionCard({
         </div>
         <label className="motion-field">
           <span>{t("backend")}</span>
-          <select value={scene.backendCapability.backend} disabled>
+          <select value={adobeReady ? "adobe" : "native"} disabled>
             <option value="native">{t("nativeBackend")}</option>
             <option value="adobe">{t("adobeBackend")}</option>
           </select>
         </label>
-        {scene.backendCapability.backend === "native" ? (
+        {!adobeReady ? (
           <p className="motion-capability-note">{t("adobeLocked")}</p>
         ) : (
           <p className="motion-capability-note">{t("adobeConnected")}</p>
@@ -92,7 +167,7 @@ export function MotionActionCard({
             <select
               value={version}
               onChange={(event) => setVersion(Number(event.target.value))}
-              disabled={busy || working}
+              disabled={actionBlocked}
             >
               {[...scene.history].reverse().map((entry) => (
                 <option key={entry.version} value={entry.version}>
@@ -104,14 +179,23 @@ export function MotionActionCard({
           <div className="motion-action-buttons">
             <button
               type="button"
-              disabled={!canUndo || busy || working}
+              disabled={!canUndo || actionBlocked}
               onClick={() => void onUndo()}
             >
               {t("undo")}
             </button>
+            {viewState === "conflict" || viewState === "offline" ? (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void onRefresh()}
+              >
+                {t("refreshScene")}
+              </button>
+            ) : null}
             <button
               type="button"
-              disabled={version === scene.version || busy || working}
+              disabled={version === scene.version || actionBlocked}
               onClick={() => void onRollback(version)}
             >
               {t("rollback")}
@@ -121,8 +205,7 @@ export function MotionActionCard({
               disabled={
                 job.state !== "COMPLETED" ||
                 !verificationPassed ||
-                busy ||
-                working
+                actionBlocked
               }
               onClick={() => void onRender()}
             >

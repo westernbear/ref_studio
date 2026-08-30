@@ -7,6 +7,7 @@ import { MaterialProviderSettingsForm } from "../../../components/MaterialProvid
 import { AdminJobCancelButton } from "../../../components/AdminJobCancelButton";
 import { AdminJobForceTerminateButton } from "../../../components/AdminJobForceTerminateButton";
 import { AdminJobRetryButton } from "../../../components/AdminJobRetryButton";
+import { AdminMotionActionButton } from "../../../components/AdminMotionActionButton";
 import { AdminQuarantineReleaseButton } from "../../../components/AdminQuarantineReleaseButton";
 import { AdminQuarantineRejectButton } from "../../../components/AdminQuarantineRejectButton";
 import { AdminShell, CreatorShell } from "../../../components/Shells";
@@ -546,6 +547,18 @@ const motionStatus = (row: unknown, fallback: string): ReactNode => {
     status === "PASS" ? " is-live" : status === "FAIL" ? " is-stale" : "";
   return <span className={`status-chip${tone}`}>{status}</span>;
 };
+const predicateFindings = (row: unknown, fallback: string): string => {
+  const findings = motionField(row, "predicateFindings");
+  if (!Array.isArray(findings) || findings.length === 0) return fallback;
+  return findings
+    .map((finding) => {
+      const predicateId = text(field(finding, "predicateId"));
+      const pass = field(finding, "pass") === true ? "PASS" : "FAIL";
+      const remediation = text(field(finding, "remediation"));
+      return `${predicateId}: ${pass}${remediation ? ` · ${remediation}` : ""}`;
+    })
+    .join("; ");
+};
 
 function jobDetailActions(t: T): (row: unknown) => ReactNode {
   return (row) => {
@@ -568,6 +581,18 @@ function adminJobDetailActions(t: T): (row: unknown) => ReactNode {
     const jobId = text(field(row, "id"));
     const state = text(field(row, "state"));
     const etag = text(field(row, "etag"), "");
+    const tenantId = text(field(row, "tenantId"));
+    const command = field(motionField(row, "adobeCommand"), "id");
+    const commandId = text(command, "");
+    const commandStatus = text(
+      field(motionField(row, "adobeCommand"), "status"),
+      "",
+    );
+    const deviceId = text(field(motionField(row, "adobeDevice"), "id"), "");
+    const deviceStatus = text(
+      field(motionField(row, "adobeDevice"), "status"),
+      "",
+    );
     return (
       <>
         {jobDetailActions(t)(row)}
@@ -579,6 +604,50 @@ function adminJobDetailActions(t: T): (row: unknown) => ReactNode {
         ) : null}
         {etag && !TERMINAL_STATES.includes(state) ? (
           <AdminJobForceTerminateButton jobId={jobId} etag={etag} />
+        ) : null}
+        {commandId && commandStatus === "FAILED" ? (
+          <AdminMotionActionButton
+            path={`/adobe/commands/${encodeURIComponent(commandId)}/retry`}
+            tenantId={tenantId}
+            label={t("actions.retryAdobe")}
+            busyLabel={t("actions.working")}
+            successMessage={t("actions.requestAccepted")}
+            failureMessage={t("actions.requestFailed")}
+            reason="Retry failed Adobe command from admin console"
+          />
+        ) : null}
+        {commandId && commandStatus === "RUNNING" ? (
+          <AdminMotionActionButton
+            path={`/adobe/commands/${encodeURIComponent(commandId)}/cancel`}
+            tenantId={tenantId}
+            label={t("actions.cancelAdobe")}
+            busyLabel={t("actions.working")}
+            successMessage={t("actions.requestAccepted")}
+            failureMessage={t("actions.requestFailed")}
+            reason="Cancel running Adobe command from admin console"
+          />
+        ) : null}
+        {deviceId && deviceStatus === "ENROLLED" ? (
+          <AdminMotionActionButton
+            path={`/adobe/devices/${encodeURIComponent(deviceId)}/disable-admission`}
+            tenantId={tenantId}
+            label={t("actions.disableAdmission")}
+            busyLabel={t("actions.working")}
+            successMessage={t("actions.requestAccepted")}
+            failureMessage={t("actions.requestFailed")}
+            reason="Disable Adobe device admission from admin console"
+          />
+        ) : null}
+        {state === "COMPLETED" && count(motionField(row, "version")) > 1 ? (
+          <AdminMotionActionButton
+            path={`/jobs/${encodeURIComponent(jobId)}/request-rollback`}
+            tenantId={tenantId}
+            label={t("actions.requestRollback")}
+            busyLabel={t("actions.working")}
+            successMessage={t("actions.requestAccepted")}
+            failureMessage={t("actions.requestFailed")}
+            reason="Request previous verified scene rollback from admin console"
+          />
         ) : null}
       </>
     );
@@ -710,6 +779,22 @@ const adminJobDetails = (t: T): readonly Column[] => [
     value: (row) => text(motionField(row, "version"), t("notAvailable")),
   },
   {
+    label: t("fields.planId"),
+    value: (row) => text(motionField(row, "planId"), t("notAvailable")),
+  },
+  {
+    label: t("fields.planDigest"),
+    value: (row) => text(motionField(row, "planDigest"), t("notAvailable")),
+  },
+  {
+    label: t("fields.knowledgeCards"),
+    value: (row) => motionList(row, "knowledgeCardIds", t("notAvailable")),
+  },
+  {
+    label: t("fields.sceneDigest"),
+    value: (row) => text(motionField(row, "sceneDigest"), t("notAvailable")),
+  },
+  {
     label: t("fields.verification"),
     value: (row) => motionStatus(row, t("notAuthored")),
   },
@@ -731,8 +816,57 @@ const adminJobDetails = (t: T): readonly Column[] => [
     },
   },
   {
+    label: t("fields.predicateFindings"),
+    value: (row) => predicateFindings(row, t("notAvailable")),
+  },
+  {
     label: t("fields.capabilities"),
     value: (row) => motionList(row, "capabilities", t("notAvailable")),
+  },
+  {
+    label: t("fields.capabilitySnapshot"),
+    value: (row) =>
+      text(motionField(row, "capabilitySnapshotDigest"), t("notAvailable")),
+  },
+  {
+    label: t("fields.renderHash"),
+    value: (row) => text(motionField(row, "renderHash"), t("notAvailable")),
+  },
+  {
+    label: t("fields.packageHash"),
+    value: (row) => text(motionField(row, "packageHash"), t("notAvailable")),
+  },
+  {
+    label: t("fields.workerRuntime"),
+    value: (row) => text(motionField(row, "workerRuntime"), t("notAvailable")),
+  },
+  {
+    label: t("fields.adobeDevice"),
+    value: (row) =>
+      text(field(motionField(row, "adobeDevice"), "id"), t("notAvailable")),
+  },
+  {
+    label: t("fields.adobeCommand"),
+    value: (row) =>
+      text(field(motionField(row, "adobeCommand"), "id"), t("notAvailable")),
+  },
+  {
+    label: t("fields.commandStatus"),
+    value: (row) =>
+      text(
+        field(motionField(row, "adobeCommand"), "status"),
+        t("notAvailable"),
+      ),
+  },
+  {
+    label: t("fields.commandAge"),
+    value: (row) =>
+      text(field(motionField(row, "adobeCommand"), "ageMs"), t("notAvailable")),
+  },
+  {
+    label: t("fields.failureRemediation"),
+    value: (row) =>
+      text(motionField(row, "failureRemediation"), t("notAvailable")),
   },
   {
     label: t("fields.deliverables"),
@@ -959,6 +1093,8 @@ async function renderJobs(title: string, search: SearchState, t: T) {
       "state",
       "backend",
       "verification",
+      "capability",
+      "commandState",
       "after",
     ]),
   );
@@ -985,6 +1121,19 @@ async function renderJobs(title: string, search: SearchState, t: T) {
           name="state"
           value={single(search.state)}
           options={jobStates}
+          allLabel={t("all")}
+        />
+        <FilterInput
+          label={t("fields.capability")}
+          name="capability"
+          value={single(search.capability)}
+          placeholder={t("capabilityPlaceholder")}
+        />
+        <FilterSelect
+          label={t("fields.commandStatus")}
+          name="commandState"
+          value={single(search.commandState)}
+          options={["QUEUED", "RUNNING", "SUCCEEDED", "FAILED", "CANCELLED"]}
           allLabel={t("all")}
         />
         <FilterSelect

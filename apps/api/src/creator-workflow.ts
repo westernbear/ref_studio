@@ -13,10 +13,12 @@ import {
 } from "../../../packages/contracts/src/generation.js";
 import { getAiProviderSettings } from "./ai-provider-settings.js";
 import { getMaterialProviderSettings } from "./material-provider-settings.js";
+import { currentDeliveryGate } from "./motion-artifact-gate.js";
 import type { AuthoredScene } from "./author-scene.js";
 import { IdempotencyStore, requestHash, safeEnvelope } from "./boundary.js";
 import type { Principal } from "./auth.js";
 import { selectInitialStartFrame } from "./refine-prompt.js";
+import type { FeatureFlagSnapshot } from "./feature-flags.js";
 import type { Gate, ReviewReceipt, ReviewStore } from "./reviews.js";
 import {
   ownedAttachment,
@@ -627,6 +629,7 @@ const projection = (
   runtimePreflight: job.runtimePreflight,
   ...(job.generation ? { generation: job.generation } : {}),
   beatSheet: job.authoredScene?.beatSheet ?? null,
+  planDigest: job.authoredScene?.planDigest ?? null,
   lastPatchChangedBeatIds: job.lastPatchChangedBeatIds,
   evidenceDigest: job.evidenceDigest,
   irDigest: job.irDigest,
@@ -1261,6 +1264,11 @@ export function registerCreatorWorkflow(
       typeof selectInitialStartFrame
     >[0]["generate"];
   },
+  featureFlags: FeatureFlagSnapshot = {
+    verifiedMotionAuthoring: false,
+    nativeSceneV2: false,
+    adobeMcp: false,
+  },
 ): void {
   const tenant = (request: FastifyRequest): string =>
     header(request, "x-tenant-id") ?? "";
@@ -1292,6 +1300,10 @@ export function registerCreatorWorkflow(
           ? generationParsed.data
           : undefined;
         if (generation) {
+          if (!featureFlags.verifiedMotionAuthoring) {
+            fail(reply, "MOTION_AUTHORING_DISABLED", 403);
+            return;
+          }
           // The generate track cannot finish without an AI provider: the
           // authoring stage calls one, and authorScene fails closed when
           // there is none. Checking here rather than only there turns a
@@ -2233,7 +2245,15 @@ export function registerCreatorWorkflow(
         const artifact = job.artifact
           ? store.artifacts.get(job.artifact.id)
           : undefined;
-        if (job.state !== "COMPLETED" || !artifact)
+        const gated =
+          job.generation && aiFrameSelection
+            ? currentDeliveryGate(aiFrameSelection.db, store, job)
+            : null;
+        if (
+          job.state !== "COMPLETED" ||
+          !artifact ||
+          (job.generation && gated?.delivery.id !== artifact.id)
+        )
           throw new Error("ARTIFACT_UNAVAILABLE");
         return reply
           .header("content-type", artifact.contentType)
@@ -2255,7 +2275,16 @@ export function registerCreatorWorkflow(
         const artifact = job.artifact
           ? store.artifacts.get(job.artifact.id)
           : undefined;
-        if (job.state !== "COMPLETED" || !artifact?.report)
+        const gated =
+          job.generation && aiFrameSelection
+            ? currentDeliveryGate(aiFrameSelection.db, store, job)
+            : null;
+        if (
+          job.state !== "COMPLETED" ||
+          !artifact?.report ||
+          (job.generation &&
+            (gated?.backend !== "adobe" || gated.delivery.id !== artifact.id))
+        )
           throw new Error("ARTIFACT_UNAVAILABLE");
         reply
           .header("content-type", "application/json; charset=utf-8")

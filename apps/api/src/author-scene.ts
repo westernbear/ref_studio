@@ -8,17 +8,37 @@ import {
   SceneSpecSchema,
   type SceneSpec,
 } from "../../../packages/contracts/src/scene-spec.js";
+import type {
+  MotionPlanV1,
+  VerificationReportV1,
+} from "../../../packages/contracts/src/motion.js";
 import { validateSceneSpec } from "../../../packages/contracts/src/spec-validate.js";
 import type Database from "better-sqlite3";
-import { generateObject, type LanguageModel } from "ai";
+import { generateObject, tool, type LanguageModel, type ToolSet } from "ai";
+import { z } from "zod";
 import {
   evidenceOwnerIds,
   projectEvidenceForAuthoring,
 } from "./author-scene-evidence.js";
 import { AUTHORING_SYSTEM_PROMPT } from "./author-scene.prompt.js";
 import { aiModelFromSettings } from "./ai-model-from-settings.js";
-import { hostMotionLookup } from "./motion-knowledge.js";
+import { getAiProviderSettings } from "./ai-provider-settings.js";
+import { readMotionToolCanary } from "./motion-canary.js";
+import {
+  lookupMotionKnowledge,
+  lookupMotionKnowledgeForBrief,
+  modelMotionTools,
+} from "./motion-knowledge.js";
 import { generateVerifiedScene } from "./verified-scene-authoring.js";
+import {
+  generateMotionPlan,
+  type GenerateMotionPlanCandidate,
+} from "./motion-plan-generator.js";
+import {
+  applyMotionPlan,
+  authoringVerificationReport,
+  nativeAuthoringCapabilities,
+} from "./author-scene-motion.js";
 
 // Narrow view of `generateObject`, mirrors apps/api/src/safety-check.ts,
 // translate-evidence.ts and refine-prompt.ts so tests can inject a fake
@@ -28,6 +48,7 @@ export type GenerateScene = (options: {
   readonly schema: typeof SceneSpecSchema;
   readonly system: string;
   readonly prompt: string;
+  readonly tools: ToolSet;
 }) => Promise<{ readonly object: SceneSpec }>;
 
 export type AuthoredScene = {
@@ -37,6 +58,9 @@ export type AuthoredScene = {
     readonly shot: string;
     readonly words: string;
   }[];
+  readonly motionPlan?: MotionPlanV1;
+  readonly planDigest?: string;
+  readonly verification?: VerificationReportV1;
 };
 
 // Text that appears on screen for a beat, for the beat-sheet summary shown
@@ -114,7 +138,11 @@ export async function authorScene(params: {
   }[];
   readonly db: Database.Database;
   readonly aiSecretKey: string;
+  readonly tenantId: string;
+  readonly now?: number;
+  readonly motionCanaryTtlMs?: number;
   readonly generate?: GenerateScene;
+  readonly generatePlan?: GenerateMotionPlanCandidate;
 }): Promise<AuthoredScene> {
   const model = aiModelFromSettings(params.db, params.aiSecretKey);
   if (!model) {
@@ -128,15 +156,34 @@ export async function authorScene(params: {
   // (its own token, EVIDENCE_PROJECTION_TOO_LARGE) if the projection itself
   // is unexpectedly large, rather than silently truncating.
   const projectedEvidence = projectEvidenceForAuthoring(params.evidence);
-  const motionKnowledge = hostMotionLookup(params.db, params.config.brief).map(
-    (card) => ({
-      id: card.id,
-      definition: card.definition,
-      parameters: card.parameters,
-      capabilities: card.capabilities,
-      verifierRefs: card.verifierRefs,
-    }),
+  const motionKnowledge = lookupMotionKnowledgeForBrief(
+    params.db,
+    params.config.brief,
   );
+  if (motionKnowledge.length === 0) {
+    throw new Error("MOTION_KNOWLEDGE_NOT_FOUND");
+  }
+  const settings = getAiProviderSettings(params.db);
+  const identity = {
+    tenantId: params.tenantId,
+    providerKind: settings.providerKind,
+    model: settings.model,
+  };
+  const admitted = modelMotionTools(
+    readMotionToolCanary(params.db, identity),
+    identity,
+    params.now ?? Date.now(),
+    params.motionCanaryTtlMs ?? 86_400_000,
+  );
+  const tools: ToolSet = admitted.includes("motion.lookup")
+    ? {
+        "motion.lookup": tool({
+          description: "Look up canonical motion knowledge.",
+          inputSchema: z.object({ query: z.string().min(1) }).strict(),
+          execute: async ({ query }) => lookupMotionKnowledge(params.db, query),
+        }),
+      }
+    : {};
 
   // The canvas is a job-configuration fact, never a model decision -- a
   // model that returns a 9:16 spec for a 16:9 job must not silently choose
@@ -153,6 +200,37 @@ export async function authorScene(params: {
     fps: DELIVERY_FPS,
     frameCount: frameCountFor(params.config.durationSec),
   };
+  const capabilitySnapshot = nativeAuthoringCapabilities(
+    new Date(params.now ?? Date.now()).toISOString(),
+  );
+  const generatedPlan = await generateMotionPlan(
+    {
+      brief: params.config.brief,
+      knowledgeCards: motionKnowledge.map((card) => ({
+        id: card.id,
+        definition: `${card.definition.en}\n${card.definition.ko}`,
+        capabilities: card.capabilities,
+      })),
+      projectedEvidence,
+      jobCanvas: canvas,
+      attachmentIds: params.attachments.map(
+        (attachment) => attachment.attachmentId,
+      ),
+      capabilitySnapshot,
+      promptVersion: "motion-authoring-v1",
+      modelVersion: settings.model,
+    },
+    params.generatePlan ??
+      (async (request, schema) =>
+        (
+          await generateObject({
+            model,
+            schema,
+            system: AUTHORING_SYSTEM_PROMPT,
+            prompt: JSON.stringify(request),
+          })
+        ).object),
+  );
 
   // The creator's brief and attachment identifiers are untrusted input --
   // fenced in their own delimited block, distinct from the instructions
@@ -190,6 +268,10 @@ ${JSON.stringify(projectedEvidence)}
 
 ${JSON.stringify(motionKnowledge)}
 
+## Motion plan (host-validated; element identifiers must match)
+
+${JSON.stringify(generatedPlan.plan)}
+
 ## Scene mode
 
 You decide the mode -- the creator never picks it. Set "mode" in your output to "SWAP" or "REINTERPRET" based on what the brief below actually asks for; see the system instructions for the criteria and which way to lean when it is ambiguous.
@@ -219,13 +301,14 @@ Author a SceneSpec for a film of about ${params.config.durationSec} seconds.`;
             attempt === 1
               ? prompt
               : `${prompt}\n\n## Verification repair ${attempt}/4\n\nFix these predicate failures without changing the hard canvas or asset constraints: ${JSON.stringify(failures)}`,
+          tools,
         })
       ).object,
     verify: (candidate) => {
       const parsed = SceneSpecSchema.safeParse(candidate);
       if (!parsed.success) throw new Error("SPEC_SCHEMA_INVALID");
       const spec: SceneSpec = { ...parsed.data, canvas };
-      return validateSceneSpec(
+      const draft = validateSceneSpec(
         spec,
         resolvableAssetIds(
           spec,
@@ -233,8 +316,54 @@ Author a SceneSpec for a film of about ${params.config.durationSec} seconds.`;
           evidenceOwnerIds(projectedEvidence),
         ),
       );
+      const applied = applyMotionPlan(
+        generatedPlan.plan,
+        draft,
+        capabilitySnapshot,
+      );
+      const verified = validateSceneSpec(
+        applied,
+        resolvableAssetIds(
+          applied,
+          params.attachments,
+          evidenceOwnerIds(projectedEvidence),
+        ),
+      );
+      const report = authoringVerificationReport(
+        verified,
+        generatedPlan.plan,
+        1,
+        capabilitySnapshot,
+        resolvableAssetIds(
+          verified,
+          params.attachments,
+          evidenceOwnerIds(projectedEvidence),
+        ),
+      );
+      if (report.status === "FAIL")
+        throw new Error(
+          JSON.stringify(report.findings.filter((finding) => !finding.pass)),
+        );
+      return verified;
     },
   });
 
-  return { spec: validated, beatSheet: beatSheetFor(validated) };
+  const verification = authoringVerificationReport(
+    validated.value,
+    generatedPlan.plan,
+    validated.attempts,
+    capabilitySnapshot,
+    resolvableAssetIds(
+      validated.value,
+      params.attachments,
+      evidenceOwnerIds(projectedEvidence),
+    ),
+  );
+  return {
+    spec: validated.value,
+    beatSheet: beatSheetFor(validated.value),
+    motionPlan: generatedPlan.plan,
+    planDigest: generatedPlan.planDigest,
+    verification,
+  };
 }

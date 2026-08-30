@@ -194,6 +194,7 @@ export class IdempotencyStore {
 export function safeEnvelope(
   error: unknown,
   id: string,
+  options?: Parameters<typeof normalizeError>[2],
 ): { readonly error: SafeError } {
-  return { error: normalizeError(error, id) };
+  return { error: normalizeError(error, id, options) };
 }

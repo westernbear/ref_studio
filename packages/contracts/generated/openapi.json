@@ -530,10 +530,30 @@
             "properties": {
               "code": { "type": "string" },
               "message": { "type": "string" },
+              "causeCategory": { "type": "string" },
+              "remediation": { "type": "string" },
+              "docsUrl": { "type": "string" },
               "correlationId": { "type": "string" },
-              "details": { "type": "array", "items": { "type": "object" } }
+              "details": { "type": "array", "items": { "type": "object" } },
+              "safePredecessor": {
+                "type": "object",
+                "properties": {
+                  "sceneVersion": { "type": "integer", "minimum": 0 },
+                  "sceneDigest": { "type": "string" },
+                  "artifactId": { "type": "string" }
+                },
+                "additionalProperties": false
+              }
             },
-            "required": ["code", "message", "correlationId", "details"],
+            "required": [
+              "code",
+              "message",
+              "causeCategory",
+              "remediation",
+              "docsUrl",
+              "correlationId",
+              "details"
+            ],
             "additionalProperties": false
           }
         },
@@ -549,7 +569,33 @@
             "type": "array",
             "minItems": 1,
             "maxItems": 16,
-            "items": { "type": "object" }
+            "items": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": { "type": "string", "const": "set" },
+                    "opId": { "type": "string" },
+                    "path": { "type": "string" },
+                    "value": {},
+                    "reason": { "type": "string" }
+                  },
+                  "required": ["kind", "opId", "path", "value", "reason"],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": { "type": "string", "const": "unset" },
+                    "opId": { "type": "string" },
+                    "path": { "type": "string" },
+                    "reason": { "type": "string" }
+                  },
+                  "required": ["kind", "opId", "path", "reason"],
+                  "additionalProperties": false
+                }
+              ]
+            }
           }
         },
         "required": ["schema", "baseSceneDigest", "operations"],
@@ -582,7 +628,17 @@
           "scene": { "type": "object" },
           "history": { "type": "array", "items": { "type": "object" } },
           "backendCapability": { "type": "object" },
-          "verification": { "type": ["object", "null"] }
+          "verification": { "type": ["object", "null"] },
+          "planDigest": {
+            "type": ["string", "null"],
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "predecessorVersion": { "type": ["integer", "null"], "minimum": 1 },
+          "artifactDigest": {
+            "type": ["string", "null"],
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "predicateIds": { "type": "array", "items": { "type": "string" } }
         },
         "required": [
           "schema",
@@ -592,7 +648,11 @@
           "scene",
           "history",
           "backendCapability",
-          "verification"
+          "verification",
+          "planDigest",
+          "predecessorVersion",
+          "artifactDigest",
+          "predicateIds"
         ],
         "additionalProperties": false
       },
@@ -619,11 +679,280 @@
         },
         "required": ["backend", "items"],
         "additionalProperties": false
+      },
+      "FeatureFlagSnapshot": {
+        "type": "object",
+        "properties": {
+          "verifiedMotionAuthoring": { "type": "boolean" },
+          "nativeSceneV2": { "type": "boolean" },
+          "adobeMcp": { "type": "boolean" }
+        },
+        "required": ["verifiedMotionAuthoring", "nativeSceneV2", "adobeMcp"],
+        "additionalProperties": false
+      },
+      "AdobeDeviceEnrollmentV1": {
+        "type": "object",
+        "properties": {
+          "version": { "type": "integer", "const": 1 },
+          "deviceId": { "type": "string" },
+          "keyId": { "type": "string" },
+          "secret": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "expiresAtMs": { "type": "integer", "minimum": 1 }
+        },
+        "required": ["version", "deviceId", "keyId", "secret", "expiresAtMs"],
+        "additionalProperties": false
+      },
+      "AdobeRelayRequestV1": {
+        "type": "object",
+        "properties": {
+          "version": { "type": "integer", "const": 1 },
+          "command": {
+            "type": "object",
+            "properties": {
+              "version": { "type": "integer", "const": 1 },
+              "commandId": { "type": "string" },
+              "nonce": { "type": "string" },
+              "sceneDigest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+              "deviceId": { "type": "string" },
+              "jobId": { "type": "string" },
+              "projectHandle": {
+                "type": "string",
+                "const": "project:working-copy"
+              },
+              "tool": { "type": "string" },
+              "args": { "type": "object" }
+            },
+            "required": [
+              "version",
+              "commandId",
+              "nonce",
+              "sceneDigest",
+              "deviceId",
+              "jobId",
+              "projectHandle",
+              "tool",
+              "args"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": ["version", "command"],
+        "additionalProperties": false
+      },
+      "AdobeCommandStatusV1": {
+        "type": "object",
+        "properties": {
+          "version": { "type": "integer", "const": 1 },
+          "commandId": { "type": "string" },
+          "deviceId": { "type": "string" },
+          "jobId": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": ["QUEUED", "RUNNING", "SUCCEEDED", "FAILED", "CANCELLED"]
+          },
+          "result": { "type": ["object", "null"] }
+        },
+        "required": [
+          "version",
+          "commandId",
+          "deviceId",
+          "jobId",
+          "status",
+          "result"
+        ],
+        "additionalProperties": false
       }
     },
     "securitySchemes": { "bearerAuth": { "type": "http", "scheme": "bearer" } }
   },
   "paths": {
+    "/v1/adobe/devices": {
+      "get": {
+        "operationId": "listAdobeDevices",
+        "responses": {
+          "200": {
+            "description": "Enrolled devices",
+            "content": {
+              "application/json": { "schema": { "type": "object" } }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SafeErrorEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/adobe/devices/{deviceId}/enroll": {
+      "post": {
+        "operationId": "enrollAdobeDevice",
+        "parameters": [
+          {
+            "name": "deviceId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "deviceId": { "type": "string" }
+                },
+                "required": ["name"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Enrolled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdobeDeviceEnrollmentV1"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SafeErrorEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/adobe/relay": {
+      "post": {
+        "operationId": "relayAdobeCommand",
+        "parameters": [
+          {
+            "name": "X-RVS-Key-Id",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "X-RVS-Timestamp-Ms",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "X-RVS-Request-Id",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "X-RVS-Nonce",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "X-RVS-Body-Hash",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "X-RVS-Signature",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/AdobeRelayRequestV1" }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Queued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdobeCommandStatusV1"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rejected",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SafeErrorEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/adobe/commands/{commandId}": {
+      "get": {
+        "operationId": "getAdobeCommand",
+        "responses": {
+          "200": {
+            "description": "Command metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdobeCommandStatusV1"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SafeErrorEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/feature-flags": {
+      "get": {
+        "operationId": "getFeatureFlags",
+        "responses": {
+          "200": {
+            "description": "Immutable startup feature flag snapshot",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/FeatureFlagSnapshot" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SafeErrorEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/uploads": {
       "post": {
         "operationId": "createUpload",
@@ -708,6 +1037,14 @@
       }
     },
     "/v1/jobs/{id}/motion-scene": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": { "type": "string" }
+        }
+      ],
       "get": {
         "operationId": "getMotionScene",
         "responses": {
@@ -725,6 +1062,20 @@
       },
       "patch": {
         "operationId": "patchMotionScene",
+        "parameters": [
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -743,8 +1094,40 @@
               }
             }
           },
+          "400": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SafeErrorEnvelope" }
+              }
+            }
+          },
+          "404": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SafeErrorEnvelope" }
+              }
+            }
+          },
           "409": {
-            "description": "Version conflict",
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SafeErrorEnvelope" }
+              }
+            }
+          },
+          "422": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SafeErrorEnvelope" }
+              }
+            }
+          },
+          "428": {
+            "description": "Request rejected",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/SafeErrorEnvelope" }
@@ -755,6 +1138,14 @@
       }
     },
     "/v1/jobs/{id}/deliverables": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": { "type": "string" }
+        }
+      ],
       "get": {
         "operationId": "getDeliverables",
         "responses": {
@@ -770,8 +1161,30 @@
       }
     },
     "/v1/jobs/{id}/motion-scene/rollback": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": { "type": "string" }
+        }
+      ],
       "post": {
         "operationId": "rollbackMotionScene",
+        "parameters": [
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -790,8 +1203,40 @@
               }
             }
           },
+          "400": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SafeErrorEnvelope" }
+              }
+            }
+          },
+          "404": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SafeErrorEnvelope" }
+              }
+            }
+          },
           "409": {
-            "description": "Version conflict",
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SafeErrorEnvelope" }
+              }
+            }
+          },
+          "422": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SafeErrorEnvelope" }
+              }
+            }
+          },
+          "428": {
+            "description": "Request rejected",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/SafeErrorEnvelope" }
@@ -802,8 +1247,30 @@
       }
     },
     "/v1/jobs/{id}/motion-scene/render": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": { "type": "string" }
+        }
+      ],
       "post": {
         "operationId": "renderMotionScene",
+        "parameters": [
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -818,8 +1285,40 @@
               "application/json": { "schema": { "type": "object" } }
             }
           },
+          "400": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SafeErrorEnvelope" }
+              }
+            }
+          },
+          "404": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SafeErrorEnvelope" }
+              }
+            }
+          },
           "409": {
-            "description": "Version conflict",
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SafeErrorEnvelope" }
+              }
+            }
+          },
+          "422": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SafeErrorEnvelope" }
+              }
+            }
+          },
+          "428": {
+            "description": "Request rejected",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/SafeErrorEnvelope" }
@@ -830,6 +1329,14 @@
       }
     },
     "/v1/jobs/{id}/scene-package-download": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": { "type": "string" }
+        }
+      ],
       "get": {
         "operationId": "downloadScenePackage",
         "responses": {
@@ -839,6 +1346,156 @@
               "application/x-tar": {
                 "schema": { "type": "string", "format": "binary" }
               }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SafeErrorEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/jobs/{id}/refine-prompt": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": { "type": "string" }
+        }
+      ],
+      "post": {
+        "operationId": "refinePrompt",
+        "parameters": [
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "prompt": { "type": "string" },
+                  "locale": { "type": "string" }
+                },
+                "required": ["prompt"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Refined",
+            "content": {
+              "application/json": { "schema": { "type": "object" } }
+            }
+          },
+          "400": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SafeErrorEnvelope" }
+              }
+            }
+          },
+          "404": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SafeErrorEnvelope" }
+              }
+            }
+          },
+          "409": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SafeErrorEnvelope" }
+              }
+            }
+          },
+          "422": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SafeErrorEnvelope" }
+              }
+            }
+          },
+          "428": {
+            "description": "Request rejected",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SafeErrorEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/jobs/{id}/delivery-download": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": { "type": "string" }
+        }
+      ],
+      "get": {
+        "operationId": "downloadDelivery",
+        "responses": {
+          "200": {
+            "description": "MP4",
+            "content": {
+              "video/mp4": {
+                "schema": { "type": "string", "format": "binary" }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SafeErrorEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/jobs/{id}/report-download": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": { "type": "string" }
+        }
+      ],
+      "get": {
+        "operationId": "downloadReport",
+        "responses": {
+          "200": {
+            "description": "Verification report",
+            "content": {
+              "application/json": { "schema": { "type": "object" } }
             }
           },
           "404": {

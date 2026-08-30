@@ -36,10 +36,13 @@ import { updateAiProviderSettings } from "./ai-provider-settings.js";
 import { updateMaterialProviderSettings } from "./material-provider-settings.js";
 import { openApiDatabase } from "./durable-state.js";
 import type { GenerateScene } from "./author-scene.js";
+import type { GenerateMotionPlanCandidate } from "./motion-plan-generator.js";
 import type { GenerateImage } from "./openai-image-material.js";
 import type { GenerateSafetyVerdict } from "./safety-check.js";
 import type { GenerateTranslation } from "./translate-evidence.js";
 import type DatabaseType from "better-sqlite3";
+import { insertMotionSceneVersion } from "./motion-scene-store.js";
+import { verifyMotionScene } from "./motion-operations.js";
 
 const sourceBytes = Uint8Array.from([
   0, 0, 0, 16, 102, 116, 121, 112, 105, 115, 111, 109,
@@ -65,7 +68,7 @@ const registration = (capabilities: readonly string[]) => ({
 const sha256 = (value: Uint8Array | string): string =>
   createHash("sha256").update(value).digest("hex");
 const generationConfig: GenerationConfig = {
-  brief: "Meridian finds meeting times nobody hates.",
+  brief: "Use timing and easing as Meridian finds meeting times nobody hates.",
   durationSec: 20,
   aspect: "9:16",
   attachmentIds: [],
@@ -331,6 +334,7 @@ type FixtureOptions = Readonly<{
   safetyCheckGenerate?: GenerateSafetyVerdict;
   translateGenerate?: GenerateTranslation;
   authorSceneGenerate?: GenerateScene;
+  authorSceneGeneratePlan?: GenerateMotionPlanCandidate;
   materialGenerate?: GenerateImage;
 }>;
 const appFixture = (
@@ -377,6 +381,29 @@ const appFixture = (
     safetyCheckGenerate: options.safetyCheckGenerate,
     translateGenerate: options.translateGenerate,
     authorSceneGenerate: options.authorSceneGenerate,
+    authorSceneGeneratePlan:
+      options.authorSceneGeneratePlan ??
+      (options.authorSceneGenerate
+        ? async (request) => ({
+            schema: "motion-plan-v1",
+            intent: "Apply bounded timing to the headline.",
+            knowledgeCardIds: [
+              request.knowledgeCards[0]?.id ?? "timing-easing",
+            ],
+            requiredCapabilities: ["keyframes", "easing"],
+            canvas: request.jobCanvas,
+            keyframeIntents: [
+              {
+                elementId: "headline",
+                anticipationFrames: 12,
+                overshootPercent: 8,
+                settleFrame: 36,
+                staggerFrames: 6,
+              },
+            ],
+            predicateIds: ["scene-spec", "element-kind-capability"],
+          })
+        : undefined),
     materialGenerate: options.materialGenerate,
   });
   app.addHook("onClose", async () => {
@@ -1437,6 +1464,15 @@ describe("worker registration API", () => {
       expect(finished?.authoredScene?.beatSheet).toHaveLength(
         fixtureSpec.beats.length,
       );
+      const creatorJob = await fixture.app.inject({
+        method: "GET",
+        url: `/v1/jobs/${job.id}`,
+        headers: fixture.tenantHeaders,
+      });
+      expect(creatorJob.statusCode).toBe(200);
+      expect(creatorJob.json().planDigest).toBe(
+        finished?.authoredScene?.planDigest,
+      );
       // The canvas comes from the job's own generation config (9:16, 20s),
       // never from whatever the fixture spec happened to carry.
       expect(finished?.authoredScene?.spec.canvas).toEqual({
@@ -2434,14 +2470,17 @@ describe("generate-track material and render phases", () => {
       1_000,
       "test-secret-key-material",
     );
-    return appFixture(workflow, uploads, {
-      reviews: createReviewStore(),
-      db,
-      aiSecretKey: "test-secret-key-material",
-      safetyCheckGenerate: async () => ({
-        object: { safe: true, reason: "no unsafe content detected" },
+    return {
+      ...appFixture(workflow, uploads, {
+        reviews: createReviewStore(),
+        db,
+        aiSecretKey: "test-secret-key-material",
+        safetyCheckGenerate: async () => ({
+          object: { safe: true, reason: "no unsafe content detected" },
+        }),
       }),
-    });
+      db,
+    };
   };
 
   it("hands the assets phase the authored scene, not the measured evidence", async () => {
@@ -3065,6 +3104,30 @@ describe("generate-track material and render phases", () => {
     );
     expect(workflow.scenePackages.get(job.id)?.id).toBe(
       scenePackage.json().artifactId,
+    );
+    fixture.db.exec(
+      `INSERT OR IGNORE INTO tenants VALUES ('ten_a','A','ORGANIZATION','ACTIVE',0,'2026-01-01T00:00:00Z');
+       INSERT OR IGNORE INTO users VALUES ('tenant-owner','owner@example.test','Owner','2026-01-01T00:00:00Z');
+       INSERT OR IGNORE INTO tenant_memberships VALUES ('ten_a','tenant-owner','OWNER','2026-01-01T00:00:00Z');
+       INSERT OR IGNORE INTO uploads VALUES ('upl-worker','ten_a','x.mp4','video/mp4',1,'ACCEPTED',NULL,'2026-01-01T00:00:00Z','2027-01-01T00:00:00Z');`,
+    );
+    fixture.db
+      .prepare(
+        "INSERT INTO jobs(id,tenant_id,creator_id,upload_id,scene_id,state,attempt,deletion_epoch,created_at) VALUES(?,?,?,?,?,'QUEUED',0,0,?)",
+      )
+      .run(
+        job.id,
+        "ten_a",
+        "tenant-owner",
+        "upl-worker",
+        `scene-${job.id}`,
+        "2026-01-01T00:00:00Z",
+      );
+    insertMotionSceneVersion(
+      fixture.db,
+      job,
+      generatedSpec(),
+      verifyMotionScene(generatedSpec()),
     );
     const deliverables = await fixture.app.inject({
       method: "GET",

@@ -40,15 +40,33 @@ describe("tenant boundary", () => {
       new Error("/private/secret.raw bytes stack"),
       "cor_test",
     );
-    expect(output).toEqual({
-      error: {
-        code: "INTERNAL_ERROR",
-        message: "Something went wrong. Try again later.",
-        correlationId: "cor_test",
-        details: [],
-      },
-    });
-    expect(JSON.stringify(output)).not.toMatch(/private|secret|stack|bytes/);
+    expect(output.error.code).toBe("INTERNAL_ERROR");
+    expect(output.error.message).toBe("Something went wrong. Try again later.");
+    expect(output.error.correlationId).toBe("cor_test");
+    expect(output.error.causeCategory).toBe("internal");
+    expect(output.error.docsUrl).toBe("/docs/errors#INTERNAL_ERROR");
+    expect(output.error.remediation.length).toBeGreaterThan(0);
+    expect(output.error.details).toEqual([]);
+    expect(JSON.stringify(output)).not.toMatch(/private|secret\.raw|stack/);
+  });
+
+  it.each([
+    "VERSION_CONFLICT",
+    "PRECONDITION_REQUIRED",
+    "SCENE_VERIFICATION_FAILED",
+    "IDEMPOTENCY_CONFLICT",
+  ] as const)("preserves the stable motion error code %s", (code) => {
+    const output = safeEnvelope(
+      new Error(code, { cause: new Error("/private/token stack") }),
+      "cor_motion",
+    );
+    expect(output.error.code).toBe(code);
+    expect(output.error.correlationId).toBe("cor_motion");
+    expect(output.error.causeCategory.length).toBeGreaterThan(0);
+    expect(output.error.remediation.length).toBeGreaterThan(0);
+    expect(output.error.docsUrl).toBe(`/docs/errors#${code}`);
+    expect(output.error.details).toEqual([]);
+    expect(JSON.stringify(output)).not.toMatch(/private|token|stack/);
   });
 });
 

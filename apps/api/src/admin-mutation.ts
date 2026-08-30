@@ -79,6 +79,25 @@ export type AdminMutationStore = {
   readonly reviews?: ReviewStore;
   readonly db?: Database.Database;
   readonly aiSecretKey?: string;
+  readonly motionActions?: {
+    readonly retryCommand: (
+      tenantId: string,
+      commandId: string,
+    ) => Record<string, unknown>;
+    readonly cancelCommand: (
+      tenantId: string,
+      commandId: string,
+    ) => Record<string, unknown>;
+    readonly disableAdmission: (
+      tenantId: string,
+      deviceId: string,
+    ) => Record<string, unknown>;
+    readonly requestRollback: (
+      tenantId: string,
+      jobId: string,
+    ) => Record<string, unknown>;
+  };
+  readonly recordAuditEvent?: (event: AdminAuditEvent) => void;
 };
 export const createAdminMutationStore = (
   now = Date.now(),
@@ -257,10 +276,76 @@ export function registerAdminMutation(
           : request.params.itemId
             ? store.uploads?.uploads.get(request.params.itemId)?.tenantId
             : null) ??
+        body.tenantId ??
         null;
       const result = command(request, tenantId, (principal, correlation) => {
         const reason = requireReason(body);
         const path = request.url.split("?")[0] ?? "";
+        const motionActions = store.motionActions;
+        const motionAction = path.match(
+          /^\/admin\/adobe\/(commands|devices)\/([^/]+)\/(retry|cancel|disable-admission)$/u,
+        );
+        if (motionAction) {
+          if (!motionActions || !tenantId)
+            throw new Error("RESOURCE_NOT_FOUND");
+          const [, targetType, targetId, action] = motionAction;
+          if (!targetType || !targetId || !action)
+            throw new Error("INVALID_REQUEST");
+          const before = { requestedAction: action };
+          const after =
+            targetType === "commands" && action === "retry"
+              ? motionActions.retryCommand(tenantId, targetId)
+              : targetType === "commands" && action === "cancel"
+                ? motionActions.cancelCommand(tenantId, targetId)
+                : targetType === "devices" && action === "disable-admission"
+                  ? motionActions.disableAdmission(tenantId, targetId)
+                  : (() => {
+                      throw new Error("INVALID_REQUEST");
+                    })();
+          const event: AdminAuditEvent = {
+            id: id("audit"),
+            tenantId,
+            actorId: principal.userId,
+            action: `ADOBE_${action.replace("-", "_").toUpperCase()}`,
+            targetType:
+              targetType === "commands" ? "adobe-command" : "adobe-device",
+            targetId,
+            before,
+            after,
+            reason,
+            correlationId: correlation,
+            outcome: "ALLOWED",
+            createdAt: new Date(store.now()).toISOString(),
+          };
+          store.auditEvents.push(event);
+          store.recordAuditEvent?.(event);
+          return [202, after];
+        }
+        if (path.endsWith("/request-rollback")) {
+          if (!motionActions || !tenantId || !request.params.jobId)
+            throw new Error("RESOURCE_NOT_FOUND");
+          const after = motionActions.requestRollback(
+            tenantId,
+            request.params.jobId,
+          );
+          const event: AdminAuditEvent = {
+            id: id("audit"),
+            tenantId,
+            actorId: principal.userId,
+            action: "MOTION_ROLLBACK_REQUESTED",
+            targetType: "job",
+            targetId: request.params.jobId,
+            before: { requested: false },
+            after,
+            reason,
+            correlationId: correlation,
+            outcome: "ALLOWED",
+            createdAt: new Date(store.now()).toISOString(),
+          };
+          store.auditEvents.push(event);
+          store.recordAuditEvent?.(event);
+          return [202, after];
+        }
         if (
           path.endsWith("/cancel") ||
           path.endsWith("/retry") ||
@@ -474,6 +559,10 @@ export function registerAdminMutation(
   app.post("/admin/jobs/:jobId/cancel", mutate);
   app.post("/admin/jobs/:jobId/retry", mutate);
   app.post("/admin/jobs/:jobId/force-terminate", mutate);
+  app.post("/admin/jobs/:jobId/request-rollback", mutate);
+  app.post("/admin/adobe/commands/:itemId/retry", mutate);
+  app.post("/admin/adobe/commands/:itemId/cancel", mutate);
+  app.post("/admin/adobe/devices/:itemId/disable-admission", mutate);
   app.post("/admin/workers/:workerId/offline", mutate);
   app.post("/admin/quarantine/:itemId/release", mutate);
   app.post("/admin/quarantine/:itemId/reject", mutate);

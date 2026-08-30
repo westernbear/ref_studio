@@ -9,7 +9,7 @@ import { useEffect, useRef, useState } from "react";
 import type { JobProgress } from "../../../lib/job-progress";
 import { CompilerChatPanel } from "./CompilerChatPanel";
 import { MotionEditorPanel } from "./MotionEditorPanel";
-import { clampSplitRatio } from "./motion-workspace-model";
+import { clampSplitRatio, tabIndexForKey } from "./motion-workspace-model";
 import { useMotionWorkspace } from "./useMotionWorkspace";
 
 const SPLIT_STORAGE_KEY = "rvs.motion-workspace.split-ratio";
@@ -56,6 +56,18 @@ export function MotionWorkspace({
     const bounds = parent.getBoundingClientRect();
     setRatio(clampSplitRatio(((clientX - bounds.left) / bounds.width) * 100));
   };
+  const selectMobilePane = (
+    next: "chat" | "editor",
+    target?: EventTarget | null,
+  ): void => {
+    setMobilePane(next);
+    const tab = (
+      target as HTMLElement | null
+    )?.parentElement?.querySelector<HTMLButtonElement>(
+      `#motion-workspace-${next}-tab`,
+    );
+    tab?.focus();
+  };
 
   return (
     <div
@@ -66,11 +78,13 @@ export function MotionWorkspace({
       }}
     >
       <CompilerChatPanel
+        id="motion-workspace-chat"
         job={workspace.job}
         scene={workspace.scene}
         deliverables={workspace.deliverables}
         messages={workspace.messages}
         busy={workspace.busy}
+        viewState={workspace.viewState}
         canUndo={workspace.canUndo}
         onRefine={workspace.refine}
         onUndo={() => workspace.undo(t("undoEvent"))}
@@ -78,6 +92,7 @@ export function MotionWorkspace({
           workspace.rollback(version, t("rollbackEvent", { version }))
         }
         onRender={workspace.render}
+        onRefresh={workspace.refresh}
       />
       <div
         className="motion-workspace-separator"
@@ -123,10 +138,12 @@ export function MotionWorkspace({
         }}
       />
       <MotionEditorPanel
+        id="motion-workspace-editor"
         job={workspace.job}
         scene={workspace.scene}
         deliverables={workspace.deliverables}
         busy={workspace.busy}
+        viewState={workspace.viewState}
         onApply={workspace.applyOperations}
       />
       <nav
@@ -135,18 +152,42 @@ export function MotionWorkspace({
         aria-label={t("mobileViews")}
       >
         <button
+          id="motion-workspace-chat-tab"
           type="button"
           role="tab"
           aria-selected={mobilePane === "chat"}
-          onClick={() => setMobilePane("chat")}
+          aria-controls="motion-workspace-chat"
+          tabIndex={mobilePane === "chat" ? 0 : -1}
+          onClick={() => selectMobilePane("chat")}
+          onKeyDown={(event) => {
+            const next = tabIndexForKey(event.key, 0, 1);
+            if (next === null) return;
+            event.preventDefault();
+            selectMobilePane(
+              next === 0 ? "chat" : "editor",
+              event.currentTarget,
+            );
+          }}
         >
           {t("chatTab")}
         </button>
         <button
+          id="motion-workspace-editor-tab"
           type="button"
           role="tab"
           aria-selected={mobilePane === "editor"}
-          onClick={() => setMobilePane("editor")}
+          aria-controls="motion-workspace-editor"
+          tabIndex={mobilePane === "editor" ? 0 : -1}
+          onClick={() => selectMobilePane("editor")}
+          onKeyDown={(event) => {
+            const next = tabIndexForKey(event.key, 1, 1);
+            if (next === null) return;
+            event.preventDefault();
+            selectMobilePane(
+              next === 0 ? "chat" : "editor",
+              event.currentTarget,
+            );
+          }}
         >
           {t("editorTab")}
         </button>

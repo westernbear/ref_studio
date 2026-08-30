@@ -283,8 +283,9 @@ async function generatePass(contract, root, generatorClosureSha256) {
   return entries;
 }
 
-const contractArgument = option("--contract");
-if (contractArgument === undefined) throw new Error("--contract is required");
+const contractArgument =
+  option("--contract") ??
+  ".omo/drafts/reference-video-studio-saas-fixture-contract-v2.json";
 const lockArgument =
   option("--lock") ?? "verification/contract/fixture-manifest.lock.json";
 const noWriteLock =

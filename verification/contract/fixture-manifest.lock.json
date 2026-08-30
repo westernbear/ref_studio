@@ -1,17 +1,20 @@
 {
   "schemaVersion": "rvs-fixture-manifest-lock-v1",
   "contractSha256": "a2a3f6c7688396690ebf61a458f355739855d2d8920a04eedb4ed2c3c0a2300c",
-  "generatorClosureSha256": "42281163a9501ce73dbcd3ef24c24389414f3c1673757f2aa7a1f25a4789b7e4",
+  "generatorClosureSha256": "28f1d40cbb69ae83f17df4e7526a5220e52cd91a008bf5b62539941d2e911d58",
   "generationPasses": [
-    "ea2a41df93f446a126629545da33a2c403236b83bfeb2c7cabf1d05eea45d9b4",
-    "ea2a41df93f446a126629545da33a2c403236b83bfeb2c7cabf1d05eea45d9b4"
+    "502f70eae0c9cc8d9d36e1a62e442ed46c7bca4a09b2b7737b38995b54aba1ff",
+    "502f70eae0c9cc8d9d36e1a62e442ed46c7bca4a09b2b7737b38995b54aba1ff"
   ],
   "fixtures": [
     {
       "id": "identity",
       "fps": 25,
       "frames": 100,
-      "size": [1080, 1920],
+      "size": [
+        1080,
+        1920
+      ],
       "videoFiltergraphSha256": "c4693676c9f337070dc0987b0e45899b3793d50b9aad94b23440b80ca3111b28",
       "audioFiltergraphSha256": "d01fcf635588990c4489ccb528df7a64221fc9584c2d981a79b025b4c75952f5",
       "rawFrameSha256": "b0134572cfa0bb8f07a7acb897a3decc41deb6076449a6ca611012972b8b16c9",
@@ -21,14 +24,17 @@
       "normalizedWorkingSha256": "40b63bb4b2ce4bafe3fc7bf355b4901ecf664db39f71f0ad8d10276a6248f4b6",
       "ffprobeSha256": "f9e1c867a7394487ed29483558a5c70138f53cd14e6edbe073b1efa200d795e7",
       "truthSha256": "7ed97e48a4dff36e05bea7b3c1bce96dda92dc686795b270f2925f4399e101e7",
-      "generatorClosureSha256": "42281163a9501ce73dbcd3ef24c24389414f3c1673757f2aa7a1f25a4789b7e4",
+      "generatorClosureSha256": "28f1d40cbb69ae83f17df4e7526a5220e52cd91a008bf5b62539941d2e911d58",
       "variants": {}
     },
     {
       "id": "occlusion",
       "fps": 25,
       "frames": 100,
-      "size": [1080, 1920],
+      "size": [
+        1080,
+        1920
+      ],
       "videoFiltergraphSha256": "0d310d180b93f64c1c696a6071979bd130259030ca80de812d01156fafc4e713",
       "audioFiltergraphSha256": "d01fcf635588990c4489ccb528df7a64221fc9584c2d981a79b025b4c75952f5",
       "rawFrameSha256": "ba102b6662f1f29f8910e9515c3867d92e34d81aa3457557b401b57d1eae8584",
@@ -38,14 +44,17 @@
       "normalizedWorkingSha256": "e9662c7992dd0115a8189d0fee405f81fb915bd4c6df66e0a24d5b8527968a3a",
       "ffprobeSha256": "122d5b2ee8eff19a6a5b6763150a02aa06e8fc5ffe917454f5d6585eec115cbf",
       "truthSha256": "76e33cee081e6a9f7e5241f6974d48a9691ca583bfdd8be8b5793f8e8c98a363",
-      "generatorClosureSha256": "42281163a9501ce73dbcd3ef24c24389414f3c1673757f2aa7a1f25a4789b7e4",
+      "generatorClosureSha256": "28f1d40cbb69ae83f17df4e7526a5220e52cd91a008bf5b62539941d2e911d58",
       "variants": {}
     },
     {
       "id": "ui-text",
       "fps": 25,
       "frames": 100,
-      "size": [1080, 1920],
+      "size": [
+        1080,
+        1920
+      ],
       "videoFiltergraphSha256": "a24be38eefe2f7d32e776c7bfd37b0b6bda02ae42e5d0abeaa76b545b1196e9a",
       "audioFiltergraphSha256": "d01fcf635588990c4489ccb528df7a64221fc9584c2d981a79b025b4c75952f5",
       "rawFrameSha256": "809b70bdb3b55cf5fc78a4f36224c3a6a02c58f44b53560052922335c2857fb3",
@@ -55,14 +64,17 @@
       "normalizedWorkingSha256": "6bf698d0a7d8c4caca9272dfc243c91c01f1c2e592d0780a3a386e58a81c5ec5",
       "ffprobeSha256": "e26b9654578e48e7d3a9c8e9d704a65448a689618853bbc861724197a6ffde83",
       "truthSha256": "965822b984f89d0dfe231158cfa12a83d00e264cf8dd33d896c4be8ff72193f0",
-      "generatorClosureSha256": "42281163a9501ce73dbcd3ef24c24389414f3c1673757f2aa7a1f25a4789b7e4",
+      "generatorClosureSha256": "28f1d40cbb69ae83f17df4e7526a5220e52cd91a008bf5b62539941d2e911d58",
       "variants": {}
     },
     {
       "id": "camera",
       "fps": 25,
       "frames": 100,
-      "size": [1080, 1920],
+      "size": [
+        1080,
+        1920
+      ],
       "videoFiltergraphSha256": "2c8e4c35bd686449d07294a5b174dc17f7af61bc5ad209951d5813f74ab12a3f",
       "audioFiltergraphSha256": "d01fcf635588990c4489ccb528df7a64221fc9584c2d981a79b025b4c75952f5",
       "rawFrameSha256": "c9d9f6c2d2352e70c8e9f1e5d5387dafe845c1a896e3eeaeb451f6daa4990440",
@@ -72,14 +84,17 @@
       "normalizedWorkingSha256": "2bd560675b65fee23f3e32a54037e77db31ba6951a75f41455eeb49de8e3509d",
       "ffprobeSha256": "f317c2a2a085057c3257425ce3fd82459e5271e894707050e6a263542d674dde",
       "truthSha256": "b53427004e365565686e730bc12b077da14341d7d0955bdc1ddac8ffda012c0d",
-      "generatorClosureSha256": "42281163a9501ce73dbcd3ef24c24389414f3c1673757f2aa7a1f25a4789b7e4",
+      "generatorClosureSha256": "28f1d40cbb69ae83f17df4e7526a5220e52cd91a008bf5b62539941d2e911d58",
       "variants": {}
     },
     {
       "id": "rhythm",
       "fps": 25,
       "frames": 100,
-      "size": [1080, 1920],
+      "size": [
+        1080,
+        1920
+      ],
       "videoFiltergraphSha256": "5f79dc717deff41952c6bd4e8efe367bc728e1a479481059d4e0f7da83516406",
       "audioFiltergraphSha256": "5470173852b515a4e50c558b6975f3986fa1a0bba62921d569ace4f36181549f",
       "rawFrameSha256": "cbf19b7295dafeb63ba24b88ad670a4d9e2edeb5c41e1b922b07d35c3340b42c",
@@ -89,14 +104,17 @@
       "normalizedWorkingSha256": "11fef2091220c324204867a6a4a3bfbb4543814ab0d5337c7d586195a6dcce3d",
       "ffprobeSha256": "0c677a6c0df02e3481e7ed19bcdb0cebec1821fcc1c46eb87d758e7bd8664f75",
       "truthSha256": "c4a506c1bbe17f2d01d5e0b384fb55ff1f82c692901379e75505d9f95e7d5687",
-      "generatorClosureSha256": "42281163a9501ce73dbcd3ef24c24389414f3c1673757f2aa7a1f25a4789b7e4",
+      "generatorClosureSha256": "28f1d40cbb69ae83f17df4e7526a5220e52cd91a008bf5b62539941d2e911d58",
       "variants": {}
     },
     {
       "id": "vfx-ownership",
       "fps": 25,
       "frames": 100,
-      "size": [1080, 1920],
+      "size": [
+        1080,
+        1920
+      ],
       "videoFiltergraphSha256": "2464b9d31a6b37a59f2528b7d541335f58bc6c21dd45cd84f5b375af26c7f542",
       "audioFiltergraphSha256": "d01fcf635588990c4489ccb528df7a64221fc9584c2d981a79b025b4c75952f5",
       "rawFrameSha256": "d0913285e655de6eef7c331318c78dc403133a31d8892d1bd0dcc252ed8625c9",
@@ -106,14 +124,17 @@
       "normalizedWorkingSha256": "de7d39dfd711e539cf2195b8e496d830522c7de5e0bd07564ddfcf48185999b8",
       "ffprobeSha256": "de96e41a157eacf3ecc2ba25f851dc236ea846a9083b3b660637acc1a45fd287",
       "truthSha256": "3ef4ce07d6f990cc95dc6d6d237757fb0b41cc346cfa54edd0f5b5e40c0ac0ef",
-      "generatorClosureSha256": "42281163a9501ce73dbcd3ef24c24389414f3c1673757f2aa7a1f25a4789b7e4",
+      "generatorClosureSha256": "28f1d40cbb69ae83f17df4e7526a5220e52cd91a008bf5b62539941d2e911d58",
       "variants": {}
     },
     {
       "id": "audio",
       "fps": 25,
       "frames": 100,
-      "size": [1080, 1920],
+      "size": [
+        1080,
+        1920
+      ],
       "videoFiltergraphSha256": "9c862fa676ce95b54b8af1a96dc34f454087ec51f5b0f13e97923cddeaa63c59",
       "audioFiltergraphSha256": "d048eb43707add141bf7ef2458f5ce7457e91314f6a989de077fa8ced1da8acb",
       "rawFrameSha256": "3c2394567889e91105461e827318bf10d71cd2699cafed0a54a0c0103bf3bd3a",
@@ -123,14 +144,17 @@
       "normalizedWorkingSha256": "a250fae32db520abc6703324b4137b79d239bd0dd04cc253e8a4032175d5b24e",
       "ffprobeSha256": "dece3f66c7ebba72e1177c85f501de2f3823ac74a7c308687011adf0e627ca9f",
       "truthSha256": "da35906456aeb8af29ed86c1d5ca63d09bdc4de46dbb0a172c77ee65442cbde8",
-      "generatorClosureSha256": "42281163a9501ce73dbcd3ef24c24389414f3c1673757f2aa7a1f25a4789b7e4",
+      "generatorClosureSha256": "28f1d40cbb69ae83f17df4e7526a5220e52cd91a008bf5b62539941d2e911d58",
       "variants": {}
     },
     {
       "id": "coherent-wrong",
       "fps": 25,
       "frames": 100,
-      "size": [1080, 1920],
+      "size": [
+        1080,
+        1920
+      ],
       "videoFiltergraphSha256": "68ec8b6c742dc124adeb8164497c49f453554e2cfc4797f8a548d023687b1f01",
       "audioFiltergraphSha256": "26a52252985b9dce845754a53e81042a843e18353e070c0c145a1dd6ddcd3404",
       "rawFrameSha256": "7d2fa315c93e833d90ee5c7a152db0bac9c11c00d972925ed119d5e8378e4618",
@@ -140,14 +164,17 @@
       "normalizedWorkingSha256": "845d17327ec8ea8e56cb2c08a3ccfc0af617c40bc3371d413e142db2174c0e59",
       "ffprobeSha256": "1b78513950edb0a4d0509bd41b6f14413c1f0a26bea3234b75b3d29a55741e92",
       "truthSha256": "9d3568dca3bc705126442f08be63f32e1768c383f3ddf374aa4de8596647a242",
-      "generatorClosureSha256": "42281163a9501ce73dbcd3ef24c24389414f3c1673757f2aa7a1f25a4789b7e4",
+      "generatorClosureSha256": "28f1d40cbb69ae83f17df4e7526a5220e52cd91a008bf5b62539941d2e911d58",
       "variants": {}
     },
     {
       "id": "pass-swapped",
       "fps": 25,
       "frames": 100,
-      "size": [1080, 1920],
+      "size": [
+        1080,
+        1920
+      ],
       "videoFiltergraphSha256": "7d6475ebe2dfe61b8214bbb308fa18bf5e76cad448d363076caafc95c05456fd",
       "audioFiltergraphSha256": "d01fcf635588990c4489ccb528df7a64221fc9584c2d981a79b025b4c75952f5",
       "rawFrameSha256": "da8118e75b611ef92514503c52afe6c608fc0f841dd0e584c93f48b296ef67af",
@@ -157,14 +184,17 @@
       "normalizedWorkingSha256": "d8101ae21dda4363b5ec91c866233ec9a91e882557bdb92f7059e501053c0150",
       "ffprobeSha256": "5f286f4dcf342dfdf1c614534e18b9ba29ad1a76519a3f7320326c798709144e",
       "truthSha256": "e938468376b3c9b38cd8e074ebadb18864166558353df6ba6cbe87e805602caf",
-      "generatorClosureSha256": "42281163a9501ce73dbcd3ef24c24389414f3c1673757f2aa7a1f25a4789b7e4",
+      "generatorClosureSha256": "28f1d40cbb69ae83f17df4e7526a5220e52cd91a008bf5b62539941d2e911d58",
       "variants": {}
     },
     {
       "id": "ablation",
       "fps": 25,
       "frames": 100,
-      "size": [1080, 1920],
+      "size": [
+        1080,
+        1920
+      ],
       "videoFiltergraphSha256": "98b92764b88768ae171250ec0d888c2fdeceffeca35352619acd574fce7313c8",
       "audioFiltergraphSha256": "d01fcf635588990c4489ccb528df7a64221fc9584c2d981a79b025b4c75952f5",
       "rawFrameSha256": "8fc8f557414458c13b6fe4e405af67a9a1022320263019cf6eedb9401ba9cdfc",
@@ -174,7 +204,7 @@
       "normalizedWorkingSha256": "ca5f840b431b32af64fd76f01d910f3f2f74b888de4b714a797ac7b1114448e1",
       "ffprobeSha256": "2c121f2a241b79044794d5a5b5e8479b9cc3f03452ae16d0e434ad3a1066a46f",
       "truthSha256": "f91f0b9756cb87d70b051dfe443005d1e8e9a4448236fa21f8b7c0192e950d11",
-      "generatorClosureSha256": "42281163a9501ce73dbcd3ef24c24389414f3c1673757f2aa7a1f25a4789b7e4",
+      "generatorClosureSha256": "28f1d40cbb69ae83f17df4e7526a5220e52cd91a008bf5b62539941d2e911d58",
       "variants": {
         "removeText": {
           "variantFiltergraphSha256": "98b92764b88768ae171250ec0d888c2fdeceffeca35352619acd574fce7313c8",
@@ -218,7 +248,10 @@
       "id": "frame-contract-trial1",
       "fps": 25,
       "frames": 100,
-      "size": [1080, 1920],
+      "size": [
+        1080,
+        1920
+      ],
       "videoFiltergraphSha256": "3efdb074bed014d485c914cdcbdc71f515e00802dce2dfc90a4eefa6888e5ee6",
       "audioFiltergraphSha256": "d4622219c8cbcdb7712443053006166a13e19c9d3921b1b7f1424e53696092ce",
       "rawFrameSha256": "08d7416960eccc88c6be8e27efeacbc294202aac970845202c630d1e15c2cd75",
@@ -228,14 +261,17 @@
       "normalizedWorkingSha256": "8d4989398de67f3fe2fd8d8b08f6213970abef5e2efa2abcbf554a246bac6082",
       "ffprobeSha256": "0b9a453f0902493a92b10d6c90fdfe048b568c8bd258aa48a3e1cfebefbfbc23",
       "truthSha256": "97babb738dc467df4d861f73d1f29d8f3dd222b60f7f0c1c33bb8b3ca9df4b59",
-      "generatorClosureSha256": "42281163a9501ce73dbcd3ef24c24389414f3c1673757f2aa7a1f25a4789b7e4",
+      "generatorClosureSha256": "28f1d40cbb69ae83f17df4e7526a5220e52cd91a008bf5b62539941d2e911d58",
       "variants": {}
     },
     {
       "id": "frame-contract-trial2-pilot",
       "fps": 25,
       "frames": 100,
-      "size": [1080, 1920],
+      "size": [
+        1080,
+        1920
+      ],
       "videoFiltergraphSha256": "cf93de5ad5d4651a2f363d0660542b05adb82ebe6c7b8a0465beda82150ee30e",
       "audioFiltergraphSha256": "cd450a9d4ee5726c1f0980563464c9bb35375ccb9d889312ccdd2a92bb2ba004",
       "rawFrameSha256": "cabb56a81d11146515aecb3281f91d7558e38d17d7ce040d41405c3919ccb72f",
@@ -245,14 +281,17 @@
       "normalizedWorkingSha256": "962faa135e61b5b2f5a403a0418052bac48fced4a694879784c5f009c3071aa9",
       "ffprobeSha256": "5be2684c5e084be422a1adfaec50a73134fb95512d55e00d4abfede71bdfa9f4",
       "truthSha256": "9303de22144f2015e4be30e78623afcd4870e80480b4c345148bfac13a3866ee",
-      "generatorClosureSha256": "42281163a9501ce73dbcd3ef24c24389414f3c1673757f2aa7a1f25a4789b7e4",
+      "generatorClosureSha256": "28f1d40cbb69ae83f17df4e7526a5220e52cd91a008bf5b62539941d2e911d58",
       "variants": {}
     },
     {
       "id": "frame-contract-24fps",
       "fps": 24,
       "frames": 96,
-      "size": [1080, 1920],
+      "size": [
+        1080,
+        1920
+      ],
       "videoFiltergraphSha256": "a2533ef70bb9c88cd01591d5fb303ba8f745228eb2359238f5070fee9a3f7282",
       "audioFiltergraphSha256": "19d6fe9114eaebb4dd630ed25a83b5abb8f2a74b22ead31628b1ccb9d823ffac",
       "rawFrameSha256": "9afbd4d32b5752915a3f56aaa7527b0821997844f82c7f0adcf461df0da49a97",
@@ -262,14 +301,17 @@
       "normalizedWorkingSha256": "0eee4ea38c02b2ad5e2cfd92153b0c480300e495f6f35b41fbfd8c9c7bf7ce0a",
       "ffprobeSha256": "51ab68181ace6cb8943f7c240bd845f1e947f2187345ebe9990eb17d64debe47",
       "truthSha256": "22ba01e9c439e1f08836f4dceb861da15690fe239dcdbac350fac00bf0aebace",
-      "generatorClosureSha256": "42281163a9501ce73dbcd3ef24c24389414f3c1673757f2aa7a1f25a4789b7e4",
+      "generatorClosureSha256": "28f1d40cbb69ae83f17df4e7526a5220e52cd91a008bf5b62539941d2e911d58",
       "variants": {}
     },
     {
       "id": "frame-contract-30fps",
       "fps": 30,
       "frames": 120,
-      "size": [1080, 1920],
+      "size": [
+        1080,
+        1920
+      ],
       "videoFiltergraphSha256": "45dcf001d894d02fae2deceacc1fb0d616b65a08ac02949d7a7c971e1ab29745",
       "audioFiltergraphSha256": "543ea09e59cf55828e517c55f3ccea9cc7c074bee386e21efd8e67861dee6ae9",
       "rawFrameSha256": "0a6db132ee9ed1029a68cba4f534f4aeac7fdf1800f69db4a51c93f6075e7350",
@@ -279,14 +321,17 @@
       "normalizedWorkingSha256": "ce3987b89eeb10fc25798c3f18cede9c4821ab0a59646973b996fc93918b454f",
       "ffprobeSha256": "48709ab69d991a02e97dcd97e8e82ce9ddd723176e80344ec53343b88834a99d",
       "truthSha256": "a1f009cee944e33a3d57b5db11824167873415cf857e95bf84b9c93045ea6dec",
-      "generatorClosureSha256": "42281163a9501ce73dbcd3ef24c24389414f3c1673757f2aa7a1f25a4789b7e4",
+      "generatorClosureSha256": "28f1d40cbb69ae83f17df4e7526a5220e52cd91a008bf5b62539941d2e911d58",
       "variants": {}
     },
     {
       "id": "frame-contract-50fps",
       "fps": 50,
       "frames": 200,
-      "size": [1080, 1920],
+      "size": [
+        1080,
+        1920
+      ],
       "videoFiltergraphSha256": "7af4ac869a7d66ffbf2bf7de13c16487dcfdd3ce8af467a23ebc34d399b6b138",
       "audioFiltergraphSha256": "8f0d54806785ef4896d0be5f03e1ebfb95f14e2ca0258fbe7395cd997c3b2f5d",
       "rawFrameSha256": "02ec165cc879760e0680b7e2a4fd3f621a81c74405465571c3a658571bc9e088",
@@ -296,14 +341,17 @@
       "normalizedWorkingSha256": "c1d9e32571d44589a97d693c3942c723db4ffb6eec08a23997fc0428b7294fe6",
       "ffprobeSha256": "6b5cb2ba0b0f5c0939dfb9641328926990175d7decaaa1a0df7ff3165f724fb9",
       "truthSha256": "8b0cd7c2535d2c9d6ccd2afc8f15860053ef79cf244e9e2e6ba22c3604d049cf",
-      "generatorClosureSha256": "42281163a9501ce73dbcd3ef24c24389414f3c1673757f2aa7a1f25a4789b7e4",
+      "generatorClosureSha256": "28f1d40cbb69ae83f17df4e7526a5220e52cd91a008bf5b62539941d2e911d58",
       "variants": {}
     },
     {
       "id": "capacity-dense-ocr-4k-60fps",
       "fps": 60,
       "frames": 240,
-      "size": [3840, 2160],
+      "size": [
+        3840,
+        2160
+      ],
       "videoFiltergraphSha256": "741f04275b8e2f154dc3f9d6db5c559ab184bb74eb2af24d603ee0d602a65a92",
       "audioFiltergraphSha256": "5b29061fe8db18b346ea9355a4f16c89919bcb71ae8e089c664f72c2b8295bc8",
       "rawFrameSha256": "40d67fe92c8125fd360288aedf5a9c437f327ed7d38977d67a7f5dd6a70bee72",
@@ -313,7 +361,7 @@
       "normalizedWorkingSha256": "9a2385515a4fe60cda92651560912eb70b9f7dce1f653ae8e6abc33824c25c9e",
       "ffprobeSha256": "affd7009ed893f5f9b950650ccbe760237c558318feda342ce0cc697909a4c4d",
       "truthSha256": "2ff5c28f4bb5abcfeb747b0601a36aa457ba451c7e01bfb549c999f8464a79a2",
-      "generatorClosureSha256": "42281163a9501ce73dbcd3ef24c24389414f3c1673757f2aa7a1f25a4789b7e4",
+      "generatorClosureSha256": "28f1d40cbb69ae83f17df4e7526a5220e52cd91a008bf5b62539941d2e911d58",
       "variants": {}
     }
   ]

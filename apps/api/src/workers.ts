@@ -15,12 +15,15 @@ import { planSceneAssets } from "../../../packages/contracts/src/scene-assets.js
 import type { SceneSpec } from "../../../packages/contracts/src/scene-spec.js";
 import { z } from "zod";
 import { authorScene, type GenerateScene } from "./author-scene.js";
+import type { GenerateMotionPlanCandidate } from "./motion-plan-generator.js";
 import {
   generateImageMaterial,
   MaterialProviderError,
   type GenerateImage,
 } from "./openai-image-material.js";
 import { getMaterialProviderSettings } from "./material-provider-settings.js";
+import { verifyMotionScene } from "./motion-operations.js";
+import { insertMotionSceneVersion } from "./motion-scene-store.js";
 import { runSafetyCheck, type GenerateSafetyVerdict } from "./safety-check.js";
 import {
   enrichEvidenceTranslations,
@@ -1217,6 +1220,7 @@ type WorkerRouteOptions = Readonly<{
   safetyCheckGenerate: GenerateSafetyVerdict | undefined;
   translateGenerate: GenerateTranslation | undefined;
   authorSceneGenerate: GenerateScene | undefined;
+  authorSceneGeneratePlan: GenerateMotionPlanCandidate | undefined;
   materialGenerate: GenerateImage | undefined;
 }>;
 
@@ -1237,6 +1241,7 @@ export function registerWorkers(
     safetyCheckGenerate,
     translateGenerate,
     authorSceneGenerate,
+    authorSceneGeneratePlan,
     materialGenerate,
   } = options;
   // Read fresh on every claim rather than captured at boot, so changing an
@@ -1988,9 +1993,13 @@ export function registerWorkers(
         evidence: job.evidence,
         config: job.generation,
         attachments,
+        tenantId: job.tenantId,
         db,
         aiSecretKey,
         ...(authorSceneGenerate ? { generate: authorSceneGenerate } : {}),
+        ...(authorSceneGeneratePlan
+          ? { generatePlan: authorSceneGeneratePlan }
+          : {}),
       });
       const current = workflow?.jobs.get(jobId);
       if (!current || current.preparationStage !== "AUTHORING_RUNNING") return;
@@ -2000,6 +2009,12 @@ export function registerWorkers(
       // on property insertion order and could never agree with the
       // worker's canonicalJson-based digest of the same spec.
       current.sceneSpecDigest = sha256Hex(authored.spec);
+      insertMotionSceneVersion(
+        db,
+        current,
+        authored.spec,
+        verifyMotionScene(authored.spec),
+      );
       current.automaticRetries = 0;
       current.failureCode = null;
       // Straight on to material generation: the scene names assets, and

@@ -10,6 +10,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { updateAiProviderSettings } from "./ai-provider-settings.js";
 import { authorScene, type GenerateScene } from "./author-scene.js";
 import { openApiDatabase } from "./durable-state.js";
+import { MOTION_LOOKUP_TOOL_SCHEMA_DIGEST } from "./motion-knowledge.js";
+import type { GenerateMotionPlanCandidate } from "./motion-plan-generator.js";
 
 const AI_SECRET_KEY = "test-secret-key-material";
 
@@ -52,7 +54,7 @@ describe("authorScene", () => {
     directory = mkdtempSync(join(tmpdir(), "rvs-author-scene-"));
     db = openApiDatabase(join(directory, "app.sqlite"));
     config = {
-      brief: "Meridian finds meeting times nobody hates.",
+      brief: "Use timing and easing for Meridian's meeting-time explainer.",
       durationSec: 20,
       aspect: "9:16",
       attachmentIds: ["att_1"],
@@ -80,18 +82,75 @@ describe("authorScene", () => {
     evidence: { sceneInput: { owners: [] } },
     config,
     attachments: [{ attachmentId: "att_1", kind: "image" }],
+    tenantId: "tenant-a",
     db,
     aiSecretKey: AI_SECRET_KEY,
+    generatePlan: (async (request) => ({
+      schema: "motion-plan-v1",
+      intent: "Apply bounded timing to the headline.",
+      knowledgeCardIds: [request.knowledgeCards[0]?.id ?? "timing-easing"],
+      requiredCapabilities: ["keyframes", "easing"],
+      canvas: request.jobCanvas,
+      keyframeIntents: [
+        {
+          elementId: "headline",
+          anticipationFrames: 12,
+          overshootPercent: 8,
+          settleFrame: 36,
+          staggerFrames: 6,
+        },
+      ],
+      predicateIds: ["scene-spec", "element-kind-capability"],
+    })) satisfies GenerateMotionPlanCandidate,
   });
 
   it("returns the authored spec and a beat sheet", async () => {
     const generate: GenerateScene = async () => ({ object: fixtureSpec });
-    const out = await authorScene({ ...baseParams(), generate });
+    const out = await authorScene({ ...baseParams(), now: 1_000, generate });
+    const replay = await authorScene({
+      ...baseParams(),
+      now: 1_000,
+      generate,
+    });
     expect(out.spec.schema).toBe("scene-spec-v1");
     expect(out.beatSheet).toHaveLength(fixtureSpec.beats.length);
+    expect(replay.planDigest).toBe(out.planDigest);
+    expect(replay.spec).toEqual(out.spec);
   });
 
-  it("injects host-resolved motion knowledge before the model call", async () => {
+  it("exposes motion.lookup to the production model call only for the selected identity's fresh PASS", async () => {
+    // Given
+    const checkedAt = "2026-08-30T00:00:00.000Z";
+    db.prepare(
+      `INSERT INTO motion_provider_canaries
+       (tenant_id, provider_kind, model, status, checked_at, tool_schema_digest, failure_reason)
+       VALUES (?, ?, ?, 'PASS', ?, ?, NULL)`,
+    ).run(
+      "tenant-a",
+      "openai",
+      "gpt-4o",
+      checkedAt,
+      MOTION_LOOKUP_TOOL_SCHEMA_DIGEST,
+    );
+    let exposed: readonly string[] = [];
+    const generate: GenerateScene = async (options) => {
+      exposed = Object.keys(options.tools);
+      return { object: fixtureSpec };
+    };
+
+    // When
+    await authorScene({
+      ...baseParams(),
+      now: Date.parse(checkedAt) + 1,
+      motionCanaryTtlMs: 600_000,
+      generate,
+    });
+
+    // Then
+    expect(exposed).toEqual(["motion.lookup"]);
+  });
+
+  it("injects canonical structured motion knowledge for an exact alias in a longer brief", async () => {
     let capturedPrompt = "";
     const generate: GenerateScene = async (options) => {
       capturedPrompt = options.prompt;
@@ -101,11 +160,31 @@ describe("authorScene", () => {
       ...baseParams(),
       config: {
         ...config,
-        brief: "Use 12-frame anticipation and frame 36 settle.",
+        brief:
+          "Open with a calm explainer, use timing and easing, then end on the logo.",
       },
       generate,
     });
     expect(capturedPrompt).toContain('"id":"timing-easing"');
+    expect(capturedPrompt).toContain('"distinctions"');
+    expect(capturedPrompt).toContain('"operationRefs"');
+    expect(capturedPrompt).toContain('"sources"');
+  });
+
+  it("fails closed when the creator brief has no motion knowledge match", async () => {
+    // Given
+    const neverCalled: GenerateScene = async () => {
+      throw new Error("must not be called");
+    };
+
+    // When / Then
+    await expect(
+      authorScene({
+        ...baseParams(),
+        config: { ...config, brief: "legal compliance certification" },
+        generate: neverCalled,
+      }),
+    ).rejects.toThrow(/MOTION_KNOWLEDGE_NOT_FOUND/);
   });
 
   it("repairs semantic predicate failures no more than four times", async () => {
@@ -117,7 +196,109 @@ describe("authorScene", () => {
     };
     const authored = await authorScene({ ...baseParams(), generate });
     expect(calls).toBe(4);
-    expect(authored.spec).toEqual(fixtureSpec);
+    expect(authored.spec.beats[0]?.elements[0]?.keyframes).toEqual([
+      { frame: 0, scale: 1, ease: "easeIn" },
+      { frame: 12, scale: 1.08, ease: "easeOut" },
+      { frame: 36, scale: 1, ease: "easeInOut" },
+    ]);
+    expect(authored.verification?.attempts).toBe(4);
+    expect(
+      authored.verification?.findings.map((finding) => finding.predicateId),
+    ).toEqual([
+      "scene-spec",
+      "asset-resolvable",
+      "no-external-url",
+      "element-kind-capability",
+    ]);
+  });
+
+  it("plans before drafting and repairs a concrete compiler failure", async () => {
+    const order: string[] = [];
+    const prompts: string[] = [];
+    const generatePlan: GenerateMotionPlanCandidate = async (request) => {
+      order.push("plan");
+      return {
+        schema: "motion-plan-v1",
+        intent: "Animate the headline.",
+        knowledgeCardIds: [request.knowledgeCards[0]?.id ?? "timing-easing"],
+        requiredCapabilities: ["keyframes"],
+        canvas: request.jobCanvas,
+        keyframeIntents: [
+          {
+            elementId: "headline",
+            anticipationFrames: 12,
+            overshootPercent: 8,
+            settleFrame: 36,
+            staggerFrames: 6,
+          },
+        ],
+        predicateIds: ["scene-spec"],
+      };
+    };
+    let drafts = 0;
+    const generate: GenerateScene = async (options) => {
+      order.push("draft");
+      prompts.push(options.prompt);
+      drafts += 1;
+      if (drafts === 1)
+        return {
+          object: {
+            ...fixtureSpec,
+            beats: fixtureSpec.beats.map((beat, beatIndex) =>
+              beatIndex === 0
+                ? {
+                    ...beat,
+                    elements: beat.elements.map((element) => ({
+                      ...element,
+                      elementId: "wrong-headline",
+                    })),
+                  }
+                : beat,
+            ),
+          },
+        };
+      return { object: fixtureSpec };
+    };
+
+    const authored = await authorScene({
+      ...baseParams(),
+      generatePlan,
+      generate,
+    });
+
+    expect(order).toEqual(["plan", "draft", "draft"]);
+    expect(prompts[1]).toContain("MOTION_PLAN_UNKNOWN_ELEMENT");
+    expect(authored.verification?.attempts).toBe(2);
+    expect(authored.planDigest).toBe(
+      authored.motionPlan?.reproducibility.planDigest,
+    );
+    expect(authored.spec.beats[0]?.elements[0]?.keyframes[1]).toEqual({
+      frame: 12,
+      scale: 1.08,
+      ease: "easeOut",
+    });
+  });
+
+  it("fails before drafting when the semantic plan requires an unavailable capability", async () => {
+    let sceneCalls = 0;
+    const generate: GenerateScene = async () => {
+      sceneCalls += 1;
+      return { object: fixtureSpec };
+    };
+    const generatePlan: GenerateMotionPlanCandidate = async (request) => ({
+      schema: "motion-plan-v1",
+      intent: "Use an unsupported camera.",
+      knowledgeCardIds: [request.knowledgeCards[0]?.id ?? "timing-easing"],
+      requiredCapabilities: ["camera"],
+      canvas: request.jobCanvas,
+      keyframeIntents: [],
+      predicateIds: ["scene-spec"],
+    });
+
+    await expect(
+      authorScene({ ...baseParams(), generatePlan, generate }),
+    ).rejects.toThrow(/MOTION_PLAN_UNAVAILABLE_CAPABILITY/u);
+    expect(sceneCalls).toBe(0);
   });
 
   it("fails when no provider is configured", async () => {
@@ -202,7 +383,7 @@ describe("authorScene", () => {
       config: {
         ...config,
         brief:
-          "Keep this reference video's exact shots and pacing, but swap in our new product screenshots and logo in place of the original content.",
+          "Keep this reference video's exact shots and pacing, use timing and easing, but swap in our new product screenshots and logo in place of the original content.",
       },
       generate,
     });
@@ -226,7 +407,7 @@ describe("authorScene", () => {
       config: {
         ...config,
         brief:
-          "Ignore what happens in the reference video -- just borrow its dark neon look and mood to build a brand-new scene announcing our conference.",
+          "Ignore what happens in the reference video -- use timing and easing, just borrow its dark neon look and mood to build a brand-new scene announcing our conference.",
       },
       generate,
     });

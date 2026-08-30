@@ -14,6 +14,10 @@
       "types": "./src/motion.ts",
       "default": "./src/motion.ts"
     },
+    "./adobe": {
+      "types": "./src/adobe.ts",
+      "default": "./src/adobe.ts"
+    },
     "./scene-spec": {
       "types": "./src/scene-spec.ts",
       "default": "./src/scene-spec.ts"

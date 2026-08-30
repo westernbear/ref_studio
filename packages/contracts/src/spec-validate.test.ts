@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { fixtureSpec } from "./scene-spec.fixture.js";
 import type { SceneSpec } from "./scene-spec.js";
-import { validateSceneSpec } from "./spec-validate.js";
+import {
+  topologicallyOrderedElements,
+  validateSceneSpec,
+} from "./spec-validate.js";
 
 const clone = (spec: SceneSpec): SceneSpec =>
   structuredClone(spec) as SceneSpec;
@@ -280,5 +283,45 @@ describe("validateSceneSpec", () => {
     expect(validateSceneSpec(dropShadow, ok).schema).toBe("scene-spec-v1");
     const none = withElement(fixtureSpec, { effects: [] });
     expect(validateSceneSpec(none, ok).schema).toBe("scene-spec-v1");
+  });
+
+  it("accepts a v2 parent tree and rejects missing parents and cycles", () => {
+    const base = JSON.parse(JSON.stringify(fixtureSpec)) as Record<
+      string,
+      unknown
+    > & {
+      beats: { elements: Record<string, unknown>[] }[];
+    };
+    base["schema"] = "scene-spec-v2";
+    for (const beat of base.beats)
+      for (const element of beat.elements) {
+        element["anchor"] = { x: 0, y: 0 };
+        element["keyframes"] = (
+          element["keyframes"] as { frame: number }[]
+        ).map(({ frame }) => ({ frame, ease: "linear" }));
+      }
+    const first = base.beats[0]!.elements[0]!;
+    base.beats[0]!.elements.push({
+      ...first,
+      elementId: "child",
+      parentElementId: first["elementId"],
+    });
+    base.beats[0]!.elements.push({ ...first, elementId: "aaa" });
+    expect(() => validateSceneSpec(base, ok)).not.toThrow();
+    const parsed = validateSceneSpec(base, ok);
+    if (parsed.schema !== "scene-spec-v2") return;
+    expect(
+      topologicallyOrderedElements(parsed.beats[0]!).map(
+        (element) => element.elementId,
+      ),
+    ).toEqual(["headline", "aaa", "child"]);
+
+    const missing = structuredClone(base);
+    missing.beats[0]!.elements[1]!["parentElementId"] = "missing";
+    expect(() => validateSceneSpec(missing, ok)).toThrow(/PARENT_NOT_FOUND/);
+
+    const cycle = structuredClone(base);
+    cycle.beats[0]!.elements[0]!["parentElementId"] = "child";
+    expect(() => validateSceneSpec(cycle, ok)).toThrow(/PARENT_CYCLE/);
   });
 });

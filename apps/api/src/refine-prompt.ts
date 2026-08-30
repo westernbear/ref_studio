@@ -10,8 +10,14 @@ import { patchScene, type GeneratePatch } from "./patch-scene.js";
 import type { UploadStore } from "./uploads.js";
 import { assertLegalTransition } from "../../../packages/contracts/src/lifecycle.js";
 import { sha256Hex } from "../../../packages/contracts/src/canonical-json.js";
+import type { SceneOperationBatchV1 } from "../../../packages/contracts/src/motion.js";
+import type { SceneSpec } from "../../../packages/contracts/src/scene-spec.js";
 import { applySceneOperations } from "./motion-scene.js";
-import { recordMotionSceneRefinement } from "./motion-scene-store.js";
+import type { FeatureFlagSnapshot } from "./feature-flags.js";
+import {
+  recordMotionSceneRefinement,
+  replayMotionSceneMutation,
+} from "./motion-scene-store.js";
 
 const id = (prefix: string): string =>
   `${prefix}_${randomBytes(12).toString("base64url")}`;
@@ -42,7 +48,9 @@ const statusFor = (code: string): number =>
             ? 409
             : code === "SCENE_VERIFICATION_FAILED"
               ? 409
-              : 400;
+              : code === "MOTION_AUTHORING_DISABLED"
+                ? 403
+                : 400;
 
 export type RefineProposal = {
   readonly startFrame: number;
@@ -70,6 +78,17 @@ export type ScenePatchChatResponse = {
   }[];
   readonly summary: string;
 };
+const ScenePatchChatResponseSchema = z
+  .object({
+    changedBeatIds: z.array(z.string()),
+    beatSheet: z.array(
+      z
+        .object({ beatId: z.string(), shot: z.string(), words: z.string() })
+        .strict(),
+    ),
+    summary: z.string(),
+  })
+  .strict();
 
 // REQUEST_CHANGES did the same thing as NEEDS_CHANGES -- the only branch below
 // is against LOOKS_GOOD -- so the review screen offered a third choice that
@@ -264,9 +283,97 @@ export async function selectInitialStartFrame(params: {
 // report for why this was the narrower, safer scope rather than allowing a
 // patch to interrupt an in-flight render.
 function assertPatchable(job: Job): void {
-  if (job.state !== "COMPLETED" || !job.authoredScene || !job.sceneSpecDigest)
+  if (
+    job.state !== "COMPLETED" ||
+    !job.authoredScene?.motionPlan ||
+    !job.authoredScene.planDigest ||
+    !job.sceneSpecDigest
+  )
     throw new Error("JOB_NOT_READY_FOR_PATCH");
 }
+
+const refinementOperations = (
+  previous: SceneSpec,
+  next: SceneSpec,
+): SceneOperationBatchV1["operations"] => {
+  if (
+    JSON.stringify(previous.canvas) !== JSON.stringify(next.canvas) ||
+    previous.mode !== next.mode ||
+    JSON.stringify(previous.assets) !== JSON.stringify(next.assets) ||
+    previous.beats.length !== next.beats.length
+  )
+    throw new Error("INVALID_OPERATION");
+  const operations: SceneOperationBatchV1["operations"][number][] = [];
+  for (const color of ["hero", "cool", "warm", "background"] as const)
+    if (previous.palette[color] !== next.palette[color])
+      operations.push({
+        kind: "set",
+        opId: `refine-palette-${color}`,
+        path: `/palette/${color}`,
+        value: next.palette[color],
+        reason: "generated refine",
+      });
+  for (const [beatIndex, beat] of previous.beats.entries()) {
+    const nextBeat = next.beats[beatIndex];
+    if (
+      !nextBeat ||
+      beat.beatId !== nextBeat.beatId ||
+      beat.startFrame !== nextBeat.startFrame ||
+      beat.endFrame !== nextBeat.endFrame ||
+      beat.shot !== nextBeat.shot ||
+      beat.elements.length !== nextBeat.elements.length
+    )
+      throw new Error("INVALID_OPERATION");
+    for (const [elementIndex, element] of beat.elements.entries()) {
+      const nextElement = nextBeat.elements[elementIndex];
+      if (!nextElement) throw new Error("INVALID_OPERATION");
+      const {
+        content: previousContent,
+        box: previousBox,
+        keyframes: previousKeyframes,
+        effects: previousEffects,
+        ...previousImmutable
+      } = element;
+      const {
+        content: nextContent,
+        box: nextBox,
+        keyframes: nextKeyframes,
+        effects: nextEffects,
+        ...nextImmutable
+      } = nextElement;
+      if (
+        JSON.stringify(previousImmutable) !== JSON.stringify(nextImmutable) ||
+        previousBox.width !== nextBox.width ||
+        previousBox.height !== nextBox.height
+      )
+        throw new Error("INVALID_OPERATION");
+      for (const axis of ["x", "y"] as const)
+        if (previousBox[axis] !== nextBox[axis])
+          operations.push({
+            kind: "set",
+            opId: `refine-${beatIndex}-${elementIndex}-box-${axis}`,
+            path: `/beats/${beatIndex}/elements/${elementIndex}/box/${axis}`,
+            value: nextBox[axis],
+            reason: "generated refine",
+          });
+      for (const [field, previousValue, nextValue] of [
+        ["content", previousContent, nextContent],
+        ["keyframes", previousKeyframes, nextKeyframes],
+        ["effects", previousEffects, nextEffects],
+      ] as const)
+        if (JSON.stringify(previousValue) !== JSON.stringify(nextValue))
+          operations.push({
+            kind: "set",
+            opId: `refine-${beatIndex}-${elementIndex}-${field}`,
+            path: `/beats/${beatIndex}/elements/${elementIndex}/${field}`,
+            value: z.json().parse(nextValue),
+            reason: "generated refine",
+          });
+    }
+  }
+  if (operations.length > 16) throw new Error("INVALID_OPERATION");
+  return operations;
+};
 
 // Runs a scene patch for the generate track's chat and re-queues the job
 // for the same gen-render phase it already has (Task: re-render after a
@@ -280,6 +387,8 @@ async function applyScenePatch(params: {
   readonly db: Database.Database;
   readonly aiSecretKey: string;
   readonly generate: GeneratePatch | undefined;
+  readonly idempotencyKey: string;
+  readonly requestDigest: string;
 }): Promise<ScenePatchChatResponse> {
   const { store, job } = params;
   assertPatchable(job);
@@ -298,49 +407,38 @@ async function applyScenePatch(params: {
   // nothing above this line mutates the job, so a throw anywhere in
   // patchScene (AI failure, schema failure, validateSceneSpec failure)
   // leaves job.authoredScene exactly as it was.
-  const normalized = applySceneOperations(previous, {
-    schema: "scene-operation-batch-v1",
-    baseSceneDigest: sha256Hex(previous),
-    operations: [
-      {
-        kind: "set",
-        opId: "refine-mode",
-        path: "/mode",
-        value: patched.spec.mode,
-        reason: "generated refine",
-      },
-      {
-        kind: "set",
-        opId: "refine-canvas",
-        path: "/canvas",
-        value: patched.spec.canvas,
-        reason: "generated refine",
-      },
-      {
-        kind: "set",
-        opId: "refine-palette",
-        path: "/palette",
-        value: patched.spec.palette,
-        reason: "generated refine",
-      },
-      {
-        kind: "set",
-        opId: "refine-assets",
-        path: "/assets",
-        value: z.json().parse(patched.spec.assets),
-        reason: "generated refine",
-      },
-      {
-        kind: "set",
-        opId: "refine-beats",
-        path: "/beats",
-        value: z.json().parse(patched.spec.beats),
-        reason: "generated refine",
-      },
-    ],
-  });
-  recordMotionSceneRefinement(params.db, job, previous, normalized);
-  job.authoredScene = { spec: normalized, beatSheet: patched.beatSheet };
+  const operations = refinementOperations(previous, patched.spec);
+  const normalized =
+    operations.length === 0
+      ? previous
+      : applySceneOperations(previous, {
+          schema: "scene-operation-batch-v1",
+          baseSceneDigest: sha256Hex(previous),
+          operations,
+        });
+  const response: ScenePatchChatResponse = {
+    changedBeatIds: patched.changedBeatIds,
+    beatSheet: patched.beatSheet,
+    summary: patched.summary,
+  };
+  const persisted = recordMotionSceneRefinement(
+    params.db,
+    job,
+    previous,
+    normalized,
+    {
+      key: `refine-prompt:${job.id}:${params.idempotencyKey}`,
+      requestDigest: params.requestDigest,
+      response,
+      parseResponse: (value) => ScenePatchChatResponseSchema.parse(value),
+    },
+  );
+  if (persisted.replayed && persisted.response) return persisted.response;
+  job.authoredScene = {
+    ...job.authoredScene,
+    spec: normalized,
+    beatSheet: patched.beatSheet,
+  };
   job.sceneSpecDigest = sha256Hex(normalized);
   // Kept on the job record (not only in this request's response) so a
   // future partial-rerender optimisation has something to act on -- see the
@@ -366,11 +464,7 @@ async function applyScenePatch(params: {
   job.state = "QUEUED";
   job.updatedAt = new Date(now).toISOString();
   job.etag = `"${createHash("sha256").update(job.updatedAt).digest("hex")}"`;
-  return {
-    changedBeatIds: patched.changedBeatIds,
-    beatSheet: patched.beatSheet,
-    summary: patched.summary,
-  };
+  return response;
 }
 
 export function registerRefinePrompt(
@@ -381,6 +475,11 @@ export function registerRefinePrompt(
   aiSecretKey: string,
   generate: GenerateProposals = generateObject as unknown as GenerateProposals,
   patchGenerate?: GeneratePatch,
+  featureFlags: FeatureFlagSnapshot = {
+    verifiedMotionAuthoring: false,
+    nativeSceneV2: false,
+    adobeMcp: false,
+  },
 ): void {
   const tenant = (request: FastifyRequest): string =>
     header(request, "x-tenant-id") ?? "";
@@ -396,14 +495,17 @@ export function registerRefinePrompt(
     ) => {
       try {
         const key = header(request, "idempotency-key");
-        if (!key) throw new Error("INVALID_REQUEST");
+        const match = header(request, "if-match");
+        if (!key || !match) throw new Error("PRECONDITION_REQUIRED");
+        const refineRequestDigest = requestHash({
+          route: `/v1/jobs/${request.params.jobId}/refine-prompt`,
+          body: request.body ?? {},
+          ifMatch: match,
+        });
         const replay = await idempotency.executeAsync(
           "refine-prompt",
           key,
-          requestHash({
-            body: request.body ?? {},
-            ifMatch: header(request, "if-match") ?? null,
-          }),
+          refineRequestDigest,
           tenant(request),
           async () => {
             const job = store.jobs.get(request.params.jobId);
@@ -418,8 +520,19 @@ export function registerRefinePrompt(
             // instead. A restore-track job (no job.generation) takes
             // exactly the path it always has, below, completely unchanged.
             if (job.generation) {
-              const match = header(request, "if-match");
-              if (!match) throw new Error("PRECONDITION_REQUIRED");
+              if (
+                !featureFlags.verifiedMotionAuthoring ||
+                !featureFlags.nativeSceneV2
+              )
+                throw new Error("MOTION_AUTHORING_DISABLED");
+              const durableReplay = replayMotionSceneMutation(
+                db,
+                job,
+                `refine-prompt:${job.id}:${key}`,
+                refineRequestDigest,
+                (value) => ScenePatchChatResponseSchema.parse(value),
+              );
+              if (durableReplay) return [200, durableReplay];
               if (match !== `"${job.sceneSpecDigest}"`)
                 throw new Error("VERSION_CONFLICT");
               const response = await applyScenePatch({
@@ -429,9 +542,12 @@ export function registerRefinePrompt(
                 db,
                 aiSecretKey,
                 generate: patchGenerate,
+                idempotencyKey: key,
+                requestDigest: refineRequestDigest,
               });
               return [200, response];
             }
+            if (match !== job.etag) throw new Error("VERSION_CONFLICT");
             const upload = uploads.uploads.get(job.uploadId);
             if (!upload || upload.tenantId !== job.tenantId || !upload.media)
               throw new Error("RESOURCE_NOT_FOUND");

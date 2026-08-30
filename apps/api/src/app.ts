@@ -58,7 +58,13 @@ import {
 import { registerJobAttachments } from "./job-attachments.js";
 import { registerMotionScene } from "./motion-scene.js";
 import { registerRefinePrompt } from "./refine-prompt.js";
+import {
+  freezeFeatureFlagSnapshot,
+  loadFeatureFlagSnapshot,
+  type FeatureFlagSnapshot,
+} from "./feature-flags.js";
 import type { GenerateScene } from "./author-scene.js";
+import type { GenerateMotionPlanCandidate } from "./motion-plan-generator.js";
 import type { GeneratePatch } from "./patch-scene.js";
 import type { GenerateImage } from "./openai-image-material.js";
 import type { GenerateSafetyVerdict } from "./safety-check.js";
@@ -74,6 +80,7 @@ import {
   registerWorkers,
   type WorkerStore,
 } from "./workers.js";
+import { registerAdobeMcpRoutes } from "./adobe-mcp-routes.js";
 
 type WorkerAppOptions =
   | { readonly workers?: undefined; readonly artifactRoot?: undefined }
@@ -106,9 +113,9 @@ export type AppOptions = {
   readonly safetyCheckGenerate?: GenerateSafetyVerdict;
   readonly translateGenerate?: GenerateTranslation;
   readonly authorSceneGenerate?: GenerateScene;
+  readonly authorSceneGeneratePlan?: GenerateMotionPlanCandidate;
   readonly materialGenerate?: GenerateImage;
-  readonly verifiedMotionAuthoring?: boolean;
-  readonly nativeSceneV2?: boolean;
+  readonly featureFlags?: FeatureFlagSnapshot;
 } & WorkerAppOptions;
 const header = (request: FastifyRequest, name: string): string | undefined => {
   const value = request.headers[name];
@@ -201,6 +208,9 @@ const principalResult = (
   );
 
 export function buildAuthApp(options: AppOptions): FastifyInstance {
+  const featureFlags = options.featureFlags
+    ? freezeFeatureFlagSnapshot(options.featureFlags)
+    : loadFeatureFlagSnapshot();
   const app = Fastify({ logger: false, bodyLimit: MAX_CHUNK_BYTES });
   app.addContentTypeParser(
     "application/octet-stream",
@@ -276,7 +286,9 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
     reply.header("x-correlation-id", correlation);
     if (
       request.url.startsWith("/v1/") &&
-      !request.url.startsWith("/v1/workers/")
+      !request.url.startsWith("/v1/workers/") &&
+      request.url !== "/v1/adobe/relay" &&
+      request.url !== "/v1/adobe/results"
     ) {
       const tenant = header(request, "x-tenant-id");
       const authorization = header(request, "authorization");
@@ -843,6 +855,7 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
               : {}),
           }
         : undefined,
+      featureFlags,
     );
   if (options.adminReads)
     registerAdminRead(
@@ -852,6 +865,7 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
       now,
       options.expectedOrigin,
       options.adminSessionTimeoutMs,
+      featureFlags,
     );
   if (options.adminMutations)
     registerAdminMutation(
@@ -881,6 +895,7 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
       // it.
       options.refinePromptGenerate,
       options.patchSceneGenerate,
+      featureFlags,
     );
   if (options.creatorWorkflow && options.db && options.attachmentsRoot)
     registerJobAttachments(
@@ -890,14 +905,14 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
       options.attachmentsRoot,
     );
   if (options.creatorWorkflow && options.db)
-    registerMotionScene(
+    registerMotionScene(app, options.creatorWorkflow, options.db, featureFlags);
+  if (options.db)
+    registerAdobeMcpRoutes(
       app,
-      options.creatorWorkflow,
       options.db,
-      (options.verifiedMotionAuthoring ??
-        process.env["RVS_VERIFIED_MOTION_AUTHORING"] === "true") &&
-        (options.nativeSceneV2 ??
-          process.env["RVS_NATIVE_SCENE_V2"] === "true"),
+      options.aiSecretKey ?? options.introspectSecret,
+      now,
+      featureFlags,
     );
   if (options.workers)
     registerWorkers(app, options.workers, {
@@ -912,6 +927,7 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
       safetyCheckGenerate: options.safetyCheckGenerate,
       translateGenerate: options.translateGenerate,
       authorSceneGenerate: options.authorSceneGenerate,
+      authorSceneGeneratePlan: options.authorSceneGeneratePlan,
       materialGenerate: options.materialGenerate,
     });
   return app;

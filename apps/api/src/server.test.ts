@@ -27,6 +27,16 @@ describe("api server config", () => {
     expect(() => loadServerConfig({})).toThrow(ApiServerConfigError);
   });
 
+  it("rejects a malformed feature flag during startup config parsing", () => {
+    expect(() =>
+      loadServerConfig({
+        RVS_SESSION_INTROSPECT_SECRET: "secret",
+        RVS_WORKER_TOKEN: "worker",
+        RVS_ADOBE_MCP: "1",
+      }),
+    ).toThrow("FEATURE_FLAG_CONFIG_INVALID");
+  });
+
   it("registers live upload and creator workflow routes", async () => {
     const directory = mkdtempSync(join(tmpdir(), "rvs-api-server-"));
     const app = createApiServer({
@@ -40,6 +50,16 @@ describe("api server config", () => {
 
     expect(app.hasRoute({ method: "POST", url: "/v1/uploads" })).toBe(true);
     expect(app.hasRoute({ method: "POST", url: "/v1/jobs" })).toBe(true);
+    expect(app.hasRoute({ method: "POST", url: "/v1/adobe/relay" })).toBe(true);
+    expect(
+      app.hasRoute({ method: "POST", url: "/v1/adobe/devices/enroll" }),
+    ).toBe(true);
+    expect(
+      app.hasRoute({
+        method: "POST",
+        url: "/v1/adobe/devices/:deviceId/enroll",
+      }),
+    ).toBe(true);
     // /v1/reviews was removed with the T1-T6 human-approval gate (replaced
     // by automatic continuation) -- this route must stay gone.
     expect(app.hasRoute({ method: "POST", url: "/v1/reviews" })).toBe(false);

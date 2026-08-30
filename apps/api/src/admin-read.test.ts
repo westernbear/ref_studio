@@ -249,15 +249,49 @@ const fixture = (): Fixture => {
       job.id === "job_a"
         ? {
             backend: "native",
+            planId: `plan_${"1".repeat(64)}`,
+            planDigest: "1".repeat(64),
+            knowledgeCardIds: ["timing-easing"],
             version: 3,
+            sceneDigest: "2".repeat(64),
             verificationStatus: "PASS",
             verificationAttempts: 2,
             passedFindings: 4,
             totalFindings: 4,
+            predicateFindings: [
+              { predicateId: "scene-spec", pass: true, remediation: "none" },
+            ],
             capabilities: ["text", "shape", "opacity"],
+            capabilitySnapshotDigest: "3".repeat(64),
             deliverables: ["mp4", "scene-package"],
+            renderHash: "4".repeat(64),
+            packageHash: "5".repeat(64),
+            workerRuntime: "6".repeat(64),
+            adobeDevice: null,
+            adobeCommand: null,
+            failureRemediation: null,
           }
         : null,
+    motionCanaries: () => [
+      {
+        tenantId: "tenant-a",
+        providerKind: "openai",
+        model: "gpt-4o",
+        status: "PASS",
+        checkedAt: "2026-01-01T00:00:00.000Z",
+        toolSchemaDigest: "a".repeat(64),
+        failureReason: null,
+      },
+      {
+        tenantId: "tenant-b",
+        providerKind: "openai",
+        model: "gpt-4o",
+        status: "FAIL",
+        checkedAt: "2026-01-01T00:00:00.000Z",
+        toolSchemaDigest: "b".repeat(64),
+        failureReason: "PROVIDER_FAILURE",
+      },
+    ],
   };
   return { auth, reads, workers, events };
 };
@@ -268,16 +302,63 @@ const appFor = (data: Fixture, now: () => number = Date.now) =>
     introspectSecret: "secret",
     adminReads: data.reads,
     now,
+    featureFlags: {
+      verifiedMotionAuthoring: true,
+      nativeSceneV2: false,
+      adobeMcp: true,
+    },
   });
 const headers = (id: string) => ({ authorization: `Bearer ${id}-token` });
 
 describe("admin-read", () => {
-  it("returns filterable motion authoring status without scene digests or paths", async () => {
+  it("returns only the immutable boolean feature snapshot to a super-admin", async () => {
+    const app = appFor(fixture());
+    const response = await app.inject({
+      method: "GET",
+      url: "/admin/feature-flags?apiKey=leak-me",
+      headers: headers("super"),
+    });
+    const denied = await app.inject({
+      method: "GET",
+      url: "/admin/feature-flags",
+      headers: headers("ops"),
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      verifiedMotionAuthoring: true,
+      nativeSceneV2: false,
+      adobeMcp: true,
+    });
+    expect(response.body).not.toMatch(/apiKey|leak-me|RVS_/u);
+    expect(denied.statusCode).toBe(403);
+    await app.close();
+  });
+
+  it("returns only tenant-authorized redacted motion canaries", async () => {
+    // Given
+    const app = appFor(fixture());
+
+    // When
+    const response = await app.inject({
+      method: "GET",
+      url: "/admin/motion-provider-canaries",
+      headers: headers("ops"),
+    });
+
+    // Then
+    expect(response.statusCode).toBe(200);
+    expect(response.json().items).toHaveLength(1);
+    expect(response.json().items[0].tenantId).toBe("tenant-a");
+    expect(response.body).not.toMatch(/apiKey|prompt|rawResponse|secret/i);
+    await app.close();
+  });
+  it("returns filterable redacted motion operations with integrity digests", async () => {
     const data = fixture();
     const app = appFor(data);
     const response = await app.inject({
       method: "GET",
-      url: "/admin/jobs?backend=native&verification=PASS",
+      url: "/admin/jobs?backend=native&verification=PASS&capability=opacity",
       headers: headers("super"),
     });
 
@@ -285,19 +366,29 @@ describe("admin-read", () => {
     expect(response.json().items).toEqual([
       expect.objectContaining({
         id: "job_a",
-        motion: {
+        motion: expect.objectContaining({
           backend: "native",
+          planId: `plan_${"1".repeat(64)}`,
+          planDigest: "1".repeat(64),
+          knowledgeCardIds: ["timing-easing"],
           version: 3,
+          sceneDigest: "2".repeat(64),
           verificationStatus: "PASS",
           verificationAttempts: 2,
           passedFindings: 4,
           totalFindings: 4,
           capabilities: ["text", "shape", "opacity"],
           deliverables: ["mp4", "scene-package"],
-        },
+          capabilitySnapshotDigest: "3".repeat(64),
+          renderHash: "4".repeat(64),
+          packageHash: "5".repeat(64),
+          workerRuntime: "6".repeat(64),
+        }),
       }),
     ]);
-    expect(response.body).not.toMatch(/sceneDigest|sceneEtag|privatePath/u);
+    expect(response.body).not.toMatch(
+      /apiKey|relaySecret|privatePath|rawPrompt|aepBytes/iu,
+    );
 
     const empty = await app.inject({
       method: "GET",

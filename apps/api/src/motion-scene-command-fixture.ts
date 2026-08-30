@@ -10,6 +10,9 @@ import {
 } from "./creator-workflow.js";
 import { openApiDatabase } from "./durable-state.js";
 import type { GeneratePatch } from "./patch-scene.js";
+import { verifyMotionScene } from "./motion-operations.js";
+import { insertMotionSceneVersion } from "./motion-scene-store.js";
+import type { FeatureFlagSnapshot } from "./feature-flags.js";
 import { createUpload, finalizeUpload, type UploadStore } from "./uploads.js";
 
 export const motionCommandHeaders = {
@@ -22,6 +25,7 @@ export function createMotionCommandFixture(
   options: Readonly<{
     expectedOrigin?: string;
     patchSceneGenerate?: GeneratePatch;
+    featureFlags?: FeatureFlagSnapshot;
   }> = {},
 ) {
   const db = openApiDatabase(join(directory, "app.sqlite"));
@@ -95,8 +99,11 @@ export function createMotionCommandFixture(
     now: uploads.now,
     db,
     aiSecretKey: "test-secret-key-material",
-    verifiedMotionAuthoring: true,
-    nativeSceneV2: true,
+    featureFlags: options.featureFlags ?? {
+      verifiedMotionAuthoring: true,
+      nativeSceneV2: true,
+      adobeMcp: false,
+    },
     ...(options.patchSceneGenerate
       ? { patchSceneGenerate: options.patchSceneGenerate }
       : {}),
@@ -139,6 +146,28 @@ export async function createCompletedGeneratedJob(
       shot: beat.shot,
       words: "",
     })),
+    motionPlan: {
+      schema: "motion-plan-v1",
+      intent: "fixture",
+      knowledgeCardIds: [],
+      requiredCapabilities: [],
+      canvas: { width: 1920, height: 1080, fps: 30, frameCount: 450 },
+      keyframeIntents: [],
+      predicateIds: ["scene-spec"],
+      reproducibility: {
+        knowledgeCardDigest: "0".repeat(64),
+        promptDigest: "0".repeat(64),
+        modelDigest: "0".repeat(64),
+        evidenceDigest: "0".repeat(64),
+        capabilitySnapshotDigest: "0".repeat(64),
+        planDigest: "0".repeat(64),
+        knowledgeCardIds: [],
+        requiredCapabilities: [],
+        promptVersion: "fixture-v1",
+        modelVersion: "fixture-v1",
+      },
+    },
+    planDigest: "0".repeat(64),
   };
   job.sceneSpecDigest = sha256Hex(fixtureSpec);
   job.preparationStage = "READY";
@@ -167,5 +196,11 @@ export async function createCompletedGeneratedJob(
       `scene-${jobId}`,
       "2026-01-01T00:00:00Z",
     );
+  insertMotionSceneVersion(
+    fixture.db,
+    job,
+    fixtureSpec,
+    verifyMotionScene(fixtureSpec),
+  );
   return jobId;
 }

@@ -11,6 +11,7 @@ import { ProviderModelsError, listProviderModels } from "./provider-models.js";
 import type { CodexAuth } from "./codex-oauth.js";
 import { safeEnvelope } from "./boundary.js";
 import type { WorkerStore } from "./workers.js";
+import type { FeatureFlagSnapshot } from "./feature-flags.js";
 
 export type AdminTenant = {
   readonly id: string;
@@ -33,13 +34,41 @@ export type AdminJob = {
 };
 export type AdminMotionSummary = {
   readonly backend: "native" | "adobe";
+  readonly planId: string | null;
+  readonly planDigest: string | null;
+  readonly knowledgeCardIds: readonly string[];
   readonly version: number;
+  readonly sceneDigest: string;
   readonly verificationStatus: "PASS" | "FAIL" | "PENDING";
   readonly verificationAttempts: number;
   readonly passedFindings: number;
   readonly totalFindings: number;
+  readonly predicateFindings: readonly {
+    readonly predicateId: string;
+    readonly pass: boolean;
+    readonly remediation: string;
+  }[];
   readonly capabilities: readonly string[];
+  readonly capabilitySnapshotDigest: string;
   readonly deliverables: readonly ("mp4" | "scene-package" | "report")[];
+  readonly renderHash: string | null;
+  readonly packageHash: string | null;
+  readonly workerRuntime: string | null;
+  readonly adobeDevice: {
+    readonly id: string;
+    readonly status: "ENROLLED" | "REVOKED";
+  } | null;
+  readonly adobeCommand: {
+    readonly id: string;
+    readonly status:
+      | "QUEUED"
+      | "RUNNING"
+      | "SUCCEEDED"
+      | "FAILED"
+      | "CANCELLED";
+    readonly ageMs: number;
+  } | null;
+  readonly failureRemediation: string | null;
 };
 export type AdminReceipt = {
   readonly id: string;
@@ -112,6 +141,15 @@ export type AdminWorker = {
     readonly runtimeDigest: string;
   };
 };
+export type AdminMotionCanary = {
+  readonly tenantId: string;
+  readonly providerKind: string;
+  readonly model: string;
+  readonly status: "PASS" | "FAIL";
+  readonly checkedAt: string;
+  readonly toolSchemaDigest: string;
+  readonly failureReason: string | null;
+};
 export type AdminReadStore = {
   readonly tenants: readonly AdminTenant[];
   readonly jobs: readonly AdminJob[];
@@ -125,6 +163,7 @@ export type AdminReadStore = {
   readonly aiProviderSettings?: AiProviderSettingsPublic;
   readonly materialProviderSettings?: MaterialProviderSettingsPublic;
   readonly motionForJob?: (job: AdminJob) => AdminMotionSummary | null;
+  readonly motionCanaries?: () => readonly AdminMotionCanary[];
   // Separate accessors from the two above, and deliberately functions: the
   // decrypted key is read only when a model listing is actually asked for,
   // never held on a store the rest of the admin reads share.
@@ -161,6 +200,7 @@ type Query = {
   readonly capability?: string;
   readonly backend?: string;
   readonly verification?: string;
+  readonly commandState?: string;
 };
 const includes = (query: string | undefined, ...values: unknown[]): boolean =>
   !query ||
@@ -289,6 +329,7 @@ export function registerAdminRead(
   now: () => number = Date.now,
   expectedOrigin = "http://localhost:3100",
   adminSessionTimeoutMs?: number,
+  featureFlags?: FeatureFlagSnapshot,
 ): void {
   app.addHook("onRequest", async (request, reply) => {
     if (
@@ -427,7 +468,11 @@ export function registerAdminRead(
               (!query.state || item.state === query.state) &&
               (!query.backend || item.motion?.backend === query.backend) &&
               (!query.verification ||
-                item.motion?.verificationStatus === query.verification),
+                item.motion?.verificationStatus === query.verification) &&
+              (!query.capability ||
+                item.motion?.capabilities.includes(query.capability)) &&
+              (!query.commandState ||
+                item.motion?.adobeCommand?.status === query.commandState),
           );
         auth.audit({
           action: "TENANT_VIEWED",
@@ -494,7 +539,11 @@ export function registerAdminRead(
               (!query.state || item.state === query.state) &&
               (!query.backend || item.motion?.backend === query.backend) &&
               (!query.verification ||
-                item.motion?.verificationStatus === query.verification),
+                item.motion?.verificationStatus === query.verification) &&
+              (!query.capability ||
+                item.motion?.capabilities.includes(query.capability)) &&
+              (!query.commandState ||
+                item.motion?.adobeCommand?.status === query.commandState),
           );
         auth.audit({
           action: "TENANT_VIEWED",
@@ -627,6 +676,44 @@ export function registerAdminRead(
         reply.send(store.materialProviderSettings ?? null);
         return;
       }
+      if (path === "/admin/motion-provider-canaries") {
+        const items = (store.motionCanaries?.() ?? [])
+          .filter(
+            (item) =>
+              allowed(item.tenantId) &&
+              (!query.tenantId || item.tenantId === query.tenantId),
+          )
+          .map((item) => ({
+            ...item,
+            ageMs: Math.max(0, now() - Date.parse(item.checkedAt)),
+          }));
+        auth.audit({
+          action: "MOTION_PROVIDER_CANARIES_VIEWED",
+          userId: principal.userId,
+          tenantId: query.tenantId ?? null,
+          decision: "ALLOWED",
+        });
+        reply.send(page(items, query));
+        return;
+      }
+      if (path === "/admin/feature-flags") {
+        if (adminRole(principal) !== "SUPER_ADMIN")
+          throw new Error("ROLE_NOT_PERMITTED");
+        auth.audit({
+          action: "FEATURE_FLAGS_VIEWED",
+          userId: principal.userId,
+          tenantId: null,
+          decision: "ALLOWED",
+        });
+        reply.send(
+          featureFlags ?? {
+            verifiedMotionAuthoring: false,
+            nativeSceneV2: false,
+            adobeMcp: false,
+          },
+        );
+        return;
+      }
       // The model name is the one field where the provider knows the
       // right answers and the operator is guessing. Fetched live rather
       // than from a hardcoded list, which would go stale the week after it
@@ -687,4 +774,6 @@ export function registerAdminRead(
   app.get("/admin/material-provider-settings", handler);
   app.get("/admin/ai-provider-models", handler);
   app.get("/admin/material-provider-models", handler);
+  app.get("/admin/motion-provider-canaries", handler);
+  app.get("/admin/feature-flags", handler);
 }
