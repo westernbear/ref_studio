@@ -75,6 +75,24 @@ describe("motion workspace model", () => {
     });
   });
 
+  it("uses scaleX for a scene-spec-v2 canvas preview", () => {
+    const source = fixtureSpec.beats[0]?.elements[0];
+    expect(source).toBeDefined();
+    const frame = source.keyframes[0]?.frame ?? 0;
+    const v2Element = {
+      ...source,
+      anchor: { x: 0.5, y: 0.5 },
+      keyframes: source.keyframes.map(
+        ({ scale: ignoredScale, ...keyframe }) => ({
+          ...keyframe,
+          scaleX: 1.2,
+          scaleY: 0.8,
+        }),
+      ),
+    };
+    expect(elementFrameState(v2Element, frame).scale).toBe(1.2);
+  });
+
   it("keeps plan, artifact, capability, and predicate metadata bound to the scene snapshot", () => {
     expect(
       sceneIntegrity({
