@@ -80,8 +80,8 @@
 }
 .scene-canvas-element {
   position: absolute;
-  min-block-size: 0;
-  min-inline-size: 0;
+  min-block-size: 44px;
+  min-inline-size: 44px;
   overflow: hidden;
   border: 1px solid var(--color-breeze);
   border-radius: var(--radius-sm);
