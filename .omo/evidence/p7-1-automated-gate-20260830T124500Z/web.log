@@ -1,0 +1,24 @@
+$ vitest --run
+
+ RUN  v3.2.4 /home/singlerr/ref_studio-motion-complete/apps/web
+
+ ✓ test/sign-in.test.mjs (10 tests) 29ms
+ ✓ test/progress.test.mjs (31 tests) 73ms
+ ✓ test/upload-client.test.mjs (7 tests) 18ms
+ ✓ test/motion-workspace-api.test.mjs (3 tests) 37ms
+ ✓ test/motion-workspace-model.test.mjs (21 tests) 24ms
+ ✓ test/admin-components.test.mjs (9 tests) 28ms
+ ✓ test/job-create-reasons.test.mjs (3 tests) 39ms
+ ✓ test/scene-interactions.test.mjs (7 tests) 80ms
+ ✓ test/components.test.mjs (5 tests) 7ms
+ ✓ test/motion-workspace-responsive.test.mjs (4 tests) 7ms
+ ✓ test/motion-workspace-localization.test.mjs (1 test) 7ms
+ ✓ test/admin-proxy-routes.test.mjs (3 tests) 7ms
+ ✓ test/tokens.test.mjs (2 tests) 5ms
+ ✓ test/api-error.test.mjs (2 tests) 4ms
+
+ Test Files  14 passed (14)
+      Tests  108 passed (108)
+   Start at  21:44:59
+   Duration  2.63s (transform 545ms, setup 0ms, collect 1.93s, tests 366ms, environment 4ms, prepare 1.86s)
+

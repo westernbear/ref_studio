@@ -1,0 +1,2 @@
+$ node scripts/contracts/openapi.mjs --check
+{"status":"verified","canonicalSha256":"692e8d6aa45344baae66ab23dddeac0f3103dc45abf06c30ba1827f6eedbd3fc","contractsMirrorSha256":"692e8d6aa45344baae66ab23dddeac0f3103dc45abf06c30ba1827f6eedbd3fc","apiMirrorSha256":"692e8d6aa45344baae66ab23dddeac0f3103dc45abf06c30ba1827f6eedbd3fc"}

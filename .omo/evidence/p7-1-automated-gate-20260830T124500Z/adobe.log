@@ -1,0 +1,94 @@
+$ node scripts/check-contract-vector.mjs && biome check . && tsc --noEmit
+Checked 28 files in 31ms. No fixes applied.
+bun test v1.3.14 (0d9b296a)
+
+test/e2e.test.ts:
+(pass) CLI refuses new commands while the Adobe feature flag is disabled [139.39ms]
+(pass) CLI queues and locally completes one MCP command without changing original AEP [327.70ms]
+(pass) CLI prepare and finalize bind a cancelled command to the filesystem working copy [464.24ms]
+(pass) MCP stdio lists tools and queues a bound command [198.90ms]
+
+test/transports.test.ts:
+(pass) stdio and authenticated cloud relay produce the same golden response [3.19ms]
+(pass) stdio and authenticated cloud tools call enqueue equivalent contracts [19.00ms]
+(pass) stdio and cloud relay preserve all 25 golden command and result vectors [405.62ms]
+
+test/installer.test.ts:
+(pass) installs only signed hash-pinned panel files into the fixed ScriptUI location [4.91ms]
+(pass) installs a discoverable ScriptUI loader that executes the active release panel [2.27ms]
+(pass) rejects traversal, unknown files, invalid signatures, hashes, and unsupported AE versions before mutation [2.97ms]
+(pass) keeps the prior release active across an interruption before the one-file pointer transition [5.74ms]
+(pass) installs when After Effects root is on a different volume from system temp [2.89ms]
+(pass) enumerates canonical roots and rejects a malformed Windows root [0.82ms]
+
+test/dispatcher-readback.test.ts:
+(pass) dispatcher returns canonical project digests and actual mutation readback [3.32ms]
+(pass) dispatcher reads back composition and all supported layer mutations [14.68ms]
+(pass) dispatcher reads back expression lifecycle status verify and safe render plan [6.10ms]
+(pass) dispatcher rejects replay-shaped and digest-tampered rollback inputs without mutation [2.09ms]
+(pass) dispatcher persists typed properties keyframes masks effects and templates [6.57ms]
+(pass) dispatcher rejects atomic batch and malformed keyframes before mutation [2.04ms]
+(pass) cancel is terminal and rollback restores the captured working-copy snapshot [4.60ms]
+
+test/contracts.test.ts:
+(pass) Adobe command boundary > accepts every exact versioned tool [2.04ms]
+(pass) Adobe command boundary > rejects unknown fields and forbidden cloud input before mutation [0.76ms]
+(pass) Adobe command boundary > rejects unknown properties effects and templates before mutation [0.78ms]
+(pass) Adobe command boundary > result rejects unknown fields [0.36ms]
+
+test/spool.test.ts:
+(pass) atomic command spool > moves pending to running and binds result to nonce and digest [3.46ms]
+(pass) atomic command spool > does not reuse stale result for repeated command id [2.27ms]
+(pass) atomic command spool > recovers a running command after restart [4.23ms]
+(pass) atomic command spool > recovered command is claimed and completed exactly once [6.49ms]
+(pass) atomic command spool > restart reconciles a terminal result left beside running crash state [3.33ms]
+(pass) atomic command spool > restart reclaims a fresh stranded transition recovery marker within the public bound [256.20ms]
+(pass) atomic command spool > new transition owner removes a marker orphaned after transition deletion [3.52ms]
+(pass) atomic command spool > rejects replay from another device or job [2.76ms]
+(pass) atomic command spool > rejects terminal results from another device or job [2.66ms]
+(pass) atomic command spool > returns the terminal result without recreating pending work on identical replay [3.17ms]
+(pass) atomic command spool > rejects changed arguments after a terminal result [4.45ms]
+(pass) atomic command spool > returns the running command without creating duplicate pending work [3.15ms]
+(pass) atomic command spool > twenty processes enqueue one identical pending lifecycle [925.85ms]
+(pass) atomic command spool > reconciles an orphan binding into a real pending command [3.12ms]
+(pass) atomic command spool > keeps one exclusive mutation claim across twenty-four processes [1382.40ms]
+(pass) atomic command spool > recovers only an expired running lease [3.61ms]
+(pass) atomic command spool > rejects a regressed clock and completion after lease expiry [5.89ms]
+(pass) atomic command spool > cancels queued and running commands without allowing terminal overwrite [5.02ms]
+(pass) atomic command spool > claim and cancel overlap leaves no residue and admits the next command [2234.41ms]
+(pass) atomic command spool > uses restrictive files and rejects malformed or oversized lifecycle data [12.59ms]
+(pass) atomic command spool > keeps running lifecycle and removes temporary files after an oversized write fault [5.93ms]
+
+test/dispatcher.test.ts:
+(pass) installed dispatcher executes every strict golden command shape [94.53ms]
+(pass) installed dispatcher rejects legacy and unknown argument shapes [6.28ms]
+(pass) installed dispatcher rejects malformed identity numeric enum and nested fields [6.41ms]
+
+test/panel.test.ts:
+(pass) panel fixture exposes working-copy and terminal-state contracts [5.40ms]
+(pass) panel executes queued readonly command and writes SUCCEEDED result [1.42ms]
+(pass) panel persists dispatcher readback digests and changed fields unchanged [0.62ms]
+(pass) panel retains CANCELLED when shutdown races a returning dispatch [0.86ms]
+(pass) panel requires explicit confirmation for mutation [0.76ms]
+(pass) panel rejects mismatched enrollment and original project paths [0.68ms]
+(pass) panel rejects command binding mismatch and respects an existing mutation lock [0.91ms]
+
+test/working-copy.test.ts:
+(pass) working copy preserves original and rolls back to the last safe snapshot [6.10ms]
+(pass) local render program cannot read the connector upload credential [3.89ms]
+(pass) render validates real MP4 metadata and uploads with connector-owned authentication [54.24ms]
+(pass) rejects traversal, credential-shaped render input, and false-success output [5.88ms]
+
+test/transport.test.ts:
+(pass) authenticated cloud relay > signs canonical JSON and rejects replay [0.50ms]
+(pass) authenticated cloud relay > binds signature to canonical body device and active key window [0.46ms]
+(pass) authenticated cloud relay > rejects oversized relay body before signing [0.77ms]
+
+test/execution.test.ts:
+(pass) finalizes the P4.5 render plan with local render and connector upload [52.06ms]
+(pass) cancelled panel result verifies the filesystem-bound original [2.57ms]
+
+ 64 pass
+ 0 fail
+ 1655 expect() calls
+Ran 64 tests across 11 files. [7.06s]

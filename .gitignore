@@ -29,3 +29,4 @@ runtime/hydrated/
 
 # tsc writes this on every typecheck; it is a cache, not a source file.
 *.tsbuildinfo
+runtime/hydrated

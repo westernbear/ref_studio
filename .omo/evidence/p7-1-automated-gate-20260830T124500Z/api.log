@@ -1,0 +1,79 @@
+$ vitest --run
+
+ RUN  v3.2.4 /home/singlerr/ref_studio-motion-complete/apps/api
+
+stderr | src/workers.test.ts > worker registration API > scene authoring stage > records the reason authoring failed, not only that it did
+{"event":"api.authoring.failed","jobId":"job-preparing","errorName":"Error","errorMessage":"SCENE_VERIFICATION_FAILED: models/gpt-image-2 is not found for API version v1beta,\n or is not supported for generateContent."}
+
+stderr | src/workers.test.ts > worker registration API > scene authoring stage > fails the job when authoring throws
+{"event":"api.authoring.failed","jobId":"job-preparing","errorName":"Error","errorMessage":"SCENE_VERIFICATION_FAILED: model unreachable"}
+
+stderr | src/workers.test.ts > worker registration API > scene authoring stage > fails the job when a referenced attachment can't be resolved
+{"event":"api.authoring.failed","jobId":"job-preparing","errorName":"Error","errorMessage":"ATTACHMENT_UNRESOLVED"}
+
+stdout | src/workers.test.ts > generate-track material and render phases > asks the OpenAI-backed endpoint for image material and returns bytes with provenance
+{"event":"api.material.generated","jobId":"job-preparing","assetId":"backdrop","elapsedMs":47,"bytes":70,"tool":"openai:gpt-image-2"}
+
+ ✓ src/refine-prompt.test.ts (24 tests) 3495ms
+ ✓ src/author-scene.test.ts (18 tests) 3788ms
+ ✓ src/workers.test.ts (66 tests) 4543ms
+   ✓ worker registration API > scene authoring stage > stores the spec digest and queues material generation when authoring finishes  424ms
+   ✓ generate-track material and render phases > publishes the generated film as its own artifact kind and completes the job  403ms
+ ✓ src/motion-scene-commands.test.ts (10 tests) 1676ms
+   ✓ motion scene commands > initializes a generated scene, rolls back immutably, and preserves the prior artifact  303ms
+ ✓ src/openai-image-material.test.ts (16 tests) 2292ms
+ ✓ src/patch-scene.test.ts (13 tests) 1608ms
+ ✓ src/ai-provider-settings.test.ts (8 tests) 1689ms
+   ✓ ai-provider-settings > accepts every direct provider kind, each with its own native api key  804ms
+ ✓ src/material-provider-settings.test.ts (13 tests) 1679ms
+ ✓ src/admin-mutation.test.ts (17 tests) 1954ms
+ ✓ src/translate-evidence.test.ts (5 tests) 1421ms
+   ✓ translateEvidenceText > returns null when the AI call throws  488ms
+   ✓ enrichEvidenceTranslations > attaches a translation to each text-word/subtitle owner and leaves others untouched  391ms
+ ✓ src/durable-state.test.ts (7 tests) 2021ms
+   ✓ SQLite runtime durability > reconciles configured admin credentials in an existing database  839ms
+ ✓ src/auth.test.ts (12 tests) 2367ms
+   ✓ auth flows > serves creator and admin sign-in with secure idle cookies  616ms
+ ✓ src/safety-check.test.ts (4 tests) 671ms
+ ✓ src/creator-workflow.test.ts (19 tests) 869ms
+ ✓ src/job-attachments.test.ts (3 tests) 451ms
+ ✓ src/uploads.test.ts (7 tests) 771ms
+stderr | src/adobe-mcp-gateway.test.ts > Adobe MCP gateway > rejects replay bad signatures wrong bindings and redacts hostile payloads
+{"event":"adobe.relay.rejected","code":"ADOBE_RELAY_REPLAY","requestId":"request-adobe-1"}
+
+stderr | src/adobe-mcp-gateway.test.ts > Adobe MCP gateway > rejects replay bad signatures wrong bindings and redacts hostile payloads
+{"event":"adobe.relay.rejected","code":"ADOBE_RELAY_SIGNATURE_INVALID","requestId":"request-adobe-1"}
+
+ ✓ src/adobe-mcp-gateway.test.ts (5 tests) 883ms
+   ✓ Adobe MCP gateway > enrolls lists relays and reads command metadata through real HTTP routes  348ms
+ ✓ src/server.test.ts (5 tests) 1017ms
+   ✓ api server config > registers live upload and creator workflow routes  514ms
+   ✓ api server config > hydrates server-issued worker sessions after restart  474ms
+ ✓ src/motion-knowledge.test.ts (15 tests) 963ms
+ ✓ src/creator-api.test.ts (10 tests) 668ms
+ ✓ src/admin-read.test.ts (13 tests) 756ms
+   ✓ admin-read > returns only the immutable boolean feature snapshot to a super-admin  361ms
+ ✓ src/upload.test.ts (7 tests) 445ms
+ ✓ src/motion-canary.test.ts (7 tests) 591ms
+ ✓ src/gate-receipt-stale-approval.test.ts (7 tests) 300ms
+ ✓ src/author-scene-evidence.test.ts (7 tests) 147ms
+ ✓ src/motion-plan-compiler.test.ts (10 tests) 104ms
+ ✓ src/motion-plan-generator.test.ts (10 tests) 71ms
+ ✓ src/provider-models.test.ts (16 tests) 37ms
+ ✓ src/tenant|idempotency|safe-error|auth.test.ts (9 tests) 203ms
+ ✓ src/motion-predicates.test.ts (7 tests) 61ms
+ ✓ src/codex-oauth.test.ts (22 tests) 30ms
+ ✓ src/codex-chat.test.ts (6 tests) 25ms
+ ✓ src/media-validation.test.ts (22 tests) 44ms
+ ✓ src/verified-scene-authoring.test.ts (7 tests) 18ms
+ ✓ src/motion-scene.test.ts (5 tests) 64ms
+ ✓ src/retention|download|export|deletion-epoch.test.ts (3 tests) 25ms
+ ✓ src/feature-flags.test.ts (16 tests) 12ms
+ ✓ src/contracts-import-convention.test.ts (1 test) 66ms
+ ✓ src/worker-contracts-vendoring.test.ts (6 tests) 24ms
+
+ Test Files  39 passed (39)
+      Tests  458 passed (458)
+   Start at  21:44:17
+   Duration  29.44s (transform 1.89s, setup 0ms, collect 30.38s, tests 37.85s, environment 19ms, prepare 6.54s)
+
