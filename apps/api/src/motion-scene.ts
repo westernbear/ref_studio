@@ -104,7 +104,9 @@ export function registerMotionScene(
           reply.send(replay);
           return;
         }
-        let current = findMotionSceneRow(db, job);
+        const current = findMotionSceneRow(db, job);
+        let scene: ReturnType<typeof SceneSpecSchema.parse>;
+        let currentDigest: string;
         if (!current) {
           if (
             !admissionEnabled ||
@@ -118,38 +120,51 @@ export function registerMotionScene(
             batch.baseSceneDigest !== authoredDigest
           )
             throw new MotionSceneError("VERSION_CONFLICT", 409);
-          current = insertMotionSceneVersion(
-            db,
-            job,
-            job.authoredScene.spec,
-            null,
-          );
+          scene = SceneSpecSchema.parse(job.authoredScene.spec);
+          currentDigest = authoredDigest;
+        } else {
+          scene = SceneSpecSchema.parse(JSON.parse(current.sceneJson));
+          currentDigest = current.sceneDigest;
         }
         if (!admissionEnabled)
           throw new MotionSceneError("MOTION_AUTHORING_DISABLED", 403);
         if (
-          match !== etag(current.sceneDigest) ||
-          batch.baseSceneDigest !== current.sceneDigest
+          match !== etag(currentDigest) ||
+          batch.baseSceneDigest !== currentDigest
         )
           throw new MotionSceneError("VERSION_CONFLICT", 409);
-        const scene = SceneSpecSchema.parse(JSON.parse(current.sceneJson));
         const applied = applySceneOperations(scene, batch);
         const verification = verifyMotionScene(applied);
         if (verification.status !== "PASS")
           throw new MotionSceneError("SCENE_VERIFICATION_FAILED", 409);
-        const committed = commitMotionSceneVersion({
-          db,
-          job,
-          scene: applied,
-          verification,
-          expectedSceneDigest: current.sceneDigest,
-          idempotency: {
-            key: scopedKey,
-            requestDigest,
-            response: (row) => motionSceneSnapshot(db, job, row),
-            parseResponse: (value) => MotionSceneSnapshotV1Schema.parse(value),
-          },
-        });
+        const commit = () =>
+          commitMotionSceneVersion({
+            db,
+            job,
+            scene: applied,
+            verification,
+            expectedSceneDigest: currentDigest,
+            idempotency: {
+              key: scopedKey,
+              requestDigest,
+              response: (row) => motionSceneSnapshot(db, job, row),
+              parseResponse: (value) =>
+                MotionSceneSnapshotV1Schema.parse(value),
+            },
+          });
+        const committed = current
+          ? commit()
+          : db
+              .transaction(() => {
+                insertMotionSceneVersion(
+                  db,
+                  job,
+                  scene,
+                  verifyMotionScene(scene),
+                );
+                return commit();
+              })
+              .immediate();
         const next = committed.row;
         if (committed.replayed) {
           reply.send(committed.response);

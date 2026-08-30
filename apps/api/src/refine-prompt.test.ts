@@ -338,6 +338,81 @@ describe("motion scene routes", () => {
         planDigest: "0".repeat(64),
       };
       const authoredDigest = sha256Hex(fixtureSpec);
+      const jobBeforeRejectedPatch = structuredClone(job);
+      const rejectedImmutable = await state.app.inject({
+        method: "PATCH",
+        url: `/v1/jobs/${jobId}/motion-scene`,
+        headers: {
+          ...headersFor("ten_a"),
+          "if-match": `"${authoredDigest}"`,
+          "idempotency-key": "motion-invalid-schema",
+        },
+        payload: {
+          schema: "scene-operation-batch-v1",
+          baseSceneDigest: authoredDigest,
+          operations: [
+            {
+              kind: "set",
+              opId: "immutable-schema",
+              path: "/schema",
+              value: "scene-spec-v1",
+              reason: "adversarial immutable field",
+            },
+          ],
+        },
+      });
+      expect(rejectedImmutable.statusCode).toBe(422);
+      const rejectedProvenance = await state.app.inject({
+        method: "PATCH",
+        url: `/v1/jobs/${jobId}/motion-scene`,
+        headers: {
+          ...headersFor("ten_a"),
+          "if-match": `"${authoredDigest}"`,
+          "idempotency-key": "motion-invalid-provenance",
+        },
+        payload: {
+          schema: "scene-operation-batch-v1",
+          baseSceneDigest: authoredDigest,
+          operations: [
+            {
+              kind: "set",
+              opId: "allowed-first",
+              path: "/palette/hero",
+              value: "#6633ee",
+              reason: "mixed batch atomicity",
+            },
+            {
+              kind: "set",
+              opId: "immutable-provenance",
+              path: "/assets/0/provenance",
+              value: { source: "injected" },
+              reason: "adversarial provenance field",
+            },
+          ],
+        },
+      });
+      expect(rejectedProvenance.statusCode).toBe(422);
+      expect(
+        state.db
+          .prepare("SELECT count(*) FROM motion_scene_versions")
+          .pluck()
+          .get(),
+      ).toBe(0);
+      expect(
+        state.db
+          .prepare("SELECT count(*) FROM job_motion_scene_heads")
+          .pluck()
+          .get(),
+      ).toBe(0);
+      expect(
+        state.db
+          .prepare(
+            "SELECT count(*) FROM idempotency_keys WHERE key LIKE 'motion-scene:%'",
+          )
+          .pluck()
+          .get(),
+      ).toBe(0);
+      expect(job).toEqual(jobBeforeRejectedPatch);
       const stale = await state.app.inject({
         method: "PATCH",
         url: `/v1/jobs/${jobId}/motion-scene`,
