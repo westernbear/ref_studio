@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { fixtureSpec } from "./scene-spec.fixture.js";
 import type { SceneSpec } from "./scene-spec.js";
-import { validateSceneSpec } from "./spec-validate.js";
+import {
+  topologicallyOrderedElements,
+  validateSceneSpec,
+} from "./spec-validate.js";
 
 const clone = (spec: SceneSpec): SceneSpec =>
   structuredClone(spec) as SceneSpec;
@@ -303,7 +306,15 @@ describe("validateSceneSpec", () => {
       elementId: "child",
       parentElementId: first["elementId"],
     });
+    base.beats[0]!.elements.push({ ...first, elementId: "aaa" });
     expect(() => validateSceneSpec(base, ok)).not.toThrow();
+    const parsed = validateSceneSpec(base, ok);
+    if (parsed.schema !== "scene-spec-v2") return;
+    expect(
+      topologicallyOrderedElements(parsed.beats[0]!).map(
+        (element) => element.elementId,
+      ),
+    ).toEqual(["headline", "aaa", "child"]);
 
     const missing = structuredClone(base);
     missing.beats[0]!.elements[1]!["parentElementId"] = "missing";
