@@ -1,0 +1,7 @@
+{
+  "frameCount": 120,
+  "audio": {
+    "samplesPerChannel": 192000,
+    "channels": 2
+  }
+}

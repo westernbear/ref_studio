@@ -11,8 +11,24 @@ Verification rules:
 ```json
 {
   "schemaVersion": "rvs-authority-root-v1",
-  "phase": "root-v1",
-  "generatedAt": "2026-08-21",
+  "phase": "root-v2-motion-completion",
+  "generatedAt": "2026-08-30",
+  "transition": {
+    "previousAuthorityRootSha256": "8c0df9b22418180ab4a79d229fc5671640a50c875e62603d5ad99bb5dbe918e2",
+    "planSha256": {
+      "previous": "4bfa2573d0013b6b75abb864cc4d0b819fb561a252960b86b1b8f68c557baac5",
+      "current": "76e3fa199e0ae8f3ae1e1e3194e454f773af6b360cb191d13f67689180baa07d"
+    },
+    "visualContractSha256": {
+      "previous": "d06c1d7672d1278a2d94c7bad6568bc5a113dba3582d837317b3453507d5de8d",
+      "current": "3846105cbc2629f9de0b41fca86f69afb3845eadd3d7580ab3e5fcbd18b5d8da"
+    },
+    "reason": "Record the current tracked plan after motion-completion planning without changing historical requirements."
+  },
+  "submoduleGitlinks": {
+    "apps/worker": "20acfd5dc47c5cec7931fbf73f0febd7be600596",
+    "integrations/adobe-bridge": "b4a3c5dfbbc542df02abc3f82647145b8c5b7c8a"
+  },
   "container": {
     "path": ".omo/drafts/reference-video-studio-saas-authority-root.md",
     "hashRule": "Hash the entire Markdown file bytes; parse the single fenced json block as the root manifest.",
@@ -23,7 +39,7 @@ Verification rules:
     "rule": "A child root may only append digests for the Todo 1 dependency closure manifests, the Todo 1 independently reproduced fixture output lock, the Todo 3 verifier root, and the Todo 45 final release manifest; it must record parentRootSha256 of the current root and change nothing else. Todo 4 consumes the fixture lock verification-only, F1 consumes the verifier root and release manifest, and any other mutation fails AUTHORITY_ROOT_DRIFT."
   },
   "entries": [
-    {"path": ".omo/plans/reference-video-studio-saas.md", "bytes": 120040, "sha256": "4bfa2573d0013b6b75abb864cc4d0b819fb561a252960b86b1b8f68c557baac5", "role": "plan"},
+    {"path": ".omo/plans/reference-video-studio-saas.md", "bytes": 120040, "sha256": "76e3fa199e0ae8f3ae1e1e3194e454f773af6b360cb191d13f67689180baa07d", "role": "plan"},
     {"path": ".omo/drafts/reference-video-studio-saas-decisions-frozen.md", "bytes": 2896, "sha256": "488150b004049af82d291e467f9248ecea4cd4ef5aa6200308d867ca617ad7d7", "role": "decision-ledger"},
     {"path": ".omo/drafts/reference-video-studio-saas-normative-inputs.json", "bytes": 6815, "sha256": "1247a6d44504879a892eb19c20fe1a3962f1aaa08127c1465a68a538fcbc851e", "role": "source-identity"},
     {"path": ".omo/drafts/reference-video-studio-saas-supply-chain.json", "bytes": 9265, "sha256": "4456c5359836064f9754e92fe06fb679b6b95b4ac55a6af9d895f4ffb39cb4eb", "role": "supply-chain"},
@@ -33,7 +49,7 @@ Verification rules:
     {"path": ".omo/drafts/reference-video-studio-saas-verification-contract.json", "bytes": 8505, "sha256": "98b8483993d67a13fff8af928f23182b946a6d72fb45443ea6f133033abc2fc7", "role": "verification-contract"},
     {"path": ".omo/drafts/reference-video-studio-saas-execution-contract-v2.json", "bytes": 9853, "sha256": "5e1f89acb46d86e6cb5add7a3f060e8dd064a1b41d212b434398538bbd779c76", "role": "execution-contract"},
     {"path": ".omo/drafts/reference-video-studio-saas-audit-registry-v2.json", "bytes": 1963, "sha256": "3f6e07a3c80acb683caabb95ac3a102d218cbed58c6f48ae02adb6a85dc87c6a", "role": "audit-registry"},
-    {"path": ".omo/drafts/reference-video-studio-saas-visual-contract-v2.json", "bytes": 3149, "sha256": "d06c1d7672d1278a2d94c7bad6568bc5a113dba3582d837317b3453507d5de8d", "role": "visual-contract"},
+    {"path": ".omo/drafts/reference-video-studio-saas-visual-contract-v2.json", "bytes": 3137, "sha256": "3846105cbc2629f9de0b41fca86f69afb3845eadd3d7580ab3e5fcbd18b5d8da", "role": "visual-contract"},
     {"path": ".omo/drafts/reference-video-studio-saas-visual-landmarks-v1.json", "bytes": 4069, "sha256": "3eb3b8f2013682fcbee6e2b153fd6d05a7afb87859075d3666786cb5d9dfffc2", "role": "visual-landmarks"},
     {"path": ".omo/drafts/reference-video-studio-saas-fixture-contract-v2.json", "bytes": 18858, "sha256": "a2a3f6c7688396690ebf61a458f355739855d2d8920a04eedb4ed2c3c0a2300c", "role": "fixture-contract"},
     {"path": ".omo/drafts/reference-video-studio-saas-media-contract-v2.json", "bytes": 3136, "sha256": "eae9d81e45bc9cc6cb57d6b4aac7736f06f6950946ac6886540728c3d0d43d74", "role": "media-contract"}

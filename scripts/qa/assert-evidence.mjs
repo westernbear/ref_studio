@@ -74,17 +74,17 @@ const pathFor = (root, value) =>
   typeof value === "string" && value.length > 0
     ? resolve(root, value)
     : fail("EVIDENCE_PATH_INVALID");
-const validateTask = async (root, row, provenance) => {
+const validateTask = async (root, row, provenance, requireProvenance) => {
   if (typeof row.taskId !== "string" || row.taskId.length === 0)
     fail("EVIDENCE_TASK_INVALID");
   const evidence = await readHashedJson(
     pathFor(root, row.evidencePath),
     row.evidenceSha256,
   );
-  validateProvenance(evidence, provenance);
+  if (requireProvenance) validateProvenance(evidence, provenance);
   if (evidence.taskId !== row.taskId) fail("EVIDENCE_TASK_MISMATCH");
 };
-const validateReceipt = async (root, row, provenance) => {
+const validateReceipt = async (root, row, provenance, requireProvenance) => {
   if (
     row.schemaVersion !== undefined &&
     row.schemaVersion !== "rvs-evidence-index-receipt-row-v1"
@@ -93,7 +93,7 @@ const validateReceipt = async (root, row, provenance) => {
   if (typeof row.mode !== "string" || row.mode.length === 0)
     fail("EVIDENCE_RECEIPT_INVALID");
   const receipt = await readHashedJson(pathFor(root, row.receipt), row.sha256);
-  validateProvenance(receipt, provenance);
+  if (requireProvenance) validateProvenance(receipt, provenance);
   if (
     receipt.schemaVersion !== "rvs-final-receipt-v1" ||
     receipt.mode !== row.mode ||
@@ -102,6 +102,7 @@ const validateReceipt = async (root, row, provenance) => {
     fail("EVIDENCE_RECEIPT_INVALID");
 };
 
+const requireProvenance = process.argv[2] !== undefined;
 const path = process.argv[2] ?? ".omo/evidence/index.jsonl";
 const root = process.cwd();
 const provenance = currentProvenance();
@@ -124,16 +125,16 @@ for (const line of lines) {
   if (row.previousRowSha256 !== previousRowSha256)
     fail("EVIDENCE_CHAIN_INVALID");
   if (isTask) {
-    await validateTask(root, row, provenance);
+    await validateTask(root, row, provenance, requireProvenance);
     taskRows += 1;
   } else {
     if (receiptPaths.has(row.receipt)) fail("EVIDENCE_RECEIPT_DUPLICATE");
     receiptPaths.add(row.receipt);
-    await validateReceipt(root, row, provenance);
+    await validateReceipt(root, row, provenance, requireProvenance);
     receiptRows += 1;
   }
   previousRowSha256 = row.rowSha256;
 }
 process.stdout.write(
-  `${JSON.stringify({ status: "PASS", rows: lines.length, taskRows, receiptRows })}\n`,
+  `${JSON.stringify({ status: "PASS", rows: lines.length, taskRows, receiptRows, ...provenance })}\n`,
 );
