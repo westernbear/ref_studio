@@ -23,6 +23,9 @@ runtime/hydrated/
 .omo/evidence/index.jsonl
 .omo/evidence/current.json
 .omo/evidence/current-receipt.json
+# On-disk P7.4 archive of generated handoff duplicates (README stays tracked).
+.omo/archive/**/*
+!.omo/archive/**/README.md
 
 # tsc writes this on every typecheck; it is a cache, not a source file.
 *.tsbuildinfo
