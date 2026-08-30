@@ -100,8 +100,11 @@ const fixture = (
     now: uploads.now,
     db,
     aiSecretKey: "test-secret-key-material",
-    verifiedMotionAuthoring: true,
-    nativeSceneV2: true,
+    featureFlags: {
+      verifiedMotionAuthoring: true,
+      nativeSceneV2: true,
+      adobeMcp: false,
+    },
     ...(generate ? { refinePromptGenerate: generate } : {}),
     ...(patchGenerate ? { patchSceneGenerate: patchGenerate } : {}),
   });
@@ -121,8 +124,11 @@ const restartedApp = (
     now: state.uploads.now,
     db: state.db,
     aiSecretKey: "test-secret-key-material",
-    verifiedMotionAuthoring: true,
-    nativeSceneV2: true,
+    featureFlags: {
+      verifiedMotionAuthoring: true,
+      nativeSceneV2: true,
+      adobeMcp: false,
+    },
     patchSceneGenerate: patchGenerate,
   });
 
@@ -497,8 +503,11 @@ describe("motion scene routes", () => {
         db: state.db,
         aiSecretKey: "test-secret-key-material",
         now: state.uploads.now,
-        verifiedMotionAuthoring: false,
-        nativeSceneV2: false,
+        featureFlags: {
+          verifiedMotionAuthoring: false,
+          nativeSceneV2: false,
+          adobeMcp: false,
+        },
       });
       const stillReadable = await disabledApp.inject({
         method: "GET",
@@ -507,6 +516,31 @@ describe("motion scene routes", () => {
       });
       expect(stillReadable.statusCode, stillReadable.body).toBe(200);
       expect(stillReadable.json().version).toBe(2);
+      const idempotencyBefore = state.db
+        .prepare("SELECT COUNT(*) AS count FROM idempotency_keys")
+        .get() as { count: number };
+      job.generation = {
+        brief: "feature flag admission fixture",
+        durationSec: 20,
+        aspect: "9:16",
+        attachmentIds: [],
+      };
+      const deniedRefine = await disabledApp.inject({
+        method: "POST",
+        url: `/v1/jobs/${jobId}/refine-prompt`,
+        headers: {
+          ...headersFor("ten_a"),
+          "if-match": stillReadable.json().sceneEtag,
+          "idempotency-key": "disabled-refine",
+        },
+        payload: { prompt: "change the title" },
+      });
+      const idempotencyAfter = state.db
+        .prepare("SELECT COUNT(*) AS count FROM idempotency_keys")
+        .get() as { count: number };
+      expect(deniedRefine.statusCode).toBe(403);
+      expect(deniedRefine.json().error.code).toBe("MOTION_AUTHORING_DISABLED");
+      expect(idempotencyAfter.count).toBe(idempotencyBefore.count);
       await disabledApp.close();
     } finally {
       state.db.close();

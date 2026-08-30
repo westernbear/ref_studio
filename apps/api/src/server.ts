@@ -40,6 +40,10 @@ import {
 } from "./creator-workflow.js";
 import { inspectUploadedMedia } from "./media-validation.js";
 import { listMotionToolCanaries } from "./motion-canary.js";
+import {
+  loadFeatureFlagSnapshot,
+  type FeatureFlagSnapshot,
+} from "./feature-flags.js";
 import { createDurableState, openApiDatabase } from "./durable-state.js";
 import { createReviewStore, type ReviewStore } from "./reviews.js";
 import type { UploadStore } from "./uploads.js";
@@ -183,6 +187,7 @@ export type ApiServerConfig = Readonly<{
   workerToken: string;
   adminSessionTimeoutMinutes: number;
   adminAuditRetentionDays: number;
+  featureFlags: FeatureFlagSnapshot;
 }>;
 
 export class ApiServerConfigError extends Error {
@@ -225,6 +230,7 @@ export function loadServerConfig(
     workerToken: parsed.data.RVS_WORKER_TOKEN,
     adminSessionTimeoutMinutes: parsed.data.RVS_ADMIN_SESSION_TIMEOUT_MINUTES,
     adminAuditRetentionDays: parsed.data.RVS_ADMIN_AUDIT_RETENTION_DAYS,
+    featureFlags: loadFeatureFlagSnapshot(env),
   };
 }
 
@@ -656,6 +662,7 @@ export function createApiServer(config: ApiServerConfig) {
     db,
     aiSecretKey: config.introspectSecret,
     attachmentsRoot,
+    featureFlags: config.featureFlags,
   });
   app.addHook("onClose", async () => db.close());
   app.get("/health", async () => ({ ok: true }));
@@ -668,6 +675,12 @@ export async function startApiServer(
   const config = loadServerConfig(env);
   const app = createApiServer(config);
   await app.listen({ host: config.host, port: config.port });
+  console.info(
+    JSON.stringify({
+      event: "api.feature-flags.started",
+      ...config.featureFlags,
+    }),
+  );
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

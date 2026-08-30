@@ -513,6 +513,14 @@ const schemas = {
     },
     ["backend", "items"],
   ),
+  FeatureFlagSnapshot: object(
+    {
+      verifiedMotionAuthoring: { type: "boolean" },
+      nativeSceneV2: { type: "boolean" },
+      adobeMcp: { type: "boolean" },
+    },
+    ["verifiedMotionAuthoring", "nativeSceneV2", "adobeMcp"],
+  ),
 };
 const ref = (name) => ({ $ref: `#/components/schemas/${name}` });
 const json = (schema) => ({ content: { "application/json": { schema } } });
@@ -540,6 +548,18 @@ const document = {
     securitySchemes: { bearerAuth: { type: "http", scheme: "bearer" } },
   },
   paths: {
+    "/admin/feature-flags": {
+      get: {
+        operationId: "getFeatureFlags",
+        responses: {
+          200: {
+            description: "Immutable startup feature flag snapshot",
+            ...json(ref("FeatureFlagSnapshot")),
+          },
+          403: { description: "Forbidden", ...json(ref("SafeErrorEnvelope")) },
+        },
+      },
+    },
     "/v1/uploads": {
       post: {
         operationId: "createUpload",
@@ -732,7 +752,7 @@ if (
   )
 )
   throw new Error("OPENAPI_COMPONENTS_NOT_CONCRETE");
-const client = `import type { MotionSceneRenderV1, MotionSceneRollbackV1, MotionSceneSnapshotV1, SceneOperationBatchV1 } from "../src/motion.js"\nexport type MotionMutationHeaders = Readonly<{ "If-Match": string; "Idempotency-Key": string }>\nexport type MotionApiRequests = Readonly<{ patchMotionScene: { headers: MotionMutationHeaders; body: SceneOperationBatchV1 }; rollbackMotionScene: { headers: MotionMutationHeaders; body: MotionSceneRollbackV1 }; renderMotionScene: { headers: MotionMutationHeaders; body: MotionSceneRenderV1 }; refinePrompt: { headers: MotionMutationHeaders; body: Readonly<{ prompt: string; locale?: string }> } }>\nexport type MotionApiResponses = Readonly<{ getMotionScene: MotionSceneSnapshotV1; patchMotionScene: MotionSceneSnapshotV1; rollbackMotionScene: MotionSceneSnapshotV1 }>\nexport type ApiOperation = "createUpload" | "createJob" | "getJob" | "getMotionScene" | "patchMotionScene" | "rollbackMotionScene" | "renderMotionScene" | "getDeliverables" | "downloadScenePackage" | "downloadDelivery" | "downloadReport" | "refinePrompt" | "createReview" | "listReceipts"\nexport const paths = { uploads: "/v1/uploads", jobs: "/v1/jobs", motionScene: "/v1/jobs/{id}/motion-scene", motionSceneRollback: "/v1/jobs/{id}/motion-scene/rollback", motionSceneRender: "/v1/jobs/{id}/motion-scene/render", refinePrompt: "/v1/jobs/{id}/refine-prompt", deliverables: "/v1/jobs/{id}/deliverables", delivery: "/v1/jobs/{id}/delivery-download", report: "/v1/jobs/{id}/report-download", scenePackage: "/v1/jobs/{id}/scene-package-download", reviews: "/v1/reviews", receipts: "/v1/receipts" } as const\n`;
+const client = `import type { MotionSceneRenderV1, MotionSceneRollbackV1, MotionSceneSnapshotV1, SceneOperationBatchV1 } from "../src/motion.js"\nexport type FeatureFlagSnapshot = Readonly<{ verifiedMotionAuthoring: boolean; nativeSceneV2: boolean; adobeMcp: boolean }>\nexport type MotionMutationHeaders = Readonly<{ "If-Match": string; "Idempotency-Key": string }>\nexport type MotionApiRequests = Readonly<{ patchMotionScene: { headers: MotionMutationHeaders; body: SceneOperationBatchV1 }; rollbackMotionScene: { headers: MotionMutationHeaders; body: MotionSceneRollbackV1 }; renderMotionScene: { headers: MotionMutationHeaders; body: MotionSceneRenderV1 }; refinePrompt: { headers: MotionMutationHeaders; body: Readonly<{ prompt: string; locale?: string }> } }>\nexport type MotionApiResponses = Readonly<{ getMotionScene: MotionSceneSnapshotV1; patchMotionScene: MotionSceneSnapshotV1; rollbackMotionScene: MotionSceneSnapshotV1; getFeatureFlags: FeatureFlagSnapshot }>\nexport type ApiOperation = "createUpload" | "createJob" | "getJob" | "getMotionScene" | "patchMotionScene" | "rollbackMotionScene" | "renderMotionScene" | "getDeliverables" | "downloadScenePackage" | "downloadDelivery" | "downloadReport" | "refinePrompt" | "createReview" | "listReceipts" | "getFeatureFlags"\nexport const paths = { uploads: "/v1/uploads", jobs: "/v1/jobs", motionScene: "/v1/jobs/{id}/motion-scene", motionSceneRollback: "/v1/jobs/{id}/motion-scene/rollback", motionSceneRender: "/v1/jobs/{id}/motion-scene/render", refinePrompt: "/v1/jobs/{id}/refine-prompt", deliverables: "/v1/jobs/{id}/deliverables", delivery: "/v1/jobs/{id}/delivery-download", report: "/v1/jobs/{id}/report-download", scenePackage: "/v1/jobs/{id}/scene-package-download", reviews: "/v1/reviews", receipts: "/v1/receipts", featureFlags: "/admin/feature-flags" } as const\n`;
 const openApi = await format(JSON.stringify(document), { parser: "json" });
 const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
 if (check) {
@@ -771,7 +791,7 @@ if (check) {
   process.stdout.write(
     JSON.stringify({
       status: "generated",
-      operations: 14,
+      operations: 15,
       schemas: Object.keys(schemas).length,
     }) + "\n",
   );

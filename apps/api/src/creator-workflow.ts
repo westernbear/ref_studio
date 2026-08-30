@@ -18,6 +18,7 @@ import type { AuthoredScene } from "./author-scene.js";
 import { IdempotencyStore, requestHash, safeEnvelope } from "./boundary.js";
 import type { Principal } from "./auth.js";
 import { selectInitialStartFrame } from "./refine-prompt.js";
+import type { FeatureFlagSnapshot } from "./feature-flags.js";
 import type { Gate, ReviewReceipt, ReviewStore } from "./reviews.js";
 import {
   ownedAttachment,
@@ -1263,6 +1264,11 @@ export function registerCreatorWorkflow(
       typeof selectInitialStartFrame
     >[0]["generate"];
   },
+  featureFlags: FeatureFlagSnapshot = {
+    verifiedMotionAuthoring: false,
+    nativeSceneV2: false,
+    adobeMcp: false,
+  },
 ): void {
   const tenant = (request: FastifyRequest): string =>
     header(request, "x-tenant-id") ?? "";
@@ -1294,6 +1300,10 @@ export function registerCreatorWorkflow(
           ? generationParsed.data
           : undefined;
         if (generation) {
+          if (!featureFlags.verifiedMotionAuthoring) {
+            fail(reply, "MOTION_AUTHORING_DISABLED", 403);
+            return;
+          }
           // The generate track cannot finish without an AI provider: the
           // authoring stage calls one, and authorScene fails closed when
           // there is none. Checking here rather than only there turns a

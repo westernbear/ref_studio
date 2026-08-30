@@ -659,11 +659,44 @@
         },
         "required": ["backend", "items"],
         "additionalProperties": false
+      },
+      "FeatureFlagSnapshot": {
+        "type": "object",
+        "properties": {
+          "verifiedMotionAuthoring": { "type": "boolean" },
+          "nativeSceneV2": { "type": "boolean" },
+          "adobeMcp": { "type": "boolean" }
+        },
+        "required": ["verifiedMotionAuthoring", "nativeSceneV2", "adobeMcp"],
+        "additionalProperties": false
       }
     },
     "securitySchemes": { "bearerAuth": { "type": "http", "scheme": "bearer" } }
   },
   "paths": {
+    "/admin/feature-flags": {
+      "get": {
+        "operationId": "getFeatureFlags",
+        "responses": {
+          "200": {
+            "description": "Immutable startup feature flag snapshot",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/FeatureFlagSnapshot" }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SafeErrorEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/uploads": {
       "post": {
         "operationId": "createUpload",

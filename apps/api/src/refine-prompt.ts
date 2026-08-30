@@ -13,6 +13,7 @@ import { sha256Hex } from "../../../packages/contracts/src/canonical-json.js";
 import type { SceneOperationBatchV1 } from "../../../packages/contracts/src/motion.js";
 import type { SceneSpec } from "../../../packages/contracts/src/scene-spec.js";
 import { applySceneOperations } from "./motion-scene.js";
+import type { FeatureFlagSnapshot } from "./feature-flags.js";
 import {
   recordMotionSceneRefinement,
   replayMotionSceneMutation,
@@ -47,7 +48,9 @@ const statusFor = (code: string): number =>
             ? 409
             : code === "SCENE_VERIFICATION_FAILED"
               ? 409
-              : 400;
+              : code === "MOTION_AUTHORING_DISABLED"
+                ? 403
+                : 400;
 
 export type RefineProposal = {
   readonly startFrame: number;
@@ -472,6 +475,11 @@ export function registerRefinePrompt(
   aiSecretKey: string,
   generate: GenerateProposals = generateObject as unknown as GenerateProposals,
   patchGenerate?: GeneratePatch,
+  featureFlags: FeatureFlagSnapshot = {
+    verifiedMotionAuthoring: false,
+    nativeSceneV2: false,
+    adobeMcp: false,
+  },
 ): void {
   const tenant = (request: FastifyRequest): string =>
     header(request, "x-tenant-id") ?? "";
@@ -512,6 +520,11 @@ export function registerRefinePrompt(
             // instead. A restore-track job (no job.generation) takes
             // exactly the path it always has, below, completely unchanged.
             if (job.generation) {
+              if (
+                !featureFlags.verifiedMotionAuthoring ||
+                !featureFlags.nativeSceneV2
+              )
+                throw new Error("MOTION_AUTHORING_DISABLED");
               const durableReplay = replayMotionSceneMutation(
                 db,
                 job,

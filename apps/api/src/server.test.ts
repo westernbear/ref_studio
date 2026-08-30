@@ -27,6 +27,16 @@ describe("api server config", () => {
     expect(() => loadServerConfig({})).toThrow(ApiServerConfigError);
   });
 
+  it("rejects a malformed feature flag during startup config parsing", () => {
+    expect(() =>
+      loadServerConfig({
+        RVS_SESSION_INTROSPECT_SECRET: "secret",
+        RVS_WORKER_TOKEN: "worker",
+        RVS_ADOBE_MCP: "1",
+      }),
+    ).toThrow("FEATURE_FLAG_CONFIG_INVALID");
+  });
+
   it("registers live upload and creator workflow routes", async () => {
     const directory = mkdtempSync(join(tmpdir(), "rvs-api-server-"));
     const app = createApiServer({

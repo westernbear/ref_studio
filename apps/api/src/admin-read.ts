@@ -11,6 +11,7 @@ import { ProviderModelsError, listProviderModels } from "./provider-models.js";
 import type { CodexAuth } from "./codex-oauth.js";
 import { safeEnvelope } from "./boundary.js";
 import type { WorkerStore } from "./workers.js";
+import type { FeatureFlagSnapshot } from "./feature-flags.js";
 
 export type AdminTenant = {
   readonly id: string;
@@ -299,6 +300,7 @@ export function registerAdminRead(
   now: () => number = Date.now,
   expectedOrigin = "http://localhost:3100",
   adminSessionTimeoutMs?: number,
+  featureFlags?: FeatureFlagSnapshot,
 ): void {
   app.addHook("onRequest", async (request, reply) => {
     if (
@@ -657,6 +659,24 @@ export function registerAdminRead(
         reply.send(page(items, query));
         return;
       }
+      if (path === "/admin/feature-flags") {
+        if (adminRole(principal) !== "SUPER_ADMIN")
+          throw new Error("ROLE_NOT_PERMITTED");
+        auth.audit({
+          action: "FEATURE_FLAGS_VIEWED",
+          userId: principal.userId,
+          tenantId: null,
+          decision: "ALLOWED",
+        });
+        reply.send(
+          featureFlags ?? {
+            verifiedMotionAuthoring: false,
+            nativeSceneV2: false,
+            adobeMcp: false,
+          },
+        );
+        return;
+      }
       // The model name is the one field where the provider knows the
       // right answers and the operator is guessing. Fetched live rather
       // than from a hardcoded list, which would go stale the week after it
@@ -718,4 +738,5 @@ export function registerAdminRead(
   app.get("/admin/ai-provider-models", handler);
   app.get("/admin/material-provider-models", handler);
   app.get("/admin/motion-provider-canaries", handler);
+  app.get("/admin/feature-flags", handler);
 }

@@ -103,6 +103,7 @@ export function registerMotionSceneCommands(
   app: FastifyInstance,
   store: CreatorWorkflowStore,
   db: Database.Database,
+  admissionEnabled: boolean,
 ): void {
   const owned = (request: JobRequest): Job => {
     const job = store.jobs.get(request.params.jobId);
@@ -116,6 +117,8 @@ export function registerMotionSceneCommands(
     async (request: JobRequest, reply) => {
       try {
         const job = owned(request);
+        if (!admissionEnabled)
+          throw new MotionSceneError("MOTION_AUTHORING_DISABLED", 403);
         const { match, key } = requiredHeaders(request);
         const body = MotionSceneRollbackV1Schema.parse(request.body);
         const scopedKey = `motion-scene-rollback:${job.id}:${key}`;
@@ -176,6 +179,8 @@ export function registerMotionSceneCommands(
     async (request: JobRequest, reply) => {
       try {
         const job = owned(request);
+        if (!admissionEnabled)
+          throw new MotionSceneError("MOTION_AUTHORING_DISABLED", 403);
         const { match, key } = requiredHeaders(request);
         const body = MotionSceneRenderV1Schema.parse(request.body);
         const scopedKey = `motion-scene-render:${job.id}:${key}`;

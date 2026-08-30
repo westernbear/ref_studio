@@ -12,6 +12,7 @@ import { openApiDatabase } from "./durable-state.js";
 import type { GeneratePatch } from "./patch-scene.js";
 import { verifyMotionScene } from "./motion-operations.js";
 import { insertMotionSceneVersion } from "./motion-scene-store.js";
+import type { FeatureFlagSnapshot } from "./feature-flags.js";
 import { createUpload, finalizeUpload, type UploadStore } from "./uploads.js";
 
 export const motionCommandHeaders = {
@@ -24,6 +25,7 @@ export function createMotionCommandFixture(
   options: Readonly<{
     expectedOrigin?: string;
     patchSceneGenerate?: GeneratePatch;
+    featureFlags?: FeatureFlagSnapshot;
   }> = {},
 ) {
   const db = openApiDatabase(join(directory, "app.sqlite"));
@@ -97,8 +99,11 @@ export function createMotionCommandFixture(
     now: uploads.now,
     db,
     aiSecretKey: "test-secret-key-material",
-    verifiedMotionAuthoring: true,
-    nativeSceneV2: true,
+    featureFlags: options.featureFlags ?? {
+      verifiedMotionAuthoring: true,
+      nativeSceneV2: true,
+      adobeMcp: false,
+    },
     ...(options.patchSceneGenerate
       ? { patchSceneGenerate: options.patchSceneGenerate }
       : {}),

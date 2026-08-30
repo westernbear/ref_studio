@@ -9,6 +9,7 @@ import { sha256Hex } from "../../../packages/contracts/src/canonical-json.js";
 import { assertLegalTransition } from "../../../packages/contracts/src/lifecycle.js";
 import { safeEnvelope } from "./boundary.js";
 import { beatSheetFor } from "./author-scene.js";
+import type { FeatureFlagSnapshot } from "./feature-flags.js";
 import type { CreatorWorkflowStore, Job } from "./creator-workflow.js";
 import {
   applySceneOperations,
@@ -49,7 +50,7 @@ export function registerMotionScene(
   app: FastifyInstance,
   store: CreatorWorkflowStore,
   db: Database.Database,
-  admissionEnabled: boolean,
+  featureFlags: FeatureFlagSnapshot,
 ): void {
   const jobFor = (
     request: FastifyRequest<{ Params: { jobId: string } }>,
@@ -109,7 +110,7 @@ export function registerMotionScene(
         let currentDigest: string;
         if (!current) {
           if (
-            !admissionEnabled ||
+            !featureFlags.nativeSceneV2 ||
             !job.authoredScene?.motionPlan ||
             !job.authoredScene.planDigest
           )
@@ -126,7 +127,7 @@ export function registerMotionScene(
           scene = SceneSpecSchema.parse(JSON.parse(current.sceneJson));
           currentDigest = current.sceneDigest;
         }
-        if (!admissionEnabled)
+        if (!featureFlags.nativeSceneV2)
           throw new MotionSceneError("MOTION_AUTHORING_DISABLED", 403);
         if (
           match !== etag(currentDigest) ||
@@ -196,6 +197,6 @@ export function registerMotionScene(
       }
     },
   );
-  registerMotionSceneCommands(app, store, db);
+  registerMotionSceneCommands(app, store, db, featureFlags.nativeSceneV2);
   registerMotionDeliverables(app, store, db);
 }

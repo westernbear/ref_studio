@@ -136,6 +136,45 @@ describe("motion scene commands", () => {
     ).toBe(2);
   });
 
+  it("keeps existing scene reads available while native admission is off without recording writes", async () => {
+    await fixture.app.close();
+    fixture.db.close();
+    fixture = createMotionCommandFixture(directory, {
+      featureFlags: {
+        verifiedMotionAuthoring: true,
+        nativeSceneV2: false,
+        adobeMcp: false,
+      },
+    });
+    const jobId = await createCompletedGeneratedJob(fixture);
+    const current = await fixture.app.inject({
+      method: "GET",
+      url: `/v1/jobs/${jobId}/motion-scene`,
+      headers,
+    });
+    const before = fixture.db
+      .prepare("SELECT COUNT(*) AS count FROM idempotency_keys")
+      .get() as { count: number };
+    const denied = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/jobs/${jobId}/motion-scene/render`,
+      headers: {
+        ...headers,
+        "if-match": current.json().sceneEtag,
+        "idempotency-key": "native-off",
+      },
+      payload: { schema: "motion-scene-render-v1" },
+    });
+    const after = fixture.db
+      .prepare("SELECT COUNT(*) AS count FROM idempotency_keys")
+      .get() as { count: number };
+
+    expect(current.statusCode).toBe(200);
+    expect(denied.statusCode).toBe(403);
+    expect(denied.json().error.code).toBe("MOTION_AUTHORING_DISABLED");
+    expect(after.count).toBe(before.count);
+  });
+
   it("publishes only hash-valid deliverables bound to the current passing scene", async () => {
     const jobId = await createCompletedGeneratedJob(fixture);
     const job = fixture.workflow.jobs.get(jobId);

@@ -49,6 +49,7 @@ export const ErrorCodes = [
   // that says nothing about the one thing an operator has to change.
   "MATERIAL_PROVIDER_NOT_CONFIGURED",
   "MATERIAL_GENERATION_FAILED",
+  "MOTION_AUTHORING_DISABLED",
   "INTERNAL_ERROR",
   "RUNTIME_PREREQUISITE_MISSING",
   "WORKER_TRANSIENT_FAILURE",

@@ -4,6 +4,11 @@ import type {
   MotionSceneSnapshotV1,
   SceneOperationBatchV1,
 } from "../src/motion.js";
+export type FeatureFlagSnapshot = Readonly<{
+  verifiedMotionAuthoring: boolean;
+  nativeSceneV2: boolean;
+  adobeMcp: boolean;
+}>;
 export type MotionMutationHeaders = Readonly<{
   "If-Match": string;
   "Idempotency-Key": string;
@@ -30,6 +35,7 @@ export type MotionApiResponses = Readonly<{
   getMotionScene: MotionSceneSnapshotV1;
   patchMotionScene: MotionSceneSnapshotV1;
   rollbackMotionScene: MotionSceneSnapshotV1;
+  getFeatureFlags: FeatureFlagSnapshot;
 }>;
 export type ApiOperation =
   | "createUpload"
@@ -45,7 +51,8 @@ export type ApiOperation =
   | "downloadReport"
   | "refinePrompt"
   | "createReview"
-  | "listReceipts";
+  | "listReceipts"
+  | "getFeatureFlags";
 export const paths = {
   uploads: "/v1/uploads",
   jobs: "/v1/jobs",
@@ -59,4 +66,5 @@ export const paths = {
   scenePackage: "/v1/jobs/{id}/scene-package-download",
   reviews: "/v1/reviews",
   receipts: "/v1/receipts",
+  featureFlags: "/admin/feature-flags",
 } as const;

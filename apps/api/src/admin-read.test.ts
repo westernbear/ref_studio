@@ -288,10 +288,39 @@ const appFor = (data: Fixture, now: () => number = Date.now) =>
     introspectSecret: "secret",
     adminReads: data.reads,
     now,
+    featureFlags: {
+      verifiedMotionAuthoring: true,
+      nativeSceneV2: false,
+      adobeMcp: true,
+    },
   });
 const headers = (id: string) => ({ authorization: `Bearer ${id}-token` });
 
 describe("admin-read", () => {
+  it("returns only the immutable boolean feature snapshot to a super-admin", async () => {
+    const app = appFor(fixture());
+    const response = await app.inject({
+      method: "GET",
+      url: "/admin/feature-flags?apiKey=leak-me",
+      headers: headers("super"),
+    });
+    const denied = await app.inject({
+      method: "GET",
+      url: "/admin/feature-flags",
+      headers: headers("ops"),
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      verifiedMotionAuthoring: true,
+      nativeSceneV2: false,
+      adobeMcp: true,
+    });
+    expect(response.body).not.toMatch(/apiKey|leak-me|RVS_/u);
+    expect(denied.statusCode).toBe(403);
+    await app.close();
+  });
+
   it("returns only tenant-authorized redacted motion canaries", async () => {
     // Given
     const app = appFor(fixture());
