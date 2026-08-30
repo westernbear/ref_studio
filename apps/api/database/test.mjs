@@ -139,6 +139,35 @@ legacyDb.exec(
 );
 legacyDb.close();
 
+const adobeLegacyDb = new Database(":memory:");
+adobeLegacyDb.pragma("foreign_keys = ON");
+adobeLegacyDb.exec(
+  "CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL); CREATE TABLE adobe_device_keys (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, device_id TEXT NOT NULL, not_before_ms INTEGER NOT NULL, expires_at_ms INTEGER NOT NULL, revoked_at_ms INTEGER); CREATE TABLE adobe_relay_nonces (key_id TEXT NOT NULL, nonce TEXT NOT NULL, consumed_at_ms INTEGER NOT NULL, PRIMARY KEY(key_id,nonce), FOREIGN KEY(key_id) REFERENCES adobe_device_keys(id)); INSERT INTO adobe_device_keys VALUES ('key_old_a','ten_old','device_old',1,100,NULL),('key_old_b','ten_old','device_old',2,200,NULL); INSERT INTO adobe_relay_nonces VALUES ('key_old_a','nonce_replayed',10),('key_old_b','nonce_replayed',20)",
+);
+const migrationRecord = adobeLegacyDb.prepare(
+  "INSERT INTO schema_migrations VALUES (?,datetime('now'))",
+);
+for (let version = 1; version <= 23; version += 1) migrationRecord.run(version);
+migrate(adobeLegacyDb);
+assert.deepEqual(
+  adobeLegacyDb
+    .prepare(
+      "SELECT device_id,nonce,consumed_at_ms FROM adobe_relay_nonces ORDER BY device_id,nonce",
+    )
+    .all(),
+  [{ device_id: "device_old", nonce: "nonce_replayed", consumed_at_ms: 10 }],
+);
+assert.equal(
+  adobeLegacyDb
+    .prepare(
+      "SELECT version FROM schema_migrations ORDER BY version DESC LIMIT 1",
+    )
+    .pluck()
+    .get(),
+  24,
+);
+adobeLegacyDb.close();
+
 const db = new Database(":memory:");
 db.pragma("foreign_keys = ON");
 migrate(db);
@@ -267,7 +296,13 @@ rejection(
 );
 rejection("DELETE FROM runtime_review_receipts WHERE id='runtime_rcpt'");
 db.exec(
-  "INSERT INTO adobe_devices VALUES ('device_db','ten_test','Studio Mac','ENROLLED',1,NULL); INSERT INTO adobe_device_keys VALUES ('key_db','ten_test','device_db',1,10000,NULL); INSERT INTO adobe_relay_nonces VALUES ('key_db','nonce_db',2); INSERT INTO adobe_commands VALUES ('cmd_db','ten_test','device_db','job_a','{}','QUEUED',NULL,2,2)",
+  "INSERT INTO adobe_devices VALUES ('device_db','ten_test','Studio Mac','ENROLLED',1,NULL); INSERT INTO adobe_device_keys VALUES ('key_db','ten_test','device_db',1,10000,NULL); INSERT INTO adobe_relay_nonces VALUES ('device_db','key_db','nonce_db',2); INSERT INTO adobe_commands VALUES ('cmd_db','ten_test','device_db','job_a','{}','QUEUED',NULL,2,2)",
+);
+db.exec(
+  "INSERT INTO adobe_device_keys VALUES ('key_db_rotated','ten_test','device_db',2,20000,NULL)",
+);
+rejection(
+  "INSERT INTO adobe_relay_nonces VALUES ('device_db','key_db_rotated','nonce_db',3)",
 );
 rejection(
   "INSERT INTO adobe_device_keys VALUES ('key_cross','ten_platform','device_db',1,10000,NULL)",
@@ -284,7 +319,7 @@ assert.equal(
 console.log(
   JSON.stringify({
     integrity: db.pragma("integrity_check", { simple: true }),
-    negativeCases: 9,
+    negativeCases: 10,
     duplicateCasAllowed: true,
     singleClaim: true,
     orderedReceipts: true,

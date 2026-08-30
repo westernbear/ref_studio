@@ -767,9 +767,17 @@
         }
       }
     },
-    "/v1/adobe/devices/enroll": {
+    "/v1/adobe/devices/{deviceId}/enroll": {
       "post": {
         "operationId": "enrollAdobeDevice",
+        "parameters": [
+          {
+            "name": "deviceId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {

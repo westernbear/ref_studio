@@ -72,7 +72,7 @@ export const paths = {
   receipts: "/v1/receipts",
   featureFlags: "/admin/feature-flags",
   adobeDevices: "/v1/adobe/devices",
-  adobeEnroll: "/v1/adobe/devices/enroll",
+  adobeEnroll: "/v1/adobe/devices/{deviceId}/enroll",
   adobeRelay: "/v1/adobe/relay",
   adobeCommand: "/v1/adobe/commands/{commandId}",
 } as const;

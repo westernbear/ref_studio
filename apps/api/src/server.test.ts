@@ -54,6 +54,12 @@ describe("api server config", () => {
     expect(
       app.hasRoute({ method: "POST", url: "/v1/adobe/devices/enroll" }),
     ).toBe(true);
+    expect(
+      app.hasRoute({
+        method: "POST",
+        url: "/v1/adobe/devices/:deviceId/enroll",
+      }),
+    ).toBe(true);
     // /v1/reviews was removed with the T1-T6 human-approval gate (replaced
     // by automatic continuation) -- this route must stay gone.
     expect(app.hasRoute({ method: "POST", url: "/v1/reviews" })).toBe(false);

@@ -12,6 +12,13 @@ import {
 } from "./adobe-mcp-gateway.js";
 import { verifyAdobeRelay } from "./adobe-relay-auth.js";
 import type Database from "better-sqlite3";
+import { z } from "zod";
+
+const DeviceIdSchema = z
+  .string()
+  .min(3)
+  .max(128)
+  .regex(/^[A-Za-z0-9:._-]+$/u);
 
 const principal = (request: FastifyRequest): Principal | undefined =>
   (
@@ -60,20 +67,42 @@ export const registerAdobeMcpRoutes = (
     return reply.send({ version: 1, devices: store.list(actor.tenantId) });
   });
 
-  app.post("/v1/adobe/devices/enroll", async (request, reply) => {
+  const enrollDevice = async (
+    request: FastifyRequest<{ Params: { deviceId?: string } }>,
+    reply: FastifyReply,
+  ) => {
     try {
       if (!flags.adobeMcp) return reply.code(404).send();
       const actor = principal(request);
       if (actor === undefined)
         throw new AdobeRelayFailure("ADOBE_RELAY_REQUEST_INVALID");
       const input = AdobeDeviceEnrollmentRequestV1Schema.parse(request.body);
+      const pathDeviceId =
+        request.params.deviceId === undefined
+          ? undefined
+          : DeviceIdSchema.parse(request.params.deviceId);
+      if (
+        pathDeviceId !== undefined &&
+        input.deviceId !== undefined &&
+        pathDeviceId !== input.deviceId
+      )
+        throw new AdobeRelayFailure("ADOBE_RELAY_BINDING_REJECTED");
       return reply
         .code(201)
-        .send(store.enroll(actor.tenantId, input.name, input.deviceId));
+        .send(
+          store.enroll(
+            actor.tenantId,
+            input.name,
+            pathDeviceId ?? input.deviceId,
+          ),
+        );
     } catch (error) {
       return reject(reply, error);
     }
-  });
+  };
+
+  app.post("/v1/adobe/devices/enroll", enrollDevice);
+  app.post("/v1/adobe/devices/:deviceId/enroll", enrollDevice);
 
   app.post(
     "/v1/adobe/relay",

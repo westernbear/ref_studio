@@ -97,6 +97,13 @@ describe("Adobe MCP gateway", () => {
       "gateway-test-secret",
     );
     const first = gateway.enroll("ten_platform", "Studio Mac");
+    expect(
+      gateway.consumeNonce(
+        first.deviceId,
+        first.keyId,
+        "nonce-across-rotation",
+      ),
+    ).toBe(true);
     const rotated = gateway.enroll(
       "ten_platform",
       "Studio Mac rotated",
@@ -104,7 +111,14 @@ describe("Adobe MCP gateway", () => {
     );
     expect(gateway.key(first.keyId)?.revokedAtMs).toBe(1_000);
     expect(gateway.key(rotated.keyId)?.revokedAtMs).toBeNull();
-    for (let index = 0; index < 60; index += 1)
+    expect(
+      gateway.consumeNonce(
+        rotated.deviceId,
+        rotated.keyId,
+        "nonce-across-rotation",
+      ),
+    ).toBe(false);
+    for (let index = 0; index < 59; index += 1)
       expect(
         gateway.consumeNonce(
           rotated.deviceId,
@@ -150,7 +164,7 @@ describe("Adobe MCP gateway", () => {
     };
     const enrolled = await app.inject({
       method: "POST",
-      url: "/v1/adobe/devices/enroll",
+      url: "/v1/adobe/devices/device-http-1/enroll",
       headers: userHeaders,
       payload: { name: "Studio Mac" },
     });
@@ -174,6 +188,7 @@ describe("Adobe MCP gateway", () => {
     });
 
     expect(enrolled.statusCode).toBe(201);
+    expect(enrollment.deviceId).toBe("device-http-1");
     expect(relayed.statusCode).toBe(202);
     expect(devices.json().devices).toHaveLength(1);
     expect(status.json()).toEqual({

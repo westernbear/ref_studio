@@ -82,6 +82,7 @@ export function migrate(db) {
     [21, "./migrations/021_motion_provider_canaries.sql", false],
     [22, "./migrations/022_motion_plan_metadata.sql", false],
     [23, "./migrations/023_adobe_devices_commands.sql", false],
+    [24, "./migrations/024_adobe_device_nonce_scope.sql", true],
   ];
   for (const [version, file, disableForeignKeys] of migrations) {
     if (

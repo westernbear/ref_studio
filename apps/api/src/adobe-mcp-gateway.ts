@@ -69,11 +69,20 @@ export const createAdobeGatewayStore = (
     const keyId = `key-${randomUUID()}`;
     const expiresAtMs = timestamp + KEY_LIFETIME_MS;
     db.transaction(() => {
-      if (existingDeviceId === undefined)
+      const owner =
+        existingDeviceId === undefined
+          ? undefined
+          : db
+              .prepare("SELECT tenant_id FROM adobe_devices WHERE id=?")
+              .pluck()
+              .get(existingDeviceId);
+      if (existingDeviceId === undefined || owner === undefined)
         db.prepare(
           "INSERT INTO adobe_devices(id,tenant_id,name,status,created_at_ms) VALUES (?,?,?,'ENROLLED',?)",
         ).run(deviceId, tenantId, name, timestamp);
       else {
+        if (owner !== tenantId)
+          throw new AdobeRelayFailure("ADOBE_DEVICE_NOT_FOUND");
         const changed = db
           .prepare(
             "UPDATE adobe_devices SET name=? WHERE id=? AND tenant_id=? AND status='ENROLLED'",
@@ -129,19 +138,19 @@ export const createAdobeGatewayStore = (
     const recent = z.number().parse(
       db
         .prepare(
-          "SELECT count(*) FROM adobe_relay_nonces WHERE key_id=? AND consumed_at_ms>=?",
+          "SELECT count(*) FROM adobe_relay_nonces WHERE device_id=? AND consumed_at_ms>=?",
         )
         .pluck()
-        .get(keyId, timestamp - RATE_WINDOW_MS),
+        .get(deviceId, timestamp - RATE_WINDOW_MS),
     );
     if (recent >= RATE_LIMIT)
       throw new AdobeRelayFailure("ADOBE_RELAY_RATE_LIMIT");
     try {
       const inserted = db
         .prepare(
-          "INSERT INTO adobe_relay_nonces(key_id,nonce,consumed_at_ms) SELECT ?,?,? WHERE EXISTS (SELECT 1 FROM adobe_device_keys WHERE id=? AND device_id=?)",
+          "INSERT INTO adobe_relay_nonces(device_id,key_id,nonce,consumed_at_ms) SELECT ?,?,?,? WHERE EXISTS (SELECT 1 FROM adobe_device_keys WHERE id=? AND device_id=?)",
         )
-        .run(keyId, nonce, timestamp, keyId, deviceId).changes;
+        .run(deviceId, keyId, nonce, timestamp, keyId, deviceId).changes;
       return inserted === 1;
     } catch (error) {
       if (isUniqueNonce(error)) return false;
