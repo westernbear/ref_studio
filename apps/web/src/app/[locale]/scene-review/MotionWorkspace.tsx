@@ -56,6 +56,18 @@ export function MotionWorkspace({
     const bounds = parent.getBoundingClientRect();
     setRatio(clampSplitRatio(((clientX - bounds.left) / bounds.width) * 100));
   };
+  const selectMobilePane = (
+    next: "chat" | "editor",
+    target?: EventTarget | null,
+  ): void => {
+    setMobilePane(next);
+    const tab = (
+      target as HTMLElement | null
+    )?.parentElement?.querySelector<HTMLButtonElement>(
+      `#motion-workspace-${next}-tab`,
+    );
+    tab?.focus();
+  };
 
   return (
     <div
@@ -66,6 +78,7 @@ export function MotionWorkspace({
       }}
     >
       <CompilerChatPanel
+        id="motion-workspace-chat"
         job={workspace.job}
         scene={workspace.scene}
         deliverables={workspace.deliverables}
@@ -125,6 +138,7 @@ export function MotionWorkspace({
         }}
       />
       <MotionEditorPanel
+        id="motion-workspace-editor"
         job={workspace.job}
         scene={workspace.scene}
         deliverables={workspace.deliverables}
@@ -138,18 +152,36 @@ export function MotionWorkspace({
         aria-label={t("mobileViews")}
       >
         <button
+          id="motion-workspace-chat-tab"
           type="button"
           role="tab"
           aria-selected={mobilePane === "chat"}
-          onClick={() => setMobilePane("chat")}
+          aria-controls="motion-workspace-chat"
+          tabIndex={mobilePane === "chat" ? 0 : -1}
+          onClick={() => selectMobilePane("chat")}
+          onKeyDown={(event) => {
+            if (["ArrowRight", "End"].includes(event.key)) {
+              event.preventDefault();
+              selectMobilePane("editor", event.currentTarget);
+            }
+          }}
         >
           {t("chatTab")}
         </button>
         <button
+          id="motion-workspace-editor-tab"
           type="button"
           role="tab"
           aria-selected={mobilePane === "editor"}
-          onClick={() => setMobilePane("editor")}
+          aria-controls="motion-workspace-editor"
+          tabIndex={mobilePane === "editor" ? 0 : -1}
+          onClick={() => selectMobilePane("editor")}
+          onKeyDown={(event) => {
+            if (["ArrowLeft", "Home"].includes(event.key)) {
+              event.preventDefault();
+              selectMobilePane("chat", event.currentTarget);
+            }
+          }}
         >
           {t("editorTab")}
         </button>

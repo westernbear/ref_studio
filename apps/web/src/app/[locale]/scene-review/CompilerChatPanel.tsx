@@ -12,6 +12,7 @@ import type { WorkspaceViewState } from "./motion-workspace-model";
 import type { WorkspaceMessage } from "./useMotionWorkspace";
 
 type Props = Readonly<{
+  id: string;
   job: JobProgress;
   scene: MotionSceneSnapshotV1;
   deliverables: MotionDeliverablesV1;
@@ -27,6 +28,7 @@ type Props = Readonly<{
 }>;
 
 export function CompilerChatPanel({
+  id,
   job,
   scene,
   deliverables,
@@ -67,8 +69,10 @@ export function CompilerChatPanel({
 
   return (
     <section
+      id={id}
       className="compiler-chat motion-workspace-pane"
       aria-labelledby="compiler-chat-title"
+      aria-label={t("chatTitle")}
       data-mobile-pane="chat"
     >
       <header className="compiler-chat-header">

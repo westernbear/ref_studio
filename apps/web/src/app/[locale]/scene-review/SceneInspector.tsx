@@ -32,6 +32,16 @@ export function SceneInspector(props: Props) {
   const { scene, selection, frame, onFrame, onSelect, viewState } = props;
   const t = useTranslations("MotionWorkspace");
   const [tab, setTab] = useState<"timeline" | "properties">("timeline");
+  const selectTab = (
+    next: "timeline" | "properties",
+    target?: EventTarget | null,
+  ): void => {
+    setTab(next);
+    const button = (
+      target as HTMLElement | null
+    )?.parentElement?.querySelector<HTMLButtonElement>(`#motion-${next}-tab`);
+    button?.focus();
+  };
 
   return (
     <section
@@ -42,25 +52,48 @@ export function SceneInspector(props: Props) {
     >
       <div className="scene-inspector-tabs" role="tablist">
         <button
+          id="motion-timeline-tab"
           type="button"
           role="tab"
           aria-selected={tab === "timeline"}
-          onClick={() => setTab("timeline")}
+          aria-controls="motion-timeline-panel"
+          tabIndex={tab === "timeline" ? 0 : -1}
+          onClick={() => selectTab("timeline")}
+          onKeyDown={(event) => {
+            if (["ArrowRight", "End"].includes(event.key)) {
+              event.preventDefault();
+              selectTab("properties", event.currentTarget);
+            }
+          }}
         >
           {t("timeline")}
         </button>
         <button
+          id="motion-properties-tab"
           type="button"
           role="tab"
           aria-selected={tab === "properties"}
-          onClick={() => setTab("properties")}
+          aria-controls="motion-properties-panel"
+          tabIndex={tab === "properties" ? 0 : -1}
+          onClick={() => selectTab("properties")}
+          onKeyDown={(event) => {
+            if (["ArrowLeft", "Home"].includes(event.key)) {
+              event.preventDefault();
+              selectTab("timeline", event.currentTarget);
+            }
+          }}
         >
           {t("properties")}
         </button>
       </div>
       <div className="scene-inspector-body">
         {tab === "timeline" ? (
-          <div className="scene-timeline" role="tabpanel">
+          <div
+            id="motion-timeline-panel"
+            className="scene-timeline"
+            role="tabpanel"
+            aria-labelledby="motion-timeline-tab"
+          >
             {scene.scene.beats.map((beat, beatIndex) => (
               <section key={beat.beatId}>
                 <button
@@ -91,7 +124,7 @@ export function SceneInspector(props: Props) {
                       onClick={() => {
                         onFrame(Math.max(frame, beat.startFrame));
                         onSelect({ beatIndex, elementIndex });
-                        setTab("properties");
+                        selectTab("properties");
                       }}
                     >
                       <span>{item.elementId}</span>
@@ -104,6 +137,8 @@ export function SceneInspector(props: Props) {
           </div>
         ) : (
           <ScenePropertiesPanel
+            id="motion-properties-panel"
+            ariaLabelledBy="motion-properties-tab"
             key={`${scene.version}-${selection.beatIndex}-${selection.elementIndex}`}
             {...props}
           />

@@ -21,6 +21,20 @@ const canvasSource = readFileSync(
   ),
   "utf8",
 );
+const workspaceSource = readFileSync(
+  resolve(
+    import.meta.dirname,
+    "../src/app/[locale]/scene-review/MotionWorkspace.tsx",
+  ),
+  "utf8",
+);
+const inspectorSource = readFileSync(
+  resolve(
+    import.meta.dirname,
+    "../src/app/[locale]/scene-review/SceneInspector.tsx",
+  ),
+  "utf8",
+);
 
 describe("motion workspace responsive shell", () => {
   it("keeps the mobile workspace and its Chat/Editor tabs inside the viewport", () => {
@@ -48,5 +62,22 @@ describe("motion workspace responsive shell", () => {
     expect(canvasSource).toContain("onFocus=");
     expect(canvasSource).toContain("onPointerDown=");
     expect(canvasSource).not.toContain("onMouseOver=");
+  });
+
+  it("connects mobile and inspector tabs to their controlled panels", () => {
+    expect(workspaceSource).toContain('id="motion-workspace-chat-tab"');
+    expect(workspaceSource).toContain('aria-controls="motion-workspace-chat"');
+    expect(workspaceSource).toContain('id="motion-workspace-editor-tab"');
+    expect(workspaceSource).toContain(
+      'aria-controls="motion-workspace-editor"',
+    );
+    expect(workspaceSource).toContain("onKeyDown={(event) => {");
+    expect(inspectorSource).toContain('id="motion-timeline-tab"');
+    expect(inspectorSource).toContain('aria-controls="motion-timeline-panel"');
+    expect(inspectorSource).toContain('id="motion-properties-tab"');
+    expect(inspectorSource).toContain(
+      'aria-controls="motion-properties-panel"',
+    );
+    expect(inspectorSource).toContain("const selectTab =");
   });
 });

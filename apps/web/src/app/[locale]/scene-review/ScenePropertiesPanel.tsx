@@ -16,6 +16,8 @@ import {
 } from "./motion-workspace-model";
 
 type Props = Readonly<{
+  id: string;
+  ariaLabelledBy: string;
   job: JobProgress;
   scene: MotionSceneSnapshotV1;
   selection: SceneSelection;
@@ -32,6 +34,8 @@ const numberFrom = (data: FormData, name: string, fallback: number): number => {
 };
 
 export function ScenePropertiesPanel({
+  id,
+  ariaLabelledBy,
   job,
   scene,
   selection,
@@ -133,8 +137,10 @@ export function ScenePropertiesPanel({
 
   return (
     <form
+      id={id}
       className="scene-properties"
       role="tabpanel"
+      aria-labelledby={ariaLabelledBy}
       onSubmit={(event) => {
         event.preventDefault();
         void apply(new FormData(event.currentTarget));

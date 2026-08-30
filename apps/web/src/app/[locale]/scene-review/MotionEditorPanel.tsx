@@ -19,6 +19,7 @@ import { SceneCanvas } from "./SceneCanvas";
 import { SceneInspector } from "./SceneInspector";
 
 type Props = Readonly<{
+  id: string;
   job: JobProgress;
   scene: MotionSceneSnapshotV1;
   deliverables: MotionDeliverablesV1;
@@ -31,6 +32,7 @@ type Props = Readonly<{
 }>;
 
 export function MotionEditorPanel({
+  id,
   job,
   scene,
   deliverables,
@@ -68,6 +70,7 @@ export function MotionEditorPanel({
 
   return (
     <section
+      id={id}
       className="motion-editor motion-workspace-pane"
       aria-label={t("editorTitle")}
       data-mobile-pane="editor"
