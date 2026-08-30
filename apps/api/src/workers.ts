@@ -57,6 +57,7 @@ import {
   type ArtifactContentType,
   type StoredArtifact,
 } from "./creator-workflow.js";
+import { RESOURCE_BUDGETS } from "../../../packages/contracts/src/resource-budgets.js";
 import type { ReviewStore } from "./reviews.js";
 import {
   MAX_ATTACHMENT_BYTES,
@@ -64,7 +65,7 @@ import {
   type UploadStore,
 } from "./uploads.js";
 
-const MAX_ARTIFACT_BYTES = 512 * 1024 * 1024;
+const MAX_ARTIFACT_BYTES = RESOURCE_BUDGETS.maxPackageBytes;
 const LEASE_MS = 90_000;
 const WORKER_SESSION_MS = 5 * 60_000;
 const ArtifactContentLength = z

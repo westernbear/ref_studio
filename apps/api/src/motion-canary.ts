@@ -4,6 +4,7 @@ import {
   MOTION_LOOKUP_TOOL_SCHEMA,
   MOTION_LOOKUP_TOOL_SCHEMA_DIGEST,
   MotionKnowledgeCardSchema,
+  modelMotionTools,
   ProviderToolCanaryV1Schema,
   type ProviderToolCanaryV1,
 } from "./motion-knowledge.js";
@@ -112,6 +113,69 @@ export function listMotionToolCanaries(
       )
       .all() as CanaryRow[]
   ).map(toPublic);
+}
+
+/** Host-side adapter: exercises the same lookup surface the model tool will call. */
+export function hostMotionLookupCanaryAdapter(
+  db: Database.Database,
+): MotionCanaryAdapter {
+  return {
+    callTool: async ({ input }) => {
+      const normalized = input.query.normalize("NFKC").trim().toLocaleLowerCase();
+      const row =
+        (db
+          .prepare(
+            `SELECT card.*
+               FROM motion_aliases AS alias
+               JOIN motion_cards AS card ON card.id = alias.card_id
+              WHERE alias.alias = ? COLLATE NOCASE
+              LIMIT 1`,
+          )
+          .get(normalized) as Record<string, unknown> | undefined) ??
+        (db
+          .prepare(`SELECT * FROM motion_cards WHERE id = ? LIMIT 1`)
+          .get(normalized) as Record<string, unknown> | undefined) ??
+        (db
+          .prepare(`SELECT * FROM motion_cards ORDER BY id LIMIT 1`)
+          .get() as Record<string, unknown> | undefined);
+      if (!row) throw new Error("MOTION_KNOWLEDGE_NOT_FOUND");
+      return row;
+    },
+  };
+}
+
+/**
+ * Production admission helper: reuse a fresh PASS, otherwise execute the canary
+ * via the provided adapter (defaults to host lookup) and persist the result.
+ */
+export async function ensureFreshMotionToolCanary(params: {
+  readonly db: Database.Database;
+  readonly tenantId: string;
+  readonly providerKind: string;
+  readonly model: string;
+  readonly now: number;
+  readonly ttlMs: number;
+  readonly timeoutMs?: number;
+  readonly adapter?: MotionCanaryAdapter;
+}): Promise<MotionCanaryPublic> {
+  const identity = {
+    tenantId: params.tenantId,
+    providerKind: params.providerKind,
+    model: params.model,
+  };
+  const existing = readMotionToolCanary(params.db, identity);
+  if (
+    existing &&
+    modelMotionTools(existing, identity, params.now, params.ttlMs).length > 0
+  )
+    return existing;
+  return runMotionToolCanary({
+    db: params.db,
+    ...identity,
+    adapter: params.adapter ?? hostMotionLookupCanaryAdapter(params.db),
+    now: params.now,
+    timeoutMs: params.timeoutMs ?? 5_000,
+  });
 }
 
 export async function runMotionToolCanary(params: {

@@ -77,3 +77,16 @@ Store evidence under `.omo/evidence/motion-complete-browse-<timestamp>/`.
 - `docs/HANDOFF.md` — handoff package
 - `docs/RECOVERY.md` — recovery
 - Plan: `.omo/plans/motion-graphics-ai-completion-v2.md` (canonical copy may live on the main worktree)
+
+## Observability
+
+API process emits redacted JSON lines on stdout:
+
+- `channel: "motion.event"` — lookup/canary/plan/operations/verification/adobe signals via `emitMotionEvent`
+- `channel: "motion.metric"` — counters/histograms via `sampleMotionMetric`
+
+Sink is installed in `createApiServer`. Contracts catalog: `packages/contracts/src/motion-observability.ts`.
+
+## Provider canary
+
+Authoring calls `ensureFreshMotionToolCanary` before exposing `motion.lookup` to the model. Admins can force a run with `POST /admin/motion-provider-canaries/run` (idempotency key required). Host lookup adapter validates the card schema without storing secrets.

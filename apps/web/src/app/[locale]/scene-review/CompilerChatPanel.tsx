@@ -60,8 +60,11 @@ export function CompilerChatPanel({
     const message = t.has(key)
       ? t(key)
       : t("errors.unknown", { code: entry.text });
-    if (!entry.remediation) return message;
-    return `${message} ${t("errors.nextStep", { step: entry.remediation })}`;
+    const parts = [message];
+    if (entry.remediation)
+      parts.push(t("errors.nextStep", { step: entry.remediation }));
+    if (entry.docsUrl) parts.push(entry.docsUrl);
+    return parts.join(" ");
   };
 
   const send = async (): Promise<void> => {

@@ -4,6 +4,7 @@ import {
   AdobeRelayRequestV1Schema,
   AdobeRelayResultRequestV1Schema,
 } from "../../../packages/contracts/src/adobe.js";
+import { RESOURCE_BUDGETS } from "../../../packages/contracts/src/resource-budgets.js";
 import type { Principal } from "./auth.js";
 import { safeEnvelope } from "./boundary.js";
 import type { FeatureFlagSnapshot } from "./feature-flags.js";
@@ -14,6 +15,8 @@ import {
 import { verifyAdobeRelay } from "./adobe-relay-auth.js";
 import type Database from "better-sqlite3";
 import { z } from "zod";
+
+const RELAY_BODY_LIMIT = RESOURCE_BUDGETS.maxRelayBodyBytes;
 
 const DeviceIdSchema = z
   .string()
@@ -107,7 +110,7 @@ export const registerAdobeMcpRoutes = (
 
   app.post(
     "/v1/adobe/relay",
-    { bodyLimit: 262_144 },
+    { bodyLimit: RELAY_BODY_LIMIT },
     async (request, reply) => {
       try {
         if (!flags.adobeMcp) return reply.code(404).send();
@@ -139,7 +142,7 @@ export const registerAdobeMcpRoutes = (
 
   app.post(
     "/v1/adobe/results",
-    { bodyLimit: 262_144 },
+    { bodyLimit: RELAY_BODY_LIMIT },
     async (request, reply) => {
       try {
         if (!flags.adobeMcp) return reply.code(404).send();

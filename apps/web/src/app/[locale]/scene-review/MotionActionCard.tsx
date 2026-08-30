@@ -58,7 +58,14 @@ export function MotionActionCard({
     scene.backendCapability.capabilities.includes("ENROLLED") &&
     scene.backendCapability.capabilities.includes("READY");
 
+  const [backend, setBackend] = useState<"native" | "adobe">(
+    adobeReady ? "adobe" : "native",
+  );
+
   useEffect(() => setVersion(scene.version), [scene.version]);
+  useEffect(() => {
+    if (!adobeReady) setBackend("native");
+  }, [adobeReady]);
 
   return (
     <section
@@ -97,7 +104,11 @@ export function MotionActionCard({
           </div>
           <div>
             <dt>{t("knowledgeCards")}</dt>
-            <dd>{t("knowledgeCardsUnavailable")}</dd>
+            <dd>
+              {integrity.knowledgeCardIds.length > 0
+                ? integrity.knowledgeCardIds.join(", ")
+                : t("knowledgeCardsUnavailable")}
+            </dd>
           </div>
           <div>
             <dt>{t("capabilities")}</dt>
@@ -151,16 +162,22 @@ export function MotionActionCard({
         </div>
         <label className="motion-field">
           <span>{t("backend")}</span>
-          <select value={adobeReady ? "adobe" : "native"} disabled>
+          <select
+            value={backend}
+            disabled={!adobeReady}
+            onChange={(event) =>
+              setBackend(event.target.value === "adobe" ? "adobe" : "native")
+            }
+          >
             <option value="native">{t("nativeBackend")}</option>
             <option value="adobe">{t("adobeBackend")}</option>
           </select>
         </label>
         {!adobeReady ? (
           <p className="motion-capability-note">{t("adobeLocked")}</p>
-        ) : (
+        ) : backend === "adobe" ? (
           <p className="motion-capability-note">{t("adobeConnected")}</p>
-        )}
+        ) : null}
         <div className="motion-history-controls">
           <label className="motion-field">
             <span>{t("rollbackVersion")}</span>

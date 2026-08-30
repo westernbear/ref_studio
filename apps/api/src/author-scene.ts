@@ -23,12 +23,16 @@ import {
 import { AUTHORING_SYSTEM_PROMPT } from "./author-scene.prompt.js";
 import { aiModelFromSettings } from "./ai-model-from-settings.js";
 import { getAiProviderSettings } from "./ai-provider-settings.js";
-import { readMotionToolCanary } from "./motion-canary.js";
+import { ensureFreshMotionToolCanary } from "./motion-canary.js";
 import {
   lookupMotionKnowledge,
   lookupMotionKnowledgeForBrief,
   modelMotionTools,
 } from "./motion-knowledge.js";
+import {
+  emitMotionEvent,
+  sampleMotionMetric,
+} from "../../../packages/contracts/src/motion-observability.js";
 import { generateVerifiedScene } from "./verified-scene-authoring.js";
 import {
   generateMotionPlan,
@@ -169,12 +173,26 @@ export async function authorScene(params: {
     providerKind: settings.providerKind,
     model: settings.model,
   };
-  const admitted = modelMotionTools(
-    readMotionToolCanary(params.db, identity),
-    identity,
-    params.now ?? Date.now(),
-    params.motionCanaryTtlMs ?? 86_400_000,
-  );
+  const now = params.now ?? Date.now();
+  const ttlMs = params.motionCanaryTtlMs ?? 86_400_000;
+  const correlationId = `cor_author_${params.tenantId}`.slice(0, 64);
+  emitMotionEvent("lookup.query_class", correlationId, {
+    class: motionKnowledge.length > 0 ? "supported" : "unsupported",
+    cardCount: motionKnowledge.length,
+  });
+  const canary = await ensureFreshMotionToolCanary({
+    db: params.db,
+    ...identity,
+    now,
+    ttlMs,
+  });
+  emitMotionEvent("canary.status", correlationId, {
+    status: canary.status,
+    providerKind: canary.providerKind,
+    model: canary.model,
+    failureReason: canary.failureReason,
+  });
+  const admitted = modelMotionTools(canary, identity, now, ttlMs);
   const tools: ToolSet = admitted.includes("motion.lookup")
     ? {
         "motion.lookup": tool({
@@ -231,6 +249,12 @@ export async function authorScene(params: {
           })
         ).object),
   );
+
+  emitMotionEvent("plan.digest", correlationId, {
+    planDigest: generatedPlan.planDigest,
+    knowledgeCardCount: generatedPlan.plan.knowledgeCardIds.length,
+    predicateCount: generatedPlan.plan.predicateIds.length,
+  });
 
   // The creator's brief and attachment identifiers are untrusted input --
   // fenced in their own delimited block, distinct from the instructions
@@ -347,6 +371,15 @@ Author a SceneSpec for a film of about ${params.config.durationSec} seconds.`;
       return verified;
     },
   });
+
+  emitMotionEvent("verification.attempt", correlationId, {
+    attempts: validated.attempts,
+    status: "PASS",
+  });
+  if (validated.attempts > 1)
+    sampleMotionMetric("four_attempt_failures", validated.attempts - 1, {
+      tenantId: params.tenantId,
+    });
 
   const verification = authoringVerificationReport(
     validated.value,

@@ -497,6 +497,7 @@ const schemas = {
       predecessorVersion: { type: ["integer", "null"], minimum: 1 },
       artifactDigest: { type: ["string", "null"], pattern: "^[a-f0-9]{64}$" },
       predicateIds: { type: "array", items: string() },
+      knowledgeCardIds: { type: "array", items: string(), maxItems: 15 },
     },
     [
       "schema",
@@ -511,6 +512,7 @@ const schemas = {
       "predecessorVersion",
       "artifactDigest",
       "predicateIds",
+      "knowledgeCardIds",
     ],
   ),
   DeliverablesV1: object(

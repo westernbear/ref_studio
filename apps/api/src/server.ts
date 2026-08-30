@@ -9,6 +9,9 @@ import {
 } from "../../../packages/contracts/src/motion.js";
 import { sha256Hex } from "../../../packages/contracts/src/canonical-json.js";
 import { SceneSpecSchema } from "../../../packages/contracts/src/scene-spec.js";
+import {
+  setMotionObservabilitySink,
+} from "../../../packages/contracts/src/motion-observability.js";
 import { IdempotencyStore } from "./boundary.js";
 import type {
   AdminAudit,
@@ -655,6 +658,14 @@ export function loadAdminReadStore(
 }
 
 export function createApiServer(config: ApiServerConfig) {
+  setMotionObservabilitySink({
+    emit(record) {
+      console.info(JSON.stringify({ channel: "motion.event", ...record }));
+    },
+    sample(metric) {
+      console.info(JSON.stringify({ channel: "motion.metric", ...metric }));
+    },
+  });
   const db = openApiDatabase(config.databasePath);
   const dataRoot = path.join(path.dirname(config.databasePath), "objects");
   const artifactRoot = path.join(dataRoot, "artifacts");

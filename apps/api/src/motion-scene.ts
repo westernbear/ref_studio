@@ -15,7 +15,9 @@ import {
   applySceneOperations,
   MotionSceneError,
   verifyMotionScene,
+  verifyMotionSceneForJob,
 } from "./motion-operations.js";
+import { sampleMotionMetric } from "../../../packages/contracts/src/motion-observability.js";
 import { registerMotionDeliverables } from "./motion-deliverables.js";
 import { registerMotionSceneCommands } from "./motion-scene-commands.js";
 import {
@@ -36,14 +38,33 @@ export {
 
 const etag = (digest: string): string => `"${digest}"`;
 
-const fail = (reply: FastifyReply, error: unknown): void => {
+const fail = (
+  reply: FastifyReply,
+  error: unknown,
+  predecessor?: { sceneVersion?: number; sceneDigest?: string },
+): void => {
   const failure =
     error instanceof MotionSceneError
       ? error
       : new MotionSceneError("INVALID_REQUEST", 400);
-  reply
-    .code(failure.status)
-    .send(safeEnvelope(failure, String(reply.getHeader("x-correlation-id"))));
+  if (failure.code === "VERSION_CONFLICT")
+    sampleMotionMetric("stale_conflicts", 1, { route: "motion-scene" });
+  reply.code(failure.status).send(
+    safeEnvelope(failure, String(reply.getHeader("x-correlation-id")), {
+      ...(predecessor?.sceneDigest || predecessor?.sceneVersion !== undefined
+        ? {
+            safePredecessor: {
+              ...(predecessor.sceneVersion !== undefined
+                ? { sceneVersion: predecessor.sceneVersion }
+                : {}),
+              ...(predecessor.sceneDigest
+                ? { sceneDigest: predecessor.sceneDigest }
+                : {}),
+            },
+          }
+        : {}),
+    }),
+  );
 };
 
 export function registerMotionScene(
@@ -135,7 +156,7 @@ export function registerMotionScene(
         )
           throw new MotionSceneError("VERSION_CONFLICT", 409);
         const applied = applySceneOperations(scene, batch);
-        const verification = verifyMotionScene(applied);
+        const verification = verifyMotionSceneForJob(applied, job);
         if (verification.status !== "PASS")
           throw new MotionSceneError("SCENE_VERIFICATION_FAILED", 409);
         const commit = () =>
@@ -161,7 +182,7 @@ export function registerMotionScene(
                   db,
                   job,
                   scene,
-                  verifyMotionScene(scene),
+                  verifyMotionSceneForJob(scene, job),
                 );
                 return commit();
               })
@@ -193,7 +214,18 @@ export function registerMotionScene(
         job.etag = etag(next.sceneDigest);
         reply.send(committed.response);
       } catch (error) {
-        fail(reply, error);
+        const job = store.jobs.get(
+          (request as FastifyRequest<{ Params: { jobId: string } }>).params
+            .jobId,
+        );
+        const row = job ? findMotionSceneRow(db, job) : null;
+        fail(
+          reply,
+          error,
+          row
+            ? { sceneVersion: row.version, sceneDigest: row.sceneDigest }
+            : undefined,
+        );
       }
     },
   );
