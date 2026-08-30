@@ -511,7 +511,7 @@ export function loadAdminReadStore(
           verificationStatus: verification?.status ?? "PENDING",
           verificationAttempts: verification?.attempts ?? 0,
           passedFindings:
-            verification?.findings.filter((finding) => finding.passed).length ??
+            verification?.findings.filter((finding) => finding.pass).length ??
             0,
           totalFindings: verification?.findings.length ?? 0,
           capabilities: backend.capabilities,

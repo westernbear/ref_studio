@@ -51,7 +51,7 @@ const candidate = {
       staggerFrames: 2,
     },
   ],
-  predicateIds: ["scene-spec", "native-element-kinds"],
+  predicateIds: ["scene-spec", "element-kind-capability"],
 } as const;
 
 describe("generateMotionPlan", () => {

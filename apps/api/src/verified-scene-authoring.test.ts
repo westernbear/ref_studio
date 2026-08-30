@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { generateVerifiedScene } from "./verified-scene-authoring.js";
+import { verifyAndRepair } from "./verified-scene-authoring.js";
+import { sha256Hex } from "../../../packages/contracts/src/canonical-json.js";
 
 describe("verified scene authoring", () => {
   it("repairs at most four times and returns only a verified candidate", async () => {
@@ -55,4 +57,82 @@ describe("verified scene authoring", () => {
     ).rejects.toThrow(/SCENE_VERIFICATION_FAILED/u);
     expect(attempts).toBe(4);
   });
+
+  it("preserves the safe scene and artifact with actual findings after attempt four", async () => {
+    const seen: string[][] = [];
+    const result = await verifyAndRepair({
+      initialScene: { version: 0 },
+      initialArtifact: "safe.mp4",
+      verify: (scene, attempt) => ({
+        schema: "verification-report-v1",
+        sceneDigest: sha256Hex(scene),
+        attempts: attempt,
+        status: "FAIL",
+        findings: [
+          {
+            predicateId: "frame-hash-deterministic",
+            pass: false,
+            target: "frames",
+            observed: `mismatch-${attempt}`,
+            expected: "equal hashes",
+            remediation: "rerender",
+          },
+        ],
+      }),
+      repair: async (scene, findings) => {
+        seen.push(
+          findings.map(
+            (finding) => `${finding.predicateId}:${finding.observed}`,
+          ),
+        );
+        return {
+          scene: { version: scene.version + 1 },
+          artifact: "unsafe.mp4",
+        };
+      },
+    });
+    expect(seen).toEqual([
+      ["frame-hash-deterministic:mismatch-1"],
+      ["frame-hash-deterministic:mismatch-2"],
+      ["frame-hash-deterministic:mismatch-3"],
+    ]);
+    expect(result).toMatchObject({
+      scene: { version: 0 },
+      artifact: "safe.mp4",
+      preserved: true,
+      report: { attempts: 4, status: "FAIL" },
+    });
+    expect(result.report.findings[0]?.observed).toBe("mismatch-4");
+  });
+
+  it.each(["cancel", "timeout", "stale"])(
+    "preserves safe state on %s",
+    async (reason) => {
+      const controller = new AbortController();
+      if (reason === "cancel") controller.abort();
+      const result = await verifyAndRepair({
+        initialScene: "safe",
+        initialArtifact: "safe-artifact",
+        signal: controller.signal,
+        deadlineAt: reason === "timeout" ? 1 : undefined,
+        now: () => 2,
+        isStale: () => reason === "stale",
+        verify: () => {
+          throw new Error("must not verify");
+        },
+        repair: async () => {
+          throw new Error("must not repair");
+        },
+      });
+      expect(result).toMatchObject({
+        scene: "safe",
+        artifact: "safe-artifact",
+        preserved: true,
+        report: { status: "FAIL", attempts: 1 },
+      });
+      expect(result.report.findings[0]?.observed).toContain(
+        reason === "cancel" ? "cancelled" : reason,
+      );
+    },
+  );
 });

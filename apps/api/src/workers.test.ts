@@ -399,7 +399,7 @@ const appFixture = (
                 staggerFrames: 6,
               },
             ],
-            predicateIds: ["scene-spec", "native-element-kinds"],
+            predicateIds: ["scene-spec", "element-kind-capability"],
           })
         : undefined),
     materialGenerate: options.materialGenerate,

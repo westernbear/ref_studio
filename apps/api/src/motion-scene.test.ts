@@ -72,7 +72,7 @@ describe("motion scene authoring", () => {
     const valid = verifyMotionScene(fixtureSpec);
     expect(valid.status).toBe("PASS");
     expect(valid.findings.length).toBeGreaterThan(0);
-    expect(valid.findings.every((finding) => finding.passed)).toBe(true);
+    expect(valid.findings.every((finding) => finding.pass)).toBe(true);
 
     const firstBeat = fixtureSpec.beats[0]!;
     const firstElement = firstBeat.elements[0]!;
@@ -88,10 +88,14 @@ describe("motion scene authoring", () => {
     };
     const unsupported = verifyMotionScene(videoScene);
     expect(unsupported.status).toBe("FAIL");
-    expect(unsupported.findings).toContainEqual({
-      predicate: "native-element-kinds",
-      passed: false,
-      detail: "Unsupported Native element kinds: video.",
+    expect(
+      unsupported.findings.find(
+        (finding) => finding.predicateId === "element-kind-capability",
+      ),
+    ).toMatchObject({
+      predicateId: "element-kind-capability",
+      pass: false,
+      observed: "video",
     });
   });
 });

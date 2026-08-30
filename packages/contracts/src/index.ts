@@ -12,3 +12,4 @@ export * from "./spec-validate.js";
 export * from "./scene-assets.js";
 export * from "./canonical-json.js";
 export * from "./motion.js";
+export * from "./motion-predicates.js";

@@ -1,11 +1,17 @@
 import { z } from "zod";
 import { SceneSpecSchema } from "./scene-spec.js";
+import { MOTION_PREDICATE_IDS } from "./motion-predicates.js";
+export {
+  MANDATORY_MOTION_PREDICATE_IDS,
+  MOTION_PREDICATES,
+  MOTION_PREDICATE_IDS,
+} from "./motion-predicates.js";
 
 const DigestSchema = z.string().regex(/^[a-f0-9]{64}$/u);
 const FiniteNumberSchema = z.number().finite();
 
-export const MOTION_PREDICATE_IDS = [
-  "scene-spec",
+const LEGACY_MOTION_PREDICATE_IDS = [
+  ...MOTION_PREDICATE_IDS,
   "native-element-kinds",
 ] as const;
 
@@ -118,7 +124,7 @@ const LegacyMotionPlanV1Schema = z
     schema: z.literal("motion-plan-v1"),
     intent: z.string().min(1).max(2_000),
     keyframeIntents: z.array(KeyframeIntentV1Schema).max(64),
-    predicates: z.array(z.enum(MOTION_PREDICATE_IDS)).max(64),
+    predicates: z.array(z.enum(LEGACY_MOTION_PREDICATE_IDS)).max(64),
   })
   .strict()
   .transform((legacy) => ({
@@ -128,7 +134,11 @@ const LegacyMotionPlanV1Schema = z
     requiredCapabilities: [],
     canvas: { width: 1_920, height: 1_080, fps: 30, frameCount: 450 },
     keyframeIntents: legacy.keyframeIntents,
-    predicateIds: legacy.predicates,
+    predicateIds: legacy.predicates.map((predicate) =>
+      predicate === "native-element-kinds"
+        ? "element-kind-capability"
+        : predicate,
+    ),
     reproducibility: {
       knowledgeCardDigest: LEGACY_DIGEST,
       promptDigest: LEGACY_DIGEST,
@@ -209,23 +219,80 @@ export type BackendCapabilitySnapshotV1 = z.infer<
   typeof BackendCapabilitySnapshotV1Schema
 >;
 
-const VerificationFindingSchema = z
+export const VerificationFindingV1Schema = z
   .object({
-    predicate: z.string().min(1),
-    passed: z.boolean(),
-    detail: z.string().min(1),
+    predicateId: z.enum(MOTION_PREDICATE_IDS),
+    pass: z.boolean(),
+    target: z.string().min(1).max(256),
+    observed: z.string().min(1).max(2_000),
+    expected: z.string().min(1).max(2_000),
+    remediation: z.string().min(1).max(2_000),
   })
   .strict();
-export const VerificationReportV1Schema = z
+const CurrentVerificationReportV1Schema = z
   .object({
     schema: z.literal("verification-report-v1"),
     sceneDigest: DigestSchema,
     attempts: z.number().int().min(1).max(4),
     status: z.enum(["PASS", "FAIL"]),
-    findings: z.array(VerificationFindingSchema),
+    findings: z.array(VerificationFindingV1Schema),
   })
-  .strict();
-export type VerificationReportV1 = z.infer<typeof VerificationReportV1Schema>;
+  .strict()
+  .superRefine((value, context) => {
+    if (
+      (value.findings.every((finding) => finding.pass) ? "PASS" : "FAIL") !==
+      value.status
+    )
+      context.addIssue({
+        code: "custom",
+        path: ["status"],
+        message: "status must match findings",
+      });
+  });
+const LegacyVerificationReportV1Schema = z
+  .object({
+    schema: z.literal("verification-report-v1"),
+    sceneDigest: DigestSchema,
+    attempts: z.number().int().min(1).max(4),
+    status: z.enum(["PASS", "FAIL"]),
+    findings: z.array(
+      z
+        .object({
+          predicate: z.string().min(1),
+          passed: z.boolean(),
+          detail: z.string().min(1),
+        })
+        .strict(),
+    ),
+  })
+  .strict()
+  .transform((value) => ({
+    ...value,
+    status: value.findings.every((finding) => finding.passed)
+      ? ("PASS" as const)
+      : ("FAIL" as const),
+    findings: value.findings.map((finding) => ({
+      predicateId:
+        finding.predicate === "native-element-kinds"
+          ? ("element-kind-capability" as const)
+          : ("scene-spec" as const),
+      pass: finding.passed,
+      target: "legacy-record",
+      observed: finding.detail,
+      expected: finding.passed ? finding.detail : "legacy predicate pass",
+      remediation: finding.passed
+        ? "none"
+        : "re-run verification with current predicates",
+    })),
+  }));
+export type VerificationReportV1 = z.infer<
+  typeof CurrentVerificationReportV1Schema
+>;
+export const VerificationReportV1Schema: z.ZodType<VerificationReportV1> =
+  z.union([
+    CurrentVerificationReportV1Schema,
+    LegacyVerificationReportV1Schema,
+  ]);
 
 export const MotionSceneSnapshotV1Schema = z
   .object({

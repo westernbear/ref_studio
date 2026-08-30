@@ -321,7 +321,7 @@ Author a SceneSpec for a film of about ${params.config.durationSec} seconds.`;
         draft,
         capabilitySnapshot,
       );
-      return validateSceneSpec(
+      const verified = validateSceneSpec(
         applied,
         resolvableAssetIds(
           applied,
@@ -329,6 +329,22 @@ Author a SceneSpec for a film of about ${params.config.durationSec} seconds.`;
           evidenceOwnerIds(projectedEvidence),
         ),
       );
+      const report = authoringVerificationReport(
+        verified,
+        generatedPlan.plan,
+        1,
+        capabilitySnapshot,
+        resolvableAssetIds(
+          verified,
+          params.attachments,
+          evidenceOwnerIds(projectedEvidence),
+        ),
+      );
+      if (report.status === "FAIL")
+        throw new Error(
+          JSON.stringify(report.findings.filter((finding) => !finding.pass)),
+        );
+      return verified;
     },
   });
 
@@ -336,7 +352,12 @@ Author a SceneSpec for a film of about ${params.config.durationSec} seconds.`;
     validated.value,
     generatedPlan.plan,
     validated.attempts,
-    validated.failures,
+    capabilitySnapshot,
+    resolvableAssetIds(
+      validated.value,
+      params.attachments,
+      evidenceOwnerIds(projectedEvidence),
+    ),
   );
   return {
     spec: validated.value,

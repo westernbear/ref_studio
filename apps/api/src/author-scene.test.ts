@@ -100,7 +100,7 @@ describe("authorScene", () => {
           staggerFrames: 6,
         },
       ],
-      predicateIds: ["scene-spec", "native-element-kinds"],
+      predicateIds: ["scene-spec", "element-kind-capability"],
     })) satisfies GenerateMotionPlanCandidate,
   });
 
@@ -202,7 +202,14 @@ describe("authorScene", () => {
       { frame: 36, scale: 1, ease: "easeInOut" },
     ]);
     expect(authored.verification?.attempts).toBe(4);
-    expect(authored.verification?.findings).toHaveLength(5);
+    expect(
+      authored.verification?.findings.map((finding) => finding.predicateId),
+    ).toEqual([
+      "scene-spec",
+      "asset-resolvable",
+      "no-external-url",
+      "element-kind-capability",
+    ]);
   });
 
   it("plans before drafting and repairs a concrete compiler failure", async () => {

@@ -7,6 +7,7 @@ import type {
 import type { SceneSpec } from "../../../packages/contracts/src/scene-spec.js";
 import { compileMotionPlan } from "./motion-plan-compiler.js";
 import { applySceneOperations } from "./motion-operations.js";
+import { verifyMotionScene } from "./motion-predicates.js";
 
 const NATIVE_AUTHORING_CAPABILITIES = [
   "keyframes",
@@ -55,24 +56,12 @@ export function authoringVerificationReport(
   scene: SceneSpec,
   plan: MotionPlanV1,
   attempts: number,
-  failures: readonly string[],
+  capabilitySnapshot: BackendCapabilitySnapshotV1,
+  resolvableAssetIds: ReadonlySet<string>,
 ): VerificationReportV1 {
-  return {
-    schema: "verification-report-v1",
-    sceneDigest: sha256Hex(scene),
+  return verifyMotionScene(scene, {
+    requestedPredicateIds: plan.predicateIds,
+    context: { capabilitySnapshot, resolvableAssetIds },
     attempts,
-    status: "PASS",
-    findings: [
-      ...plan.predicateIds.map((predicate) => ({
-        predicate,
-        passed: true,
-        detail: "Passed on the applied scene.",
-      })),
-      ...failures.map((failure, index) => ({
-        predicate: `repair-attempt-${index + 1}`,
-        passed: true,
-        detail: `Repaired: ${failure}`,
-      })),
-    ],
-  };
+  });
 }

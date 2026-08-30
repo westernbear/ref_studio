@@ -17,7 +17,7 @@ const validPlan = {
       staggerFrames: 2,
     },
   ],
-  predicateIds: ["scene-spec", "native-element-kinds"],
+  predicateIds: ["scene-spec", "element-kind-capability"],
   reproducibility: {
     knowledgeCardDigest: "c".repeat(64),
     promptDigest: "d".repeat(64),
