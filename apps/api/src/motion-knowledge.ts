@@ -1,5 +1,20 @@
 import type Database from "better-sqlite3";
+import { createHash } from "node:crypto";
 import { z } from "zod";
+
+export const MOTION_LOOKUP_TOOL_SCHEMA = {
+  name: "motion.lookup",
+  input: {
+    type: "object",
+    properties: { query: { type: "string", minLength: 1 } },
+    required: ["query"],
+    additionalProperties: false,
+  },
+} as const;
+
+export const MOTION_LOOKUP_TOOL_SCHEMA_DIGEST = createHash("sha256")
+  .update(JSON.stringify(MOTION_LOOKUP_TOOL_SCHEMA))
+  .digest("hex");
 
 export const MOTION_INTERNAL_FEATURES = [
   "motion_lookup",
@@ -10,11 +25,14 @@ export const MOTION_INTERNAL_FEATURES = [
 
 export const ProviderToolCanaryV1Schema = z
   .object({
+    tenantId: z.string().min(1),
     providerKind: z.string().min(1),
     model: z.string().min(1),
     toolName: z.literal("motion.lookup"),
     status: z.enum(["PASS", "FAIL"]),
     checkedAt: z.iso.datetime(),
+    toolSchemaDigest: z.string().regex(/^[a-f0-9]{64}$/),
+    failureReason: z.string().max(500).nullable().optional(),
   })
   .strict();
 
@@ -178,6 +196,15 @@ export function hostMotionLookup(
 
 export function modelMotionTools(
   canary: ProviderToolCanaryV1 | null,
+  now: number,
+  ttlMs: number,
 ): readonly "motion.lookup"[] {
-  return canary?.status === "PASS" ? ["motion.lookup"] : [];
+  if (
+    canary?.status !== "PASS" ||
+    canary.toolSchemaDigest !== MOTION_LOOKUP_TOOL_SCHEMA_DIGEST ||
+    ttlMs <= 0 ||
+    now >= Date.parse(canary.checkedAt) + ttlMs
+  )
+    return [];
+  return ["motion.lookup"];
 }

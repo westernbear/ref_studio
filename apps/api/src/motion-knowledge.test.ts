@@ -7,6 +7,7 @@ import {
   modelMotionTools,
   MOTION_INTERNAL_FEATURES,
   MotionKnowledgeCardSchema,
+  MOTION_LOOKUP_TOOL_SCHEMA_DIGEST,
   ProviderToolCanaryV1Schema,
 } from "./motion-knowledge.js";
 
@@ -217,16 +218,26 @@ describe("motion lookup model exposure", () => {
   it("Given no passing provider canary, when model tools are selected, then motion.lookup stays host-only", () => {
     // Given
     const failed = ProviderToolCanaryV1Schema.parse({
+      tenantId: "tenant-a",
       providerKind: "openai",
       model: "gpt-test",
       toolName: "motion.lookup",
       status: "FAIL",
       checkedAt: "2026-08-29T00:00:00Z",
+      toolSchemaDigest: MOTION_LOOKUP_TOOL_SCHEMA_DIGEST,
     });
 
     // When
-    const withoutCanary = modelMotionTools(null);
-    const afterFailure = modelMotionTools(failed);
+    const withoutCanary = modelMotionTools(
+      null,
+      Date.parse("2026-08-29T00:05:00Z"),
+      600_000,
+    );
+    const afterFailure = modelMotionTools(
+      failed,
+      Date.parse("2026-08-29T00:05:00Z"),
+      600_000,
+    );
 
     // Then
     expect(withoutCanary).toEqual([]);
@@ -236,17 +247,69 @@ describe("motion lookup model exposure", () => {
   it("Given a passing provider tool canary, when model tools are selected, then only motion.lookup is exposed", () => {
     // Given
     const passed = ProviderToolCanaryV1Schema.parse({
+      tenantId: "tenant-a",
       providerKind: "openai",
       model: "gpt-test",
       toolName: "motion.lookup",
       status: "PASS",
       checkedAt: "2026-08-29T00:00:00Z",
+      toolSchemaDigest: MOTION_LOOKUP_TOOL_SCHEMA_DIGEST,
     });
 
     // When
-    const tools = modelMotionTools(passed);
+    const tools = modelMotionTools(
+      passed,
+      Date.parse("2026-08-29T00:10:00Z") - 1,
+      600_000,
+    );
 
     // Then
     expect(tools).toEqual(["motion.lookup"]);
+  });
+
+  it("Given an expired passing canary, when model tools are selected, then admission fails closed at the TTL boundary", () => {
+    // Given
+    const passed = ProviderToolCanaryV1Schema.parse({
+      tenantId: "tenant-a",
+      providerKind: "openai",
+      model: "gpt-test",
+      toolName: "motion.lookup",
+      status: "PASS",
+      checkedAt: "2026-08-29T00:00:00Z",
+      toolSchemaDigest: MOTION_LOOKUP_TOOL_SCHEMA_DIGEST,
+    });
+
+    // When
+    const tools = modelMotionTools(
+      passed,
+      Date.parse("2026-08-29T00:10:00Z"),
+      600_000,
+    );
+
+    // Then
+    expect(tools).toEqual([]);
+  });
+
+  it("Given a PASS for an obsolete tool schema, when model tools are selected, then admission fails closed", () => {
+    // Given
+    const staleSchema = ProviderToolCanaryV1Schema.parse({
+      tenantId: "tenant-a",
+      providerKind: "openai",
+      model: "gpt-test",
+      toolName: "motion.lookup",
+      status: "PASS",
+      checkedAt: "2026-08-29T00:00:00Z",
+      toolSchemaDigest: "0".repeat(64),
+    });
+
+    // When
+    const tools = modelMotionTools(
+      staleSchema,
+      Date.parse("2026-08-29T00:01:00Z"),
+      600_000,
+    );
+
+    // Then
+    expect(tools).toEqual([]);
   });
 });

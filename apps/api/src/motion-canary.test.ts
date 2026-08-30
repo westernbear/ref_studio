@@ -1,0 +1,146 @@
+import { describe, expect, it } from "vitest";
+import { openApiDatabase } from "./durable-state.js";
+import {
+  modelMotionTools,
+  MOTION_LOOKUP_TOOL_SCHEMA_DIGEST,
+} from "./motion-knowledge.js";
+import {
+  readMotionToolCanary,
+  runMotionToolCanary,
+  type MotionCanaryAdapter,
+} from "./motion-canary.js";
+
+const validCard = {
+  id: "opacity",
+  domain: "opacity",
+  title_en: "Opacity",
+  title_ko: "불투명도",
+  definition_en: "Controls visibility.",
+  definition_ko: "가시성을 제어한다.",
+  distinctions_json: '["opacity is not brightness"]',
+  parameters_json: '[{"name":"opacity","unit":"ratio","range":[0,1]}]',
+  capabilities_json: '["motion_lookup"]',
+  operation_refs_json: '["set_opacity"]',
+  verifier_refs_json: '["opacity_range"]',
+  sources_json: '["https://example.com/opacity"]',
+} as const;
+
+const adapter = (result: unknown): MotionCanaryAdapter => ({
+  callTool: async () => result,
+});
+
+const identity = {
+  tenantId: "tenant-a",
+  providerKind: "openai",
+  model: "gpt-test",
+} as const;
+
+describe("motion provider tool canary", () => {
+  it("Given a valid provider result, when the canary runs, then only a fresh PASS admits motion.lookup", async () => {
+    // Given
+    const db = openApiDatabase(":memory:");
+    const now = Date.parse("2026-08-30T00:00:00Z");
+
+    // When
+    const canary = await runMotionToolCanary({
+      db,
+      ...identity,
+      adapter: adapter(validCard),
+      now,
+      timeoutMs: 100,
+    });
+
+    // Then
+    expect(canary.status).toBe("PASS");
+    expect(canary.toolSchemaDigest).toBe(MOTION_LOOKUP_TOOL_SCHEMA_DIGEST);
+    expect(modelMotionTools(canary, now + 599_999, 600_000)).toEqual([
+      "motion.lookup",
+    ]);
+    expect(modelMotionTools(canary, now + 600_000, 600_000)).toEqual([]);
+    db.close();
+  });
+
+  it.each([
+    [
+      "schema mismatch",
+      adapter({ ...validCard, sources_json: "[]" }),
+      "SCHEMA_MISMATCH",
+    ],
+    [
+      "provider failure",
+      {
+        callTool: async () => Promise.reject(new Error("secret raw response")),
+      },
+      "PROVIDER_FAILURE",
+    ],
+  ])(
+    "Given %s, when the canary runs, then it stores a safe FAIL",
+    async (_name, fake, reason) => {
+      // Given
+      const db = openApiDatabase(":memory:");
+
+      // When
+      const canary = await runMotionToolCanary({
+        db,
+        ...identity,
+        adapter: fake,
+        now: 0,
+        timeoutMs: 100,
+      });
+
+      // Then
+      expect(canary).toMatchObject({ status: "FAIL", failureReason: reason });
+      expect(modelMotionTools(canary, 1, 600_000)).toEqual([]);
+      db.close();
+    },
+  );
+
+  it("Given a provider that never responds, when its deadline elapses, then it stores timeout without raw data", async () => {
+    // Given
+    const db = openApiDatabase(":memory:");
+    const fake: MotionCanaryAdapter = {
+      callTool: () => new Promise(() => undefined),
+    };
+
+    // When
+    const canary = await runMotionToolCanary({
+      db,
+      ...identity,
+      adapter: fake,
+      now: 0,
+      timeoutMs: 1,
+    });
+    const stored = db.prepare("SELECT * FROM motion_provider_canaries").get();
+
+    // Then
+    expect(canary.failureReason).toBe("PROVIDER_TIMEOUT");
+    expect(JSON.stringify(stored)).not.toMatch(
+      /api.?key|prompt|raw response|secret/i,
+    );
+    db.close();
+  });
+
+  it("Given tenant-specific rows, when another tenant reads, then replay cannot cross tenant scope", async () => {
+    // Given
+    const db = openApiDatabase(":memory:");
+    await runMotionToolCanary({
+      db,
+      ...identity,
+      adapter: adapter(validCard),
+      now: 0,
+      timeoutMs: 100,
+    });
+
+    // When
+    const own = readMotionToolCanary(db, identity);
+    const other = readMotionToolCanary(db, {
+      ...identity,
+      tenantId: "tenant-b",
+    });
+
+    // Then
+    expect(own?.status).toBe("PASS");
+    expect(other).toBeNull();
+    db.close();
+  });
+});
