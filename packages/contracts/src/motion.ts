@@ -2,24 +2,74 @@ import { z } from "zod";
 import { SceneSpecSchema } from "./scene-spec.js";
 
 const DigestSchema = z.string().regex(/^[a-f0-9]{64}$/u);
-const KeyframeIntentSchema = z
+const FiniteNumberSchema = z.number().finite();
+
+export const MOTION_PREDICATE_IDS = [
+  "scene-spec",
+  "native-element-kinds",
+] as const;
+
+export const MotionPlanCanvasV1Schema = z
   .object({
-    elementId: z.string().min(1),
-    anticipationFrames: z.number().int().nonnegative(),
-    overshootPercent: z.number().min(0).max(100),
-    settleFrame: z.number().int().nonnegative(),
-    staggerFrames: z.number().int().nonnegative(),
+    width: FiniteNumberSchema.int().min(1).max(8_192),
+    height: FiniteNumberSchema.int().min(1).max(8_192),
+    fps: FiniteNumberSchema.int().min(1).max(240),
+    frameCount: FiniteNumberSchema.int().min(1).max(216_000),
   })
   .strict();
+export type MotionPlanCanvasV1 = z.infer<typeof MotionPlanCanvasV1Schema>;
 
-export const MotionPlanV1Schema = z
+export const KeyframeIntentV1Schema = z
+  .object({
+    elementId: z.string().min(1).max(128),
+    anticipationFrames: FiniteNumberSchema.int().min(0).max(10_000),
+    overshootPercent: FiniteNumberSchema.min(0).max(100),
+    settleFrame: FiniteNumberSchema.int().min(0).max(216_000),
+    staggerFrames: FiniteNumberSchema.int().min(0).max(10_000),
+  })
+  .strict();
+export type KeyframeIntentV1 = z.infer<typeof KeyframeIntentV1Schema>;
+
+const MotionPlanSemanticObjectV1Schema = z
   .object({
     schema: z.literal("motion-plan-v1"),
     intent: z.string().min(1).max(2_000),
-    keyframeIntents: z.array(KeyframeIntentSchema).max(64),
-    predicates: z.array(z.string().min(1)).max(64),
+    knowledgeCardIds: z.array(z.string().min(1).max(128)).max(15),
+    requiredCapabilities: z.array(z.string().min(1).max(128)).max(64),
+    canvas: MotionPlanCanvasV1Schema,
+    keyframeIntents: z.array(KeyframeIntentV1Schema).max(64),
+    predicateIds: z.array(z.enum(MOTION_PREDICATE_IDS)).max(64),
   })
   .strict();
+
+const refineMotionPlanFrames = (
+  value: z.infer<typeof MotionPlanSemanticObjectV1Schema>,
+  context: z.RefinementCtx,
+): void => {
+  for (const intent of value.keyframeIntents) {
+    if (intent.settleFrame >= value.canvas.frameCount)
+      context.addIssue({
+        code: "custom",
+        path: ["keyframeIntents"],
+        message: "settleFrame must be inside the job canvas",
+      });
+  }
+};
+
+export const MotionPlanSemanticV1Schema =
+  MotionPlanSemanticObjectV1Schema.superRefine(refineMotionPlanFrames);
+export type MotionPlanSemanticV1 = z.infer<typeof MotionPlanSemanticV1Schema>;
+
+export const MotionPlanV1Schema = MotionPlanSemanticObjectV1Schema.extend({
+  reproducibility: z
+    .object({
+      evidenceDigest: DigestSchema,
+      capabilitySnapshotDigest: DigestSchema,
+      promptVersion: z.string().min(1).max(128),
+      modelVersion: z.string().min(1).max(128),
+    })
+    .strict(),
+}).superRefine(refineMotionPlanFrames);
 export type MotionPlanV1 = z.infer<typeof MotionPlanV1Schema>;
 
 const SceneOperationSchema = z.discriminatedUnion("kind", [
@@ -74,7 +124,7 @@ export const BackendCapabilitySnapshotV1Schema = z
     schema: z.literal("backend-capability-snapshot-v1"),
     backend: z.enum(["native", "adobe"]),
     capturedAt: z.string().datetime(),
-    capabilities: z.array(z.string().min(1)),
+    capabilities: z.array(z.string().min(1).max(128)).max(64),
   })
   .strict();
 export type BackendCapabilitySnapshotV1 = z.infer<
