@@ -42,10 +42,10 @@
     { "tool": "adobe.expression.apply_template_v1", "args": { "compHandle": "comp:1", "layerHandle": "layer:1", "templateId": "loop-cycle-v1", "propertyId": "ADBE Opacity" }, "changedFields": ["layers.layer:1.expressions.ADBE Opacity"], "payload": { "templateId": "loop-cycle-v1" } },
     { "tool": "adobe.expression.remove_v1", "args": { "compHandle": "comp:1", "layerHandle": "layer:1", "propertyId": "ADBE Opacity" }, "changedFields": ["layers.layer:1.expressions.ADBE Opacity"], "payload": {} },
     { "tool": "adobe.command.status_v1", "args": { "targetCommandId": "cmd-target-01" }, "changedFields": [], "payload": { "commandId": "cmd-target-01", "status": "RUNNING" } },
-    { "tool": "adobe.command.cancel_v1", "args": { "targetCommandId": "cmd-target-01" }, "changedFields": ["commands.cmd-target-01.status"], "payload": { "commandId": "cmd-target-01", "cancelled": false } },
+    { "tool": "adobe.command.cancel_v1", "args": { "targetCommandId": "cmd-target-01" }, "changedFields": ["commands.cmd-target-01.status"], "payload": { "commandId": "cmd-target-01", "cancelled": true, "status": "CANCELLED" } },
     { "tool": "adobe.verify_v1", "args": { "compHandle": "comp:1", "expectedSceneDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }, "changedFields": [], "payload": { "projectOpen": true, "expectedSceneDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" } },
     { "tool": "adobe.render_upload_v1", "args": { "compHandle": "comp:1", "outputName": "render.mp4" }, "changedFields": [], "payload": { "queued": true, "outputName": "render.mp4" } },
-    { "tool": "adobe.rollback_v1", "args": { "expectedSceneDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }, "changedFields": ["project"], "payload": { "rolledBack": true } }
+    { "tool": "adobe.rollback_v1", "args": { "expectedSceneDigest": "7d2bfd78905d130e04546fd8d3aec9b2e9b77145626767778b766bffce167920" }, "changedFields": ["project"], "payload": { "rolledBack": true } }
   ],
   "rejectedArgs": [
     { "script": "app.project.close()" },
