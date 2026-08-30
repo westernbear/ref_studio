@@ -71,7 +71,8 @@ export function CompilerChatPanel({
     <section
       id={id}
       className="compiler-chat motion-workspace-pane"
-      aria-labelledby="compiler-chat-title"
+      role="tabpanel"
+      aria-labelledby="motion-workspace-chat-tab"
       aria-label={t("chatTitle")}
       data-mobile-pane="chat"
     >

@@ -2,8 +2,8 @@
 
 ## Scope
 
-- Added APG-style `aria-controls` / `aria-labelledby` relationships for mobile workspace tabs and inspector tabs.
-- Added roving-tab keyboard parity: Arrow/Home/End switches both mobile and inspector tabs and moves focus to the active tab.
+- Added APG-style `aria-controls` / reciprocal `aria-labelledby` relationships for mobile workspace tabs and inspector tabs.
+- Added roving-tab keyboard parity: Arrow/Home/End switches both mobile and inspector tabs, wraps at each boundary, and moves focus to the active tab.
 - Added source contracts for the relationships and a full English/Korean workspace message-leaf parity test. Existing messages cover all 13 workspace states and all API remediation/error codes.
 
 ## RED then green
@@ -15,7 +15,7 @@
 
 - `pnpm --filter @rvs/web test --run`: 14 files, 107 tests passed on each run.
 - `pnpm --filter @rvs/web exec tsc --noEmit`: passed on each run.
-- `pnpm --filter @rvs/web build`: passed; `/[locale]/scene-review` production route built successfully.
+- `pnpm --filter @rvs/web build`: passed twice; `/[locale]/scene-review` production route built successfully.
 - `pnpm exec prettier --check ...`: passed.
 
 ## Live browser fixture
@@ -28,6 +28,7 @@ The fixture API was started by `node test/motion-workspace-browser-server.mjs` o
 - Axe WCAG 2 A/AA + 2.1 A/AA: zero violations in both locales.
 - Reduced motion: every element resolved to no animation or 0s/0.01ms duration in both locales.
 - Console: zero errors in both locales.
+- Reverification after the semantic-tab repair: on both EN and KO, `ArrowLeft` from Chat selected Editor, `ArrowRight` and `End` from Editor selected Chat, and both controlled workspace panes reported `role=tabpanel` with reciprocal tab IDs.
 - Screenshot artifacts: `p5-4-browser/en-US-{1440,1280,768,390,375,320}.png` and `p5-4-browser/ko-KR-{1440,1280,768,390,375,320}.png`. Visual inspection included EN 1280 and KO 320; Korean wrapping remained legible and no horizontal scrolling occurred.
 
 ## Browse limitation

@@ -160,7 +160,9 @@ export function MotionWorkspace({
           tabIndex={mobilePane === "chat" ? 0 : -1}
           onClick={() => selectMobilePane("chat")}
           onKeyDown={(event) => {
-            if (["ArrowRight", "End"].includes(event.key)) {
+            if (
+              ["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)
+            ) {
               event.preventDefault();
               selectMobilePane("editor", event.currentTarget);
             }
@@ -177,7 +179,9 @@ export function MotionWorkspace({
           tabIndex={mobilePane === "editor" ? 0 : -1}
           onClick={() => selectMobilePane("editor")}
           onKeyDown={(event) => {
-            if (["ArrowLeft", "Home"].includes(event.key)) {
+            if (
+              ["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)
+            ) {
               event.preventDefault();
               selectMobilePane("chat", event.currentTarget);
             }

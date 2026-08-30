@@ -35,6 +35,20 @@ const inspectorSource = readFileSync(
   ),
   "utf8",
 );
+const chatSource = readFileSync(
+  resolve(
+    import.meta.dirname,
+    "../src/app/[locale]/scene-review/CompilerChatPanel.tsx",
+  ),
+  "utf8",
+);
+const editorSource = readFileSync(
+  resolve(
+    import.meta.dirname,
+    "../src/app/[locale]/scene-review/MotionEditorPanel.tsx",
+  ),
+  "utf8",
+);
 
 describe("motion workspace responsive shell", () => {
   it("keeps the mobile workspace and its Chat/Editor tabs inside the viewport", () => {
@@ -72,6 +86,12 @@ describe("motion workspace responsive shell", () => {
       'aria-controls="motion-workspace-editor"',
     );
     expect(workspaceSource).toContain("onKeyDown={(event) => {");
+    expect(chatSource).toContain('role="tabpanel"');
+    expect(chatSource).toContain('aria-labelledby="motion-workspace-chat-tab"');
+    expect(editorSource).toContain('role="tabpanel"');
+    expect(editorSource).toContain(
+      'aria-labelledby="motion-workspace-editor-tab"',
+    );
     expect(inspectorSource).toContain('id="motion-timeline-tab"');
     expect(inspectorSource).toContain('aria-controls="motion-timeline-panel"');
     expect(inspectorSource).toContain('id="motion-properties-tab"');

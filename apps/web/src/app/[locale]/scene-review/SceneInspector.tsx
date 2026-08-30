@@ -60,7 +60,9 @@ export function SceneInspector(props: Props) {
           tabIndex={tab === "timeline" ? 0 : -1}
           onClick={() => selectTab("timeline")}
           onKeyDown={(event) => {
-            if (["ArrowRight", "End"].includes(event.key)) {
+            if (
+              ["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)
+            ) {
               event.preventDefault();
               selectTab("properties", event.currentTarget);
             }
@@ -77,7 +79,9 @@ export function SceneInspector(props: Props) {
           tabIndex={tab === "properties" ? 0 : -1}
           onClick={() => selectTab("properties")}
           onKeyDown={(event) => {
-            if (["ArrowLeft", "Home"].includes(event.key)) {
+            if (
+              ["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)
+            ) {
               event.preventDefault();
               selectTab("timeline", event.currentTarget);
             }

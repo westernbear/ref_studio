@@ -72,7 +72,8 @@ export function MotionEditorPanel({
     <section
       id={id}
       className="motion-editor motion-workspace-pane"
-      aria-label={t("editorTitle")}
+      role="tabpanel"
+      aria-labelledby="motion-workspace-editor-tab"
       data-mobile-pane="editor"
     >
       <SceneCanvas
