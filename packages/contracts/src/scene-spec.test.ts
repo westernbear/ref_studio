@@ -71,6 +71,31 @@ describe("SceneSpecSchema", () => {
     expect(() => SceneSpecSchema.parse(next)).toThrow();
   });
 
+  it("accepts bounded local audio policy and rejects unsafe variants", () => {
+    const withAudio = (patch: Record<string, unknown>) => ({
+      ...fixtureSpec,
+      assets: [
+        ...fixtureSpec.assets,
+        {
+          assetId: "soundtrack",
+          kind: "audio",
+          origin: "attachment",
+          ref: "attachment://soundtrack",
+          audio: { gainDb: 0, durationPolicy: "reject" },
+          ...patch,
+        },
+      ],
+    });
+    expect(() => SceneSpecSchema.parse(withAudio({}))).not.toThrow();
+    for (const patch of [
+      { origin: "generated" },
+      { audio: undefined },
+      { audio: { gainDb: 13, durationPolicy: "reject" } },
+      { audio: { gainDb: 0, durationPolicy: "stretch" } },
+    ])
+      expect(() => SceneSpecSchema.parse(withAudio(patch))).toThrow();
+  });
+
   it("maps every named weight to a real point on the font's 400-1000 axis", () => {
     expect(SPEC_TEXT_WEIGHT_AXIS).toEqual({
       regular: 400,
