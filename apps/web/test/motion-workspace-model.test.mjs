@@ -6,6 +6,7 @@ import {
   moveElementOperations,
   optimisticScene,
   sceneIntegrity,
+  scenePropertySupported,
   workspaceViewState,
 } from "../src/app/[locale]/scene-review/motion-workspace-model.ts";
 
@@ -124,6 +125,22 @@ describe("motion workspace model", () => {
     expect(snapshot.scene.beats[0].elements[0].box.x).toBe(
       fixtureSpec.beats[0].elements[0].box.x,
     );
+  });
+
+  it("gates every inspector property by its advertised capability", () => {
+    const capabilities = ["text", "x", "opacity", "uniform-scale"];
+    expect(
+      [
+        "content",
+        "x",
+        "y",
+        "width",
+        "height",
+        "scale",
+        "opacity",
+        "easing",
+      ].map((property) => scenePropertySupported(capabilities, property)),
+    ).toEqual([true, true, false, false, false, true, true, false]);
   });
 
   it.each([

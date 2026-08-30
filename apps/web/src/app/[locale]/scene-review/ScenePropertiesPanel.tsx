@@ -9,7 +9,9 @@ import { useState } from "react";
 import { isJobWorking, type JobProgress } from "../../../lib/job-progress";
 import {
   isKeyframeV2,
+  scenePropertySupported,
   selectedElement,
+  type SceneProperty,
   type SceneSelection,
 } from "./motion-workspace-model";
 
@@ -43,6 +45,10 @@ export function ScenePropertiesPanel({
   const disabled = busy || isJobWorking(job.state) || !element;
   const supports = (capability: string): boolean =>
     scene.backendCapability.capabilities.includes(capability);
+  const supportsProperty = (property: SceneProperty): boolean =>
+    scenePropertySupported(scene.backendCapability.capabilities, property);
+  const unsupportedTitle = (property: SceneProperty): string | undefined =>
+    supportsProperty(property) ? undefined : t("unsupportedProperty");
 
   const apply = async (data: FormData): Promise<void> => {
     if (!element) return;
@@ -65,7 +71,7 @@ export function ScenePropertiesPanel({
       const scale = isKeyframeV2(keyframe)
         ? (keyframe.scaleX ?? 1)
         : (keyframe.scale ?? 1);
-      if (supports("uniform-scale"))
+      if (supportsProperty("scale"))
         operations.push({
           kind: "set",
           opId: `scale-v${scene.version}`,
@@ -73,7 +79,7 @@ export function ScenePropertiesPanel({
           value: numberFrom(data, "scale", scale),
           reason: "properties panel edit",
         });
-      if (supports("opacity"))
+      if (supportsProperty("opacity"))
         operations.push({
           kind: "set",
           opId: `opacity-v${scene.version}`,
@@ -81,7 +87,7 @@ export function ScenePropertiesPanel({
           value: numberFrom(data, "opacity", keyframe.opacity ?? 1),
           reason: "properties panel edit",
         });
-      if (supports("x"))
+      if (supportsProperty("x"))
         operations.push({
           kind: "set",
           opId: `keyframe-x-v${scene.version}`,
@@ -89,7 +95,7 @@ export function ScenePropertiesPanel({
           value: numberFrom(data, "keyframe-x", keyframe.x ?? 0),
           reason: "properties panel edit",
         });
-      if (supports("y"))
+      if (supportsProperty("y"))
         operations.push({
           kind: "set",
           opId: `keyframe-y-v${scene.version}`,
@@ -97,7 +103,7 @@ export function ScenePropertiesPanel({
           value: numberFrom(data, "keyframe-y", keyframe.y ?? 0),
           reason: "properties panel edit",
         });
-      if (supports("easing"))
+      if (supportsProperty("easing"))
         operations.push({
           kind: "set",
           opId: `ease-v${scene.version}`,
@@ -114,7 +120,7 @@ export function ScenePropertiesPanel({
           reason: "properties panel edit",
         });
     }
-    if (element.kind === "text" && supports("text"))
+    if (element.kind === "text" && supportsProperty("content"))
       operations.push({
         kind: "set",
         opId: `content-v${scene.version}`,
@@ -138,7 +144,12 @@ export function ScenePropertiesPanel({
       {element?.kind === "text" ? (
         <label className="motion-field motion-field-wide">
           <span>{t("content")}</span>
-          <input name="content" defaultValue={element.content ?? ""} />
+          <input
+            name="content"
+            defaultValue={element.content ?? ""}
+            disabled={!supportsProperty("content")}
+            title={unsupportedTitle("content")}
+          />
         </label>
       ) : null}
       {element ? (
@@ -152,13 +163,11 @@ export function ScenePropertiesPanel({
                 min={field === "width" || field === "height" ? 1 : undefined}
                 defaultValue={element.box[field]}
                 disabled={
-                  field === "width" || field === "height" || !supports(field)
+                  field === "width" ||
+                  field === "height" ||
+                  !supportsProperty(field)
                 }
-                title={
-                  field === "width" || field === "height"
-                    ? t("unsupportedProperty")
-                    : undefined
-                }
+                title={unsupportedTitle(field)}
               />
             </label>
           ))}
@@ -189,7 +198,8 @@ export function ScenePropertiesPanel({
                       ? (keyframe.scaleX ?? 1)
                       : (keyframe.scale ?? 1)
                   }
-                  disabled={!supports("uniform-scale")}
+                  disabled={!supportsProperty("scale")}
+                  title={unsupportedTitle("scale")}
                 />
               </label>
               <label className="motion-field">
@@ -201,7 +211,8 @@ export function ScenePropertiesPanel({
                   max="1"
                   step="0.01"
                   defaultValue={keyframe.opacity ?? 1}
-                  disabled={!supports("opacity")}
+                  disabled={!supportsProperty("opacity")}
+                  title={unsupportedTitle("opacity")}
                 />
               </label>
               <label className="motion-field">
@@ -210,7 +221,8 @@ export function ScenePropertiesPanel({
                   name="keyframe-x"
                   type="number"
                   defaultValue={keyframe.x ?? 0}
-                  disabled={!supports("x")}
+                  disabled={!supportsProperty("x")}
+                  title={unsupportedTitle("x")}
                 />
               </label>
               <label className="motion-field">
@@ -219,7 +231,8 @@ export function ScenePropertiesPanel({
                   name="keyframe-y"
                   type="number"
                   defaultValue={keyframe.y ?? 0}
-                  disabled={!supports("y")}
+                  disabled={!supportsProperty("y")}
+                  title={unsupportedTitle("y")}
                 />
               </label>
               <label className="motion-field motion-field-wide">
@@ -227,7 +240,8 @@ export function ScenePropertiesPanel({
                 <select
                   name="ease"
                   defaultValue={keyframe.ease}
-                  disabled={!supports("easing")}
+                  disabled={!supportsProperty("easing")}
+                  title={unsupportedTitle("easing")}
                 >
                   {["linear", "easeIn", "easeOut", "easeInOut"].map((ease) => (
                     <option key={ease}>{ease}</option>

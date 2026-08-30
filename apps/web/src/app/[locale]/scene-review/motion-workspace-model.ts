@@ -58,6 +58,33 @@ export type WorkspaceViewState =
   | "cancelled"
   | "offline";
 
+export type SceneProperty =
+  | "content"
+  | "x"
+  | "y"
+  | "width"
+  | "height"
+  | "scale"
+  | "opacity"
+  | "easing";
+
+const PROPERTY_CAPABILITY: Readonly<Partial<Record<SceneProperty, string>>> = {
+  content: "text",
+  x: "x",
+  y: "y",
+  scale: "uniform-scale",
+  opacity: "opacity",
+  easing: "easing",
+};
+
+export const scenePropertySupported = (
+  capabilities: readonly string[],
+  property: SceneProperty,
+): boolean => {
+  const capability = PROPERTY_CAPABILITY[property];
+  return capability !== undefined && capabilities.includes(capability);
+};
+
 type WorkspaceStateInput = Readonly<{
   state: string;
   progressFraction: number;
