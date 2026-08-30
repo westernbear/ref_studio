@@ -2,7 +2,11 @@ import type {
   MotionSceneSnapshotV1,
   SceneOperationBatchV1,
 } from "@rvs/contracts/motion";
-import type { SpecElement } from "@rvs/contracts/scene-spec";
+import type {
+  KeyframeV1,
+  KeyframeV2,
+  SpecElement,
+} from "@rvs/contracts/scene-spec";
 
 export type SceneSelection = Readonly<{
   beatIndex: number;
@@ -18,6 +22,18 @@ export type ElementFrameState = Readonly<{
 
 export const clampSplitRatio = (ratio: number): number =>
   Math.min(70, Math.max(30, ratio));
+
+export const sceneIntegrity = (snapshot: MotionSceneSnapshotV1) => ({
+  planDigest: snapshot.planDigest,
+  artifactDigest: snapshot.artifactDigest,
+  sceneDigest: snapshot.sceneDigest,
+  capabilities: snapshot.backendCapability.capabilities,
+  predicateIds: snapshot.predicateIds,
+});
+
+export const isKeyframeV2 = (
+  keyframe: KeyframeV1 | KeyframeV2,
+): keyframe is KeyframeV2 => "scaleX" in keyframe;
 
 const eased = (progress: number, ease: string): number => {
   if (ease === "easeIn") return progress * progress;
@@ -36,10 +52,19 @@ const valueAt = (
   fallback: number,
 ): number => {
   const values = element.keyframes
-    .filter((keyframe) => keyframe[key] !== undefined)
+    .filter((keyframe) =>
+      key === "scale"
+        ? (isKeyframeV2(keyframe) ? keyframe.scaleX : keyframe.scale) !==
+          undefined
+        : keyframe[key] !== undefined,
+    )
     .map((keyframe) => ({
       frame: keyframe.frame,
-      value: keyframe[key] ?? fallback,
+      value:
+        key === "scale"
+          ? ((isKeyframeV2(keyframe) ? keyframe.scaleX : keyframe.scale) ??
+            fallback)
+          : (keyframe[key] ?? fallback),
       ease: keyframe.ease,
     }))
     .sort((left, right) => left.frame - right.frame);

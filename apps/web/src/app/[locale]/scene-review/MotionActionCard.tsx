@@ -12,6 +12,7 @@ import {
   type JobProgress,
 } from "../../../lib/job-progress";
 import { proxiedDownloadUrl } from "./motion-workspace-api";
+import { sceneIntegrity } from "./motion-workspace-model";
 
 type Props = Readonly<{
   job: JobProgress;
@@ -40,6 +41,7 @@ export function MotionActionCard({
   const working = isJobWorking(job.state);
   const verificationPassed = scene.verification?.status === "PASS";
   const progress = Math.max(0, Math.min(1, job.progressFraction));
+  const integrity = sceneIntegrity(scene);
 
   useEffect(() => setVersion(scene.version), [scene.version]);
 
@@ -64,6 +66,58 @@ export function MotionActionCard({
               : t("verificationPending")}
           </span>
         </div>
+        <dl
+          className="motion-action-metadata"
+          data-testid="motion-scene-metadata"
+        >
+          <div>
+            <dt>{t("planDigest")}</dt>
+            <dd>{integrity.planDigest ?? t("metadataUnavailable")}</dd>
+          </div>
+          <div>
+            <dt>{t("knowledgeCards")}</dt>
+            <dd>{t("knowledgeCardsUnavailable")}</dd>
+          </div>
+          <div>
+            <dt>{t("capabilities")}</dt>
+            <dd>
+              {integrity.capabilities.join(", ") || t("metadataUnavailable")}
+            </dd>
+          </div>
+          <div>
+            <dt>{t("predicateIds")}</dt>
+            <dd>
+              {integrity.predicateIds.join(", ") || t("metadataUnavailable")}
+            </dd>
+          </div>
+          <div>
+            <dt>{t("commandLifecycle")}</dt>
+            <dd>
+              {[job.state, job.progressPhase, job.progressStage]
+                .filter(Boolean)
+                .join(" / ")}
+            </dd>
+          </div>
+          <div>
+            <dt>{t("artifactIntegrity")}</dt>
+            <dd>{integrity.artifactDigest ?? integrity.sceneDigest}</dd>
+          </div>
+        </dl>
+        {scene.verification?.findings.length ? (
+          <ul
+            className="motion-verification-findings"
+            aria-label={t("verificationFindings")}
+          >
+            {scene.verification.findings.map((finding) => (
+              <li key={finding.predicateId} data-pass={finding.pass}>
+                <strong>{finding.predicateId}</strong>
+                <span>
+                  {finding.pass ? finding.observed : finding.remediation}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
         <div
           className="motion-progress"
           role="progressbar"

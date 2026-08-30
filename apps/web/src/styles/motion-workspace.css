@@ -193,6 +193,44 @@
   gap: var(--space-sm);
   justify-content: space-between;
 }
+.motion-action-metadata,
+.motion-verification-findings {
+  display: grid;
+  gap: var(--space-xs);
+  margin: 0;
+}
+.motion-action-metadata > div,
+.motion-verification-findings li {
+  display: grid;
+  grid-template-columns: minmax(7rem, 0.8fr) minmax(0, 2fr);
+  gap: var(--space-sm);
+  min-inline-size: 0;
+  border-block-start: 1px solid var(--color-hairline);
+  padding-block-start: var(--space-xs);
+}
+.motion-action-metadata dt,
+.motion-verification-findings strong {
+  color: var(--color-body-mid);
+  font: var(--type-caption-mono-sm);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.motion-action-metadata dd,
+.motion-verification-findings span {
+  min-inline-size: 0;
+  margin: 0;
+  color: var(--color-body);
+  font: var(--type-caption-mono-sm);
+  overflow-wrap: anywhere;
+}
+.motion-verification-findings {
+  padding: 0;
+  list-style: none;
+}
+.motion-verification-findings li[data-pass="false"] strong,
+.motion-verification-findings li[data-pass="false"] span {
+  color: var(--color-error);
+}
 .motion-progress {
   block-size: var(--space-xs);
   overflow: hidden;

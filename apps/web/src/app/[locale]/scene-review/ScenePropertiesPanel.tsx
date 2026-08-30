@@ -7,7 +7,11 @@ import type {
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { isJobWorking, type JobProgress } from "../../../lib/job-progress";
-import { selectedElement, type SceneSelection } from "./motion-workspace-model";
+import {
+  isKeyframeV2,
+  selectedElement,
+  type SceneSelection,
+} from "./motion-workspace-model";
 
 type Props = Readonly<{
   job: JobProgress;
@@ -65,12 +69,15 @@ export function ScenePropertiesPanel({
       }));
     if (keyframe) {
       const keyframeBase = `${base}/keyframes/${keyframeIndex}`;
+      const scale = isKeyframeV2(keyframe)
+        ? (keyframe.scaleX ?? 1)
+        : (keyframe.scale ?? 1);
       operations.push(
         {
           kind: "set",
           opId: `scale-v${scene.version}`,
-          path: `${keyframeBase}/scale`,
-          value: numberFrom(data, "scale", keyframe.scale ?? 1),
+          path: `${keyframeBase}/${isKeyframeV2(keyframe) ? "scaleX" : "scale"}`,
+          value: numberFrom(data, "scale", scale),
           reason: "properties panel edit",
         },
         {
@@ -102,6 +109,14 @@ export function ScenePropertiesPanel({
           reason: "properties panel edit",
         },
       );
+      if (isKeyframeV2(keyframe))
+        operations.push({
+          kind: "set",
+          opId: `scale-y-v${scene.version}`,
+          path: `${keyframeBase}/scaleY`,
+          value: numberFrom(data, "scale", scale),
+          reason: "properties panel edit",
+        });
     }
     if (element.kind === "text")
       operations.push({
@@ -165,7 +180,11 @@ export function ScenePropertiesPanel({
                   type="number"
                   min="0.01"
                   step="0.01"
-                  defaultValue={keyframe.scale ?? 1}
+                  defaultValue={
+                    isKeyframeV2(keyframe)
+                      ? (keyframe.scaleX ?? 1)
+                      : (keyframe.scale ?? 1)
+                  }
                 />
               </label>
               <label className="motion-field">

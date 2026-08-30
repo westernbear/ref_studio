@@ -4,6 +4,7 @@ import {
   clampSplitRatio,
   elementFrameState,
   moveElementOperations,
+  sceneIntegrity,
 } from "../src/app/[locale]/scene-review/motion-workspace-model.ts";
 
 const snapshot = {
@@ -71,6 +72,23 @@ describe("motion workspace model", () => {
       scale: element.keyframes[0]?.scale ?? 1,
       x: element.keyframes[0]?.x ?? 0,
       y: element.keyframes[0]?.y ?? 0,
+    });
+  });
+
+  it("keeps plan, artifact, capability, and predicate metadata bound to the scene snapshot", () => {
+    expect(
+      sceneIntegrity({
+        ...snapshot,
+        planDigest: "b".repeat(64),
+        artifactDigest: "c".repeat(64),
+        predicateIds: ["scene-spec"],
+      }),
+    ).toEqual({
+      planDigest: "b".repeat(64),
+      artifactDigest: "c".repeat(64),
+      sceneDigest: sha256Hex(fixtureSpec),
+      capabilities: snapshot.backendCapability.capabilities,
+      predicateIds: ["scene-spec"],
     });
   });
 });
