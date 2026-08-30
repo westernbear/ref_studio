@@ -78,6 +78,22 @@ const normalizeQuery = (query: string): string =>
 const parseRows = (rows: readonly unknown[]): readonly MotionKnowledgeCard[] =>
   rows.map((row) => MotionKnowledgeCardSchema.parse(row));
 
+const lookupExactMotionKnowledge = (
+  db: Database.Database,
+  normalized: string,
+): readonly MotionKnowledgeCard[] =>
+  parseRows(
+    db
+      .prepare(
+        `SELECT card.*
+           FROM motion_aliases AS alias
+           JOIN motion_cards AS card ON card.id = alias.card_id
+          WHERE alias.alias = ? COLLATE NOCASE
+          LIMIT 3`,
+      )
+      .all(normalized),
+  );
+
 export function lookupMotionKnowledge(
   db: Database.Database,
   query: string,
@@ -85,16 +101,8 @@ export function lookupMotionKnowledge(
   const normalized = normalizeQuery(query);
   if (normalized.length === 0) return [];
 
-  const exact = db
-    .prepare(
-      `SELECT card.*
-         FROM motion_aliases AS alias
-         JOIN motion_cards AS card ON card.id = alias.card_id
-        WHERE alias.alias = ? COLLATE NOCASE
-        LIMIT 3`,
-    )
-    .all(normalized);
-  if (exact.length > 0) return parseRows(exact);
+  const exact = lookupExactMotionKnowledge(db, normalized);
+  if (exact.length > 0) return exact;
 
   const tokens = normalized.match(/[\p{L}\p{N}%]+/gu) ?? [];
   if (tokens.length === 0) return [];
@@ -113,25 +121,30 @@ export function lookupMotionKnowledge(
   );
 }
 
-export function hostMotionLookup(
+export function lookupMotionKnowledgeForBrief(
   db: Database.Database,
-  text: string,
+  brief: string,
 ): readonly MotionKnowledgeCard[] {
-  const normalized = normalizeQuery(text);
+  const normalized = normalizeQuery(brief);
   if (normalized.length === 0) return [];
-  return parseRows(
-    db
-      .prepare(
-        `SELECT card.*
-           FROM motion_aliases AS alias
-           JOIN motion_cards AS card ON card.id = alias.card_id
-          WHERE instr(?, lower(alias.alias)) > 0
-          GROUP BY card.id
-          ORDER BY max(length(alias.alias)) DESC, card.id
-          LIMIT 3`,
-      )
-      .all(normalized),
-  );
+
+  const tokens =
+    normalized.match(/[\p{L}\p{N}]+(?:[%.-][\p{L}\p{N}]+)*/gu) ?? [];
+  const matches = new Map<string, MotionKnowledgeCard>();
+  for (let width = Math.min(tokens.length, 4); width > 0; width -= 1) {
+    for (let start = 0; start + width <= tokens.length; start += 1) {
+      for (const card of lookupExactMotionKnowledge(
+        db,
+        tokens.slice(start, start + width).join(" "),
+      )) {
+        matches.set(card.id, card);
+        if (matches.size === 3) return [...matches.values()];
+      }
+    }
+  }
+  return matches.size > 0
+    ? [...matches.values()]
+    : lookupMotionKnowledge(db, brief);
 }
 
 export function modelMotionTools(

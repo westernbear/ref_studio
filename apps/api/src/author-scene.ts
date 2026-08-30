@@ -17,7 +17,7 @@ import {
 } from "./author-scene-evidence.js";
 import { AUTHORING_SYSTEM_PROMPT } from "./author-scene.prompt.js";
 import { aiModelFromSettings } from "./ai-model-from-settings.js";
-import { hostMotionLookup } from "./motion-knowledge.js";
+import { lookupMotionKnowledgeForBrief } from "./motion-knowledge.js";
 import { generateVerifiedScene } from "./verified-scene-authoring.js";
 
 // Narrow view of `generateObject`, mirrors apps/api/src/safety-check.ts,
@@ -128,14 +128,9 @@ export async function authorScene(params: {
   // (its own token, EVIDENCE_PROJECTION_TOO_LARGE) if the projection itself
   // is unexpectedly large, rather than silently truncating.
   const projectedEvidence = projectEvidenceForAuthoring(params.evidence);
-  const motionKnowledge = hostMotionLookup(params.db, params.config.brief).map(
-    (card) => ({
-      id: card.id,
-      definition: card.definition,
-      parameters: card.parameters,
-      capabilities: card.capabilities,
-      verifierRefs: card.verifierRefs,
-    }),
+  const motionKnowledge = lookupMotionKnowledgeForBrief(
+    params.db,
+    params.config.brief,
   );
 
   // The canvas is a job-configuration fact, never a model decision -- a

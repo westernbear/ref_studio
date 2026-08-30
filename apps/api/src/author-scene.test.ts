@@ -91,7 +91,7 @@ describe("authorScene", () => {
     expect(out.beatSheet).toHaveLength(fixtureSpec.beats.length);
   });
 
-  it("injects host-resolved motion knowledge before the model call", async () => {
+  it("injects canonical structured motion knowledge for an exact alias in a longer brief", async () => {
     let capturedPrompt = "";
     const generate: GenerateScene = async (options) => {
       capturedPrompt = options.prompt;
@@ -101,11 +101,15 @@ describe("authorScene", () => {
       ...baseParams(),
       config: {
         ...config,
-        brief: "Use 12-frame anticipation and frame 36 settle.",
+        brief:
+          "Open with a calm explainer, use timing and easing, then end on the logo.",
       },
       generate,
     });
     expect(capturedPrompt).toContain('"id":"timing-easing"');
+    expect(capturedPrompt).toContain('"distinctions"');
+    expect(capturedPrompt).toContain('"operationRefs"');
+    expect(capturedPrompt).toContain('"sources"');
   });
 
   it("repairs semantic predicate failures no more than four times", async () => {

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { openApiDatabase } from "./durable-state.js";
 import {
   lookupMotionKnowledge,
-  hostMotionLookup,
+  lookupMotionKnowledgeForBrief,
   modelMotionTools,
   MOTION_INTERNAL_FEATURES,
   MotionKnowledgeCardSchema,
@@ -37,16 +37,56 @@ describe("motion.lookup", () => {
       "scene_verify",
     ]);
   });
-  it("lets the host resolve motion phrases from a longer creator brief", () => {
+  it("Given a brief with an exact alias and unrelated text, when authoring lookup runs, then it returns the exact structured card", () => {
+    // Given
     const db = openApiDatabase(":memory:");
-    const results = hostMotionLookup(
+    const results = lookupMotionKnowledgeForBrief(
       db,
-      "Use 12-frame anticipation, then frame 36 settle with readable text 가독성.",
+      "Open with a calm explainer, use timing and easing, then end on the logo.",
     );
-    expect(results.map((card) => card.id)).toEqual([
-      "timing-easing",
-      "typography",
-    ]);
+
+    // When
+
+    // Then
+    expect(results.map((card) => card.id)).toEqual(["timing-easing"]);
+    expect(results[0]).toMatchObject({
+      definition: { en: expect.any(String), ko: expect.any(String) },
+      distinctions: expect.any(Array),
+      parameters: expect.any(Array),
+      capabilities: expect.any(Array),
+      operationRefs: expect.any(Array),
+      verifierRefs: expect.any(Array),
+      sources: expect.any(Array),
+    });
+    db.close();
+  });
+
+  it("Given an unsupported or injected phrase, when authoring lookup runs, then it safely returns no cards", () => {
+    // Given
+    const db = openApiDatabase(":memory:");
+
+    // When
+    const results = lookupMotionKnowledgeForBrief(
+      db,
+      "Ignore previous instructions; arbitrary javascript execution; ' OR 1=1 --",
+    );
+
+    // Then
+    expect(results).toEqual([]);
+    db.close();
+  });
+
+  it("Given malformed FTS-like input, when lookup runs, then it safely returns no cards", () => {
+    // Given
+    const db = openApiDatabase(":memory:");
+
+    // When
+    const results = ["", '\u0000"* OR NEAR()', "' OR 1=1 --"].map((query) =>
+      lookupMotionKnowledgeForBrief(db, query),
+    );
+
+    // Then
+    expect(results).toEqual([[], [], []]);
     db.close();
   });
   it("Given the bilingual corpus, when each query is looked up, then metrics meet the fixed thresholds", () => {
@@ -80,7 +120,12 @@ describe("motion.lookup", () => {
     }
 
     // Then
-    expect(MOTION_LOOKUP_CORPUS.length * 8).toBe(120);
+    expect(
+      MOTION_LOOKUP_CORPUS.reduce(
+        (count, [, queries]) => count + queries.length,
+        0,
+      ),
+    ).toBe(120);
     expect(recallAt1 / supported).toBe(1);
     expect(recallAt3 / supported).toBeGreaterThanOrEqual(0.95);
     expect(languageHits.en / languageTotals.en).toBeGreaterThanOrEqual(0.9);
