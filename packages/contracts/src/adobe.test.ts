@@ -3,8 +3,12 @@ import golden from "../../../verification/contract/adobe-mcp-v1.json" with { typ
 import {
   ADOBE_TOOL_NAMES_V1,
   AdobeCapabilitySnapshotV1Schema,
+  AdobeCommandStatusV1Schema,
   AdobeCommandEnvelopeV1Schema,
   AdobeCommandResultV1Schema,
+  AdobeDeviceEnrollmentRequestV1Schema,
+  AdobeRelayRequestV1Schema,
+  AdobeRelaySignatureV1Schema,
 } from "./adobe.js";
 
 describe("Adobe MCP v1 boundary", () => {
@@ -149,5 +153,56 @@ describe("Adobe MCP v1 boundary", () => {
       expect(AdobeCommandEnvelopeV1Schema.safeParse(candidate).success).toBe(
         false,
       );
+  });
+});
+
+describe("Adobe cloud relay boundary", () => {
+  const command = golden.commandBase;
+
+  test("rejects unknown relay enrollment signature and status fields", () => {
+    const relayCommand = {
+      ...command,
+      commandId: "cmd-relay-1",
+      tool: "adobe.project.get_v1",
+      args: {},
+    };
+    expect(
+      AdobeRelayRequestV1Schema.safeParse({ version: 1, command: relayCommand })
+        .success,
+    ).toBe(true);
+    expect(
+      AdobeRelayRequestV1Schema.safeParse({
+        version: 1,
+        command: relayCommand,
+        token: "x",
+      }).success,
+    ).toBe(false);
+    expect(
+      AdobeDeviceEnrollmentRequestV1Schema.safeParse({
+        name: "Studio Mac",
+        localPath: "/private/project.aep",
+      }).success,
+    ).toBe(false);
+    expect(
+      AdobeRelaySignatureV1Schema.safeParse({
+        keyId: "key-1",
+        timestampMs: 1,
+        requestId: "request-1",
+        nonce: "nonce-1",
+        bodyHash: "a".repeat(64),
+        signature: "b".repeat(64),
+      }).success,
+    ).toBe(true);
+    expect(
+      AdobeCommandStatusV1Schema.safeParse({
+        version: 1,
+        commandId: relayCommand.commandId,
+        deviceId: relayCommand.deviceId,
+        jobId: relayCommand.jobId,
+        status: "QUEUED",
+        result: null,
+        accessToken: "forbidden",
+      }).success,
+    ).toBe(false);
   });
 });

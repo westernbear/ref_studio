@@ -521,6 +521,60 @@ const schemas = {
     },
     ["verifiedMotionAuthoring", "nativeSceneV2", "adobeMcp"],
   ),
+  AdobeDeviceEnrollmentV1: object(
+    {
+      version: { type: "integer", const: 1 },
+      deviceId: string(),
+      keyId: string(),
+      secret: { type: "string", pattern: "^[a-f0-9]{64}$" },
+      expiresAtMs: { type: "integer", minimum: 1 },
+    },
+    ["version", "deviceId", "keyId", "secret", "expiresAtMs"],
+  ),
+  AdobeRelayRequestV1: object(
+    {
+      version: { type: "integer", const: 1 },
+      command: object(
+        {
+          version: { type: "integer", const: 1 },
+          commandId: string(),
+          nonce: string(),
+          sceneDigest: { type: "string", pattern: "^[a-f0-9]{64}$" },
+          deviceId: string(),
+          jobId: string(),
+          projectHandle: { type: "string", const: "project:working-copy" },
+          tool: string(),
+          args: { type: "object" },
+        },
+        [
+          "version",
+          "commandId",
+          "nonce",
+          "sceneDigest",
+          "deviceId",
+          "jobId",
+          "projectHandle",
+          "tool",
+          "args",
+        ],
+      ),
+    },
+    ["version", "command"],
+  ),
+  AdobeCommandStatusV1: object(
+    {
+      version: { type: "integer", const: 1 },
+      commandId: string(),
+      deviceId: string(),
+      jobId: string(),
+      status: {
+        type: "string",
+        enum: ["QUEUED", "RUNNING", "SUCCEEDED", "FAILED", "CANCELLED"],
+      },
+      result: { type: ["object", "null"] },
+    },
+    ["version", "commandId", "deviceId", "jobId", "status", "result"],
+  ),
 };
 const ref = (name) => ({ $ref: `#/components/schemas/${name}` });
 const json = (schema) => ({ content: { "application/json": { schema } } });
@@ -534,6 +588,14 @@ const mutationHeaders = [
   { name: "If-Match", in: "header", required: true, schema: string() },
   { name: "Idempotency-Key", in: "header", required: true, schema: string() },
 ];
+const adobeRelayHeaders = [
+  "X-RVS-Key-Id",
+  "X-RVS-Timestamp-Ms",
+  "X-RVS-Request-Id",
+  "X-RVS-Nonce",
+  "X-RVS-Body-Hash",
+  "X-RVS-Signature",
+].map((name) => ({ name, in: "header", required: true, schema: string() }));
 const safeErrors = Object.fromEntries(
   [400, 404, 409, 422, 428].map((status) => [
     status,
@@ -548,6 +610,53 @@ const document = {
     securitySchemes: { bearerAuth: { type: "http", scheme: "bearer" } },
   },
   paths: {
+    "/v1/adobe/devices": {
+      get: {
+        operationId: "listAdobeDevices",
+        responses: {
+          200: { description: "Enrolled devices", ...json({ type: "object" }) },
+          403: { description: "Forbidden", ...json(ref("SafeErrorEnvelope")) },
+        },
+      },
+    },
+    "/v1/adobe/devices/enroll": {
+      post: {
+        operationId: "enrollAdobeDevice",
+        requestBody: json(
+          object({ name: string(), deviceId: string() }, ["name"]),
+        ),
+        responses: {
+          201: {
+            description: "Enrolled",
+            ...json(ref("AdobeDeviceEnrollmentV1")),
+          },
+          403: { description: "Forbidden", ...json(ref("SafeErrorEnvelope")) },
+        },
+      },
+    },
+    "/v1/adobe/relay": {
+      post: {
+        operationId: "relayAdobeCommand",
+        parameters: adobeRelayHeaders,
+        requestBody: json(ref("AdobeRelayRequestV1")),
+        responses: {
+          202: { description: "Queued", ...json(ref("AdobeCommandStatusV1")) },
+          403: { description: "Rejected", ...json(ref("SafeErrorEnvelope")) },
+        },
+      },
+    },
+    "/v1/adobe/commands/{commandId}": {
+      get: {
+        operationId: "getAdobeCommand",
+        responses: {
+          200: {
+            description: "Command metadata",
+            ...json(ref("AdobeCommandStatusV1")),
+          },
+          404: { description: "Not found", ...json(ref("SafeErrorEnvelope")) },
+        },
+      },
+    },
     "/admin/feature-flags": {
       get: {
         operationId: "getFeatureFlags",
@@ -752,7 +861,7 @@ if (
   )
 )
   throw new Error("OPENAPI_COMPONENTS_NOT_CONCRETE");
-const client = `import type { MotionSceneRenderV1, MotionSceneRollbackV1, MotionSceneSnapshotV1, SceneOperationBatchV1 } from "../src/motion.js"\nexport type FeatureFlagSnapshot = Readonly<{ verifiedMotionAuthoring: boolean; nativeSceneV2: boolean; adobeMcp: boolean }>\nexport type MotionMutationHeaders = Readonly<{ "If-Match": string; "Idempotency-Key": string }>\nexport type MotionApiRequests = Readonly<{ patchMotionScene: { headers: MotionMutationHeaders; body: SceneOperationBatchV1 }; rollbackMotionScene: { headers: MotionMutationHeaders; body: MotionSceneRollbackV1 }; renderMotionScene: { headers: MotionMutationHeaders; body: MotionSceneRenderV1 }; refinePrompt: { headers: MotionMutationHeaders; body: Readonly<{ prompt: string; locale?: string }> } }>\nexport type MotionApiResponses = Readonly<{ getMotionScene: MotionSceneSnapshotV1; patchMotionScene: MotionSceneSnapshotV1; rollbackMotionScene: MotionSceneSnapshotV1; getFeatureFlags: FeatureFlagSnapshot }>\nexport type ApiOperation = "createUpload" | "createJob" | "getJob" | "getMotionScene" | "patchMotionScene" | "rollbackMotionScene" | "renderMotionScene" | "getDeliverables" | "downloadScenePackage" | "downloadDelivery" | "downloadReport" | "refinePrompt" | "createReview" | "listReceipts" | "getFeatureFlags"\nexport const paths = { uploads: "/v1/uploads", jobs: "/v1/jobs", motionScene: "/v1/jobs/{id}/motion-scene", motionSceneRollback: "/v1/jobs/{id}/motion-scene/rollback", motionSceneRender: "/v1/jobs/{id}/motion-scene/render", refinePrompt: "/v1/jobs/{id}/refine-prompt", deliverables: "/v1/jobs/{id}/deliverables", delivery: "/v1/jobs/{id}/delivery-download", report: "/v1/jobs/{id}/report-download", scenePackage: "/v1/jobs/{id}/scene-package-download", reviews: "/v1/reviews", receipts: "/v1/receipts", featureFlags: "/admin/feature-flags" } as const\n`;
+const client = `import type { MotionSceneRenderV1, MotionSceneRollbackV1, MotionSceneSnapshotV1, SceneOperationBatchV1 } from "../src/motion.js"\nexport type FeatureFlagSnapshot = Readonly<{ verifiedMotionAuthoring: boolean; nativeSceneV2: boolean; adobeMcp: boolean }>\nexport type MotionMutationHeaders = Readonly<{ "If-Match": string; "Idempotency-Key": string }>\nexport type MotionApiRequests = Readonly<{ patchMotionScene: { headers: MotionMutationHeaders; body: SceneOperationBatchV1 }; rollbackMotionScene: { headers: MotionMutationHeaders; body: MotionSceneRollbackV1 }; renderMotionScene: { headers: MotionMutationHeaders; body: MotionSceneRenderV1 }; refinePrompt: { headers: MotionMutationHeaders; body: Readonly<{ prompt: string; locale?: string }> } }>\nexport type MotionApiResponses = Readonly<{ getMotionScene: MotionSceneSnapshotV1; patchMotionScene: MotionSceneSnapshotV1; rollbackMotionScene: MotionSceneSnapshotV1; getFeatureFlags: FeatureFlagSnapshot }>\nexport type ApiOperation = "createUpload" | "createJob" | "getJob" | "getMotionScene" | "patchMotionScene" | "rollbackMotionScene" | "renderMotionScene" | "getDeliverables" | "downloadScenePackage" | "downloadDelivery" | "downloadReport" | "refinePrompt" | "createReview" | "listReceipts" | "getFeatureFlags" | "listAdobeDevices" | "enrollAdobeDevice" | "relayAdobeCommand" | "getAdobeCommand"\nexport const paths = { uploads: "/v1/uploads", jobs: "/v1/jobs", motionScene: "/v1/jobs/{id}/motion-scene", motionSceneRollback: "/v1/jobs/{id}/motion-scene/rollback", motionSceneRender: "/v1/jobs/{id}/motion-scene/render", refinePrompt: "/v1/jobs/{id}/refine-prompt", deliverables: "/v1/jobs/{id}/deliverables", delivery: "/v1/jobs/{id}/delivery-download", report: "/v1/jobs/{id}/report-download", scenePackage: "/v1/jobs/{id}/scene-package-download", reviews: "/v1/reviews", receipts: "/v1/receipts", featureFlags: "/admin/feature-flags", adobeDevices: "/v1/adobe/devices", adobeEnroll: "/v1/adobe/devices/enroll", adobeRelay: "/v1/adobe/relay", adobeCommand: "/v1/adobe/commands/{commandId}" } as const\n`;
 const openApi = await format(JSON.stringify(document), { parser: "json" });
 const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
 if (check) {
@@ -791,7 +900,7 @@ if (check) {
   process.stdout.write(
     JSON.stringify({
       status: "generated",
-      operations: 15,
+      operations: 19,
       schemas: Object.keys(schemas).length,
     }) + "\n",
   );

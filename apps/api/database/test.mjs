@@ -266,10 +266,25 @@ rejection(
   "UPDATE runtime_review_receipts SET value_json='{\"changed\":true}' WHERE id='runtime_rcpt'",
 );
 rejection("DELETE FROM runtime_review_receipts WHERE id='runtime_rcpt'");
+db.exec(
+  "INSERT INTO adobe_devices VALUES ('device_db','ten_test','Studio Mac','ENROLLED',1,NULL); INSERT INTO adobe_device_keys VALUES ('key_db','ten_test','device_db',1,10000,NULL); INSERT INTO adobe_relay_nonces VALUES ('key_db','nonce_db',2); INSERT INTO adobe_commands VALUES ('cmd_db','ten_test','device_db','job_a','{}','QUEUED',NULL,2,2)",
+);
+rejection(
+  "INSERT INTO adobe_device_keys VALUES ('key_cross','ten_platform','device_db',1,10000,NULL)",
+);
+rejection("UPDATE adobe_relay_nonces SET consumed_at_ms=3");
+rejection("DELETE FROM adobe_relay_nonces");
+assert.equal(
+  db
+    .prepare("SELECT status FROM adobe_commands WHERE id='cmd_db'")
+    .pluck()
+    .get(),
+  "QUEUED",
+);
 console.log(
   JSON.stringify({
     integrity: db.pragma("integrity_check", { simple: true }),
-    negativeCases: 6,
+    negativeCases: 9,
     duplicateCasAllowed: true,
     singleClaim: true,
     orderedReceipts: true,

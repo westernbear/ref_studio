@@ -669,11 +669,239 @@
         },
         "required": ["verifiedMotionAuthoring", "nativeSceneV2", "adobeMcp"],
         "additionalProperties": false
+      },
+      "AdobeDeviceEnrollmentV1": {
+        "type": "object",
+        "properties": {
+          "version": { "type": "integer", "const": 1 },
+          "deviceId": { "type": "string" },
+          "keyId": { "type": "string" },
+          "secret": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "expiresAtMs": { "type": "integer", "minimum": 1 }
+        },
+        "required": ["version", "deviceId", "keyId", "secret", "expiresAtMs"],
+        "additionalProperties": false
+      },
+      "AdobeRelayRequestV1": {
+        "type": "object",
+        "properties": {
+          "version": { "type": "integer", "const": 1 },
+          "command": {
+            "type": "object",
+            "properties": {
+              "version": { "type": "integer", "const": 1 },
+              "commandId": { "type": "string" },
+              "nonce": { "type": "string" },
+              "sceneDigest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+              "deviceId": { "type": "string" },
+              "jobId": { "type": "string" },
+              "projectHandle": {
+                "type": "string",
+                "const": "project:working-copy"
+              },
+              "tool": { "type": "string" },
+              "args": { "type": "object" }
+            },
+            "required": [
+              "version",
+              "commandId",
+              "nonce",
+              "sceneDigest",
+              "deviceId",
+              "jobId",
+              "projectHandle",
+              "tool",
+              "args"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": ["version", "command"],
+        "additionalProperties": false
+      },
+      "AdobeCommandStatusV1": {
+        "type": "object",
+        "properties": {
+          "version": { "type": "integer", "const": 1 },
+          "commandId": { "type": "string" },
+          "deviceId": { "type": "string" },
+          "jobId": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": ["QUEUED", "RUNNING", "SUCCEEDED", "FAILED", "CANCELLED"]
+          },
+          "result": { "type": ["object", "null"] }
+        },
+        "required": [
+          "version",
+          "commandId",
+          "deviceId",
+          "jobId",
+          "status",
+          "result"
+        ],
+        "additionalProperties": false
       }
     },
     "securitySchemes": { "bearerAuth": { "type": "http", "scheme": "bearer" } }
   },
   "paths": {
+    "/v1/adobe/devices": {
+      "get": {
+        "operationId": "listAdobeDevices",
+        "responses": {
+          "200": {
+            "description": "Enrolled devices",
+            "content": {
+              "application/json": { "schema": { "type": "object" } }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SafeErrorEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/adobe/devices/enroll": {
+      "post": {
+        "operationId": "enrollAdobeDevice",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "deviceId": { "type": "string" }
+                },
+                "required": ["name"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Enrolled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdobeDeviceEnrollmentV1"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SafeErrorEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/adobe/relay": {
+      "post": {
+        "operationId": "relayAdobeCommand",
+        "parameters": [
+          {
+            "name": "X-RVS-Key-Id",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "X-RVS-Timestamp-Ms",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "X-RVS-Request-Id",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "X-RVS-Nonce",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "X-RVS-Body-Hash",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "X-RVS-Signature",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/AdobeRelayRequestV1" }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Queued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdobeCommandStatusV1"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Rejected",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SafeErrorEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/adobe/commands/{commandId}": {
+      "get": {
+        "operationId": "getAdobeCommand",
+        "responses": {
+          "200": {
+            "description": "Command metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdobeCommandStatusV1"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SafeErrorEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
     "/admin/feature-flags": {
       "get": {
         "operationId": "getFeatureFlags",

@@ -52,7 +52,11 @@ export type ApiOperation =
   | "refinePrompt"
   | "createReview"
   | "listReceipts"
-  | "getFeatureFlags";
+  | "getFeatureFlags"
+  | "listAdobeDevices"
+  | "enrollAdobeDevice"
+  | "relayAdobeCommand"
+  | "getAdobeCommand";
 export const paths = {
   uploads: "/v1/uploads",
   jobs: "/v1/jobs",
@@ -67,4 +71,8 @@ export const paths = {
   reviews: "/v1/reviews",
   receipts: "/v1/receipts",
   featureFlags: "/admin/feature-flags",
+  adobeDevices: "/v1/adobe/devices",
+  adobeEnroll: "/v1/adobe/devices/enroll",
+  adobeRelay: "/v1/adobe/relay",
+  adobeCommand: "/v1/adobe/commands/{commandId}",
 } as const;

@@ -345,3 +345,55 @@ export const AdobeCapabilitySnapshotV1Schema = z
 export type AdobeCapabilitySnapshotV1 = z.infer<
   typeof AdobeCapabilitySnapshotV1Schema
 >;
+
+export const AdobeRelaySignatureV1Schema = z
+  .object({
+    keyId: IdentifierSchema,
+    timestampMs: FiniteSchema.int().nonnegative(),
+    requestId: IdentifierSchema,
+    nonce: IdentifierSchema,
+    bodyHash: DigestSchema,
+    signature: DigestSchema,
+  })
+  .strict();
+export type AdobeRelaySignatureV1 = z.infer<typeof AdobeRelaySignatureV1Schema>;
+
+export const AdobeRelayRequestV1Schema = z
+  .object({ version: z.literal(1), command: AdobeCommandEnvelopeV1Schema })
+  .strict();
+export type AdobeRelayRequestV1 = z.infer<typeof AdobeRelayRequestV1Schema>;
+
+export const AdobeDeviceEnrollmentRequestV1Schema = z
+  .object({
+    name: z.string().trim().min(1).max(100),
+    deviceId: IdentifierSchema.optional(),
+  })
+  .strict();
+export type AdobeDeviceEnrollmentRequestV1 = z.infer<
+  typeof AdobeDeviceEnrollmentRequestV1Schema
+>;
+
+export const AdobeDeviceEnrollmentV1Schema = z
+  .object({
+    version: z.literal(1),
+    deviceId: IdentifierSchema,
+    keyId: IdentifierSchema,
+    secret: z.string().regex(/^[a-f0-9]{64}$/u),
+    expiresAtMs: FiniteSchema.int().positive(),
+  })
+  .strict();
+export type AdobeDeviceEnrollmentV1 = z.infer<
+  typeof AdobeDeviceEnrollmentV1Schema
+>;
+
+export const AdobeCommandStatusV1Schema = z
+  .object({
+    version: z.literal(1),
+    commandId: IdentifierSchema,
+    deviceId: IdentifierSchema,
+    jobId: IdentifierSchema,
+    status: z.enum(["QUEUED", "RUNNING", "SUCCEEDED", "FAILED", "CANCELLED"]),
+    result: AdobeCommandResultV1Schema.nullable(),
+  })
+  .strict();
+export type AdobeCommandStatusV1 = z.infer<typeof AdobeCommandStatusV1Schema>;

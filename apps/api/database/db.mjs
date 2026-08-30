@@ -81,6 +81,7 @@ export function migrate(db) {
     [20, "./migrations/020_scene_package_artifacts.sql", true],
     [21, "./migrations/021_motion_provider_canaries.sql", false],
     [22, "./migrations/022_motion_plan_metadata.sql", false],
+    [23, "./migrations/023_adobe_devices_commands.sql", false],
   ];
   for (const [version, file, disableForeignKeys] of migrations) {
     if (

@@ -80,6 +80,7 @@ import {
   registerWorkers,
   type WorkerStore,
 } from "./workers.js";
+import { registerAdobeMcpRoutes } from "./adobe-mcp-routes.js";
 
 type WorkerAppOptions =
   | { readonly workers?: undefined; readonly artifactRoot?: undefined }
@@ -285,7 +286,8 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
     reply.header("x-correlation-id", correlation);
     if (
       request.url.startsWith("/v1/") &&
-      !request.url.startsWith("/v1/workers/")
+      !request.url.startsWith("/v1/workers/") &&
+      request.url !== "/v1/adobe/relay"
     ) {
       const tenant = header(request, "x-tenant-id");
       const authorization = header(request, "authorization");
@@ -903,6 +905,14 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
     );
   if (options.creatorWorkflow && options.db)
     registerMotionScene(app, options.creatorWorkflow, options.db, featureFlags);
+  if (options.db)
+    registerAdobeMcpRoutes(
+      app,
+      options.db,
+      options.aiSecretKey ?? options.introspectSecret,
+      now,
+      featureFlags,
+    );
   if (options.workers)
     registerWorkers(app, options.workers, {
       now,
