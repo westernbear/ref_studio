@@ -112,6 +112,15 @@ export type AdminWorker = {
     readonly runtimeDigest: string;
   };
 };
+export type AdminMotionCanary = {
+  readonly tenantId: string;
+  readonly providerKind: string;
+  readonly model: string;
+  readonly status: "PASS" | "FAIL";
+  readonly checkedAt: string;
+  readonly toolSchemaDigest: string;
+  readonly failureReason: string | null;
+};
 export type AdminReadStore = {
   readonly tenants: readonly AdminTenant[];
   readonly jobs: readonly AdminJob[];
@@ -125,6 +134,7 @@ export type AdminReadStore = {
   readonly aiProviderSettings?: AiProviderSettingsPublic;
   readonly materialProviderSettings?: MaterialProviderSettingsPublic;
   readonly motionForJob?: (job: AdminJob) => AdminMotionSummary | null;
+  readonly motionCanaries?: () => readonly AdminMotionCanary[];
   // Separate accessors from the two above, and deliberately functions: the
   // decrypted key is read only when a model listing is actually asked for,
   // never held on a store the rest of the admin reads share.
@@ -627,6 +637,26 @@ export function registerAdminRead(
         reply.send(store.materialProviderSettings ?? null);
         return;
       }
+      if (path === "/admin/motion-provider-canaries") {
+        const items = (store.motionCanaries?.() ?? [])
+          .filter(
+            (item) =>
+              allowed(item.tenantId) &&
+              (!query.tenantId || item.tenantId === query.tenantId),
+          )
+          .map((item) => ({
+            ...item,
+            ageMs: Math.max(0, now() - Date.parse(item.checkedAt)),
+          }));
+        auth.audit({
+          action: "MOTION_PROVIDER_CANARIES_VIEWED",
+          userId: principal.userId,
+          tenantId: query.tenantId ?? null,
+          decision: "ALLOWED",
+        });
+        reply.send(page(items, query));
+        return;
+      }
       // The model name is the one field where the provider knows the
       // right answers and the operator is guessing. Fetched live rather
       // than from a hardcoded list, which would go stale the week after it
@@ -687,4 +717,5 @@ export function registerAdminRead(
   app.get("/admin/material-provider-settings", handler);
   app.get("/admin/ai-provider-models", handler);
   app.get("/admin/material-provider-models", handler);
+  app.get("/admin/motion-provider-canaries", handler);
 }

@@ -230,10 +230,12 @@ describe("motion lookup model exposure", () => {
     // When
     const withoutCanary = modelMotionTools(
       null,
+      { tenantId: "tenant-a", providerKind: "openai", model: "gpt-test" },
       Date.parse("2026-08-29T00:05:00Z"),
       600_000,
     );
     const afterFailure = modelMotionTools(
+      failed,
       failed,
       Date.parse("2026-08-29T00:05:00Z"),
       600_000,
@@ -259,6 +261,7 @@ describe("motion lookup model exposure", () => {
     // When
     const tools = modelMotionTools(
       passed,
+      passed,
       Date.parse("2026-08-29T00:10:00Z") - 1,
       600_000,
     );
@@ -281,6 +284,7 @@ describe("motion lookup model exposure", () => {
 
     // When
     const tools = modelMotionTools(
+      passed,
       passed,
       Date.parse("2026-08-29T00:10:00Z"),
       600_000,
@@ -305,11 +309,41 @@ describe("motion lookup model exposure", () => {
     // When
     const tools = modelMotionTools(
       staleSchema,
+      staleSchema,
       Date.parse("2026-08-29T00:01:00Z"),
       600_000,
     );
 
     // Then
     expect(tools).toEqual([]);
+  });
+
+  it("Given a PASS belonging to another identity, when tools are selected, then tenant, provider, and model replay is denied", () => {
+    // Given
+    const passed = ProviderToolCanaryV1Schema.parse({
+      tenantId: "tenant-a",
+      providerKind: "openai",
+      model: "gpt-test",
+      toolName: "motion.lookup",
+      status: "PASS",
+      checkedAt: "2026-08-29T00:00:00Z",
+      toolSchemaDigest: MOTION_LOOKUP_TOOL_SCHEMA_DIGEST,
+    });
+
+    // When / Then
+    for (const expected of [
+      { tenantId: "tenant-b", providerKind: "openai", model: "gpt-test" },
+      { tenantId: "tenant-a", providerKind: "google", model: "gpt-test" },
+      { tenantId: "tenant-a", providerKind: "openai", model: "gpt-other" },
+    ]) {
+      expect(
+        modelMotionTools(
+          passed,
+          expected,
+          Date.parse("2026-08-29T00:01:00Z"),
+          600_000,
+        ),
+      ).toEqual([]);
+    }
   });
 });

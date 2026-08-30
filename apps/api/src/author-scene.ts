@@ -10,14 +10,21 @@ import {
 } from "../../../packages/contracts/src/scene-spec.js";
 import { validateSceneSpec } from "../../../packages/contracts/src/spec-validate.js";
 import type Database from "better-sqlite3";
-import { generateObject, type LanguageModel } from "ai";
+import { generateObject, tool, type LanguageModel, type ToolSet } from "ai";
+import { z } from "zod";
 import {
   evidenceOwnerIds,
   projectEvidenceForAuthoring,
 } from "./author-scene-evidence.js";
 import { AUTHORING_SYSTEM_PROMPT } from "./author-scene.prompt.js";
 import { aiModelFromSettings } from "./ai-model-from-settings.js";
-import { lookupMotionKnowledgeForBrief } from "./motion-knowledge.js";
+import { getAiProviderSettings } from "./ai-provider-settings.js";
+import { readMotionToolCanary } from "./motion-canary.js";
+import {
+  lookupMotionKnowledge,
+  lookupMotionKnowledgeForBrief,
+  modelMotionTools,
+} from "./motion-knowledge.js";
 import { generateVerifiedScene } from "./verified-scene-authoring.js";
 
 // Narrow view of `generateObject`, mirrors apps/api/src/safety-check.ts,
@@ -28,6 +35,7 @@ export type GenerateScene = (options: {
   readonly schema: typeof SceneSpecSchema;
   readonly system: string;
   readonly prompt: string;
+  readonly tools: ToolSet;
 }) => Promise<{ readonly object: SceneSpec }>;
 
 export type AuthoredScene = {
@@ -114,6 +122,9 @@ export async function authorScene(params: {
   }[];
   readonly db: Database.Database;
   readonly aiSecretKey: string;
+  readonly tenantId: string;
+  readonly now?: number;
+  readonly motionCanaryTtlMs?: number;
   readonly generate?: GenerateScene;
 }): Promise<AuthoredScene> {
   const model = aiModelFromSettings(params.db, params.aiSecretKey);
@@ -135,6 +146,27 @@ export async function authorScene(params: {
   if (motionKnowledge.length === 0) {
     throw new Error("MOTION_KNOWLEDGE_NOT_FOUND");
   }
+  const settings = getAiProviderSettings(params.db);
+  const identity = {
+    tenantId: params.tenantId,
+    providerKind: settings.providerKind,
+    model: settings.model,
+  };
+  const admitted = modelMotionTools(
+    readMotionToolCanary(params.db, identity),
+    identity,
+    params.now ?? Date.now(),
+    params.motionCanaryTtlMs ?? 86_400_000,
+  );
+  const tools: ToolSet = admitted.includes("motion.lookup")
+    ? {
+        "motion.lookup": tool({
+          description: "Look up canonical motion knowledge.",
+          inputSchema: z.object({ query: z.string().min(1) }).strict(),
+          execute: async ({ query }) => lookupMotionKnowledge(params.db, query),
+        }),
+      }
+    : {};
 
   // The canvas is a job-configuration fact, never a model decision -- a
   // model that returns a 9:16 spec for a 16:9 job must not silently choose
@@ -217,6 +249,7 @@ Author a SceneSpec for a film of about ${params.config.durationSec} seconds.`;
             attempt === 1
               ? prompt
               : `${prompt}\n\n## Verification repair ${attempt}/4\n\nFix these predicate failures without changing the hard canvas or asset constraints: ${JSON.stringify(failures)}`,
+          tools,
         })
       ).object,
     verify: (candidate) => {

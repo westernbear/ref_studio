@@ -258,6 +258,26 @@ const fixture = (): Fixture => {
             deliverables: ["mp4", "scene-package"],
           }
         : null,
+    motionCanaries: () => [
+      {
+        tenantId: "tenant-a",
+        providerKind: "openai",
+        model: "gpt-4o",
+        status: "PASS",
+        checkedAt: "2026-01-01T00:00:00.000Z",
+        toolSchemaDigest: "a".repeat(64),
+        failureReason: null,
+      },
+      {
+        tenantId: "tenant-b",
+        providerKind: "openai",
+        model: "gpt-4o",
+        status: "FAIL",
+        checkedAt: "2026-01-01T00:00:00.000Z",
+        toolSchemaDigest: "b".repeat(64),
+        failureReason: "PROVIDER_FAILURE",
+      },
+    ],
   };
   return { auth, reads, workers, events };
 };
@@ -272,6 +292,24 @@ const appFor = (data: Fixture, now: () => number = Date.now) =>
 const headers = (id: string) => ({ authorization: `Bearer ${id}-token` });
 
 describe("admin-read", () => {
+  it("returns only tenant-authorized redacted motion canaries", async () => {
+    // Given
+    const app = appFor(fixture());
+
+    // When
+    const response = await app.inject({
+      method: "GET",
+      url: "/admin/motion-provider-canaries",
+      headers: headers("ops"),
+    });
+
+    // Then
+    expect(response.statusCode).toBe(200);
+    expect(response.json().items).toHaveLength(1);
+    expect(response.json().items[0].tenantId).toBe("tenant-a");
+    expect(response.body).not.toMatch(/apiKey|prompt|rawResponse|secret/i);
+    await app.close();
+  });
   it("returns filterable motion authoring status without scene digests or paths", async () => {
     const data = fixture();
     const app = appFor(data);

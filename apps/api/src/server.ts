@@ -39,6 +39,7 @@ import {
   type CreatorWorkflowStore,
 } from "./creator-workflow.js";
 import { inspectUploadedMedia } from "./media-validation.js";
+import { listMotionToolCanaries } from "./motion-canary.js";
 import { createDurableState, openApiDatabase } from "./durable-state.js";
 import { createReviewStore, type ReviewStore } from "./reviews.js";
 import type { UploadStore } from "./uploads.js";
@@ -517,6 +518,7 @@ export function loadAdminReadStore(
           deliverables,
         };
       },
+      motionCanaries: () => listMotionToolCanaries(writableDb),
       get billing(): readonly AdminBilling[] {
         return billing;
       },

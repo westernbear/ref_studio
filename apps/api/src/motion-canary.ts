@@ -52,7 +52,11 @@ export function readMotionToolCanary(
   db: Database.Database,
   identity: z.input<typeof CanaryIdentitySchema>,
 ): MotionCanaryPublic | null {
-  const key = CanaryIdentitySchema.parse(identity);
+  const key = CanaryIdentitySchema.parse({
+    tenantId: identity.tenantId,
+    providerKind: identity.providerKind,
+    model: identity.model,
+  });
   const row = db
     .prepare(
       `SELECT tenant_id, provider_kind, model, status, checked_at,
@@ -76,7 +80,11 @@ const store = (
        status = excluded.status,
        checked_at = excluded.checked_at,
        tool_schema_digest = excluded.tool_schema_digest,
-       failure_reason = excluded.failure_reason`,
+       failure_reason = excluded.failure_reason
+     WHERE excluded.checked_at > motion_provider_canaries.checked_at
+        OR (excluded.checked_at = motion_provider_canaries.checked_at
+            AND motion_provider_canaries.status = 'PASS'
+            AND excluded.status = 'FAIL')`,
   ).run(
     canary.tenantId,
     canary.providerKind,
@@ -86,8 +94,25 @@ const store = (
     canary.toolSchemaDigest,
     canary.failureReason ?? null,
   );
-  return canary;
+  const stored = readMotionToolCanary(db, canary);
+  if (!stored) throw new Error("MOTION_CANARY_WRITE_FAILED");
+  return stored;
 };
+
+export function listMotionToolCanaries(
+  db: Database.Database,
+): readonly MotionCanaryPublic[] {
+  return (
+    db
+      .prepare(
+        `SELECT tenant_id, provider_kind, model, status, checked_at,
+              tool_schema_digest, failure_reason
+         FROM motion_provider_canaries
+        ORDER BY tenant_id, provider_kind, model`,
+      )
+      .all() as CanaryRow[]
+  ).map(toPublic);
+}
 
 export async function runMotionToolCanary(params: {
   readonly db: Database.Database;

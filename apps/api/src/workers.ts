@@ -1988,6 +1988,7 @@ export function registerWorkers(
         evidence: job.evidence,
         config: job.generation,
         attachments,
+        tenantId: job.tenantId,
         db,
         aiSecretKey,
         ...(authorSceneGenerate ? { generate: authorSceneGenerate } : {}),

@@ -32,11 +32,15 @@ export const ProviderToolCanaryV1Schema = z
     status: z.enum(["PASS", "FAIL"]),
     checkedAt: z.iso.datetime(),
     toolSchemaDigest: z.string().regex(/^[a-f0-9]{64}$/),
-    failureReason: z.string().max(500).nullable().optional(),
+    failureReason: z.string().max(500).nullable().default(null),
   })
   .strict();
 
 export type ProviderToolCanaryV1 = z.infer<typeof ProviderToolCanaryV1Schema>;
+export type MotionCanaryIdentity = Pick<
+  ProviderToolCanaryV1,
+  "tenantId" | "providerKind" | "model"
+>;
 
 const JsonText = z.string().transform((value, context): unknown => {
   try {
@@ -196,11 +200,15 @@ export function hostMotionLookup(
 
 export function modelMotionTools(
   canary: ProviderToolCanaryV1 | null,
+  expected: MotionCanaryIdentity,
   now: number,
   ttlMs: number,
 ): readonly "motion.lookup"[] {
   if (
     canary?.status !== "PASS" ||
+    canary.tenantId !== expected.tenantId ||
+    canary.providerKind !== expected.providerKind ||
+    canary.model !== expected.model ||
     canary.toolSchemaDigest !== MOTION_LOOKUP_TOOL_SCHEMA_DIGEST ||
     ttlMs <= 0 ||
     now >= Date.parse(canary.checkedAt) + ttlMs

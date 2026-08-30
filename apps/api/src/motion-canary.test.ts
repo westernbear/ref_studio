@@ -53,10 +53,12 @@ describe("motion provider tool canary", () => {
     // Then
     expect(canary.status).toBe("PASS");
     expect(canary.toolSchemaDigest).toBe(MOTION_LOOKUP_TOOL_SCHEMA_DIGEST);
-    expect(modelMotionTools(canary, now + 599_999, 600_000)).toEqual([
+    expect(modelMotionTools(canary, identity, now + 599_999, 600_000)).toEqual([
       "motion.lookup",
     ]);
-    expect(modelMotionTools(canary, now + 600_000, 600_000)).toEqual([]);
+    expect(modelMotionTools(canary, identity, now + 600_000, 600_000)).toEqual(
+      [],
+    );
     db.close();
   });
 
@@ -90,7 +92,7 @@ describe("motion provider tool canary", () => {
 
       // Then
       expect(canary).toMatchObject({ status: "FAIL", failureReason: reason });
-      expect(modelMotionTools(canary, 1, 600_000)).toEqual([]);
+      expect(modelMotionTools(canary, identity, 1, 600_000)).toEqual([]);
       db.close();
     },
   );
@@ -141,6 +143,63 @@ describe("motion provider tool canary", () => {
     // Then
     expect(own?.status).toBe("PASS");
     expect(other).toBeNull();
+    db.close();
+  });
+
+  it("Given a newer FAIL, when an older or equal PASS is replayed, then terminal failure remains", async () => {
+    // Given
+    const db = openApiDatabase(":memory:");
+    await runMotionToolCanary({
+      db,
+      ...identity,
+      adapter: adapter({}),
+      now: 200,
+      timeoutMs: 100,
+    });
+
+    // When
+    await runMotionToolCanary({
+      db,
+      ...identity,
+      adapter: adapter(validCard),
+      now: 100,
+      timeoutMs: 100,
+    });
+    await runMotionToolCanary({
+      db,
+      ...identity,
+      adapter: adapter(validCard),
+      now: 200,
+      timeoutMs: 100,
+    });
+
+    // Then
+    expect(readMotionToolCanary(db, identity)?.status).toBe("FAIL");
+    db.close();
+  });
+
+  it("Given an equal-time PASS and FAIL, when failure arrives second, then ambiguity fails closed", async () => {
+    // Given
+    const db = openApiDatabase(":memory:");
+    await runMotionToolCanary({
+      db,
+      ...identity,
+      adapter: adapter(validCard),
+      now: 200,
+      timeoutMs: 100,
+    });
+
+    // When
+    await runMotionToolCanary({
+      db,
+      ...identity,
+      adapter: adapter({}),
+      now: 200,
+      timeoutMs: 100,
+    });
+
+    // Then
+    expect(readMotionToolCanary(db, identity)?.status).toBe("FAIL");
     db.close();
   });
 });

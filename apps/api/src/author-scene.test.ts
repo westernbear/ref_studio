@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { updateAiProviderSettings } from "./ai-provider-settings.js";
 import { authorScene, type GenerateScene } from "./author-scene.js";
 import { openApiDatabase } from "./durable-state.js";
+import { MOTION_LOOKUP_TOOL_SCHEMA_DIGEST } from "./motion-knowledge.js";
 
 const AI_SECRET_KEY = "test-secret-key-material";
 
@@ -80,6 +81,7 @@ describe("authorScene", () => {
     evidence: { sceneInput: { owners: [] } },
     config,
     attachments: [{ attachmentId: "att_1", kind: "image" }],
+    tenantId: "tenant-a",
     db,
     aiSecretKey: AI_SECRET_KEY,
   });
@@ -89,6 +91,38 @@ describe("authorScene", () => {
     const out = await authorScene({ ...baseParams(), generate });
     expect(out.spec.schema).toBe("scene-spec-v1");
     expect(out.beatSheet).toHaveLength(fixtureSpec.beats.length);
+  });
+
+  it("exposes motion.lookup to the production model call only for the selected identity's fresh PASS", async () => {
+    // Given
+    const checkedAt = "2026-08-30T00:00:00.000Z";
+    db.prepare(
+      `INSERT INTO motion_provider_canaries
+       (tenant_id, provider_kind, model, status, checked_at, tool_schema_digest, failure_reason)
+       VALUES (?, ?, ?, 'PASS', ?, ?, NULL)`,
+    ).run(
+      "tenant-a",
+      "openai",
+      "gpt-4o",
+      checkedAt,
+      MOTION_LOOKUP_TOOL_SCHEMA_DIGEST,
+    );
+    let exposed: readonly string[] = [];
+    const generate: GenerateScene = async (options) => {
+      exposed = Object.keys(options.tools);
+      return { object: fixtureSpec };
+    };
+
+    // When
+    await authorScene({
+      ...baseParams(),
+      now: Date.parse(checkedAt) + 1,
+      motionCanaryTtlMs: 600_000,
+      generate,
+    });
+
+    // Then
+    expect(exposed).toEqual(["motion.lookup"]);
   });
 
   it("injects canonical structured motion knowledge for an exact alias in a longer brief", async () => {
