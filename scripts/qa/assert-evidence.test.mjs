@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { execFile } from "node:child_process";
@@ -22,6 +22,52 @@ const submoduleGitlinks = Object.fromEntries(
     }),
 );
 const digest = (value) => createHash("sha256").update(value).digest("hex");
+const staleWorkspace = resolve(temp, "stale-workspace");
+await mkdir(resolve(staleWorkspace, ".omo/evidence"), { recursive: true });
+await run("git", ["init", "-q"], { cwd: staleWorkspace });
+await run("git", ["config", "user.email", "qa@example.invalid"], {
+  cwd: staleWorkspace,
+});
+await run("git", ["config", "user.name", "Evidence QA"], {
+  cwd: staleWorkspace,
+});
+await writeFile(resolve(staleWorkspace, "seed"), "seed\n");
+await run("git", ["add", "seed"], { cwd: staleWorkspace });
+await run("git", ["commit", "-qm", "seed"], { cwd: staleWorkspace });
+const staleCommit = (
+  await run("git", ["rev-parse", "HEAD"], { cwd: staleWorkspace })
+).stdout.trim();
+const staleEvidencePath = resolve(staleWorkspace, "stale.json");
+await writeFile(
+  staleEvidencePath,
+  JSON.stringify({
+    taskId: "stale-default",
+    implementationCommit: staleCommit,
+    submoduleGitlinks: {},
+  }),
+);
+const staleRow = {
+  taskId: "stale-default",
+  evidencePath: staleEvidencePath,
+  evidenceSha256: digest(await readFile(staleEvidencePath)),
+  previousRowSha256: null,
+};
+staleRow.rowSha256 = digest(JSON.stringify(staleRow));
+await writeFile(
+  resolve(staleWorkspace, ".omo/evidence/index.jsonl"),
+  `${JSON.stringify(staleRow)}\n`,
+);
+await writeFile(resolve(staleWorkspace, "new-commit"), "new\n");
+await run("git", ["add", "new-commit"], { cwd: staleWorkspace });
+await run("git", ["commit", "-qm", "advance"], { cwd: staleWorkspace });
+try {
+  await run("node", [resolve(workspace, "scripts/qa/assert-evidence.mjs")], {
+    cwd: staleWorkspace,
+  });
+  throw new Error("DEFAULT_STALE_EVIDENCE_ACCEPTED");
+} catch (error) {
+  if (!`${error.stderr ?? ""}`.includes("Error: STALE_EVIDENCE")) throw error;
+}
 const taskPath = resolve(temp, "task.json");
 const receiptPath = resolve(temp, "receipt.json");
 await writeFile(

@@ -74,17 +74,17 @@ const pathFor = (root, value) =>
   typeof value === "string" && value.length > 0
     ? resolve(root, value)
     : fail("EVIDENCE_PATH_INVALID");
-const validateTask = async (root, row, provenance, requireProvenance) => {
+const validateTask = async (root, row, provenance) => {
   if (typeof row.taskId !== "string" || row.taskId.length === 0)
     fail("EVIDENCE_TASK_INVALID");
   const evidence = await readHashedJson(
     pathFor(root, row.evidencePath),
     row.evidenceSha256,
   );
-  if (requireProvenance) validateProvenance(evidence, provenance);
+  validateProvenance(evidence, provenance);
   if (evidence.taskId !== row.taskId) fail("EVIDENCE_TASK_MISMATCH");
 };
-const validateReceipt = async (root, row, provenance, requireProvenance) => {
+const validateReceipt = async (root, row, provenance) => {
   if (
     row.schemaVersion !== undefined &&
     row.schemaVersion !== "rvs-evidence-index-receipt-row-v1"
@@ -93,7 +93,7 @@ const validateReceipt = async (root, row, provenance, requireProvenance) => {
   if (typeof row.mode !== "string" || row.mode.length === 0)
     fail("EVIDENCE_RECEIPT_INVALID");
   const receipt = await readHashedJson(pathFor(root, row.receipt), row.sha256);
-  if (requireProvenance) validateProvenance(receipt, provenance);
+  validateProvenance(receipt, provenance);
   if (
     receipt.schemaVersion !== "rvs-final-receipt-v1" ||
     receipt.mode !== row.mode ||
@@ -102,7 +102,6 @@ const validateReceipt = async (root, row, provenance, requireProvenance) => {
     fail("EVIDENCE_RECEIPT_INVALID");
 };
 
-const requireProvenance = process.argv[2] !== undefined;
 const path = process.argv[2] ?? ".omo/evidence/index.jsonl";
 const root = process.cwd();
 const provenance = currentProvenance();
@@ -125,12 +124,12 @@ for (const line of lines) {
   if (row.previousRowSha256 !== previousRowSha256)
     fail("EVIDENCE_CHAIN_INVALID");
   if (isTask) {
-    await validateTask(root, row, provenance, requireProvenance);
+    await validateTask(root, row, provenance);
     taskRows += 1;
   } else {
     if (receiptPaths.has(row.receipt)) fail("EVIDENCE_RECEIPT_DUPLICATE");
     receiptPaths.add(row.receipt);
-    await validateReceipt(root, row, provenance, requireProvenance);
+    await validateReceipt(root, row, provenance);
     receiptRows += 1;
   }
   previousRowSha256 = row.rowSha256;

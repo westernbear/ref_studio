@@ -20,6 +20,9 @@ verification/contract/fonts/
 runtime/debian-packages.tar
 runtime/hydrated/
 .gstack/
+.omo/evidence/index.jsonl
+.omo/evidence/current.json
+.omo/evidence/current-receipt.json
 
 # tsc writes this on every typecheck; it is a cache, not a source file.
 *.tsbuildinfo
