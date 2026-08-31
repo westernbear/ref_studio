@@ -171,8 +171,8 @@ export async function generateMotionPlan(
     await generate(providerRequest, MotionPlanGenerateSchema),
   );
   const knownPredicates = new Set<string>(MOTION_PREDICATE_IDS);
-  const candidate: MotionPlanSemanticV1 = MotionPlanSemanticObjectV1Schema.parse(
-    {
+  const candidate: MotionPlanSemanticV1 =
+    MotionPlanSemanticObjectV1Schema.parse({
       schema: "motion-plan-v1",
       intent: generated.intent,
       knowledgeCardIds: generated.knowledgeCardIds,
@@ -201,8 +201,7 @@ export async function generateMotionPlan(
       predicateIds: generated.predicateIds.filter((id) =>
         knownPredicates.has(id),
       ),
-    },
-  );
+    });
   const plan = normalizeMotionPlan(candidate, {
     jobCanvas: parsed.jobCanvas,
     knowledgeCardIds: parsed.knowledgeCards.map((card) => card.id),
