@@ -151,6 +151,10 @@ const RuntimePreflight = z
     tar: z.literal(true).optional(),
     compilerModels: z.literal(true),
     runtimeDigest: z.string().regex(/^[a-f0-9]{64}$/u),
+    runtimeSnapshotDigest: z
+      .string()
+      .regex(/^[a-f0-9]{64}$/u)
+      .optional(),
   })
   .strict();
 const RegisterBody = z
@@ -1319,22 +1323,24 @@ export function registerWorkers(
           reclaimLease(store, workflow, jobId, timestamp);
       const sessionToken = randomBytes(32).toString("base64url");
       const sessionExpiresAt = timestamp + WORKER_SESSION_MS;
+      const { runtimeSnapshotDigest: _runtimeSnapshotDigest, ...preflight } =
+        parsed.data.preflight;
       store.workers.set(parsed.data.workerId, {
         id: parsed.data.workerId,
         capabilities: [...parsed.data.capabilities],
         lastHeartbeat: timestamp,
         status: "ONLINE",
-        preflight: parsed.data.preflight,
+        preflight,
       });
       if (workflow) {
-        workflow.availablePreflight = parsed.data.preflight;
+        workflow.availablePreflight = preflight;
         for (const job of workflow.jobs.values())
           if (
             job.state === "PREPARING" &&
             job.preparationStage === "AWAITING_T1" &&
             !job.runtimePreflight
           ) {
-            job.runtimePreflight = parsed.data.preflight;
+            job.runtimePreflight = preflight;
             autoApproveT1(reviews, job, job.creatorId, timestamp);
           }
       }

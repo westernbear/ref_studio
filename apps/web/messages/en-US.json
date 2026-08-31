@@ -521,6 +521,7 @@
       "attachmentQuotaExceeded": "You've reached the total size limit for reference files on this account.",
       "aiProviderNotConfigured": "A new film cannot be authored while the AI provider is off. Turn it on and set an API key in admin settings.",
       "materialProviderNotConfigured": "A new film cannot be made while the material generator is off. Turn on the 2D image generator and set an API key under Admin → Material generators.",
+      "motionAuthoringDisabled": "New-film authoring is off. An operator must set RVS_VERIFIED_MOTION_AUTHORING=true before this track can proceed.",
       "requestFailed": "The request could not be completed. Retry."
     },
     "cancelChooseAnother": "Cancel / choose another",

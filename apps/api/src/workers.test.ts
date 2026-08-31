@@ -565,6 +565,29 @@ describe("worker registration API", () => {
     await fixture.app.close();
   });
 
+  it("accepts a passing preflight that also carries the worker snapshot digest", async () => {
+    const fixture = appFixture();
+    const response = await fixture.app.inject({
+      method: "POST",
+      url: "/v1/workers/register",
+      headers: fixture.bootstrapHeaders,
+      payload: {
+        workerId: "worker-a",
+        capabilities: ["compiler", "renderer"],
+        preflight: {
+          ...preflight,
+          runtimeSnapshotDigest: "a".repeat(64),
+        },
+      },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(fixture.workers.workers.get("worker-a")?.preflight).toMatchObject({
+      status: "PASS",
+      runtimeDigest: RUNTIME_DIGEST,
+    });
+    await fixture.app.close();
+  });
+
   it("rejects a worker that was just marked offline", async () => {
     const fixture = appFixture(undefined, uploadFixture(), {
       now: () => 1_000,

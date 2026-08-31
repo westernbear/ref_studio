@@ -34,6 +34,7 @@ export type ReasonKey =
   | "attachmentQuotaExceeded"
   | "aiProviderNotConfigured"
   | "materialProviderNotConfigured"
+  | "motionAuthoringDisabled"
   | "requestFailed";
 
 export const JOB_CREATE_REASONS: Readonly<Record<string, ReasonKey>> = {
@@ -43,6 +44,8 @@ export const JOB_CREATE_REASONS: Readonly<Record<string, ReasonKey>> = {
   MEDIA_VFR_UNSUPPORTED: "mediaVfrUnsupported",
   MEDIA_DURATION_INVALID: "mediaDurationInvalid",
   MEDIA_INTERVAL_INVALID: "mediaIntervalInvalid",
+  INTERVAL_INVALID: "mediaIntervalInvalid",
+  MOTION_AUTHORING_DISABLED: "motionAuthoringDisabled",
   INVALID_REQUEST: "invalidRequest",
   TENANT_BOUNDARY_BYPASS: "tenantBoundaryBypass",
   RESOURCE_NOT_FOUND: "resourceNotFound",
