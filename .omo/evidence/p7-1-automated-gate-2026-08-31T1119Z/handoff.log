@@ -1,0 +1,1 @@
+{"status":"handoff-verify-pass","zip":"/home/singlerr/ref_studio/dist/reference-video-studio-handoff.zip","sha256":"36eb9296b6f29279518d6c74d28dc090a49562cd338c161f49f6d46ba33df41d","entries":22,"noSecrets":true,"noPathEscapes":true,"recoveryStatus":"PASS","canonicalOpenapi":true,"pilotBoundary":"four-second/240-frame maximum"}

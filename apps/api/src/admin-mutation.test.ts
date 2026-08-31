@@ -455,6 +455,8 @@ describe("admin-mutation", () => {
     if (!stuckJob) throw new Error("fixture job-a missing");
     stuckJob.state = "AWAITING_T5";
     stuckJob.etag = '"stuck-etag"';
+    // A retried job still carries the previous attempt's failure.
+    stuckJob.failureReason = "INVALID_REQUEST";
     data.mutations.workers?.leases.set("job-a", {
       workerId: "worker-a",
       phase: "render",
@@ -489,6 +491,12 @@ describe("admin-mutation", () => {
     expect(data.workflow.jobs.get("job-a")?.state).toBe("FAILED");
     expect(data.workflow.jobs.get("job-a")?.failureCode).toBe(
       "ADMIN_FORCE_TERMINATED",
+    );
+    // Without this the creator surface renders the bare "the job failed":
+    // jobStatusMessage only reaches failedWithReason when a reason is set,
+    // and the stale INVALID_REQUEST above must not survive as the cause.
+    expect(data.workflow.jobs.get("job-a")?.failureReason).toBe(
+      "stuck worker never reported back",
     );
     // The stale lease is reclaimed so the job id can't stay double-claimed.
     expect(data.mutations.workers?.leases.has("job-a")).toBe(false);

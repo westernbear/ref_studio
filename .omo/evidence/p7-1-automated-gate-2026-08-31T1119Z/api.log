@@ -1,0 +1,67 @@
+
+ RUN  v3.2.4 /home/singlerr/ref_studio/apps/api
+
+ ✓ src/author-scene.test.ts (21 tests) 4701ms
+   ✓ authorScene > returns the authored spec and a beat sheet  352ms
+stdout | src/workers.test.ts > generate-track material and render phases > asks the OpenAI-backed endpoint for image material and returns bytes with provenance
+{"event":"api.material.generated","jobId":"job-preparing","assetId":"backdrop","elapsedMs":54,"bytes":70,"tool":"openai:gpt-image-2"}
+
+ ✓ src/motion-scene-commands.test.ts (21 tests) 5123ms
+   ✓ motion scene commands > initializes a generated scene, rolls back immutably, and preserves the prior artifact  347ms
+   ✓ motion scene commands > keeps reads when flags are true/false/false and only admits writes for enabled flags  342ms
+   ✓ motion scene commands > keeps reads when flags are true/false/true and only admits writes for enabled flags  303ms
+   ✓ motion scene commands > keeps reads when flags are true/true/false and only admits writes for enabled flags  367ms
+   ✓ motion scene commands > keeps reads when flags are true/true/true and only admits writes for enabled flags  386ms
+ ✓ src/workers.test.ts (68 tests) 6332ms
+   ✓ worker registration API > scene authoring stage > stores the spec digest and queues material generation when authoring finishes  605ms
+   ✓ worker registration API > scene authoring stage > records the reason authoring failed, not only that it did  832ms
+   ✓ worker registration API > scene authoring stage > fails the job when authoring throws  611ms
+   ✓ worker registration API > scene authoring stage > replies to the worker before the model has answered  618ms
+   ✓ worker registration API > scene authoring stage > fails the job when a referenced attachment can't be resolved  332ms
+ ✓ src/openai-image-material.test.ts (16 tests) 3075ms
+   ✓ generateImageMaterial > returns transparent PNG bytes with matching provenance on success  319ms
+   ✓ the codex-oauth path > runs the model the console configured, and says so in provenance  318ms
+ ✓ src/patch-scene.test.ts (13 tests) 2032ms
+ ✓ src/refine-prompt.test.ts (24 tests) 4441ms
+   ✓ job rating > records a rating without requiring a review screen  302ms
+ ✓ src/ai-provider-settings.test.ts (8 tests) 1865ms
+   ✓ ai-provider-settings > accepts every direct provider kind, each with its own native api key  734ms
+ ✓ src/material-provider-settings.test.ts (13 tests) 1909ms
+ ✓ src/admin-mutation.test.ts (17 tests) 1799ms
+ ✓ src/auth.test.ts (12 tests) 1174ms
+ ✓ src/durable-state.test.ts (7 tests) 1432ms
+ ✓ src/motion-canary.test.ts (11 tests) 1046ms
+ ✓ src/translate-evidence.test.ts (5 tests) 1149ms
+   ✓ translateEvidenceText > returns the translated field when the AI call succeeds  356ms
+ ✓ src/creator-workflow.test.ts (19 tests) 961ms
+ ✓ src/motion-knowledge.test.ts (15 tests) 916ms
+ ✓ src/job-attachments.test.ts (3 tests) 549ms
+ ✓ src/safety-check.test.ts (4 tests) 851ms
+ ✓ src/server.test.ts (5 tests) 534ms
+ ✓ src/uploads.test.ts (7 tests) 430ms
+ ✓ src/adobe-mcp-gateway.test.ts (5 tests) 418ms
+ ✓ src/creator-api.test.ts (10 tests) 267ms
+ ✓ src/admin-read.test.ts (14 tests) 272ms
+ ✓ src/upload.test.ts (7 tests) 257ms
+ ✓ src/gate-receipt-stale-approval.test.ts (7 tests) 182ms
+ ✓ src/author-scene-evidence.test.ts (7 tests) 106ms
+ ✓ src/motion-plan-generator.test.ts (11 tests) 51ms
+ ✓ src/motion-plan-compiler.test.ts (10 tests) 54ms
+ ✓ src/motion-predicates.test.ts (7 tests) 28ms
+ ✓ src/tenant|idempotency|safe-error|auth.test.ts (9 tests) 108ms
+ ✓ src/codex-oauth.test.ts (22 tests) 29ms
+ ✓ src/provider-models.test.ts (16 tests) 32ms
+ ✓ src/media-validation.test.ts (22 tests) 16ms
+ ✓ src/codex-chat.test.ts (6 tests) 20ms
+ ✓ src/motion-scene.test.ts (5 tests) 24ms
+ ✓ src/verified-scene-authoring.test.ts (7 tests) 13ms
+ ✓ src/retention|download|export|deletion-epoch.test.ts (3 tests) 10ms
+ ✓ src/feature-flags.test.ts (16 tests) 9ms
+ ✓ src/worker-contracts-vendoring.test.ts (6 tests) 6ms
+ ✓ src/contracts-import-convention.test.ts (1 test) 5ms
+
+ Test Files  39 passed (39)
+      Tests  480 passed (480)
+   Start at  20:20:05
+   Duration  24.56s (transform 1.41s, setup 0ms, collect 20.45s, tests 42.23s, environment 10ms, prepare 3.50s)
+

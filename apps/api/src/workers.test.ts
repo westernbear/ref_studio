@@ -1,5 +1,5 @@
 import { crc32, deflateSync } from "node:zlib";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createHash } from "node:crypto";
 import {
   existsSync,
@@ -1378,24 +1378,26 @@ describe("worker registration API", () => {
     // assertion about the outcome has to wait for that, rather than
     // relying on a fake generate happening to settle within the same
     // microtask drain.
-    const settledAuthoring = async (
-      workflow: CreatorWorkflowStore,
-      jobId: string,
-    ) => {
-      for (let attempt = 0; attempt < 200; attempt += 1) {
-        const job = workflow.jobs.get(jobId);
-        // A failure leaves preparationStage at AUTHORING_RUNNING and moves
-        // the job's state instead, so settling means either.
-        if (
-          job &&
-          (job.preparationStage !== "AUTHORING_RUNNING" ||
-            job.state === "FAILED")
-        )
+    // Wall-clock, not a fixed iteration count: 200 sleeps of 5ms bought
+    // ~1s idle and far less under load, which flaked these tests.
+    const settledAuthoring = (workflow: CreatorWorkflowStore, jobId: string) =>
+      vi.waitFor(
+        () => {
+          const job = workflow.jobs.get(jobId);
+          // A failure leaves preparationStage at AUTHORING_RUNNING and moves
+          // the job's state instead, so settling means either.
+          if (
+            !job ||
+            (job.preparationStage === "AUTHORING_RUNNING" &&
+              job.state !== "FAILED")
+          )
+            throw new Error("authoring never settled");
           return job;
-        await new Promise((resolve) => setTimeout(resolve, 5));
-      }
-      throw new Error("authoring never settled");
-    };
+        },
+        // Under vitest's default 5s testTimeout, so a genuine hang still
+        // reports "authoring never settled" rather than a bare timeout.
+        { timeout: 4_000, interval: 5 },
+      );
 
     it("moves to AUTHORING after the preview is approved when the job requests generation", () => {
       const reviews = createReviewStore();

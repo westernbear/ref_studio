@@ -1,0 +1,85 @@
+ionEpoch":0,"restoreEpoch":0,"phase":"prepare","stage":"scene-assets","fraction":0.2,"framesProcessed":null,"framesTotal":null}
+
+stdout | src/worker-job-handler.generate.test.ts > the assets worker phase > builds the real provider through the factory, once per job, with that job's id
+{"event":"worker.job.stage","jobId":"job-a","attemptId":"attempt-a","tenantId":"ten_a","workflowPhase":"assets","deletionEpoch":0,"restoreEpoch":0,"phase":"prepare","stage":"scene-assets","fraction":1,"framesProcessed":null,"framesTotal":null}
+
+stdout | src/worker-job-handler.generate.test.ts > the assets worker phase > passes the material endpoints the API sent through to the factory
+{"event":"worker.job.stage","jobId":"job-a","attemptId":"attempt-a","tenantId":"ten_a","workflowPhase":"assets","deletionEpoch":0,"restoreEpoch":0,"phase":"prepare","stage":"scene-assets","fraction":0.2,"framesProcessed":null,"framesTotal":null}
+
+stdout | src/worker-job-handler.generate.test.ts > the assets worker phase > passes the material endpoints the API sent through to the factory
+{"event":"worker.job.stage","jobId":"job-a","attemptId":"attempt-a","tenantId":"ten_a","workflowPhase":"assets","deletionEpoch":0,"restoreEpoch":0,"phase":"prepare","stage":"scene-assets","fraction":1,"framesProcessed":null,"framesTotal":null}
+
+stdout | src/worker-job-handler.generate.test.ts > the assets worker phase > never calls generate on the factory's provider for a scene needing only attachments
+{"event":"worker.job.stage","jobId":"job-a","attemptId":"attempt-a","tenantId":"ten_a","workflowPhase":"assets","deletionEpoch":0,"restoreEpoch":0,"phase":"prepare","stage":"scene-assets","fraction":0.2,"framesProcessed":null,"framesTotal":null}
+
+stdout | src/worker-job-handler.generate.test.ts > the assets worker phase > never calls generate on the factory's provider for a scene needing only attachments
+{"event":"worker.job.stage","jobId":"job-a","attemptId":"attempt-a","tenantId":"ten_a","workflowPhase":"assets","deletionEpoch":0,"restoreEpoch":0,"phase":"prepare","stage":"scene-assets","fraction":1,"framesProcessed":null,"framesTotal":null}
+
+stdout | src/worker-job-handler.generate.test.ts > the gen-render worker phase > fetches every stored asset, renders the scene, and binds its report
+{"event":"worker.job.stage","jobId":"job-a","attemptId":"attempt-a","tenantId":"ten_a","workflowPhase":"gen-render","deletionEpoch":0,"restoreEpoch":0,"phase":"render","stage":"scene-assets","fraction":0.05,"framesProcessed":0,"framesTotal":30}
+
+stdout | src/worker-job-handler.generate.test.ts > the gen-render worker phase > fetches every stored asset, renders the scene, and binds its report
+{"event":"worker.job.stage","jobId":"job-a","attemptId":"attempt-a","tenantId":"ten_a","workflowPhase":"gen-render","deletionEpoch":0,"restoreEpoch":0,"phase":"render","stage":"scene-render","fraction":0.2,"framesProcessed":0,"framesTotal":30}
+
+stdout | src/worker-job-handler.generate.test.ts > the gen-render worker phase > fetches every stored asset, renders the scene, and binds its report
+{"event":"worker.job.stage","jobId":"job-a","attemptId":"attempt-a","tenantId":"ten_a","workflowPhase":"gen-render","deletionEpoch":0,"restoreEpoch":0,"phase":"render","stage":"upload","fraction":0.95,"framesProcessed":30,"framesTotal":30}
+
+stdout | src/worker-job-handler.generate.test.ts > the gen-render worker phase > refuses an asset whose bytes are not the ones the API bound
+{"event":"worker.job.stage","jobId":"job-a","attemptId":"attempt-a","tenantId":"ten_a","workflowPhase":"gen-render","deletionEpoch":0,"restoreEpoch":0,"phase":"render","stage":"scene-assets","fraction":0.05,"framesProcessed":0,"framesTotal":30}
+
+stdout | src/worker-job-handler.generate.test.ts > the gen-render worker phase > publishes nothing when audio validation or mux is cancelled
+{"event":"worker.job.stage","jobId":"job-a","attemptId":"attempt-a","tenantId":"ten_a","workflowPhase":"gen-render","deletionEpoch":0,"restoreEpoch":0,"phase":"render","stage":"scene-assets","fraction":0.05,"framesProcessed":0,"framesTotal":30}
+
+stdout | src/worker-job-handler.generate.test.ts > the gen-render worker phase > publishes nothing when audio validation or mux is cancelled
+{"event":"worker.job.stage","jobId":"job-a","attemptId":"attempt-a","tenantId":"ten_a","workflowPhase":"gen-render","deletionEpoch":0,"restoreEpoch":0,"phase":"render","stage":"scene-render","fraction":0.2,"framesProcessed":0,"framesTotal":30}
+
+ ✓ src/worker-job-handler.generate.test.ts (12 tests) 136ms
+ ✓ src/process-runner.test.ts (5 tests) 98ms
+ ✓ src/render-delivery.test.ts (2 tests) 116ms
+ ✓ src/api-relay.test.ts (3 tests) 120ms
+ ✓ src/partial-render-cache.test.ts (3 tests) 107ms
+stdout | src/index.test.ts > worker entrypoint > routes an analysis job through the workflow handler to source download
+{"event":"worker.job.stage","jobId":"job-a","attemptId":"attempt-a","tenantId":"ten_a","workflowPhase":"analyze","deletionEpoch":0,"restoreEpoch":0,"phase":"prepare","stage":"download","fraction":0.05,"framesProcessed":null,"framesTotal":null}
+
+stdout | src/index.test.ts > worker entrypoint > routes an object-form asset to the 3D provider, which refuses when unconfigured
+{"event":"worker.job.stage","jobId":"job-a","attemptId":"attempt-a","tenantId":"ten_a","workflowPhase":"assets","deletionEpoch":0,"restoreEpoch":0,"phase":"prepare","stage":"scene-assets","fraction":0.2,"framesProcessed":null,"framesTotal":null}
+
+stdout | src/index.test.ts > worker entrypoint > wires the assets phase's real image material provider end to end
+{"event":"worker.job.stage","jobId":"job-a","attemptId":"attempt-a","tenantId":"ten_a","workflowPhase":"assets","deletionEpoch":0,"restoreEpoch":0,"phase":"prepare","stage":"scene-assets","fraction":0.2,"framesProcessed":null,"framesTotal":null}
+
+stdout | src/index.test.ts > worker entrypoint > wires the assets phase's real image material provider end to end
+{"event":"worker.job.stage","jobId":"job-a","attemptId":"attempt-a","tenantId":"ten_a","workflowPhase":"assets","deletionEpoch":0,"restoreEpoch":0,"phase":"prepare","stage":"scene-assets","fraction":1,"framesProcessed":null,"framesTotal":null}
+
+ ✓ src/index.test.ts (3 tests) 140ms
+ ✓ src/resolve-scene-assets.test.ts (8 tests) 38ms
+ ✓ src/worker-api.test.ts (5 tests) 40ms
+ ✓ src/worker-preflight.test.ts (13 tests) 46ms
+ ✓ src/scene-package-archive.test.ts (1 test) 37ms
+ ✓ src/evidence/vfx-labels.test.ts (4 tests) 17ms
+ ✓ src/render-app/dom-renderer.test.ts (14 tests) 37ms
+ ✓ src/media-normalizer.test.ts (1 test) 32ms
+ ✓ src/scene/scene-compiler.test.ts (16 tests) 28ms
+stdout | src/evidence/render-evidence-video.test.ts > buildEvidenceOverlayFilter > drops the densest tracks rather than building an unrenderable graph
+{"event":"worker.evidence.overlay.truncated","tracksDrawn":1,"tracksTotal":2,"maxClauses":4000}
+
+ ✓ src/evidence/render-evidence-video.test.ts (12 tests) 19ms
+ ✓ src/material-provider.test.ts (18 tests) 16ms
+ ✓ src/blender-glb-contract.test.ts (8 tests) 28ms
+ ✓ src/render-app/webgl.test.ts (6 tests) 17ms
+ ✓ src/generated-video-delivery.test.ts (1 test) 24ms
+ ✓ src/worker-config.test.ts (7 tests) 19ms
+ ✓ src/capture/browser.test.ts (6 tests) 19ms
+ ✓ src/evidence/tracks.test.ts (7 tests) 11ms
+ ✓ src/blender-capability.test.ts (7 tests) 12ms
+ ✓ src/remote-image-material-provider.test.ts (4 tests) 12ms
+ ✓ src/material-seed.test.ts (4 tests) 6ms
+ ↓ src/generated-video-delivery.real.test.ts (1 test | 1 skipped)
+ ✓ src/gen-render-delivery.determinism.test.ts (2 tests) 14238ms
+   ✓ renderGeneratedDelivery determinism > produces identical frames, metadata and packages across independent processes and CPU load  12172ms
+   ✓ renderGeneratedDelivery determinism > renders a 16:9 scene at 1920x1080, not the portrait default  2063ms
+
+ Test Files  37 passed | 1 skipped (38)
+      Tests  321 passed | 1 skipped (322)
+   Start at  20:20:33
+   Duration  15.08s (transform 1.05s, setup 0ms, collect 5.11s, tests 18.24s, environment 10ms, prepare 3.72s)
+

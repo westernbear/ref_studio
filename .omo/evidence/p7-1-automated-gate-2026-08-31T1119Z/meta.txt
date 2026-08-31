@@ -1,0 +1,4 @@
+root=7be1e3dea51b17b6bc5e14eed5c16e5e6854a165
+worker=6efc320f79d2756accce1559fae4cbcad57cda35
+adobe=8c4d955d5cbed750f1458558aca684fa5c2bb4fc
+finished=2026-08-31T11:21:02.546Z

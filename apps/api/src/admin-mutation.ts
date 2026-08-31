@@ -383,6 +383,10 @@ export function registerAdminMutation(
             store.workers?.leases.delete(job.id);
             transitionJob(job, "FAILED", store.now);
             job.failureCode = "ADMIN_FORCE_TERMINATED";
+            // Paired with the code, as at every other failure site: unset,
+            // the creator reads a bare "the job failed"; stale, they read a
+            // retried attempt's error as the cause of this kill.
+            job.failureReason = reason;
           }
           store.auditEvents.push({
             id: id("audit"),
