@@ -1,0 +1,23 @@
+
+ RUN  v3.2.4 /home/singlerr/ref_studio-motion-complete/apps/web
+
+ ✓ test/sign-in.test.mjs (10 tests) 31ms
+ ✓ test/progress.test.mjs (31 tests) 60ms
+ ✓ test/motion-workspace-model.test.mjs (21 tests) 18ms
+ ✓ test/motion-workspace-api.test.mjs (4 tests) 31ms
+ ✓ test/scene-interactions.test.mjs (7 tests) 14ms
+ ✓ test/motion-workspace-localization.test.mjs (1 test) 6ms
+ ✓ test/admin-components.test.mjs (9 tests) 10ms
+ ✓ test/tokens.test.mjs (2 tests) 5ms
+ ✓ test/upload-client.test.mjs (7 tests) 23ms
+ ✓ test/job-create-reasons.test.mjs (3 tests) 8ms
+ ✓ test/components.test.mjs (5 tests) 6ms
+ ✓ test/admin-proxy-routes.test.mjs (3 tests) 6ms
+ ✓ test/motion-workspace-responsive.test.mjs (4 tests) 6ms
+ ✓ test/api-error.test.mjs (2 tests) 4ms
+
+ Test Files  14 passed (14)
+      Tests  109 passed (109)
+   Start at  11:34:46
+   Duration  1.87s (transform 406ms, setup 0ms, collect 1.32s, tests 225ms, environment 3ms, prepare 1.29s)
+
