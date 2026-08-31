@@ -236,6 +236,12 @@ const RenderReport = z
         webgl2: z.literal(true),
         networkPolicy: z.literal("external-blocked"),
         repeatedFrameByteIdentity: z.literal(true),
+        // Worker capture reports this; stored runtime does not keep it
+        // (same strip as register's RuntimePreflight).
+        runtimeSnapshotDigest: z
+          .string()
+          .regex(/^[a-f0-9]{64}$/u)
+          .optional(),
         frameSha256: z.array(z.string().regex(/^[a-f0-9]{64}$/u)).min(1),
         passIds: z.array(z.string().min(1)).min(1),
         shaderDiagnostics: z.array(
@@ -353,6 +359,10 @@ const GenRenderReport = z
         // as it is for a restore render.
         networkPolicy: z.literal("external-blocked"),
         repeatedFrameByteIdentity: z.literal(true),
+        runtimeSnapshotDigest: z
+          .string()
+          .regex(/^[a-f0-9]{64}$/u)
+          .optional(),
       })
       .strict(),
     qc: z
@@ -665,6 +675,11 @@ const uploadStateValid = (
   if (kind === "safety-sample")
     return isRenderPhase(lease.phase) && job.state === "RENDERING";
   return lease.phase === "render" && job.state === "RENDERING";
+};
+const storedReport = <T extends { runtime: object }>(report: T): T => {
+  const { runtimeSnapshotDigest: _runtimeSnapshotDigest, ...runtime } =
+    report.runtime as T["runtime"] & { runtimeSnapshotDigest?: string };
+  return { ...report, runtime: runtime as T["runtime"] };
 };
 const compilationMatchesReport = (
   compilation: Compilation,
@@ -1024,7 +1039,7 @@ const finishWorkflowJob = (
       !compilationMatchesReport(job.compilation, parsed.data.report)
     )
       return null;
-    preview.report = parsed.data.report;
+    preview.report = storedReport(parsed.data.report);
     job.previewSpecDigest = parsed.data.report.ir.browserPassSpecDigest;
     job.preparationStage = "AWAITING_T4";
     job.automaticRetries = 0;
@@ -1168,7 +1183,7 @@ const finishWorkflowJob = (
         parsed.data.safetySampleArtifactId
     )
       return null;
-    artifact.report = parsed.data.report;
+    artifact.report = storedReport(parsed.data.report);
     emitMotionEvent("render.duration_memory", `cor_render_${job.id}`, {
       bytes: parsed.data.report.outputBytes,
       frames: canvas.frameCount,
@@ -1219,7 +1234,7 @@ const finishWorkflowJob = (
       parsed.data.report.runtime.passIds.length
   )
     return null;
-  artifact.report = parsed.data.report;
+  artifact.report = storedReport(parsed.data.report);
   transition(job, "ASSEMBLING", now);
   transition(job, "AWAITING_T5", now);
   job.progress = {

@@ -1321,6 +1321,56 @@ describe("worker registration API", () => {
     await fixture.app.close();
   });
 
+  it("accepts a preview report that also carries the worker snapshot digest", async () => {
+    const workflow = createCreatorWorkflowStore();
+    const job = addJob(workflow, "PREPARING");
+    job.preparationStage = "PREVIEW_QUEUED";
+    job.compilation = compilation;
+    const fixture = appFixture(workflow);
+    await registerWorker(fixture, ["renderer"]);
+    await claimWorker(fixture);
+    const previewBytes = Buffer.from("preview-report-bytes");
+    const upload = (kind: string, payload: Buffer) =>
+      fixture.app.inject({
+        method: "POST",
+        url: `/v1/workers/worker-a/jobs/${job.id}/${kind}`,
+        headers: { ...fixture.headers, "content-type": "video/mp4" },
+        payload,
+      });
+    const uploaded = await upload("preview-artifact", previewBytes);
+    const labeled = await upload(
+      "preview-labeled-artifact",
+      Buffer.from("preview-labeled-bytes"),
+    );
+    const completed = await fixture.app.inject({
+      method: "POST",
+      url: `/v1/workers/worker-a/jobs/${job.id}/complete`,
+      headers: fixture.headers,
+      payload: {
+        result: {
+          protocol: "rvs.worker.v1",
+          phase: "preview",
+          previewArtifactId: uploaded.json().artifactId,
+          previewLabeledArtifactId: labeled.json().artifactId,
+          report: {
+            ...renderReport(job, "attempt-a", previewBytes),
+            mode: "preview",
+            runtime: {
+              ...renderReport(job, "attempt-a", previewBytes).runtime,
+              runtimeSnapshotDigest: "a".repeat(64),
+            },
+          },
+        },
+      },
+    });
+    expect(completed.statusCode).toBe(200);
+    expect(job.preparationStage).toBe("AWAITING_T4");
+    expect(workflow.previews.get(job.id)?.report?.runtime).not.toHaveProperty(
+      "runtimeSnapshotDigest",
+    );
+    await fixture.app.close();
+  });
+
   describe("scene authoring stage", () => {
     // Authoring no longer runs inside the /complete request -- the model
     // call outlasts the worker's 30s request timeout, so the reply goes
