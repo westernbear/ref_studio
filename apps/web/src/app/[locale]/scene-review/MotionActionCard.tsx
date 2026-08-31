@@ -57,7 +57,6 @@ export function MotionActionCard({
       viewState,
     );
   const adobeReady =
-    scene.backendCapability.backend === "adobe" &&
     scene.backendCapability.capabilities.includes("ENROLLED") &&
     scene.backendCapability.capabilities.includes("READY");
 

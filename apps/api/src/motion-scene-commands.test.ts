@@ -700,6 +700,15 @@ describe("motion scene commands", () => {
           nativeSceneV2,
           adobeMcp,
         },
+        patchSceneGenerate: async () => ({
+          object: {
+            spec: {
+              ...fixtureSpec,
+              palette: { ...fixtureSpec.palette, hero: "#6633ee" },
+            },
+            summary: "Updated the opening title",
+          },
+        }),
       });
       const jobId = await createCompletedGeneratedJob(fixture);
       const current = await fixture.app.inject({
@@ -723,6 +732,22 @@ describe("motion scene commands", () => {
       });
       const job = fixture.workflow.jobs.get(jobId);
       if (job) job.state = "COMPLETED";
+      const adobeRendered = await fixture.app.inject({
+        method: "POST",
+        url: `/v1/jobs/${jobId}/motion-scene/render`,
+        headers: {
+          ...headers,
+          "if-match": current.json().sceneEtag,
+          "idempotency-key": `flag-adobe-${verifiedMotionAuthoring}-${nativeSceneV2}-${adobeMcp}`,
+        },
+        payload: {
+          schema: "motion-scene-render-v1",
+          backend: "adobe",
+          deviceId: "device-flag",
+          projectId: `job:${jobId}`,
+        },
+      });
+      if (job) job.state = "COMPLETED";
       const patched = await fixture.app.inject({
         method: "PATCH",
         url: `/v1/jobs/${jobId}/motion-scene`,
@@ -745,6 +770,38 @@ describe("motion scene commands", () => {
           ],
         },
       });
+      if (job) job.state = "COMPLETED";
+      const afterPatch = await fixture.app.inject({
+        method: "GET",
+        url: `/v1/jobs/${jobId}/motion-scene`,
+        headers,
+      });
+      const refined = await fixture.app.inject({
+        method: "POST",
+        url: `/v1/jobs/${jobId}/refine-prompt`,
+        headers: {
+          ...headers,
+          "if-match": afterPatch.json().sceneEtag,
+          "idempotency-key": `flag-refine-${verifiedMotionAuthoring}-${nativeSceneV2}-${adobeMcp}`,
+        },
+        payload: { prompt: "Brighten the hero title" },
+      });
+      if (job) job.state = "COMPLETED";
+      const afterRefine = await fixture.app.inject({
+        method: "GET",
+        url: `/v1/jobs/${jobId}/motion-scene`,
+        headers,
+      });
+      const rolled = await fixture.app.inject({
+        method: "POST",
+        url: `/v1/jobs/${jobId}/motion-scene/rollback`,
+        headers: {
+          ...headers,
+          "if-match": afterRefine.json().sceneEtag,
+          "idempotency-key": `flag-rollback-${verifiedMotionAuthoring}-${nativeSceneV2}-${adobeMcp}`,
+        },
+        payload: { schema: "motion-scene-rollback-v1", version: 1 },
+      });
       const after = fixture.db
         .prepare("SELECT COUNT(*) AS count FROM idempotency_keys")
         .get() as { count: number };
@@ -752,7 +809,39 @@ describe("motion scene commands", () => {
       expect(rendered.statusCode, rendered.body).toBe(
         nativeSceneV2 ? 202 : 403,
       );
+      expect(adobeRendered.statusCode, adobeRendered.body).toBe(
+        nativeSceneV2 && adobeMcp ? 400 : 403,
+      );
+      expect(refined.statusCode, refined.body).toBe(
+        verifiedMotionAuthoring && nativeSceneV2 ? 200 : 403,
+      );
+      expect(rolled.statusCode, rolled.body).toBe(nativeSceneV2 ? 200 : 403);
       if (!nativeSceneV2) expect(after.count).toBe(before.count);
     },
   );
+
+  it("surfaces enrolled Adobe devices and a job working-copy project on the scene snapshot", async () => {
+    const jobId = await createCompletedGeneratedJob(fixture);
+    fixture.db
+      .prepare(
+        "INSERT INTO adobe_devices(id,tenant_id,name,status,created_at_ms) VALUES (?,?,?,'ENROLLED',?)",
+      )
+      .run("device-ready", "ten_a", "Studio Mac", 1_000);
+    const current = await fixture.app.inject({
+      method: "GET",
+      url: `/v1/jobs/${jobId}/motion-scene`,
+      headers,
+    });
+    expect(current.statusCode, current.body).toBe(200);
+    expect(current.json().adobeDevices).toEqual([
+      { id: "device-ready", label: "Studio Mac" },
+    ]);
+    expect(current.json().adobeProjects).toEqual([
+      { id: `job:${jobId}`, label: "Working copy" },
+    ]);
+    expect(current.json().backendCapability.capabilities).toEqual(
+      expect.arrayContaining(["ENROLLED", "READY"]),
+    );
+    expect(current.json().backendCapability.backend).toBe("native");
+  });
 });

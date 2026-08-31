@@ -54,6 +54,44 @@ const capability = (): BackendCapabilitySnapshotV1 => ({
     "drop-shadow",
   ],
 });
+
+export const adobeCatalogForJob = (
+  db: Database.Database,
+  job: Job,
+): NonNullable<Job["adobeCatalog"]> => {
+  if (job.adobeCatalog) return job.adobeCatalog;
+  try {
+    const devices = (
+      db
+        .prepare(
+          `SELECT id, name AS label FROM adobe_devices
+            WHERE tenant_id = ? AND status = 'ENROLLED'
+            ORDER BY created_at_ms, id`,
+        )
+        .all(job.tenantId) as readonly { id: string; label: string }[]
+    ).map((device) => ({ id: device.id, label: device.label }));
+    return {
+      devices,
+      projects:
+        devices.length > 0
+          ? [{ id: `job:${job.id}`, label: "Working copy" }]
+          : [],
+    };
+  } catch {
+    return { devices: [], projects: [] };
+  }
+};
+
+const overlayAdobeCapability = (
+  stored: BackendCapabilitySnapshotV1,
+  catalog: NonNullable<Job["adobeCatalog"]>,
+): BackendCapabilitySnapshotV1 => {
+  if (catalog.devices.length === 0) return stored;
+  const capabilities = new Set(stored.capabilities);
+  capabilities.add("ENROLLED");
+  capabilities.add("READY");
+  return { ...stored, capabilities: [...capabilities] };
+};
 const selectColumns = `v.id, v.tenant_id AS tenantId, v.job_id AS jobId, v.version, v.scene_digest AS sceneDigest, v.scene_json AS sceneJson, v.capability_json AS capabilityJson, v.verification_json AS verificationJson, v.plan_digest AS planDigest, v.predecessor_version AS predecessorVersion, v.artifact_digest AS artifactDigest, v.predicate_ids_json AS predicateIdsJson, v.created_at AS createdAt`;
 
 const parseRow = (value: unknown): MotionSceneVersionRow | undefined => {
@@ -349,8 +387,9 @@ export const motionSceneSnapshot = (
         `SELECT version, scene_digest AS sceneDigest, created_at AS createdAt FROM motion_scene_versions WHERE job_id=? AND tenant_id=? ORDER BY version`,
       )
       .all(job.id, job.tenantId),
-    backendCapability: BackendCapabilitySnapshotV1Schema.parse(
-      JSON.parse(row.capabilityJson),
+    backendCapability: overlayAdobeCapability(
+      BackendCapabilitySnapshotV1Schema.parse(JSON.parse(row.capabilityJson)),
+      adobeCatalogForJob(db, job),
     ),
     verification: row.verificationJson
       ? VerificationReportV1Schema.parse(JSON.parse(row.verificationJson))
@@ -394,7 +433,7 @@ export const motionSceneSnapshot = (
         );
       });
     })(),
-    adobeDevices: job.adobeCatalog?.devices ?? [],
-    adobeProjects: job.adobeCatalog?.projects ?? [],
+    adobeDevices: adobeCatalogForJob(db, job).devices,
+    adobeProjects: adobeCatalogForJob(db, job).projects,
   });
 };

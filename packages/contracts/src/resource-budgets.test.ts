@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   assertResourceBudget,
@@ -19,6 +21,24 @@ describe("resource budgets", () => {
     expect(RESOURCE_BUDGETS.maxSpoolFileBytes).toBe(1_048_576);
     expect(RESOURCE_BUDGETS.maxBlenderTriangles).toBe(250_000);
     expect(RESOURCE_BUDGETS.maxFfmpegOutputBytes).toBe(2 * 1024 * 1024 * 1024);
+  });
+
+  it("keeps worker ffmpeg and Adobe spool literals in lockstep with the contract", () => {
+    const repo = resolve(import.meta.dirname, "../../..");
+    const worker = readFileSync(
+      resolve(repo, "apps/worker/src/generated-video-delivery.ts"),
+      "utf8",
+    );
+    const adobe = readFileSync(
+      resolve(repo, "integrations/adobe-bridge/src/spool.ts"),
+      "utf8",
+    );
+    expect(worker).toContain(
+      "const MAX_FFMPEG_OUTPUT_BYTES = 2 * 1024 * 1024 * 1024",
+    );
+    expect(adobe).toContain("const MAX_FILE_BYTES = 1_048_576");
+    expect(RESOURCE_BUDGETS.maxFfmpegOutputBytes).toBe(2 * 1024 * 1024 * 1024);
+    expect(RESOURCE_BUDGETS.maxSpoolFileBytes).toBe(1_048_576);
   });
 
   it("fails closed when a budget is exceeded", () => {
@@ -58,9 +78,20 @@ describe("motion observability", () => {
     sampleMotionMetric("four_attempt_failures", 1, {
       path: "/home/singlerr/secret.aep",
     });
+    sampleMotionMetric("tthw_ms", 12, { route: "author" });
+    sampleMotionMetric("tthw_ms", 40, { route: "author" });
     const snapshot = motionObservabilitySnapshot();
     expect(snapshot.events).toHaveLength(1);
-    expect(snapshot.metrics).toHaveLength(1);
+    expect(snapshot.metrics).toHaveLength(3);
+    expect(snapshot.histograms).toEqual([
+      expect.objectContaining({
+        metric: "tthw_ms",
+        kind: "histogram",
+        count: 2,
+        min: 12,
+        max: 40,
+      }),
+    ]);
     expect(JSON.stringify(snapshot)).not.toMatch(
       /secret brief|should-hide|singlerr/,
     );

@@ -24,6 +24,7 @@ import {
   sampleMotionMetric,
 } from "../../../packages/contracts/src/motion-observability.js";
 import {
+  adobeCatalogForJob,
   currentMotionSceneRow,
   commitMotionSceneVersion,
   motionSceneRowForVersion,
@@ -227,8 +228,9 @@ export function registerMotionSceneCommands(
         if (body.backend === "adobe") {
           if (!adobeMcp)
             throw new MotionSceneError("MOTION_AUTHORING_DISABLED", 403);
-          const devices = job.adobeCatalog?.devices ?? [];
-          const projects = job.adobeCatalog?.projects ?? [];
+          const catalog = adobeCatalogForJob(db, job);
+          const devices = catalog.devices;
+          const projects = catalog.projects;
           if (
             !devices.some((device) => device.id === body.deviceId) ||
             !projects.some((project) => project.id === body.projectId)

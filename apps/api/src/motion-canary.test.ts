@@ -256,6 +256,47 @@ describe("ensureFreshMotionToolCanary", () => {
   });
 });
 
+describe("liveProviderMotionLookupCanaryAdapter", () => {
+  it("requires the provider to take the motion.lookup tool channel", async () => {
+    const { liveProviderMotionLookupCanaryAdapter, runMotionToolCanary } =
+      await import("./motion-canary.js");
+    const db = openApiDatabase(":memory:");
+    let toolChoice: unknown;
+    const adapter = liveProviderMotionLookupCanaryAdapter({
+      db,
+      model: {} as never,
+      generate: async (options) => {
+        toolChoice = options.toolChoice;
+        const lookup = options.tools["motion.lookup"];
+        if (
+          lookup &&
+          "execute" in lookup &&
+          typeof lookup.execute === "function"
+        )
+          await lookup.execute(
+            { query: "opacity" },
+            {
+              toolCallId: "canary",
+              messages: [],
+              abortSignal: options.abortSignal,
+            },
+          );
+        return { object: validCard };
+      },
+    });
+    const canary = await runMotionToolCanary({
+      db,
+      ...identity,
+      adapter,
+      now: 0,
+      timeoutMs: 200,
+    });
+    expect(toolChoice).toEqual({ type: "tool", toolName: "motion.lookup" });
+    expect(canary.status).toBe("PASS");
+    db.close();
+  });
+});
+
 describe("providerMotionLookupCanaryAdapter", () => {
   it("forwards the schema-shaped motion.lookup call and does not accept a raw SQL row", async () => {
     const { providerMotionLookupCanaryAdapter, runMotionToolCanary } =

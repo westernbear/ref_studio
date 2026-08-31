@@ -714,6 +714,7 @@ export function registerAdminRead(
           dashboard: MOTION_OBSERVABILITY_DASHBOARD,
           events: snapshot.events,
           metrics: snapshot.metrics,
+          histograms: snapshot.histograms,
         });
         return;
       }
@@ -796,5 +797,6 @@ export function registerAdminRead(
   app.get("/admin/ai-provider-models", handler);
   app.get("/admin/material-provider-models", handler);
   app.get("/admin/motion-provider-canaries", handler);
+  app.get("/admin/motion-observability", handler);
   app.get("/admin/feature-flags", handler);
 }

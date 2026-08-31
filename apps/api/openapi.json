@@ -733,6 +733,43 @@
         "required": ["backend", "items"],
         "additionalProperties": false
       },
+      "MotionObservabilitySnapshot": {
+        "type": "object",
+        "properties": {
+          "dashboard": {
+            "type": "object",
+            "properties": {
+              "schema": {
+                "type": "string",
+                "const": "motion-observability-dashboard-v1"
+              },
+              "panels": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "metric": { "type": "string" },
+                    "kind": {
+                      "type": "string",
+                      "enum": ["histogram", "counter"]
+                    },
+                    "title": { "type": "string" }
+                  },
+                  "required": ["metric", "kind", "title"],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": ["schema", "panels"],
+            "additionalProperties": false
+          },
+          "events": { "type": "array", "items": { "type": "object" } },
+          "metrics": { "type": "array", "items": { "type": "object" } },
+          "histograms": { "type": "array", "items": { "type": "object" } }
+        },
+        "required": ["dashboard", "events", "metrics", "histograms"],
+        "additionalProperties": false
+      },
       "FeatureFlagSnapshot": {
         "type": "object",
         "properties": {
@@ -974,6 +1011,31 @@
           },
           "404": {
             "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SafeErrorEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/motion-observability": {
+      "get": {
+        "operationId": "getMotionObservability",
+        "responses": {
+          "200": {
+            "description": "In-process motion dashboard, events, and histograms",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MotionObservabilitySnapshot"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/SafeErrorEnvelope" }

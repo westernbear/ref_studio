@@ -335,6 +335,28 @@ describe("admin-read", () => {
     await app.close();
   });
 
+  it("returns the motion observability dashboard only to a super-admin", async () => {
+    const app = appFor(fixture());
+    const response = await app.inject({
+      method: "GET",
+      url: "/admin/motion-observability",
+      headers: headers("super"),
+    });
+    const denied = await app.inject({
+      method: "GET",
+      url: "/admin/motion-observability",
+      headers: headers("ops"),
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      dashboard: { schema: "motion-observability-dashboard-v1" },
+    });
+    expect(response.json().histograms).toEqual([]);
+    expect(denied.statusCode).toBe(403);
+    await app.close();
+  });
+
   it("returns only tenant-authorized redacted motion canaries", async () => {
     // Given
     const app = appFor(fixture());

@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import { tool, type LanguageModel, type ToolSet } from "ai";
 import { z } from "zod";
 import {
   MOTION_LOOKUP_TOOL_SCHEMA,
@@ -163,6 +164,70 @@ export function hostMotionLookupCanaryAdapter(
   return providerMotionLookupCanaryAdapter(async ({ input }) =>
     executeMotionLookupTool(db, input.query),
   );
+}
+
+export type GenerateLiveCanary = (options: {
+  readonly model: LanguageModel;
+  readonly schema: z.ZodTypeAny;
+  readonly system: string;
+  readonly prompt: string;
+  readonly tools: ToolSet;
+  readonly toolChoice: {
+    readonly type: "tool";
+    readonly toolName: "motion.lookup";
+  };
+  readonly abortSignal?: AbortSignal;
+}) => Promise<{ readonly object: unknown }>;
+
+/**
+ * Production canary invoker: the provider must call `motion.lookup` through
+ * its tool channel (`toolChoice`). Host SQL runs only inside that tool.
+ */
+export function liveProviderMotionLookupCanaryAdapter(params: {
+  readonly db: Database.Database;
+  readonly model: LanguageModel;
+  readonly generate: GenerateLiveCanary;
+}): MotionCanaryAdapter {
+  return providerMotionLookupCanaryAdapter(async ({ signal }) => {
+    let toolResult: unknown;
+    const generated = await params.generate({
+      model: params.model,
+      schema: z
+        .object({
+          id: z.string().min(1),
+          domain: z.string().min(1),
+          title_en: z.string().min(1),
+          title_ko: z.string().min(1),
+          definition_en: z.string().min(1),
+          definition_ko: z.string().min(1),
+          distinctions_json: z.string().min(1),
+          parameters_json: z.string().min(1),
+          capabilities_json: z.string().min(1),
+          operation_refs_json: z.string().min(1),
+          verifier_refs_json: z.string().min(1),
+          sources_json: z.string().min(1),
+        })
+        .strict(),
+      system:
+        "Call the motion.lookup tool with query opacity and return that card.",
+      prompt: "opacity",
+      tools: {
+        "motion.lookup": tool({
+          description: "Look up canonical motion knowledge.",
+          inputSchema: z.object({ query: z.string().min(1) }).strict(),
+          execute: async ({ query }) => {
+            toolResult = executeMotionLookupTool(params.db, query);
+            return toolResult;
+          },
+        }),
+      },
+      toolChoice: { type: "tool", toolName: "motion.lookup" },
+      abortSignal: signal,
+    });
+    if (toolResult === undefined && generated.object === undefined)
+      throw new Error("PROVIDER_DID_NOT_CALL_TOOL");
+    return toolResult ?? generated.object;
+  });
 }
 
 /**

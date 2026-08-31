@@ -25,8 +25,9 @@ import { aiModelFromSettings } from "./ai-model-from-settings.js";
 import { getAiProviderSettings } from "./ai-provider-settings.js";
 import {
   ensureFreshMotionToolCanary,
-  executeMotionLookupTool,
+  liveProviderMotionLookupCanaryAdapter,
   providerMotionLookupCanaryAdapter,
+  type GenerateLiveCanary,
   type MotionCanaryAdapter,
 } from "./motion-canary.js";
 import {
@@ -157,6 +158,7 @@ export async function authorScene(params: {
     readonly query: "opacity";
     readonly signal: AbortSignal;
   }) => Promise<unknown>;
+  readonly generateLiveCanary?: GenerateLiveCanary;
 }): Promise<AuthoredScene> {
   const model = aiModelFromSettings(params.db, params.aiSecretKey);
   if (!model) {
@@ -198,11 +200,17 @@ export async function authorScene(params: {
     ttlMs,
     adapter:
       params.motionCanaryAdapter ??
-      providerMotionLookupCanaryAdapter(async ({ input, signal }) => {
-        if (params.generateCanary)
-          return params.generateCanary({ query: "opacity", signal });
-        return executeMotionLookupTool(params.db, input.query);
-      }),
+      (params.generateCanary
+        ? providerMotionLookupCanaryAdapter(async ({ signal }) =>
+            params.generateCanary!({ query: "opacity", signal }),
+          )
+        : liveProviderMotionLookupCanaryAdapter({
+            db: params.db,
+            model,
+            generate:
+              params.generateLiveCanary ??
+              (generateObject as unknown as GenerateLiveCanary),
+          })),
   });
   emitMotionEvent("canary.status", correlationId, {
     status: canary.status,

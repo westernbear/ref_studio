@@ -119,10 +119,59 @@ export const MOTION_OBSERVABILITY_DASHBOARD = {
   ],
 } as const;
 
+const HISTOGRAM_METRICS = new Set<MotionMetric>([
+  "tthw_ms",
+  "adobe_queue_age_ms",
+]);
+
+const percentile = (values: readonly number[], q: number): number => {
+  if (values.length === 0) return 0;
+  const ranked = [...values].sort((left, right) => left - right);
+  const index = Math.min(
+    ranked.length - 1,
+    Math.max(0, Math.ceil(q * ranked.length) - 1),
+  );
+  return ranked[index] ?? 0;
+};
+
+export type MotionHistogram = Readonly<{
+  metric: MotionMetric;
+  kind: "histogram";
+  count: number;
+  min: number;
+  max: number;
+  p50: number;
+  p95: number;
+}>;
+
+export const motionObservabilityHistograms = (): readonly MotionHistogram[] => {
+  const byMetric = new Map<MotionMetric, number[]>();
+  for (const sample of memoryMetrics) {
+    if (!HISTOGRAM_METRICS.has(sample.metric)) continue;
+    const values = byMetric.get(sample.metric) ?? [];
+    values.push(sample.value);
+    byMetric.set(sample.metric, values);
+  }
+  return [...byMetric.entries()].map(([metric, values]) => ({
+    metric,
+    kind: "histogram",
+    count: values.length,
+    min: Math.min(...values),
+    max: Math.max(...values),
+    p50: percentile(values, 0.5),
+    p95: percentile(values, 0.95),
+  }));
+};
+
 export const motionObservabilitySnapshot = (): Readonly<{
   events: readonly MotionObservabilityRecord[];
   metrics: readonly MotionMetricSample[];
-}> => ({ events: [...memoryEvents], metrics: [...memoryMetrics] });
+  histograms: readonly MotionHistogram[];
+}> => ({
+  events: [...memoryEvents],
+  metrics: [...memoryMetrics],
+  histograms: motionObservabilityHistograms(),
+});
 
 export const emitMotionEvent = (
   event: MotionObservabilityEvent,

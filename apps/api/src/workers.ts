@@ -419,6 +419,10 @@ const error = (
     | "INVALID_REQUEST"
     | "RESOURCE_NOT_FOUND"
     | "CANCEL_REQUESTED",
+  predecessor?: {
+    sceneDigest?: string;
+    artifactId?: string;
+  },
 ): void => {
   const status =
     code === "AUTHENTICATION_REQUIRED"
@@ -428,14 +432,22 @@ const error = (
         : code === "CANCEL_REQUESTED"
           ? 409
           : 422;
-  reply
-    .code(status)
-    .send(
-      safeEnvelope(
-        new Error(code),
-        String(reply.getHeader("x-correlation-id")),
-      ),
-    );
+  reply.code(status).send(
+    safeEnvelope(new Error(code), String(reply.getHeader("x-correlation-id")), {
+      ...(predecessor?.sceneDigest || predecessor?.artifactId
+        ? {
+            safePredecessor: {
+              ...(predecessor.sceneDigest
+                ? { sceneDigest: predecessor.sceneDigest }
+                : {}),
+              ...(predecessor.artifactId
+                ? { artifactId: predecessor.artifactId }
+                : {}),
+            },
+          }
+        : {}),
+    }),
+  );
 };
 const tokenFrom = (request: FastifyRequest): string => {
   const value = request.headers.authorization;
@@ -2230,7 +2242,10 @@ export function registerWorkers(
       if (!claimed) return;
       const { job, lease } = claimed;
       if (job.state !== "CANCEL_REQUESTED") {
-        error(reply, "INVALID_REQUEST");
+        error(reply, "INVALID_REQUEST", {
+          ...(job.sceneSpecDigest ? { sceneDigest: job.sceneSpecDigest } : {}),
+          ...(job.artifact?.id ? { artifactId: job.artifact.id } : {}),
+        });
         return;
       }
       transition(job, "CANCELLED", now);

@@ -566,6 +566,34 @@ const schemas = {
     },
     ["backend", "items"],
   ),
+  MotionObservabilitySnapshot: object(
+    {
+      dashboard: object(
+        {
+          schema: {
+            type: "string",
+            const: "motion-observability-dashboard-v1",
+          },
+          panels: {
+            type: "array",
+            items: object(
+              {
+                metric: string(),
+                kind: { type: "string", enum: ["histogram", "counter"] },
+                title: string(),
+              },
+              ["metric", "kind", "title"],
+            ),
+          },
+        },
+        ["schema", "panels"],
+      ),
+      events: { type: "array", items: { type: "object" } },
+      metrics: { type: "array", items: { type: "object" } },
+      histograms: { type: "array", items: { type: "object" } },
+    },
+    ["dashboard", "events", "metrics", "histograms"],
+  ),
   FeatureFlagSnapshot: object(
     {
       verifiedMotionAuthoring: { type: "boolean" },
@@ -715,6 +743,18 @@ const document = {
             ...json(ref("AdobeCommandStatusV1")),
           },
           404: { description: "Not found", ...json(ref("SafeErrorEnvelope")) },
+        },
+      },
+    },
+    "/admin/motion-observability": {
+      get: {
+        operationId: "getMotionObservability",
+        responses: {
+          200: {
+            description: "In-process motion dashboard, events, and histograms",
+            ...json(ref("MotionObservabilitySnapshot")),
+          },
+          403: { description: "Forbidden", ...json(ref("SafeErrorEnvelope")) },
         },
       },
     },
