@@ -1,8 +1,9 @@
 import { z } from "zod";
 import {
   BackendCapabilitySnapshotV1Schema,
+  MOTION_PREDICATE_IDS,
   MotionPlanCanvasV1Schema,
-  MotionPlanSemanticV1Schema,
+  MotionPlanSemanticObjectV1Schema,
   type MotionPlanSemanticV1,
 } from "../../../packages/contracts/src/motion.js";
 import { sha256Hex } from "../../../packages/contracts/src/canonical-json.js";
@@ -88,9 +89,44 @@ export type MotionPlanGeneratorInput = z.infer<
 >;
 
 export type MotionPlanProviderRequest = Readonly<MotionPlanGeneratorInput>;
+// What generateObject is asked to produce. Nested objects are not .strict()
+// and predicate ids are plain strings: Codex json_schema is sent with
+// strict:false, so extra keys and unknown predicate names are normal, and
+// a Zod .strict()/.enum() schema is what turned those into
+// AI_NoObjectGeneratedError. Host parse below keeps the stored plan tight.
+export const MotionPlanGenerateSchema = z.object({
+  schema: z.literal("motion-plan-v1"),
+  intent: z.string().min(1).max(2_000),
+  knowledgeCardIds: z.array(z.string().min(1).max(128)).max(15),
+  requiredCapabilities: z.array(z.string().min(1).max(128)).max(64),
+  canvas: z.object({
+    width: z.number().finite(),
+    height: z.number().finite(),
+    fps: z.number().finite(),
+    frameCount: z.number().finite(),
+  }),
+  keyframeIntents: z
+    .array(
+      z.object({
+        elementId: z.string().min(1).max(128),
+        anticipationFrames: z.number().finite(),
+        overshootPercent: z.number().finite(),
+        settleFrame: z.number().finite(),
+        staggerFrames: z.number().finite(),
+        targetBeat: z
+          .object({
+            startFrame: z.number().finite(),
+            endFrame: z.number().finite(),
+          })
+          .optional(),
+      }),
+    )
+    .max(64),
+  predicateIds: z.array(z.string().min(1).max(128)).max(64),
+});
 export type GenerateMotionPlanCandidate = (
   request: MotionPlanProviderRequest,
-  schema: typeof MotionPlanSemanticV1Schema,
+  schema: typeof MotionPlanGenerateSchema,
 ) => Promise<unknown>;
 
 export const redactMotionPlanBrief = (brief: string): string =>
@@ -131,8 +167,41 @@ export async function generateMotionPlan(
     ...parsed,
     brief: redactMotionPlanBrief(parsed.brief),
   };
-  const candidate: MotionPlanSemanticV1 = MotionPlanSemanticV1Schema.parse(
-    await generate(providerRequest, MotionPlanSemanticV1Schema),
+  const generated = MotionPlanGenerateSchema.parse(
+    await generate(providerRequest, MotionPlanGenerateSchema),
+  );
+  const knownPredicates = new Set<string>(MOTION_PREDICATE_IDS);
+  const candidate: MotionPlanSemanticV1 = MotionPlanSemanticObjectV1Schema.parse(
+    {
+      schema: "motion-plan-v1",
+      intent: generated.intent,
+      knowledgeCardIds: generated.knowledgeCardIds,
+      requiredCapabilities: generated.requiredCapabilities,
+      canvas: {
+        width: Math.round(generated.canvas.width),
+        height: Math.round(generated.canvas.height),
+        fps: Math.round(generated.canvas.fps),
+        frameCount: Math.round(generated.canvas.frameCount),
+      },
+      keyframeIntents: generated.keyframeIntents.map((intent) => ({
+        elementId: intent.elementId,
+        anticipationFrames: Math.round(intent.anticipationFrames),
+        overshootPercent: intent.overshootPercent,
+        settleFrame: Math.round(intent.settleFrame),
+        staggerFrames: Math.round(intent.staggerFrames),
+        ...(intent.targetBeat
+          ? {
+              targetBeat: {
+                startFrame: Math.round(intent.targetBeat.startFrame),
+                endFrame: Math.round(intent.targetBeat.endFrame),
+              },
+            }
+          : {}),
+      })),
+      predicateIds: generated.predicateIds.filter((id) =>
+        knownPredicates.has(id),
+      ),
+    },
   );
   const plan = normalizeMotionPlan(candidate, {
     jobCanvas: parsed.jobCanvas,

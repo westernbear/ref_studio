@@ -201,13 +201,27 @@ describe("generateMotionPlan", () => {
     );
   });
 
-  it("Given an injected scene draft in provider output, when generated, then unknown fields fail closed", async () => {
+  it("Given an injected scene draft in provider output, when generated, then extra fields are ignored", async () => {
     const generate: GenerateMotionPlanCandidate = async () => ({
       ...candidate,
       scene: { schema: "scene-spec-v1" },
     });
 
-    await expect(generateMotionPlan(input, generate)).rejects.toThrow();
+    const generated = await generateMotionPlan(input, generate);
+    expect(generated.plan.schema).toBe("motion-plan-v1");
+    expect("scene" in generated.plan).toBe(false);
+  });
+
+  it("Given extra nested keys and unknown predicate ids, when generated, then the stored plan stays valid", async () => {
+    const generate: GenerateMotionPlanCandidate = async () => ({
+      ...candidate,
+      canvas: { ...canvas, extra: "drop-me" },
+      predicateIds: [...candidate.predicateIds, "not-a-predicate"],
+    });
+
+    const generated = await generateMotionPlan(input, generate);
+    expect(generated.plan.canvas).toEqual(canvas);
+    expect(generated.plan.predicateIds).toEqual(candidate.predicateIds);
   });
 
   it("Given non-finite projected evidence, when parsed, then it fails closed", () => {

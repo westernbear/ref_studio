@@ -509,7 +509,16 @@ const safeFailureReason = (error: unknown): string => {
       : typeof error === "string"
         ? error
         : JSON.stringify(error ?? "unknown error");
-  return message.replace(/\s+/gu, " ").trim().slice(0, 400) || "unknown error";
+  const cause =
+    error instanceof Error && error.cause instanceof Error
+      ? error.cause.message
+      : "";
+  return (
+    `${message}${cause ? ` (${cause})` : ""}`
+      .replace(/\s+/gu, " ")
+      .trim()
+      .slice(0, 400) || "unknown error"
+  );
 };
 const digest = (value: unknown): string =>
   createHash("sha256").update(JSON.stringify(value)).digest("hex");
@@ -2088,6 +2097,10 @@ export function registerWorkers(
           jobId,
           errorName: error instanceof Error ? error.name : typeof error,
           errorMessage: error instanceof Error ? error.message : String(error),
+          errorCause:
+            error instanceof Error && error.cause instanceof Error
+              ? error.cause.message
+              : undefined,
         }),
       );
       const job = workflow?.jobs.get(jobId);

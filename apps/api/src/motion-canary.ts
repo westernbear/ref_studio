@@ -260,7 +260,10 @@ export async function ensureFreshMotionToolCanary(params: {
     ...identity,
     adapter: params.adapter,
     now: params.now,
-    timeoutMs: params.timeoutMs ?? 5_000,
+    // Codex gpt-5.5 tool round-trips routinely miss 5s; the canary then
+    // stores FAIL and authoring continues without motion.lookup, after
+    // which generateObject schema-mismatches the motion plan.
+    timeoutMs: params.timeoutMs ?? 30_000,
   });
 }
 

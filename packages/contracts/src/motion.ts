@@ -43,7 +43,7 @@ export const KeyframeIntentV1Schema = z
   .strict();
 export type KeyframeIntentV1 = z.infer<typeof KeyframeIntentV1Schema>;
 
-const MotionPlanSemanticObjectV1Schema = z
+export const MotionPlanSemanticObjectV1Schema = z
   .object({
     schema: z.literal("motion-plan-v1"),
     intent: z.string().min(1).max(2_000),
