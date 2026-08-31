@@ -15,6 +15,14 @@ describe("motion plan system prompt", () => {
     );
   });
 
+  // normalizeMotionPlan validates requiredCapabilities against the backend
+  // snapshot, not the knowledge cards -- two unrelated vocabularies.
+  it("sources requiredCapabilities from the capability snapshot", () => {
+    expect(MOTION_PLAN_SYSTEM_PROMPT).toContain(
+      "capabilitySnapshot.capabilities",
+    );
+  });
+
   it("names every predicate the plan schema accepts", () => {
     expect(MOTION_PLAN_SYSTEM_PROMPT).toContain("frame-hash-deterministic");
   });

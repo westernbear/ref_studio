@@ -95,7 +95,7 @@ export const MOTION_PLAN_SYSTEM_PROMPT = `You are the motion planner for a deter
 - "schema": exactly "motion-plan-v1".
 - "intent": one or two sentences on what the film should accomplish.
 - "knowledgeCardIds": ids taken verbatim from the request's knowledgeCards. Never invent one.
-- "requiredCapabilities": capability strings drawn from those cards.
+- "requiredCapabilities": a subset of the request's capabilitySnapshot.capabilities, copied verbatim. That list is the renderer's vocabulary and the only one accepted here -- the knowledge cards carry their own, unrelated capability names (create_text, set_3d_transform, apply_effect_template and the like) and none of them belong in this field.
 - "canvas": copy width, height, fps and frameCount verbatim from the request's jobCanvas. These are job configuration, not your decision.
 - "keyframeIntents": one entry per element you intend to animate, at most 64. Each has elementId, anticipationFrames, overshootPercent, settleFrame, staggerFrames, and optionally targetBeat {startFrame, endFrame}. Frames are integers inside the canvas; for entry i of the array, startFrame = targetBeat.startFrame + i * staggerFrames, and startFrame <= startFrame + anticipationFrames <= startFrame + settleFrame must all fall inside [targetBeat.startFrame, targetBeat.endFrame).
 - "predicateIds": a subset of ${MOTION_PREDICATE_IDS.join(", ")}. Always include scene-spec, asset-resolvable and no-external-url.
