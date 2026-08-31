@@ -1,7 +1,9 @@
 import { fixtureSpec, sha256Hex } from "@rvs/contracts";
 import { describe, expect, it } from "vitest";
 import {
+  adobeBackendReady,
   clampSplitRatio,
+  defaultMotionBackend,
   elementFrameState,
   moveElementOperations,
   optimisticScene,
@@ -114,6 +116,38 @@ describe("motion workspace model", () => {
       ),
     };
     expect(elementFrameState(v2Element, frame).scale).toBe(1.2);
+  });
+
+  const withCapabilities = (capabilities) => ({
+    ...snapshot,
+    backendCapability: { ...snapshot.backendCapability, capabilities },
+  });
+
+  it("gates the Adobe backend on ENROLLED and READY, never on the stored backend label", () => {
+    // Both flags present -> Adobe is offered and defaulted.
+    expect(adobeBackendReady(withCapabilities(["ENROLLED", "READY"]))).toBe(
+      true,
+    );
+    expect(defaultMotionBackend(withCapabilities(["ENROLLED", "READY"]))).toBe(
+      "adobe",
+    );
+    // Only one flag -> locked to native.
+    expect(adobeBackendReady(withCapabilities(["ENROLLED"]))).toBe(false);
+    expect(adobeBackendReady(withCapabilities(["READY"]))).toBe(false);
+    expect(defaultMotionBackend(withCapabilities(["ENROLLED"]))).toBe("native");
+    // A backend labelled "adobe" without both flags is still not ready.
+    expect(
+      adobeBackendReady({
+        ...withCapabilities(["ENROLLED"]),
+        backendCapability: {
+          ...snapshot.backendCapability,
+          backend: "adobe",
+          capabilities: ["ENROLLED"],
+        },
+      }),
+    ).toBe(false);
+    // Native default snapshot (fixture) stays native.
+    expect(defaultMotionBackend(snapshot)).toBe("native");
   });
 
   it("keeps plan, artifact, capability, and predicate metadata bound to the scene snapshot", () => {

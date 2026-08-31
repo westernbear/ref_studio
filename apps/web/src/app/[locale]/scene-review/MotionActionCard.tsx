@@ -15,7 +15,11 @@ import {
   proxiedDownloadUrl,
   type MotionRenderChoice,
 } from "./motion-workspace-api";
-import { sceneIntegrity } from "./motion-workspace-model";
+import {
+  adobeBackendReady,
+  defaultMotionBackend,
+  sceneIntegrity,
+} from "./motion-workspace-model";
 import type { WorkspaceViewState } from "./motion-workspace-model";
 
 type Props = Readonly<{
@@ -56,12 +60,10 @@ export function MotionActionCard({
     ["offline", "conflict", "cancelled", "unsupported", "loading"].includes(
       viewState,
     );
-  const adobeReady =
-    scene.backendCapability.capabilities.includes("ENROLLED") &&
-    scene.backendCapability.capabilities.includes("READY");
+  const adobeReady = adobeBackendReady(scene);
 
   const [backend, setBackend] = useState<"native" | "adobe">(
-    adobeReady ? "adobe" : "native",
+    defaultMotionBackend(scene),
   );
   const devices = scene.adobeDevices ?? [];
   const projects = scene.adobeProjects ?? [];
