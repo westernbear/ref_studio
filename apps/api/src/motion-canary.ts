@@ -168,7 +168,6 @@ export function hostMotionLookupCanaryAdapter(
 
 export type GenerateLiveCanary = (options: {
   readonly model: LanguageModel;
-  readonly schema: z.ZodTypeAny;
   readonly system: string;
   readonly prompt: string;
   readonly tools: ToolSet;
@@ -177,7 +176,7 @@ export type GenerateLiveCanary = (options: {
     readonly toolName: "motion.lookup";
   };
   readonly abortSignal?: AbortSignal;
-}) => Promise<{ readonly object: unknown }>;
+}) => Promise<unknown>;
 
 /**
  * Production canary invoker: the provider must call `motion.lookup` through
@@ -190,24 +189,14 @@ export function liveProviderMotionLookupCanaryAdapter(params: {
 }): MotionCanaryAdapter {
   return providerMotionLookupCanaryAdapter(async ({ signal }) => {
     let toolResult: unknown;
-    const generated = await params.generate({
+    // generateText, not generateObject: only the text call takes `tools`
+    // and `toolChoice` (ai@7 LanguageModelCallOptions has neither), so an
+    // object call silently dropped the tool, left toolResult undefined and
+    // asked the model to invent the card -- which surfaced far downstream
+    // as a motion-plan schema mismatch. The seam is typed, not cast, so
+    // the compiler holds this.
+    await params.generate({
       model: params.model,
-      schema: z
-        .object({
-          id: z.string().min(1),
-          domain: z.string().min(1),
-          title_en: z.string().min(1),
-          title_ko: z.string().min(1),
-          definition_en: z.string().min(1),
-          definition_ko: z.string().min(1),
-          distinctions_json: z.string().min(1),
-          parameters_json: z.string().min(1),
-          capabilities_json: z.string().min(1),
-          operation_refs_json: z.string().min(1),
-          verifier_refs_json: z.string().min(1),
-          sources_json: z.string().min(1),
-        })
-        .strict(),
       system:
         "Call the motion.lookup tool with query opacity and return that card.",
       prompt: "opacity",
@@ -224,9 +213,8 @@ export function liveProviderMotionLookupCanaryAdapter(params: {
       toolChoice: { type: "tool", toolName: "motion.lookup" },
       abortSignal: signal,
     });
-    if (toolResult === undefined && generated.object === undefined)
-      throw new Error("PROVIDER_DID_NOT_CALL_TOOL");
-    return toolResult ?? generated.object;
+    if (toolResult === undefined) throw new Error("PROVIDER_DID_NOT_CALL_TOOL");
+    return toolResult;
   });
 }
 
@@ -314,6 +302,28 @@ export async function runMotionToolCanary(params: {
         : error instanceof z.ZodError
           ? "SCHEMA_MISMATCH"
           : "PROVIDER_FAILURE";
+    // PROVIDER_FAILURE is the catch-all, and it was the whole record: a
+    // failing canary drops motion.lookup and the authoring call then
+    // mismatches the motion-plan schema, so the only visible symptom is
+    // downstream and names nothing. Keep what actually threw.
+    if (failureReason === "PROVIDER_FAILURE")
+      console.error(
+        JSON.stringify({
+          event: "api.motion.canary.failed",
+          tenantId: identity.tenantId,
+          providerKind: identity.providerKind,
+          model: identity.model,
+          errorName: error instanceof Error ? error.name : typeof error,
+          errorMessage: (error instanceof Error
+            ? error.message
+            : String(error)
+          ).slice(0, 400),
+          errorCause:
+            error instanceof Error && error.cause instanceof Error
+              ? error.cause.message.slice(0, 400)
+              : undefined,
+        }),
+      );
     return store(params.db, {
       ...identity,
       toolName: "motion.lookup",

@@ -281,7 +281,8 @@ describe("liveProviderMotionLookupCanaryAdapter", () => {
               abortSignal: options.abortSignal,
             },
           );
-        return { object: validCard };
+        // The tool result, not the return value, carries the card now.
+        return undefined;
       },
     });
     const canary = await runMotionToolCanary({

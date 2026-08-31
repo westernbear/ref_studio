@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import type Database from "better-sqlite3";
-import { generateObject } from "ai";
+import { generateObject, generateText } from "ai";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { AuthStore, Principal } from "./auth.js";
 import {
@@ -930,7 +930,7 @@ export function registerAdminMutation(
               adapter: liveProviderMotionLookupCanaryAdapter({
                 db,
                 model,
-                generate: generateObject as unknown as GenerateLiveCanary,
+                generate: generateText,
               }),
             });
             emitMotionEvent("canary.status", correlation || `cor_${key}`, {

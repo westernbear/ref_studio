@@ -14,7 +14,13 @@ import type {
 } from "../../../packages/contracts/src/motion.js";
 import { validateSceneSpec } from "../../../packages/contracts/src/spec-validate.js";
 import type Database from "better-sqlite3";
-import { generateObject, tool, type LanguageModel, type ToolSet } from "ai";
+import {
+  generateObject,
+  generateText,
+  tool,
+  type LanguageModel,
+  type ToolSet,
+} from "ai";
 import { z } from "zod";
 import {
   evidenceOwnerIds,
@@ -207,9 +213,7 @@ export async function authorScene(params: {
         : liveProviderMotionLookupCanaryAdapter({
             db: params.db,
             model,
-            generate:
-              params.generateLiveCanary ??
-              (generateObject as unknown as GenerateLiveCanary),
+            generate: params.generateLiveCanary ?? generateText,
           })),
   });
   emitMotionEvent("canary.status", correlationId, {
