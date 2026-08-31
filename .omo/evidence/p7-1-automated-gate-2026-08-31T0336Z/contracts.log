@@ -1,0 +1,18 @@
+
+ RUN  v3.2.4 /home/singlerr/ref_studio-motion-complete/packages/contracts
+
+ ✓ src/spec-validate.test.ts (19 tests) 40ms
+ ✓ src/scene-spec.test.ts (12 tests) 79ms
+ ✓ src/adobe.test.ts (5 tests) 100ms
+ ✓ src/resource-budgets.test.ts (5 tests) 13ms
+ ✓ src/motion.test.ts (13 tests) 23ms
+ ✓ src/contracts.test.ts (41 tests) 33ms
+ ✓ src/motion-predicates.test.ts (2 tests) 24ms
+ ✓ src/generation.test.ts (5 tests) 20ms
+ ✓ src/scene-assets.test.ts (12 tests) 11ms
+
+ Test Files  9 passed (9)
+      Tests  114 passed (114)
+   Start at  12:37:18
+   Duration  1.79s (transform 435ms, setup 0ms, collect 1.40s, tests 343ms, environment 2ms, prepare 1.20s)
+
