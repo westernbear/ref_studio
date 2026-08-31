@@ -203,8 +203,30 @@ export const MotionSceneRollbackV1Schema = z
 export type MotionSceneRollbackV1 = z.infer<typeof MotionSceneRollbackV1Schema>;
 
 export const MotionSceneRenderV1Schema = z
-  .object({ schema: z.literal("motion-scene-render-v1") })
-  .strict();
+  .object({
+    schema: z.literal("motion-scene-render-v1"),
+    backend: z.enum(["native", "adobe"]).default("native"),
+    deviceId: z.string().min(1).max(128).optional(),
+    projectId: z.string().min(1).max(256).optional(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (value.backend === "adobe") {
+      if (!value.deviceId || !value.projectId)
+        context.addIssue({
+          code: "custom",
+          path: ["deviceId"],
+          message: "adobe render requires deviceId and projectId",
+        });
+      return;
+    }
+    if (value.deviceId || value.projectId)
+      context.addIssue({
+        code: "custom",
+        path: ["deviceId"],
+        message: "native render cannot carry adobe selectors",
+      });
+  });
 export type MotionSceneRenderV1 = z.infer<typeof MotionSceneRenderV1Schema>;
 
 export const BackendCapabilitySnapshotV1Schema = z
@@ -317,6 +339,41 @@ export const MotionSceneSnapshotV1Schema = z
     artifactDigest: DigestSchema.nullable(),
     predicateIds: z.array(z.enum(MOTION_PREDICATE_IDS)).max(64),
     knowledgeCardIds: z.array(z.string().min(1).max(128)).max(15),
+    knowledgeCards: z
+      .array(
+        z
+          .object({
+            id: z.string().min(1).max(128),
+            domain: z.string().min(1).max(128),
+            titleEn: z.string().min(1).max(256),
+            titleKo: z.string().min(1).max(256),
+          })
+          .strict(),
+      )
+      .max(15)
+      .default([]),
+    adobeDevices: z
+      .array(
+        z
+          .object({
+            id: z.string().min(1).max(128),
+            label: z.string().min(1).max(256),
+          })
+          .strict(),
+      )
+      .max(32)
+      .default([]),
+    adobeProjects: z
+      .array(
+        z
+          .object({
+            id: z.string().min(1).max(256),
+            label: z.string().min(1).max(256),
+          })
+          .strict(),
+      )
+      .max(32)
+      .default([]),
   })
   .strict();
 export type MotionSceneSnapshotV1 = z.infer<typeof MotionSceneSnapshotV1Schema>;

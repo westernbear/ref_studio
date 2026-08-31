@@ -613,7 +613,10 @@
       "MotionSceneRenderV1": {
         "type": "object",
         "properties": {
-          "schema": { "type": "string", "const": "motion-scene-render-v1" }
+          "schema": { "type": "string", "const": "motion-scene-render-v1" },
+          "backend": { "type": "string", "enum": ["native", "adobe"] },
+          "deviceId": { "type": "string" },
+          "projectId": { "type": "string" }
         },
         "required": ["schema"],
         "additionalProperties": false
@@ -643,6 +646,47 @@
             "type": "array",
             "items": { "type": "string" },
             "maxItems": 15
+          },
+          "knowledgeCards": {
+            "type": "array",
+            "maxItems": 15,
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string" },
+                "domain": { "type": "string" },
+                "titleEn": { "type": "string" },
+                "titleKo": { "type": "string" }
+              },
+              "required": ["id", "domain", "titleEn", "titleKo"],
+              "additionalProperties": false
+            }
+          },
+          "adobeDevices": {
+            "type": "array",
+            "maxItems": 32,
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string" },
+                "label": { "type": "string" }
+              },
+              "required": ["id", "label"],
+              "additionalProperties": false
+            }
+          },
+          "adobeProjects": {
+            "type": "array",
+            "maxItems": 32,
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string" },
+                "label": { "type": "string" }
+              },
+              "required": ["id", "label"],
+              "additionalProperties": false
+            }
           }
         },
         "required": [
@@ -658,7 +702,10 @@
           "predecessorVersion",
           "artifactDigest",
           "predicateIds",
-          "knowledgeCardIds"
+          "knowledgeCardIds",
+          "knowledgeCards",
+          "adobeDevices",
+          "adobeProjects"
         ],
         "additionalProperties": false
       },

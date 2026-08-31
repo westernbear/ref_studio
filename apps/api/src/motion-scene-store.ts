@@ -16,7 +16,10 @@ import {
   type SceneSpec,
 } from "../../../packages/contracts/src/scene-spec.js";
 import type { Job } from "./creator-workflow.js";
-import { MotionSceneError, verifyMotionSceneForJob } from "./motion-operations.js";
+import {
+  MotionSceneError,
+  verifyMotionSceneForJob,
+} from "./motion-operations.js";
 
 const DigestSchema = z.string().regex(/^[a-f0-9]{64}$/u);
 const PredicateIdsSchema = z.array(z.enum(MOTION_PREDICATE_IDS)).max(64);
@@ -362,5 +365,36 @@ export const motionSceneSnapshot = (
         : null;
       return parsed?.success ? parsed.data.knowledgeCardIds : [];
     })(),
+    knowledgeCards: (() => {
+      const parsed = job.authoredScene?.motionPlan
+        ? MotionPlanV1Schema.safeParse(job.authoredScene.motionPlan)
+        : null;
+      const ids = parsed?.success ? parsed.data.knowledgeCardIds : [];
+      return ids.map((id) => {
+        const card = db
+          .prepare(
+            `SELECT id, domain, title_en AS titleEn, title_ko AS titleKo
+               FROM motion_cards WHERE id = ? LIMIT 1`,
+          )
+          .get(id) as
+          | {
+              id: string;
+              domain: string;
+              titleEn: string;
+              titleKo: string;
+            }
+          | undefined;
+        return (
+          card ?? {
+            id,
+            domain: "unknown",
+            titleEn: id,
+            titleKo: id,
+          }
+        );
+      });
+    })(),
+    adobeDevices: job.adobeCatalog?.devices ?? [],
+    adobeProjects: job.adobeCatalog?.projects ?? [],
   });
 };

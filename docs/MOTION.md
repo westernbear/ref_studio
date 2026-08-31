@@ -4,15 +4,15 @@ Pinned toolchain for the motion-complete worktree. Run gates offline except the 
 
 ## Versions
 
-| Tool | Pin / note |
-| --- | --- |
-| Node | as required by root `packageManager` / engines |
-| pnpm | `11.20.0` (`packageManager` field) |
-| Bun | Adobe bridge (`integrations/adobe-bridge`) |
-| Chrome | worker preflight pin (Scene Package / Native render) |
-| ffmpeg / ffprobe | worker media QC path |
-| Blender | pinned image digest in Blender capability admission |
-| After Effects | 2024 / 2025 / 2026 (P4.8 hardware gate) |
+| Tool             | Pin / note                                           |
+| ---------------- | ---------------------------------------------------- |
+| Node             | as required by root `packageManager` / engines       |
+| pnpm             | `11.20.0` (`packageManager` field)                   |
+| Bun              | Adobe bridge (`integrations/adobe-bridge`)           |
+| Chrome           | worker preflight pin (Scene Package / Native render) |
+| ffmpeg / ffprobe | worker media QC path                                 |
+| Blender          | pinned image digest in Blender capability admission  |
+| After Effects    | 2024 / 2025 / 2026 (P4.8 hardware gate)              |
 
 ## Native authoring quick start
 
@@ -53,7 +53,37 @@ Real After Effects readback, original-AEP invariance, and per-version screenshot
 
 ## Migrations
 
-Motion-related SQL migrations live under `apps/api` migration trees (021–024 era and later). Run API migration tests with the package scripts; do not hand-edit applied migration history.
+Motion SQL lives under `apps/api/database/migrations`:
+
+| File                               | Additive columns / tables                                                     |
+| ---------------------------------- | ----------------------------------------------------------------------------- |
+| `021_motion_provider_canaries.sql` | tenant/provider/model canary rows                                             |
+| `022_motion_plan_metadata.sql`     | `plan_digest`, `predecessor_version`, `artifact_digest`, `predicate_ids_json` |
+
+Fresh DB: open the API database helper (tests use `openApiDatabase(":memory:")`). Upgraded DB: apply pending files in order. Do not rewrite applied history.
+
+```bash
+pnpm --filter @rvs/api test --run src/durable-state.test.ts
+```
+
+## Offline gate matrix
+
+Run without network except an explicitly authenticated Adobe relay:
+
+```bash
+pnpm format:check
+pnpm typecheck
+pnpm contracts:openapi:check
+pnpm --filter @rvs/contracts test
+pnpm --filter @rvs/api test --run
+pnpm --filter @rvs/web test --run
+pnpm --filter @rvs/worker test --run
+cd integrations/adobe-bridge && bun run check && bun test
+```
+
+## Observability dashboard
+
+`GET /admin/motion-observability` (SUPER_ADMIN) returns the in-process event/metric ring plus `MOTION_OBSERVABILITY_DASHBOARD`. Static copy: `docs/motion-observability-dashboard.json`.
 
 ## Error-code index
 
@@ -89,4 +119,4 @@ Sink is installed in `createApiServer`. Contracts catalog: `packages/contracts/s
 
 ## Provider canary
 
-Authoring calls `ensureFreshMotionToolCanary` before exposing `motion.lookup` to the model. Admins can force a run with `POST /admin/motion-provider-canaries/run` (idempotency key required). Host lookup adapter validates the card schema without storing secrets.
+Authoring calls `ensureFreshMotionToolCanary` with `providerMotionLookupCanaryAdapter` before exposing `motion.lookup`. The adapter sends a schema-shaped `motion.lookup` call (`query: "opacity"`) and validates the structured card. Admins can force a run with `POST /admin/motion-provider-canaries/run` (idempotency key required). Secrets are never stored.

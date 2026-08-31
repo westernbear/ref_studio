@@ -8,6 +8,7 @@ import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import { isJobWorking, type JobProgress } from "../../../lib/job-progress";
 import { MotionActionCard } from "./MotionActionCard";
+import type { MotionRenderChoice } from "./motion-workspace-api";
 import type { WorkspaceViewState } from "./motion-workspace-model";
 import type { WorkspaceMessage } from "./useMotionWorkspace";
 
@@ -23,7 +24,7 @@ type Props = Readonly<{
   onRefine: (prompt: string) => Promise<void>;
   onUndo: () => Promise<void>;
   onRollback: (version: number) => Promise<void>;
-  onRender: () => Promise<void>;
+  onRender: (choice: MotionRenderChoice) => Promise<void>;
   onRefresh: () => Promise<void>;
 }>;
 

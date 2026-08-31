@@ -5,6 +5,10 @@ import {
   AdobeRelayResultRequestV1Schema,
 } from "../../../packages/contracts/src/adobe.js";
 import { RESOURCE_BUDGETS } from "../../../packages/contracts/src/resource-budgets.js";
+import {
+  emitMotionEvent,
+  sampleMotionMetric,
+} from "../../../packages/contracts/src/motion-observability.js";
 import type { Principal } from "./auth.js";
 import { safeEnvelope } from "./boundary.js";
 import type { FeatureFlagSnapshot } from "./feature-flags.js";
@@ -122,6 +126,11 @@ export const registerAdobeMcpRoutes = (
           now(),
         );
         const status = store.enqueue(authenticated.tenantId, input.command);
+        emitMotionEvent(
+          "adobe.command_lifecycle",
+          String(reply.getHeader("x-correlation-id")),
+          { phase: "enqueued", commandId: input.command.commandId },
+        );
         return reply.code(202).send(status);
       } catch (error) {
         const code =
@@ -153,7 +162,13 @@ export const registerAdobeMcpRoutes = (
           signatureHeaders(request),
           now(),
         );
-        return reply.send(store.complete(authenticated.tenantId, input.result));
+        const completed = store.complete(authenticated.tenantId, input.result);
+        emitMotionEvent(
+          "adobe.command_lifecycle",
+          String(reply.getHeader("x-correlation-id")),
+          { phase: "completed", commandId: input.result.commandId },
+        );
+        return reply.send(completed);
       } catch (error) {
         return reject(reply, error);
       }
@@ -171,9 +186,17 @@ export const registerAdobeMcpRoutes = (
         const actor = principal(request);
         if (actor === undefined)
           throw new AdobeRelayFailure("ADOBE_RELAY_REQUEST_INVALID");
-        return reply.send(
-          store.status(actor.tenantId, request.params.commandId),
+        const status = store.status(actor.tenantId, request.params.commandId);
+        emitMotionEvent(
+          "adobe.command_lifecycle",
+          String(reply.getHeader("x-correlation-id")),
+          { phase: "status", commandId: request.params.commandId },
         );
+        sampleMotionMetric("adobe_queue_age_ms", 0, {
+          commandId: request.params.commandId,
+          status: status.status,
+        });
+        return reply.send(status);
       } catch (error) {
         return reject(reply, error);
       }

@@ -18,6 +18,7 @@ import {
   patchMotionScene,
   refineMotionScene,
   renderMotionScene,
+  type MotionRenderChoice,
   rollbackMotionScene,
 } from "./motion-workspace-api";
 import {
@@ -71,9 +72,7 @@ export function useMotionWorkspace({
         ? error.code
         : "NETWORK_INTERRUPTED";
     const remediation =
-      error instanceof MotionWorkspaceApiError
-        ? error.remediation
-        : undefined;
+      error instanceof MotionWorkspaceApiError ? error.remediation : undefined;
     setErrorCode(code);
     add(
       workspaceMessage("error", code, remediation, {
@@ -245,12 +244,16 @@ export function useMotionWorkspace({
     }
   };
 
-  const render = async (): Promise<void> => {
+  const render = async (choice?: MotionRenderChoice): Promise<void> => {
     if (busy) return;
     setBusy(true);
     setErrorCode(null);
     try {
-      await renderMotionScene(initialJob.id, scene);
+      await renderMotionScene(
+        initialJob.id,
+        scene,
+        choice ?? { backend: "native" },
+      );
       setJob((current) => queuedMotionJob(current));
     } catch (error) {
       fail(error);

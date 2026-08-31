@@ -118,6 +118,53 @@ describe("authorScene", () => {
     expect(replay.spec).toEqual(out.spec);
   });
 
+  it("runs a cold-start provider canary before exposing motion.lookup", async () => {
+    let exposed: readonly string[] = [];
+    const generate: GenerateScene = async (options) => {
+      exposed = Object.keys(options.tools);
+      return { object: fixtureSpec };
+    };
+    await authorScene({
+      ...baseParams(),
+      now: Date.parse("2026-08-30T00:00:00.000Z"),
+      motionCanaryTtlMs: 600_000,
+      generate,
+      generateCanary: async () => ({
+        id: "opacity",
+        domain: "opacity",
+        title_en: "Opacity",
+        title_ko: "불투명도",
+        definition_en: "Controls visibility.",
+        definition_ko: "가시성을 제어한다.",
+        distinctions_json: '["opacity is not brightness"]',
+        parameters_json: '[{"name":"opacity","unit":"ratio","range":[0,1]}]',
+        capabilities_json: '["motion_lookup"]',
+        operation_refs_json: '["set_opacity"]',
+        verifier_refs_json: '["opacity_range"]',
+        sources_json: '["https://example.com/opacity"]',
+      }),
+    });
+    expect(exposed).toEqual(["motion.lookup"]);
+  });
+
+  it("hides motion.lookup when the provider canary fails", async () => {
+    let exposed: readonly string[] = [];
+    const generate: GenerateScene = async (options) => {
+      exposed = Object.keys(options.tools);
+      return { object: fixtureSpec };
+    };
+    await authorScene({
+      ...baseParams(),
+      now: Date.parse("2026-08-30T00:00:00.000Z"),
+      motionCanaryTtlMs: 600_000,
+      generate,
+      generateCanary: async () => {
+        throw new Error("provider refused tool");
+      },
+    });
+    expect(exposed).toEqual([]);
+  });
+
   it("exposes motion.lookup to the production model call only for the selected identity's fresh PASS", async () => {
     // Given
     const checkedAt = "2026-08-30T00:00:00.000Z";

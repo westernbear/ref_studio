@@ -147,6 +147,21 @@ export type Job = {
   // gen-render call) has something to act on without re-deriving it. Null
   // until the first patch; a restore-track job never sets it.
   lastPatchChangedBeatIds: readonly string[] | null;
+  motionRenderRequest?: {
+    readonly backend: "native" | "adobe";
+    readonly deviceId?: string;
+    readonly projectId?: string;
+  };
+  adobeCatalog?: {
+    readonly devices: readonly {
+      readonly id: string;
+      readonly label: string;
+    }[];
+    readonly projects: readonly {
+      readonly id: string;
+      readonly label: string;
+    }[];
+  };
   progress: {
     phase: "prepare" | "render";
     stage: string;

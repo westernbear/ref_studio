@@ -480,7 +480,12 @@ const schemas = {
     ["schema", "version"],
   ),
   MotionSceneRenderV1: object(
-    { schema: { type: "string", const: "motion-scene-render-v1" } },
+    {
+      schema: { type: "string", const: "motion-scene-render-v1" },
+      backend: { type: "string", enum: ["native", "adobe"] },
+      deviceId: string(),
+      projectId: string(),
+    },
     ["schema"],
   ),
   MotionSceneSnapshotV1: object(
@@ -498,6 +503,29 @@ const schemas = {
       artifactDigest: { type: ["string", "null"], pattern: "^[a-f0-9]{64}$" },
       predicateIds: { type: "array", items: string() },
       knowledgeCardIds: { type: "array", items: string(), maxItems: 15 },
+      knowledgeCards: {
+        type: "array",
+        maxItems: 15,
+        items: object(
+          {
+            id: string(),
+            domain: string(),
+            titleEn: string(),
+            titleKo: string(),
+          },
+          ["id", "domain", "titleEn", "titleKo"],
+        ),
+      },
+      adobeDevices: {
+        type: "array",
+        maxItems: 32,
+        items: object({ id: string(), label: string() }, ["id", "label"]),
+      },
+      adobeProjects: {
+        type: "array",
+        maxItems: 32,
+        items: object({ id: string(), label: string() }, ["id", "label"]),
+      },
     },
     [
       "schema",
@@ -513,6 +541,9 @@ const schemas = {
       "artifactDigest",
       "predicateIds",
       "knowledgeCardIds",
+      "knowledgeCards",
+      "adobeDevices",
+      "adobeProjects",
     ],
   ),
   DeliverablesV1: object(

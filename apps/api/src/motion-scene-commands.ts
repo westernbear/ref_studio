@@ -15,7 +15,14 @@ import { assertLegalTransition } from "../../../packages/contracts/src/lifecycle
 import { beatSheetFor } from "./author-scene.js";
 import { safeEnvelope } from "./boundary.js";
 import type { CreatorWorkflowStore, Job } from "./creator-workflow.js";
-import { MotionSceneError, verifyMotionSceneForJob } from "./motion-operations.js";
+import {
+  MotionSceneError,
+  verifyMotionSceneForJob,
+} from "./motion-operations.js";
+import {
+  emitMotionEvent,
+  sampleMotionMetric,
+} from "../../../packages/contracts/src/motion-observability.js";
 import {
   currentMotionSceneRow,
   commitMotionSceneVersion,
@@ -28,14 +35,37 @@ type JobRequest = FastifyRequest<{ Params: { jobId: string } }>;
 
 const etag = (digest: string): string => `"${digest}"`;
 
-const fail = (reply: FastifyReply, error: unknown): void => {
+const predecessorFor = (job: Job | undefined, digest?: string) =>
+  job
+    ? {
+        safePredecessor: {
+          ...(digest ? { sceneDigest: digest } : {}),
+          ...(job.artifact?.id ? { artifactId: job.artifact.id } : {}),
+        },
+      }
+    : {};
+
+const fail = (
+  reply: FastifyReply,
+  error: unknown,
+  job?: Job,
+  digest?: string,
+): void => {
   const failure =
     error instanceof MotionSceneError
       ? error
       : new MotionSceneError("INVALID_REQUEST", 400);
+  if (failure.code === "VERSION_CONFLICT")
+    sampleMotionMetric("stale_conflicts", 1, { route: "motion-scene-command" });
   reply
     .code(failure.status)
-    .send(safeEnvelope(failure, String(reply.getHeader("x-correlation-id"))));
+    .send(
+      safeEnvelope(
+        failure,
+        String(reply.getHeader("x-correlation-id")),
+        predecessorFor(job, digest),
+      ),
+    );
 };
 
 const requiredHeaders = (
@@ -104,6 +134,7 @@ export function registerMotionSceneCommands(
   store: CreatorWorkflowStore,
   db: Database.Database,
   admissionEnabled: boolean,
+  adobeMcp = false,
 ): void {
   const owned = (request: JobRequest): Job => {
     const job = store.jobs.get(request.params.jobId);
@@ -167,9 +198,19 @@ export function registerMotionSceneCommands(
           return;
         }
         queue(store, job, scene, next.sceneDigest);
+        sampleMotionMetric("rollback_frequency", 1, { jobId: job.id });
+        emitMotionEvent(
+          "user.action_result",
+          String(reply.getHeader("x-correlation-id")),
+          {
+            action: "rollback",
+            status: "ok",
+          },
+        );
         reply.send(committed.response);
       } catch (error) {
-        fail(reply, error);
+        const failed = store.jobs.get(request.params.jobId);
+        fail(reply, error, failed, failed?.sceneSpecDigest ?? undefined);
       }
     },
   );
@@ -183,6 +224,22 @@ export function registerMotionSceneCommands(
           throw new MotionSceneError("MOTION_AUTHORING_DISABLED", 403);
         const { match, key } = requiredHeaders(request);
         const body = MotionSceneRenderV1Schema.parse(request.body);
+        if (body.backend === "adobe") {
+          if (!adobeMcp)
+            throw new MotionSceneError("MOTION_AUTHORING_DISABLED", 403);
+          const devices = job.adobeCatalog?.devices ?? [];
+          const projects = job.adobeCatalog?.projects ?? [];
+          if (
+            !devices.some((device) => device.id === body.deviceId) ||
+            !projects.some((project) => project.id === body.projectId)
+          )
+            throw new MotionSceneError("INVALID_REQUEST", 400);
+        }
+        job.motionRenderRequest = {
+          backend: body.backend,
+          ...(body.deviceId ? { deviceId: body.deviceId } : {}),
+          ...(body.projectId ? { projectId: body.projectId } : {}),
+        };
         const scopedKey = `motion-scene-render:${job.id}:${key}`;
         const requestDigest = sha256Hex({
           route: `/v1/jobs/${job.id}/motion-scene/render`,
@@ -227,9 +284,15 @@ export function registerMotionSceneCommands(
           );
           queue(store, job, scene, current.sceneDigest);
         }).immediate();
+        emitMotionEvent(
+          "user.action_result",
+          String(reply.getHeader("x-correlation-id")),
+          { action: "render", status: "queued", backend: body.backend },
+        );
         reply.code(202).send(response);
       } catch (error) {
-        fail(reply, error);
+        const failed = store.jobs.get(request.params.jobId);
+        fail(reply, error, failed, failed?.sceneSpecDigest ?? undefined);
       }
     },
   );

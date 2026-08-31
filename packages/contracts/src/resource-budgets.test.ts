@@ -18,6 +18,7 @@ describe("resource budgets", () => {
     expect(RESOURCE_BUDGETS.maxRelayBodyBytes).toBe(262_144);
     expect(RESOURCE_BUDGETS.maxSpoolFileBytes).toBe(1_048_576);
     expect(RESOURCE_BUDGETS.maxBlenderTriangles).toBe(250_000);
+    expect(RESOURCE_BUDGETS.maxFfmpegOutputBytes).toBe(2 * 1024 * 1024 * 1024);
   });
 
   it("fails closed when a budget is exceeded", () => {
@@ -39,7 +40,9 @@ describe("redaction", () => {
       nested: { uploadAuth: "cred", path: "C:\\Users\\rvs\\clip.aep" },
     });
     const encoded = JSON.stringify(redacted);
-    expect(encoded).not.toMatch(/secret-token|cred|singlerr|Users\\\\rvs|clip\.aep/i);
+    expect(encoded).not.toMatch(
+      /secret-token|cred|singlerr|Users\\\\rvs|clip\.aep/i,
+    );
     expect(encoded).toMatch(/\[redacted]/);
   });
 });

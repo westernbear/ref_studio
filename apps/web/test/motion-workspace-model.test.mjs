@@ -131,6 +131,7 @@ describe("motion workspace model", () => {
       capabilities: snapshot.backendCapability.capabilities,
       predicateIds: ["scene-spec"],
       knowledgeCardIds: [],
+      knowledgeCards: [],
     });
   });
 

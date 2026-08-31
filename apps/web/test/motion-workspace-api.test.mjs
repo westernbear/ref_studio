@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   MotionWorkspaceApiError,
   patchMotionScene,
+  renderMotionScene,
 } from "../src/app/[locale]/scene-review/motion-workspace-api.ts";
 
 const digest = sha256Hex(fixtureSpec);
@@ -84,5 +85,27 @@ describe("motion workspace API", () => {
     await expect(
       patchMotionScene("job-a", snapshot, operations),
     ).rejects.toEqual(new MotionWorkspaceApiError("INVALID_RESPONSE"));
+  });
+
+  it("sends the selected Adobe device and project on render", async () => {
+    const calls = [];
+    vi.stubGlobal("fetch", async (url, init) => {
+      calls.push({ url, init });
+      return Response.json({
+        state: "QUEUED",
+        sceneDigest: snapshot.sceneDigest,
+      });
+    });
+    await renderMotionScene("job-a", snapshot, {
+      backend: "adobe",
+      deviceId: "device-1",
+      projectId: "project-1",
+    });
+    expect(JSON.parse(calls[0].init.body)).toEqual({
+      schema: "motion-scene-render-v1",
+      backend: "adobe",
+      deviceId: "device-1",
+      projectId: "project-1",
+    });
   });
 });

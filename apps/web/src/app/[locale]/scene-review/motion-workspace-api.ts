@@ -178,9 +178,16 @@ export const rollbackMotionScene = async (
     MotionSceneSnapshotV1Schema,
   );
 
+export type MotionRenderChoice = Readonly<{
+  backend: "native" | "adobe";
+  deviceId?: string;
+  projectId?: string;
+}>;
+
 export const renderMotionScene = async (
   jobId: string,
   snapshot: MotionSceneSnapshotV1,
+  choice: MotionRenderChoice = { backend: "native" },
 ): Promise<void> => {
   await checked(
     await fetch(`${sceneUrl(jobId)}/render`, {
@@ -191,7 +198,13 @@ export const renderMotionScene = async (
         "if-match": snapshot.sceneEtag,
         "idempotency-key": requestId(),
       },
-      body: JSON.stringify({ schema: "motion-scene-render-v1" }),
+      body: JSON.stringify({
+        schema: "motion-scene-render-v1",
+        backend: choice.backend,
+        ...(choice.backend === "adobe"
+          ? { deviceId: choice.deviceId, projectId: choice.projectId }
+          : {}),
+      }),
     }),
     RenderResponseSchema,
   );

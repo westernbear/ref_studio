@@ -33,7 +33,9 @@ import type { UploadStore } from "./uploads.js";
 import { retireWorker, type WorkerStore } from "./workers.js";
 import {
   ensureFreshMotionToolCanary,
+  executeMotionLookupTool,
   listMotionToolCanaries,
+  providerMotionLookupCanaryAdapter,
 } from "./motion-canary.js";
 import { emitMotionEvent } from "../../../packages/contracts/src/motion-observability.js";
 
@@ -915,6 +917,9 @@ export function registerAdminMutation(
               model: settings.model,
               now: store.now(),
               ttlMs: 0,
+              adapter: providerMotionLookupCanaryAdapter(async ({ input }) =>
+                executeMotionLookupTool(db, input.query),
+              ),
             });
             emitMotionEvent("canary.status", correlation || `cor_${key}`, {
               status: canary.status,

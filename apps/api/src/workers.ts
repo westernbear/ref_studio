@@ -58,6 +58,10 @@ import {
   type StoredArtifact,
 } from "./creator-workflow.js";
 import { RESOURCE_BUDGETS } from "../../../packages/contracts/src/resource-budgets.js";
+import {
+  emitMotionEvent,
+  sampleMotionMetric,
+} from "../../../packages/contracts/src/motion-observability.js";
 import type { ReviewStore } from "./reviews.js";
 import {
   MAX_ATTACHMENT_BYTES,
@@ -1149,6 +1153,14 @@ const finishWorkflowJob = (
     )
       return null;
     artifact.report = parsed.data.report;
+    emitMotionEvent("render.duration_memory", `cor_render_${job.id}`, {
+      bytes: parsed.data.report.outputBytes,
+      frames: canvas.frameCount,
+    });
+    emitMotionEvent("package.hash", `cor_render_${job.id}`, {
+      sha256: parsed.data.report.outputSha256,
+    });
+    sampleMotionMetric("render_determinism", 1, { jobId: job.id });
     transition(job, "ASSEMBLING", now);
     transition(job, "AWAITING_T5", now);
     job.progress = {

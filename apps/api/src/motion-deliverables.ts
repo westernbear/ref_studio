@@ -7,6 +7,10 @@ import type {
   StoredArtifact,
 } from "./creator-workflow.js";
 import { currentDeliveryGate } from "./motion-artifact-gate.js";
+import {
+  emitMotionEvent,
+  sampleMotionMetric,
+} from "../../../packages/contracts/src/motion-observability.js";
 
 const body = (artifact: StoredArtifact) =>
   artifact.storagePath
@@ -77,6 +81,12 @@ export function registerMotionDeliverables(
         const artifact =
           gated?.backend === "native" ? gated.scenePackage : null;
         if (!artifact) throw new Error("ARTIFACT_UNAVAILABLE");
+        sampleMotionMetric("package_downloads", 1, { jobId: job.id });
+        emitMotionEvent(
+          "package.hash",
+          String(reply.getHeader("x-correlation-id")),
+          { sha256: artifact.sha256, bytes: artifact.sizeBytes },
+        );
         return reply
           .header("content-type", artifact.contentType)
           .header(

@@ -17,7 +17,10 @@ import {
   verifyMotionScene,
   verifyMotionSceneForJob,
 } from "./motion-operations.js";
-import { sampleMotionMetric } from "../../../packages/contracts/src/motion-observability.js";
+import {
+  emitMotionEvent,
+  sampleMotionMetric,
+} from "../../../packages/contracts/src/motion-observability.js";
 import { registerMotionDeliverables } from "./motion-deliverables.js";
 import { registerMotionSceneCommands } from "./motion-scene-commands.js";
 import {
@@ -41,7 +44,11 @@ const etag = (digest: string): string => `"${digest}"`;
 const fail = (
   reply: FastifyReply,
   error: unknown,
-  predecessor?: { sceneVersion?: number; sceneDigest?: string },
+  predecessor?: {
+    sceneVersion?: number;
+    sceneDigest?: string;
+    artifactId?: string;
+  },
 ): void => {
   const failure =
     error instanceof MotionSceneError
@@ -59,6 +66,9 @@ const fail = (
                 : {}),
               ...(predecessor.sceneDigest
                 ? { sceneDigest: predecessor.sceneDigest }
+                : {}),
+              ...(predecessor.artifactId
+                ? { artifactId: predecessor.artifactId }
                 : {}),
             },
           }
@@ -212,6 +222,11 @@ export function registerMotionScene(
         }
         job.updatedAt = new Date(store.now()).toISOString();
         job.etag = etag(next.sceneDigest);
+        emitMotionEvent(
+          "user.action_result",
+          String(reply.getHeader("x-correlation-id")),
+          { action: "patch", status: "ok", version: next.version },
+        );
         reply.send(committed.response);
       } catch (error) {
         const job = store.jobs.get(
@@ -223,12 +238,22 @@ export function registerMotionScene(
           reply,
           error,
           row
-            ? { sceneVersion: row.version, sceneDigest: row.sceneDigest }
+            ? {
+                sceneVersion: row.version,
+                sceneDigest: row.sceneDigest,
+                ...(job?.artifact?.id ? { artifactId: job.artifact.id } : {}),
+              }
             : undefined,
         );
       }
     },
   );
-  registerMotionSceneCommands(app, store, db, featureFlags.nativeSceneV2);
+  registerMotionSceneCommands(
+    app,
+    store,
+    db,
+    featureFlags.nativeSceneV2,
+    featureFlags.adobeMcp,
+  );
   registerMotionDeliverables(app, store, db);
 }

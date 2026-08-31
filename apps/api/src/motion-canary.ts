@@ -4,7 +4,9 @@ import {
   MOTION_LOOKUP_TOOL_SCHEMA,
   MOTION_LOOKUP_TOOL_SCHEMA_DIGEST,
   MotionKnowledgeCardSchema,
+  lookupMotionKnowledge,
   modelMotionTools,
+  motionKnowledgeCardToCanaryRow,
   ProviderToolCanaryV1Schema,
   type ProviderToolCanaryV1,
 } from "./motion-knowledge.js";
@@ -115,38 +117,57 @@ export function listMotionToolCanaries(
   ).map(toPublic);
 }
 
-/** Host-side adapter: exercises the same lookup surface the model tool will call. */
-export function hostMotionLookupCanaryAdapter(
-  db: Database.Database,
+export type ProviderMotionLookupInvoker = (request: {
+  readonly tool: typeof MOTION_LOOKUP_TOOL_SCHEMA;
+  readonly input: { readonly query: "opacity" };
+  readonly signal: AbortSignal;
+}) => Promise<unknown>;
+
+/**
+ * Provider adapter seam: the canary sends a `motion.lookup` schema call
+ * through the invoker. It does not query the host card table itself.
+ */
+export function providerMotionLookupCanaryAdapter(
+  invokeProvider: ProviderMotionLookupInvoker,
 ): MotionCanaryAdapter {
   return {
-    callTool: async ({ input }) => {
-      const normalized = input.query.normalize("NFKC").trim().toLocaleLowerCase();
-      const row =
-        (db
-          .prepare(
-            `SELECT card.*
-               FROM motion_aliases AS alias
-               JOIN motion_cards AS card ON card.id = alias.card_id
-              WHERE alias.alias = ? COLLATE NOCASE
-              LIMIT 1`,
-          )
-          .get(normalized) as Record<string, unknown> | undefined) ??
-        (db
-          .prepare(`SELECT * FROM motion_cards WHERE id = ? LIMIT 1`)
-          .get(normalized) as Record<string, unknown> | undefined) ??
-        (db
-          .prepare(`SELECT * FROM motion_cards ORDER BY id LIMIT 1`)
-          .get() as Record<string, unknown> | undefined);
-      if (!row) throw new Error("MOTION_KNOWLEDGE_NOT_FOUND");
-      return row;
+    callTool: async ({ tool, input, signal }) => {
+      if (tool.name !== "motion.lookup") throw new Error("UNKNOWN_TOOL");
+      z.object({ query: z.string().min(1) })
+        .strict()
+        .parse(input);
+      return invokeProvider({
+        tool: MOTION_LOOKUP_TOOL_SCHEMA,
+        input: { query: "opacity" },
+        signal,
+      });
     },
   };
 }
 
+/** Same execute path the production model tool uses after the provider calls it. */
+export function executeMotionLookupTool(
+  db: Database.Database,
+  query: string,
+): Record<string, unknown> {
+  const cards = lookupMotionKnowledge(db, query);
+  const card = cards[0];
+  if (!card) throw new Error("MOTION_KNOWLEDGE_NOT_FOUND");
+  return motionKnowledgeCardToCanaryRow(card);
+}
+
+/** Host-side adapter kept for fixtures that intentionally skip the provider seam. */
+export function hostMotionLookupCanaryAdapter(
+  db: Database.Database,
+): MotionCanaryAdapter {
+  return providerMotionLookupCanaryAdapter(async ({ input }) =>
+    executeMotionLookupTool(db, input.query),
+  );
+}
+
 /**
  * Production admission helper: reuse a fresh PASS, otherwise execute the canary
- * via the provided adapter (defaults to host lookup) and persist the result.
+ * via the provided adapter. Callers must supply a provider adapter.
  */
 export async function ensureFreshMotionToolCanary(params: {
   readonly db: Database.Database;
@@ -156,7 +177,7 @@ export async function ensureFreshMotionToolCanary(params: {
   readonly now: number;
   readonly ttlMs: number;
   readonly timeoutMs?: number;
-  readonly adapter?: MotionCanaryAdapter;
+  readonly adapter: MotionCanaryAdapter;
 }): Promise<MotionCanaryPublic> {
   const identity = {
     tenantId: params.tenantId,
@@ -172,7 +193,7 @@ export async function ensureFreshMotionToolCanary(params: {
   return runMotionToolCanary({
     db: params.db,
     ...identity,
-    adapter: params.adapter ?? hostMotionLookupCanaryAdapter(params.db),
+    adapter: params.adapter,
     now: params.now,
     timeoutMs: params.timeoutMs ?? 5_000,
   });

@@ -25,15 +25,37 @@ const header = (request: FastifyRequest, name: string): string | undefined => {
   const value = request.headers[name];
   return typeof value === "string" ? value : undefined;
 };
-const fail = (reply: FastifyReply, code: string, status = 400): void => {
-  reply
-    .code(status)
-    .send(
-      safeEnvelope(
-        new Error(code),
-        String(reply.getHeader("x-correlation-id")),
-      ),
-    );
+const fail = (
+  reply: FastifyReply,
+  code: string,
+  status = 400,
+  predecessor?: {
+    sceneVersion?: number;
+    sceneDigest?: string;
+    artifactId?: string;
+  },
+): void => {
+  reply.code(status).send(
+    safeEnvelope(new Error(code), String(reply.getHeader("x-correlation-id")), {
+      ...(predecessor?.sceneDigest ||
+      predecessor?.sceneVersion !== undefined ||
+      predecessor?.artifactId
+        ? {
+            safePredecessor: {
+              ...(predecessor.sceneVersion !== undefined
+                ? { sceneVersion: predecessor.sceneVersion }
+                : {}),
+              ...(predecessor.sceneDigest
+                ? { sceneDigest: predecessor.sceneDigest }
+                : {}),
+              ...(predecessor.artifactId
+                ? { artifactId: predecessor.artifactId }
+                : {}),
+            },
+          }
+        : {}),
+    }),
+  );
 };
 const statusFor = (code: string): number =>
   code === "RESOURCE_NOT_FOUND"
@@ -570,7 +592,18 @@ export function registerRefinePrompt(
         reply.code(replay.response[0]).send(replay.response[1]);
       } catch (error) {
         const code = error instanceof Error ? error.message : "INTERNAL_ERROR";
-        fail(reply, code, statusFor(code));
+        const failedJob = store.jobs.get(
+          (request as FastifyRequest<{ Params: { jobId?: string } }>).params
+            .jobId ?? "",
+        );
+        fail(reply, code, statusFor(code), {
+          ...(failedJob?.sceneSpecDigest
+            ? { sceneDigest: failedJob.sceneSpecDigest }
+            : {}),
+          ...(failedJob?.artifact?.id
+            ? { artifactId: failedJob.artifact.id }
+            : {}),
+        });
       }
     },
   );
@@ -620,7 +653,18 @@ export function registerRefinePrompt(
         reply.code(replay.response[0]).send(replay.response[1]);
       } catch (error) {
         const code = error instanceof Error ? error.message : "INTERNAL_ERROR";
-        fail(reply, code, statusFor(code));
+        const failedJob = store.jobs.get(
+          (request as FastifyRequest<{ Params: { jobId?: string } }>).params
+            .jobId ?? "",
+        );
+        fail(reply, code, statusFor(code), {
+          ...(failedJob?.sceneSpecDigest
+            ? { sceneDigest: failedJob.sceneSpecDigest }
+            : {}),
+          ...(failedJob?.artifact?.id
+            ? { artifactId: failedJob.artifact.id }
+            : {}),
+        });
       }
     },
   );
@@ -708,7 +752,18 @@ export function registerRefinePrompt(
         reply.code(replay.response[0]).send(replay.response[1]);
       } catch (error) {
         const code = error instanceof Error ? error.message : "INTERNAL_ERROR";
-        fail(reply, code, statusFor(code));
+        const failedJob = store.jobs.get(
+          (request as FastifyRequest<{ Params: { jobId?: string } }>).params
+            .jobId ?? "",
+        );
+        fail(reply, code, statusFor(code), {
+          ...(failedJob?.sceneSpecDigest
+            ? { sceneDigest: failedJob.sceneSpecDigest }
+            : {}),
+          ...(failedJob?.artifact?.id
+            ? { artifactId: failedJob.artifact.id }
+            : {}),
+        });
       }
     },
   );
