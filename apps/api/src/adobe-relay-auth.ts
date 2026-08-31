@@ -9,9 +9,8 @@ import {
   canonicalJson,
   sha256Hex,
 } from "../../../packages/contracts/src/canonical-json.js";
-import {
-  RESOURCE_BUDGETS,
-} from "../../../packages/contracts/src/resource-budgets.js";
+import { RESOURCE_BUDGETS } from "../../../packages/contracts/src/resource-budgets.js";
+import { emitMotionEvent } from "../../../packages/contracts/src/motion-observability.js";
 import {
   AdobeRelayFailure,
   type AdobeGatewayStore,
@@ -69,7 +68,11 @@ export const verifyAdobeRelay = (
         : AdobeCommandEnvelopeV1Schema.parse(undefined);
   if (binding.deviceId !== key.deviceId)
     throw new AdobeRelayFailure("ADOBE_RELAY_BINDING_REJECTED");
-  if (!store.consumeNonce(key.deviceId, signature.keyId, signature.nonce))
+  if (!store.consumeNonce(key.deviceId, signature.keyId, signature.nonce)) {
+    emitMotionEvent("adobe.replay_reject", signature.requestId, {
+      deviceId: key.deviceId,
+    });
     throw new AdobeRelayFailure("ADOBE_RELAY_REPLAY");
+  }
   return { tenantId: key.tenantId, deviceId: key.deviceId };
 };

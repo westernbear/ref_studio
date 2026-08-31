@@ -480,7 +480,12 @@ const schemas = {
     ["schema", "version"],
   ),
   MotionSceneRenderV1: object(
-    { schema: { type: "string", const: "motion-scene-render-v1" } },
+    {
+      schema: { type: "string", const: "motion-scene-render-v1" },
+      backend: { type: "string", enum: ["native", "adobe"] },
+      deviceId: string(),
+      projectId: string(),
+    },
     ["schema"],
   ),
   MotionSceneSnapshotV1: object(
@@ -498,6 +503,29 @@ const schemas = {
       artifactDigest: { type: ["string", "null"], pattern: "^[a-f0-9]{64}$" },
       predicateIds: { type: "array", items: string() },
       knowledgeCardIds: { type: "array", items: string(), maxItems: 15 },
+      knowledgeCards: {
+        type: "array",
+        maxItems: 15,
+        items: object(
+          {
+            id: string(),
+            domain: string(),
+            titleEn: string(),
+            titleKo: string(),
+          },
+          ["id", "domain", "titleEn", "titleKo"],
+        ),
+      },
+      adobeDevices: {
+        type: "array",
+        maxItems: 32,
+        items: object({ id: string(), label: string() }, ["id", "label"]),
+      },
+      adobeProjects: {
+        type: "array",
+        maxItems: 32,
+        items: object({ id: string(), label: string() }, ["id", "label"]),
+      },
     },
     [
       "schema",
@@ -513,6 +541,9 @@ const schemas = {
       "artifactDigest",
       "predicateIds",
       "knowledgeCardIds",
+      "knowledgeCards",
+      "adobeDevices",
+      "adobeProjects",
     ],
   ),
   DeliverablesV1: object(
@@ -534,6 +565,34 @@ const schemas = {
       },
     },
     ["backend", "items"],
+  ),
+  MotionObservabilitySnapshot: object(
+    {
+      dashboard: object(
+        {
+          schema: {
+            type: "string",
+            const: "motion-observability-dashboard-v1",
+          },
+          panels: {
+            type: "array",
+            items: object(
+              {
+                metric: string(),
+                kind: { type: "string", enum: ["histogram", "counter"] },
+                title: string(),
+              },
+              ["metric", "kind", "title"],
+            ),
+          },
+        },
+        ["schema", "panels"],
+      ),
+      events: { type: "array", items: { type: "object" } },
+      metrics: { type: "array", items: { type: "object" } },
+      histograms: { type: "array", items: { type: "object" } },
+    },
+    ["dashboard", "events", "metrics", "histograms"],
   ),
   FeatureFlagSnapshot: object(
     {
@@ -684,6 +743,18 @@ const document = {
             ...json(ref("AdobeCommandStatusV1")),
           },
           404: { description: "Not found", ...json(ref("SafeErrorEnvelope")) },
+        },
+      },
+    },
+    "/admin/motion-observability": {
+      get: {
+        operationId: "getMotionObservability",
+        responses: {
+          200: {
+            description: "In-process motion dashboard, events, and histograms",
+            ...json(ref("MotionObservabilitySnapshot")),
+          },
+          403: { description: "Forbidden", ...json(ref("SafeErrorEnvelope")) },
         },
       },
     },

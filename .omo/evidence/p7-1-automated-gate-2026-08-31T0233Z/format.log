@@ -1,0 +1,5 @@
+Checking formatting...
+[ELIFECYCLE] Command failed with exit code 1.
+$ prettier --check --ignore-unknown --no-error-on-unmatched-pattern '*.*' 'apps/*/*.*' 'apps/*/{compiler,database,scripts,src,test}/**/*' 'compiler/**/*' 'dist/**/*' 'docs/**/*' 'examples/**/*' 'packages/**/*' 'runtime/**/*' 'scripts/**/*' 'tests/**/*' 'verification/**/*'
+[warn] scripts/qa/stamp-p7-1.mjs
+[warn] Code style issues found in the above file. Run Prettier with --write to fix.

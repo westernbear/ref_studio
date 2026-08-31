@@ -147,6 +147,21 @@ export type Job = {
   // gen-render call) has something to act on without re-deriving it. Null
   // until the first patch; a restore-track job never sets it.
   lastPatchChangedBeatIds: readonly string[] | null;
+  motionRenderRequest?: {
+    readonly backend: "native" | "adobe";
+    readonly deviceId?: string;
+    readonly projectId?: string;
+  };
+  adobeCatalog?: {
+    readonly devices: readonly {
+      readonly id: string;
+      readonly label: string;
+    }[];
+    readonly projects: readonly {
+      readonly id: string;
+      readonly label: string;
+    }[];
+  };
   progress: {
     phase: "prepare" | "render";
     stage: string;
@@ -1073,15 +1088,37 @@ export function autoApproveT5(
   if (attempt) attempt.state = "COMPLETED";
   job.failureCode = null;
 }
-const fail = (reply: FastifyReply, code: string, status = 400): void => {
-  reply
-    .code(status)
-    .send(
-      safeEnvelope(
-        new Error(code),
-        String(reply.getHeader("x-correlation-id")),
-      ),
-    );
+const fail = (
+  reply: FastifyReply,
+  code: string,
+  status = 400,
+  predecessor?: {
+    sceneVersion?: number;
+    sceneDigest?: string;
+    artifactId?: string;
+  },
+): void => {
+  reply.code(status).send(
+    safeEnvelope(new Error(code), String(reply.getHeader("x-correlation-id")), {
+      ...(predecessor?.sceneDigest ||
+      predecessor?.sceneVersion !== undefined ||
+      predecessor?.artifactId
+        ? {
+            safePredecessor: {
+              ...(predecessor.sceneVersion !== undefined
+                ? { sceneVersion: predecessor.sceneVersion }
+                : {}),
+              ...(predecessor.sceneDigest
+                ? { sceneDigest: predecessor.sceneDigest }
+                : {}),
+              ...(predecessor.artifactId
+                ? { artifactId: predecessor.artifactId }
+                : {}),
+            },
+          }
+        : {}),
+    }),
+  );
 };
 const artifactBody = (artifact: StoredArtifact) =>
   artifact.storagePath
@@ -1568,10 +1605,21 @@ export function registerCreatorWorkflow(
         );
         reply.code(result[0]).send(result[1]);
       } catch (error) {
+        const failed = store.jobs.get(request.params.jobId);
         fail(
           reply,
           error instanceof Error ? error.message : "INTERNAL_ERROR",
           409,
+          failed
+            ? {
+                ...(failed.sceneSpecDigest
+                  ? { sceneDigest: failed.sceneSpecDigest }
+                  : {}),
+                ...(failed.artifact?.id
+                  ? { artifactId: failed.artifact.id }
+                  : {}),
+              }
+            : undefined,
         );
       }
     },

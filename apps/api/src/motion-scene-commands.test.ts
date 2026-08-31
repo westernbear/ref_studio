@@ -579,4 +579,269 @@ describe("motion scene commands", () => {
     expect(refined.statusCode, refined.body).toBe(200);
     expect(refined.json().summary).toBe("Updated the opening title");
   });
+
+  it("rejects PATCH when the job plan requests beat-tiling and the scene does not tile", async () => {
+    const jobId = await createCompletedGeneratedJob(fixture);
+    const job = fixture.workflow.jobs.get(jobId);
+    if (!job?.authoredScene?.motionPlan)
+      throw new Error("fixture plan missing");
+    job.authoredScene = {
+      ...job.authoredScene,
+      motionPlan: {
+        ...job.authoredScene.motionPlan,
+        predicateIds: [
+          "beat-tiling",
+          "adobe-readback",
+          "element-kind-capability",
+        ],
+      },
+    };
+    const current = await fixture.app.inject({
+      method: "GET",
+      url: `/v1/jobs/${jobId}/motion-scene`,
+      headers,
+    });
+    const denied = await fixture.app.inject({
+      method: "PATCH",
+      url: `/v1/jobs/${jobId}/motion-scene`,
+      headers: {
+        ...headers,
+        "if-match": current.json().sceneEtag,
+        "idempotency-key": "beat-tiling-reject",
+      },
+      payload: {
+        schema: "scene-operation-batch-v1",
+        baseSceneDigest: current.json().sceneDigest,
+        operations: [
+          {
+            kind: "set",
+            opId: "set-hero",
+            path: "/palette/hero",
+            value: "#6633ee",
+            reason: "must evaluate plan predicates including adobe-readback",
+          },
+        ],
+      },
+    });
+    expect(denied.statusCode).toBe(409);
+    expect(denied.json().error.code).toBe("SCENE_VERIFICATION_FAILED");
+  });
+
+  it("assigns unique monotonic versions under concurrent PATCH", async () => {
+    const jobId = await createCompletedGeneratedJob(fixture);
+    const initial = await fixture.app.inject({
+      method: "GET",
+      url: `/v1/jobs/${jobId}/motion-scene`,
+      headers,
+    });
+    const payload = (value: string, opId: string) => ({
+      schema: "scene-operation-batch-v1",
+      baseSceneDigest: initial.json().sceneDigest,
+      operations: [
+        {
+          kind: "set",
+          opId,
+          path: "/palette/hero",
+          value,
+          reason: "concurrent uniqueness",
+        },
+      ],
+    });
+    const [first, second] = await Promise.all([
+      fixture.app.inject({
+        method: "PATCH",
+        url: `/v1/jobs/${jobId}/motion-scene`,
+        headers: {
+          ...headers,
+          "if-match": initial.json().sceneEtag,
+          "idempotency-key": "concurrent-a",
+        },
+        payload: payload("#111111", "set-a"),
+      }),
+      fixture.app.inject({
+        method: "PATCH",
+        url: `/v1/jobs/${jobId}/motion-scene`,
+        headers: {
+          ...headers,
+          "if-match": initial.json().sceneEtag,
+          "idempotency-key": "concurrent-b",
+        },
+        payload: payload("#222222", "set-b"),
+      }),
+    ]);
+    const codes = [first.statusCode, second.statusCode].sort();
+    expect(codes).toEqual([200, 409]);
+    const versions = fixture.db
+      .prepare("SELECT version FROM motion_scene_versions ORDER BY version")
+      .pluck()
+      .all();
+    expect(new Set(versions).size).toBe(versions.length);
+    expect(versions.at(-1)).toBe(2);
+  });
+
+  it.each(
+    [false, true].flatMap((verifiedMotionAuthoring) =>
+      [false, true].flatMap((nativeSceneV2) =>
+        [false, true].map((adobeMcp) => [
+          verifiedMotionAuthoring,
+          nativeSceneV2,
+          adobeMcp,
+        ]),
+      ),
+    ),
+  )(
+    "keeps reads when flags are %s/%s/%s and only admits writes for enabled flags",
+    async (verifiedMotionAuthoring, nativeSceneV2, adobeMcp) => {
+      await fixture.app.close();
+      fixture.db.close();
+      fixture = createMotionCommandFixture(directory, {
+        featureFlags: {
+          verifiedMotionAuthoring,
+          nativeSceneV2,
+          adobeMcp,
+        },
+        patchSceneGenerate: async () => ({
+          object: {
+            spec: {
+              ...fixtureSpec,
+              palette: { ...fixtureSpec.palette, hero: "#6633ee" },
+            },
+            summary: "Updated the opening title",
+          },
+        }),
+      });
+      const jobId = await createCompletedGeneratedJob(fixture);
+      const current = await fixture.app.inject({
+        method: "GET",
+        url: `/v1/jobs/${jobId}/motion-scene`,
+        headers,
+      });
+      expect(current.statusCode).toBe(200);
+      const before = fixture.db
+        .prepare("SELECT COUNT(*) AS count FROM idempotency_keys")
+        .get() as { count: number };
+      const rendered = await fixture.app.inject({
+        method: "POST",
+        url: `/v1/jobs/${jobId}/motion-scene/render`,
+        headers: {
+          ...headers,
+          "if-match": current.json().sceneEtag,
+          "idempotency-key": `flag-render-${verifiedMotionAuthoring}-${nativeSceneV2}-${adobeMcp}`,
+        },
+        payload: { schema: "motion-scene-render-v1" },
+      });
+      const job = fixture.workflow.jobs.get(jobId);
+      if (job) job.state = "COMPLETED";
+      const adobeRendered = await fixture.app.inject({
+        method: "POST",
+        url: `/v1/jobs/${jobId}/motion-scene/render`,
+        headers: {
+          ...headers,
+          "if-match": current.json().sceneEtag,
+          "idempotency-key": `flag-adobe-${verifiedMotionAuthoring}-${nativeSceneV2}-${adobeMcp}`,
+        },
+        payload: {
+          schema: "motion-scene-render-v1",
+          backend: "adobe",
+          deviceId: "device-flag",
+          projectId: `job:${jobId}`,
+        },
+      });
+      if (job) job.state = "COMPLETED";
+      const patched = await fixture.app.inject({
+        method: "PATCH",
+        url: `/v1/jobs/${jobId}/motion-scene`,
+        headers: {
+          ...headers,
+          "if-match": current.json().sceneEtag,
+          "idempotency-key": `flag-patch-${verifiedMotionAuthoring}-${nativeSceneV2}-${adobeMcp}`,
+        },
+        payload: {
+          schema: "scene-operation-batch-v1",
+          baseSceneDigest: current.json().sceneDigest,
+          operations: [
+            {
+              kind: "set",
+              opId: "flag-hero",
+              path: "/palette/hero",
+              value: "#6633ee",
+              reason: "flag matrix",
+            },
+          ],
+        },
+      });
+      if (job) job.state = "COMPLETED";
+      const afterPatch = await fixture.app.inject({
+        method: "GET",
+        url: `/v1/jobs/${jobId}/motion-scene`,
+        headers,
+      });
+      const refined = await fixture.app.inject({
+        method: "POST",
+        url: `/v1/jobs/${jobId}/refine-prompt`,
+        headers: {
+          ...headers,
+          "if-match": afterPatch.json().sceneEtag,
+          "idempotency-key": `flag-refine-${verifiedMotionAuthoring}-${nativeSceneV2}-${adobeMcp}`,
+        },
+        payload: { prompt: "Brighten the hero title" },
+      });
+      if (job) job.state = "COMPLETED";
+      const afterRefine = await fixture.app.inject({
+        method: "GET",
+        url: `/v1/jobs/${jobId}/motion-scene`,
+        headers,
+      });
+      const rolled = await fixture.app.inject({
+        method: "POST",
+        url: `/v1/jobs/${jobId}/motion-scene/rollback`,
+        headers: {
+          ...headers,
+          "if-match": afterRefine.json().sceneEtag,
+          "idempotency-key": `flag-rollback-${verifiedMotionAuthoring}-${nativeSceneV2}-${adobeMcp}`,
+        },
+        payload: { schema: "motion-scene-rollback-v1", version: 1 },
+      });
+      const after = fixture.db
+        .prepare("SELECT COUNT(*) AS count FROM idempotency_keys")
+        .get() as { count: number };
+      expect(patched.statusCode, patched.body).toBe(nativeSceneV2 ? 200 : 403);
+      expect(rendered.statusCode, rendered.body).toBe(
+        nativeSceneV2 ? 202 : 403,
+      );
+      expect(adobeRendered.statusCode, adobeRendered.body).toBe(
+        nativeSceneV2 && adobeMcp ? 400 : 403,
+      );
+      expect(refined.statusCode, refined.body).toBe(
+        verifiedMotionAuthoring && nativeSceneV2 ? 200 : 403,
+      );
+      expect(rolled.statusCode, rolled.body).toBe(nativeSceneV2 ? 200 : 403);
+      if (!nativeSceneV2) expect(after.count).toBe(before.count);
+    },
+  );
+
+  it("surfaces enrolled Adobe devices and a job working-copy project on the scene snapshot", async () => {
+    const jobId = await createCompletedGeneratedJob(fixture);
+    fixture.db
+      .prepare(
+        "INSERT INTO adobe_devices(id,tenant_id,name,status,created_at_ms) VALUES (?,?,?,'ENROLLED',?)",
+      )
+      .run("device-ready", "ten_a", "Studio Mac", 1_000);
+    const current = await fixture.app.inject({
+      method: "GET",
+      url: `/v1/jobs/${jobId}/motion-scene`,
+      headers,
+    });
+    expect(current.statusCode, current.body).toBe(200);
+    expect(current.json().adobeDevices).toEqual([
+      { id: "device-ready", label: "Studio Mac" },
+    ]);
+    expect(current.json().adobeProjects).toEqual([
+      { id: `job:${jobId}`, label: "Working copy" },
+    ]);
+    expect(current.json().backendCapability.capabilities).toEqual(
+      expect.arrayContaining(["ENROLLED", "READY"]),
+    );
+    expect(current.json().backendCapability.backend).toBe("native");
+  });
 });

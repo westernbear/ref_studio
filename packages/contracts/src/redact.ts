@@ -24,14 +24,11 @@ export const redactSensitive = (value: unknown): RedactedValue => {
   if (value === null || typeof value === "number" || typeof value === "boolean")
     return value;
   if (typeof value === "string") return redactString(value);
-  if (Array.isArray(value))
-    return value.map((entry) => redactSensitive(entry));
+  if (Array.isArray(value)) return value.map((entry) => redactSensitive(entry));
   if (typeof value === "object") {
     const out: Record<string, RedactedValue> = {};
     for (const [key, entry] of Object.entries(value)) {
-      out[key] = SECRET_KEY.test(key)
-        ? "[redacted]"
-        : redactSensitive(entry);
+      out[key] = SECRET_KEY.test(key) ? "[redacted]" : redactSensitive(entry);
     }
     return out;
   }

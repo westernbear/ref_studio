@@ -9,9 +9,7 @@ import {
 } from "../../../packages/contracts/src/motion.js";
 import { sha256Hex } from "../../../packages/contracts/src/canonical-json.js";
 import { SceneSpecSchema } from "../../../packages/contracts/src/scene-spec.js";
-import {
-  setMotionObservabilitySink,
-} from "../../../packages/contracts/src/motion-observability.js";
+import { setMotionObservabilitySink } from "../../../packages/contracts/src/motion-observability.js";
 import { IdempotencyStore } from "./boundary.js";
 import type {
   AdminAudit,

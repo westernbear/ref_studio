@@ -12,6 +12,10 @@ import type { CodexAuth } from "./codex-oauth.js";
 import { safeEnvelope } from "./boundary.js";
 import type { WorkerStore } from "./workers.js";
 import type { FeatureFlagSnapshot } from "./feature-flags.js";
+import {
+  MOTION_OBSERVABILITY_DASHBOARD,
+  motionObservabilitySnapshot,
+} from "../../../packages/contracts/src/motion-observability.js";
 
 export type AdminTenant = {
   readonly id: string;
@@ -696,6 +700,24 @@ export function registerAdminRead(
         reply.send(page(items, query));
         return;
       }
+      if (path === "/admin/motion-observability") {
+        if (adminRole(principal) !== "SUPER_ADMIN")
+          throw new Error("ROLE_NOT_PERMITTED");
+        auth.audit({
+          action: "MOTION_OBSERVABILITY_VIEWED",
+          userId: principal.userId,
+          tenantId: null,
+          decision: "ALLOWED",
+        });
+        const snapshot = motionObservabilitySnapshot();
+        reply.send({
+          dashboard: MOTION_OBSERVABILITY_DASHBOARD,
+          events: snapshot.events,
+          metrics: snapshot.metrics,
+          histograms: snapshot.histograms,
+        });
+        return;
+      }
       if (path === "/admin/feature-flags") {
         if (adminRole(principal) !== "SUPER_ADMIN")
           throw new Error("ROLE_NOT_PERMITTED");
@@ -775,5 +797,6 @@ export function registerAdminRead(
   app.get("/admin/ai-provider-models", handler);
   app.get("/admin/material-provider-models", handler);
   app.get("/admin/motion-provider-canaries", handler);
+  app.get("/admin/motion-observability", handler);
   app.get("/admin/feature-flags", handler);
 }

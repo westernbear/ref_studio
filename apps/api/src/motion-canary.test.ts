@@ -219,9 +219,111 @@ describe("ensureFreshMotionToolCanary", () => {
       adapter: adapter(validCard),
     });
     expect(canary.status).toBe("PASS");
-    expect(
-      modelMotionTools(canary, canary, now + 1, 600_000),
-    ).toEqual(["motion.lookup"]);
+    expect(modelMotionTools(canary, canary, now + 1, 600_000)).toEqual([
+      "motion.lookup",
+    ]);
+    db.close();
+  });
+
+  it("re-runs the provider adapter when a PASS expires", async () => {
+    const { ensureFreshMotionToolCanary, providerMotionLookupCanaryAdapter } =
+      await import("./motion-canary.js");
+    const db = openApiDatabase(":memory:");
+    const now = Date.parse("2026-08-30T00:00:00Z");
+    let calls = 0;
+    const provider = providerMotionLookupCanaryAdapter(async ({ tool }) => {
+      calls += 1;
+      expect(tool.name).toBe("motion.lookup");
+      return validCard;
+    });
+    await ensureFreshMotionToolCanary({
+      db,
+      ...identity,
+      now,
+      ttlMs: 1_000,
+      adapter: provider,
+    });
+    const refreshed = await ensureFreshMotionToolCanary({
+      db,
+      ...identity,
+      now: now + 1_001,
+      ttlMs: 1_000,
+      adapter: provider,
+    });
+    expect(calls).toBe(2);
+    expect(refreshed.status).toBe("PASS");
+    db.close();
+  });
+});
+
+describe("liveProviderMotionLookupCanaryAdapter", () => {
+  it("requires the provider to take the motion.lookup tool channel", async () => {
+    const { liveProviderMotionLookupCanaryAdapter, runMotionToolCanary } =
+      await import("./motion-canary.js");
+    const db = openApiDatabase(":memory:");
+    let toolChoice: unknown;
+    const adapter = liveProviderMotionLookupCanaryAdapter({
+      db,
+      model: {} as never,
+      generate: async (options) => {
+        toolChoice = options.toolChoice;
+        const lookup = options.tools["motion.lookup"];
+        if (
+          lookup &&
+          "execute" in lookup &&
+          typeof lookup.execute === "function"
+        )
+          await lookup.execute(
+            { query: "opacity" },
+            {
+              toolCallId: "canary",
+              messages: [],
+              abortSignal: options.abortSignal,
+            },
+          );
+        return { object: validCard };
+      },
+    });
+    const canary = await runMotionToolCanary({
+      db,
+      ...identity,
+      adapter,
+      now: 0,
+      timeoutMs: 200,
+    });
+    expect(toolChoice).toEqual({ type: "tool", toolName: "motion.lookup" });
+    expect(canary.status).toBe("PASS");
+    db.close();
+  });
+});
+
+describe("providerMotionLookupCanaryAdapter", () => {
+  it("forwards the schema-shaped motion.lookup call and does not accept a raw SQL row", async () => {
+    const { providerMotionLookupCanaryAdapter, runMotionToolCanary } =
+      await import("./motion-canary.js");
+    const db = openApiDatabase(":memory:");
+    let seen: unknown;
+    const adapter = providerMotionLookupCanaryAdapter(async (request) => {
+      seen = request.tool;
+      return validCard;
+    });
+    const canary = await runMotionToolCanary({
+      db,
+      ...identity,
+      adapter,
+      now: 0,
+      timeoutMs: 100,
+    });
+    expect(seen).toEqual({
+      name: "motion.lookup",
+      input: {
+        type: "object",
+        properties: { query: { type: "string", minLength: 1 } },
+        required: ["query"],
+        additionalProperties: false,
+      },
+    });
+    expect(canary.status).toBe("PASS");
     db.close();
   });
 });

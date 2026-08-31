@@ -139,14 +139,16 @@ const docsUrlFor = (code: ErrorCode): string => `/docs/errors#${code}`;
 const DEFAULT_ENTRY: ErrorCatalogEntry = {
   message: "The request could not be completed.",
   causeCategory: "internal",
-  remediation: "Retry once. If it fails again, contact support with the correlation ID.",
+  remediation:
+    "Retry once. If it fails again, contact support with the correlation ID.",
 };
 
 const CATALOG: Readonly<Partial<Record<ErrorCode, ErrorCatalogEntry>>> = {
   INTERNAL_ERROR: {
     message: "Something went wrong. Try again later.",
     causeCategory: "internal",
-    remediation: "Retry later. If it persists, contact support with the correlation ID.",
+    remediation:
+      "Retry later. If it persists, contact support with the correlation ID.",
   },
   INVALID_REQUEST: {
     message: "The request body or headers are invalid.",
@@ -166,7 +168,8 @@ const CATALOG: Readonly<Partial<Record<ErrorCode, ErrorCatalogEntry>>> = {
   SCENE_VERIFICATION_FAILED: {
     message: "Scene verification failed before publish.",
     causeCategory: "verification",
-    remediation: "Review failed predicates, repair the scene, and retry within four attempts.",
+    remediation:
+      "Review failed predicates, repair the scene, and retry within four attempts.",
   },
   IDEMPOTENCY_CONFLICT: {
     message: "This idempotency key was reused with a different request body.",
@@ -176,7 +179,8 @@ const CATALOG: Readonly<Partial<Record<ErrorCode, ErrorCatalogEntry>>> = {
   MOTION_AUTHORING_DISABLED: {
     message: "Verified motion authoring is not accepting new changes.",
     causeCategory: "capability",
-    remediation: "Use Native read-only views or enable verified authoring, then retry.",
+    remediation:
+      "Use Native read-only views or enable verified authoring, then retry.",
   },
   MOTION_KNOWLEDGE_NOT_FOUND: {
     message: "No supported motion knowledge matched the brief.",
@@ -186,7 +190,8 @@ const CATALOG: Readonly<Partial<Record<ErrorCode, ErrorCatalogEntry>>> = {
   MOTION_CANARY_REQUIRED: {
     message: "Provider tool canary admission is required.",
     causeCategory: "capability",
-    remediation: "Keep Native available; re-run canary after the provider is configured.",
+    remediation:
+      "Keep Native available; re-run canary after the provider is configured.",
   },
   MOTION_CANARY_EXPIRED: {
     message: "Provider tool canary admission has expired.",
@@ -196,7 +201,8 @@ const CATALOG: Readonly<Partial<Record<ErrorCode, ErrorCatalogEntry>>> = {
   MOTION_CANARY_FAILED: {
     message: "Provider tool canary admission failed.",
     causeCategory: "capability",
-    remediation: "Fix the provider, re-run canary, and keep Adobe locked until it passes.",
+    remediation:
+      "Fix the provider, re-run canary, and keep Adobe locked until it passes.",
   },
   MOTION_PLAN_INVALID: {
     message: "The motion plan failed schema or allowlist checks.",
@@ -246,7 +252,8 @@ const CATALOG: Readonly<Partial<Record<ErrorCode, ErrorCatalogEntry>>> = {
   PACKAGE_INTEGRITY_FAILED: {
     message: "The scene package failed integrity verification.",
     causeCategory: "verification",
-    remediation: "Rebuild the full package; the previous package remains available.",
+    remediation:
+      "Rebuild the full package; the previous package remains available.",
   },
   RENDER_CANCELLED: {
     message: "Rendering was cancelled.",
@@ -256,17 +263,20 @@ const CATALOG: Readonly<Partial<Record<ErrorCode, ErrorCatalogEntry>>> = {
   BLENDER_BUDGET_EXCEEDED: {
     message: "The 3D asset exceeded the Blender resource budget.",
     causeCategory: "quota",
-    remediation: "Simplify triangles, materials, or textures, or use Native 2D.",
+    remediation:
+      "Simplify triangles, materials, or textures, or use Native 2D.",
   },
   RESOURCE_BUDGET_EXCEEDED: {
     message: "A resource budget was exceeded before mutation.",
     causeCategory: "quota",
-    remediation: "Reduce scene size, operations, frames, or package bytes and retry.",
+    remediation:
+      "Reduce scene size, operations, frames, or package bytes and retry.",
   },
   NETWORK_INTERRUPTED: {
     message: "The connection was interrupted.",
     causeCategory: "network",
-    remediation: "Retry with the same idempotency key if the request was mutating.",
+    remediation:
+      "Retry with the same idempotency key if the request was mutating.",
   },
   QUOTA_EXCEEDED: {
     message: "The tenant quota was exceeded.",
@@ -311,7 +321,8 @@ const CATALOG: Readonly<Partial<Record<ErrorCode, ErrorCatalogEntry>>> = {
   ADOBE_AE_READBACK_FAILED: {
     message: "After Effects readback failed for the command.",
     causeCategory: "adobe",
-    remediation: "Inspect the working copy, then retry after manual verification.",
+    remediation:
+      "Inspect the working copy, then retry after manual verification.",
   },
   ADOBE_CRASH_RECOVERY: {
     message: "Adobe spool recovered after a crash or lease expiry.",
@@ -341,7 +352,8 @@ const CATALOG: Readonly<Partial<Record<ErrorCode, ErrorCatalogEntry>>> = {
   CANCEL_REQUESTED: {
     message: "The operation was cancelled.",
     causeCategory: "verification",
-    remediation: "The previous safe artifact remains; start a new explicit run.",
+    remediation:
+      "The previous safe artifact remains; start a new explicit run.",
   },
 };
 

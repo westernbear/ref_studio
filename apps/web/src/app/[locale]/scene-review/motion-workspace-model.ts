@@ -36,9 +36,7 @@ export const workspaceMessage = (
       text,
       ...(remediation ? { remediation } : {}),
       ...(extras?.docsUrl ? { docsUrl: extras.docsUrl } : {}),
-      ...(extras?.causeCategory
-        ? { causeCategory: extras.causeCategory }
-        : {}),
+      ...(extras?.causeCategory ? { causeCategory: extras.causeCategory } : {}),
     };
   return { id: crypto.randomUUID(), role, text };
 };
@@ -191,6 +189,14 @@ export const tabIndexForKey = (
   return null;
 };
 
+export const adobeBackendReady = (snapshot: MotionSceneSnapshotV1): boolean =>
+  snapshot.backendCapability.capabilities.includes("ENROLLED") &&
+  snapshot.backendCapability.capabilities.includes("READY");
+
+export const defaultMotionBackend = (
+  snapshot: MotionSceneSnapshotV1,
+): "native" | "adobe" => (adobeBackendReady(snapshot) ? "adobe" : "native");
+
 export const sceneIntegrity = (snapshot: MotionSceneSnapshotV1) => ({
   planDigest: snapshot.planDigest,
   artifactDigest: snapshot.artifactDigest,
@@ -198,6 +204,7 @@ export const sceneIntegrity = (snapshot: MotionSceneSnapshotV1) => ({
   capabilities: snapshot.backendCapability.capabilities,
   predicateIds: snapshot.predicateIds,
   knowledgeCardIds: snapshot.knowledgeCardIds,
+  knowledgeCards: snapshot.knowledgeCards ?? [],
 });
 
 export const isKeyframeV2 = (

@@ -11,8 +11,15 @@ import {
   jobStateKey,
   type JobProgress,
 } from "../../../lib/job-progress";
-import { proxiedDownloadUrl } from "./motion-workspace-api";
-import { sceneIntegrity } from "./motion-workspace-model";
+import {
+  proxiedDownloadUrl,
+  type MotionRenderChoice,
+} from "./motion-workspace-api";
+import {
+  adobeBackendReady,
+  defaultMotionBackend,
+  sceneIntegrity,
+} from "./motion-workspace-model";
 import type { WorkspaceViewState } from "./motion-workspace-model";
 
 type Props = Readonly<{
@@ -24,7 +31,7 @@ type Props = Readonly<{
   viewState: WorkspaceViewState;
   onUndo: () => Promise<void>;
   onRollback: (version: number) => Promise<void>;
-  onRender: () => Promise<void>;
+  onRender: (choice: MotionRenderChoice) => Promise<void>;
   onRefresh: () => Promise<void>;
 }>;
 
@@ -53,14 +60,15 @@ export function MotionActionCard({
     ["offline", "conflict", "cancelled", "unsupported", "loading"].includes(
       viewState,
     );
-  const adobeReady =
-    scene.backendCapability.backend === "adobe" &&
-    scene.backendCapability.capabilities.includes("ENROLLED") &&
-    scene.backendCapability.capabilities.includes("READY");
+  const adobeReady = adobeBackendReady(scene);
 
   const [backend, setBackend] = useState<"native" | "adobe">(
-    adobeReady ? "adobe" : "native",
+    defaultMotionBackend(scene),
   );
+  const devices = scene.adobeDevices ?? [];
+  const projects = scene.adobeProjects ?? [];
+  const [deviceId, setDeviceId] = useState(devices[0]?.id ?? "");
+  const [projectId, setProjectId] = useState(projects[0]?.id ?? "");
 
   useEffect(() => setVersion(scene.version), [scene.version]);
   useEffect(() => {
@@ -105,9 +113,13 @@ export function MotionActionCard({
           <div>
             <dt>{t("knowledgeCards")}</dt>
             <dd>
-              {integrity.knowledgeCardIds.length > 0
-                ? integrity.knowledgeCardIds.join(", ")
-                : t("knowledgeCardsUnavailable")}
+              {integrity.knowledgeCards.length > 0
+                ? integrity.knowledgeCards
+                    .map((card) => `${card.titleEn} / ${card.titleKo}`)
+                    .join(", ")
+                : integrity.knowledgeCardIds.length > 0
+                  ? integrity.knowledgeCardIds.join(", ")
+                  : t("knowledgeCardsUnavailable")}
             </dd>
           </div>
           <div>
@@ -175,9 +187,47 @@ export function MotionActionCard({
         </label>
         {!adobeReady ? (
           <p className="motion-capability-note">{t("adobeLocked")}</p>
-        ) : backend === "adobe" ? (
-          <p className="motion-capability-note">{t("adobeConnected")}</p>
-        ) : null}
+        ) : (
+          <>
+            <label className="motion-field">
+              <span>{t("adobeDevice")}</span>
+              <select
+                value={deviceId}
+                disabled={backend !== "adobe" || devices.length === 0}
+                onChange={(event) => setDeviceId(event.target.value)}
+              >
+                {devices.length === 0 ? (
+                  <option value="">{t("adobeDeviceUnavailable")}</option>
+                ) : (
+                  devices.map((device) => (
+                    <option key={device.id} value={device.id}>
+                      {device.label}
+                    </option>
+                  ))
+                )}
+              </select>
+            </label>
+            <label className="motion-field">
+              <span>{t("adobeProject")}</span>
+              <select
+                value={projectId}
+                disabled={backend !== "adobe" || projects.length === 0}
+                onChange={(event) => setProjectId(event.target.value)}
+              >
+                {projects.length === 0 ? (
+                  <option value="">{t("adobeProjectUnavailable")}</option>
+                ) : (
+                  projects.map((project) => (
+                    <option key={project.id} value={project.id}>
+                      {project.label}
+                    </option>
+                  ))
+                )}
+              </select>
+            </label>
+            <p className="motion-capability-note">{t("adobeConnected")}</p>
+          </>
+        )}
         <div className="motion-history-controls">
           <label className="motion-field">
             <span>{t("rollbackVersion")}</span>
@@ -224,7 +274,13 @@ export function MotionActionCard({
                 !verificationPassed ||
                 actionBlocked
               }
-              onClick={() => void onRender()}
+              onClick={() =>
+                void onRender(
+                  backend === "adobe"
+                    ? { backend, deviceId, projectId }
+                    : { backend: "native" },
+                )
+              }
             >
               {t("render")}
             </button>

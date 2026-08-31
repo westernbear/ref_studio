@@ -17,7 +17,10 @@ export type ResourceBudgetKey = keyof typeof RESOURCE_BUDGETS;
 
 export class ResourceBudgetError extends Error {
   override readonly name = "ResourceBudgetError";
-  constructor(readonly budget: ResourceBudgetKey, readonly observed: number) {
+  constructor(
+    readonly budget: ResourceBudgetKey,
+    readonly observed: number,
+  ) {
     super("RESOURCE_BUDGET_EXCEEDED");
   }
 }

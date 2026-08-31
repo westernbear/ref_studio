@@ -23,7 +23,13 @@ import {
 import { AUTHORING_SYSTEM_PROMPT } from "./author-scene.prompt.js";
 import { aiModelFromSettings } from "./ai-model-from-settings.js";
 import { getAiProviderSettings } from "./ai-provider-settings.js";
-import { ensureFreshMotionToolCanary } from "./motion-canary.js";
+import {
+  ensureFreshMotionToolCanary,
+  liveProviderMotionLookupCanaryAdapter,
+  providerMotionLookupCanaryAdapter,
+  type GenerateLiveCanary,
+  type MotionCanaryAdapter,
+} from "./motion-canary.js";
 import {
   lookupMotionKnowledge,
   lookupMotionKnowledgeForBrief,
@@ -147,6 +153,12 @@ export async function authorScene(params: {
   readonly motionCanaryTtlMs?: number;
   readonly generate?: GenerateScene;
   readonly generatePlan?: GenerateMotionPlanCandidate;
+  readonly motionCanaryAdapter?: MotionCanaryAdapter;
+  readonly generateCanary?: (request: {
+    readonly query: "opacity";
+    readonly signal: AbortSignal;
+  }) => Promise<unknown>;
+  readonly generateLiveCanary?: GenerateLiveCanary;
 }): Promise<AuthoredScene> {
   const model = aiModelFromSettings(params.db, params.aiSecretKey);
   if (!model) {
@@ -180,11 +192,25 @@ export async function authorScene(params: {
     class: motionKnowledge.length > 0 ? "supported" : "unsupported",
     cardCount: motionKnowledge.length,
   });
+  const startedAt = now;
   const canary = await ensureFreshMotionToolCanary({
     db: params.db,
     ...identity,
     now,
     ttlMs,
+    adapter:
+      params.motionCanaryAdapter ??
+      (params.generateCanary
+        ? providerMotionLookupCanaryAdapter(async ({ signal }) =>
+            params.generateCanary!({ query: "opacity", signal }),
+          )
+        : liveProviderMotionLookupCanaryAdapter({
+            db: params.db,
+            model,
+            generate:
+              params.generateLiveCanary ??
+              (generateObject as unknown as GenerateLiveCanary),
+          })),
   });
   emitMotionEvent("canary.status", correlationId, {
     status: canary.status,
@@ -392,6 +418,17 @@ Author a SceneSpec for a film of about ${params.config.durationSec} seconds.`;
       evidenceOwnerIds(projectedEvidence),
     ),
   );
+  const mismatched = verification.findings.filter((finding) => !finding.pass);
+  if (mismatched.length > 0)
+    emitMotionEvent("capability.mismatch", correlationId, {
+      predicates: mismatched.map((finding) => finding.predicateId),
+    });
+  sampleMotionMetric("tthw_ms", Math.max(0, Date.now() - startedAt), {
+    tenantId: params.tenantId,
+  });
+  sampleMotionMetric("lookup_recall", motionKnowledge.length, {
+    class: "supported",
+  });
   return {
     spec: validated.value,
     beatSheet: beatSheetFor(validated.value),

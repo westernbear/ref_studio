@@ -58,6 +58,10 @@ import {
   type StoredArtifact,
 } from "./creator-workflow.js";
 import { RESOURCE_BUDGETS } from "../../../packages/contracts/src/resource-budgets.js";
+import {
+  emitMotionEvent,
+  sampleMotionMetric,
+} from "../../../packages/contracts/src/motion-observability.js";
 import type { ReviewStore } from "./reviews.js";
 import {
   MAX_ATTACHMENT_BYTES,
@@ -415,6 +419,10 @@ const error = (
     | "INVALID_REQUEST"
     | "RESOURCE_NOT_FOUND"
     | "CANCEL_REQUESTED",
+  predecessor?: {
+    sceneDigest?: string;
+    artifactId?: string;
+  },
 ): void => {
   const status =
     code === "AUTHENTICATION_REQUIRED"
@@ -424,14 +432,22 @@ const error = (
         : code === "CANCEL_REQUESTED"
           ? 409
           : 422;
-  reply
-    .code(status)
-    .send(
-      safeEnvelope(
-        new Error(code),
-        String(reply.getHeader("x-correlation-id")),
-      ),
-    );
+  reply.code(status).send(
+    safeEnvelope(new Error(code), String(reply.getHeader("x-correlation-id")), {
+      ...(predecessor?.sceneDigest || predecessor?.artifactId
+        ? {
+            safePredecessor: {
+              ...(predecessor.sceneDigest
+                ? { sceneDigest: predecessor.sceneDigest }
+                : {}),
+              ...(predecessor.artifactId
+                ? { artifactId: predecessor.artifactId }
+                : {}),
+            },
+          }
+        : {}),
+    }),
+  );
 };
 const tokenFrom = (request: FastifyRequest): string => {
   const value = request.headers.authorization;
@@ -1149,6 +1165,14 @@ const finishWorkflowJob = (
     )
       return null;
     artifact.report = parsed.data.report;
+    emitMotionEvent("render.duration_memory", `cor_render_${job.id}`, {
+      bytes: parsed.data.report.outputBytes,
+      frames: canvas.frameCount,
+    });
+    emitMotionEvent("package.hash", `cor_render_${job.id}`, {
+      sha256: parsed.data.report.outputSha256,
+    });
+    sampleMotionMetric("render_determinism", 1, { jobId: job.id });
     transition(job, "ASSEMBLING", now);
     transition(job, "AWAITING_T5", now);
     job.progress = {
@@ -2218,7 +2242,10 @@ export function registerWorkers(
       if (!claimed) return;
       const { job, lease } = claimed;
       if (job.state !== "CANCEL_REQUESTED") {
-        error(reply, "INVALID_REQUEST");
+        error(reply, "INVALID_REQUEST", {
+          ...(job.sceneSpecDigest ? { sceneDigest: job.sceneSpecDigest } : {}),
+          ...(job.artifact?.id ? { artifactId: job.artifact.id } : {}),
+        });
         return;
       }
       transition(job, "CANCELLED", now);

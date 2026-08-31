@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import type Database from "better-sqlite3";
+import { generateObject } from "ai";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { AuthStore, Principal } from "./auth.js";
 import {
@@ -7,6 +8,7 @@ import {
   authenticateAdminRequest,
   requestHeader,
 } from "./admin-auth.js";
+import { aiModelFromSettings } from "./ai-model-from-settings.js";
 import {
   getAiProviderSettings,
   getAiProviderSettingsWithSecret,
@@ -34,6 +36,8 @@ import { retireWorker, type WorkerStore } from "./workers.js";
 import {
   ensureFreshMotionToolCanary,
   listMotionToolCanaries,
+  liveProviderMotionLookupCanaryAdapter,
+  type GenerateLiveCanary,
 } from "./motion-canary.js";
 import { emitMotionEvent } from "../../../packages/contracts/src/motion-observability.js";
 
@@ -908,6 +912,10 @@ export function registerAdminMutation(
           digest,
           tenantId,
           async () => {
+            const model = store.aiSecretKey
+              ? aiModelFromSettings(db, store.aiSecretKey)
+              : null;
+            if (!model) throw new Error("AI_PROVIDER_NOT_CONFIGURED");
             const canary = await ensureFreshMotionToolCanary({
               db,
               tenantId,
@@ -915,6 +923,11 @@ export function registerAdminMutation(
               model: settings.model,
               now: store.now(),
               ttlMs: 0,
+              adapter: liveProviderMotionLookupCanaryAdapter({
+                db,
+                model,
+                generate: generateObject as unknown as GenerateLiveCanary,
+              }),
             });
             emitMotionEvent("canary.status", correlation || `cor_${key}`, {
               status: canary.status,

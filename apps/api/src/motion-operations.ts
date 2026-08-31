@@ -55,7 +55,13 @@ export function verifyMotionSceneForJob(scene: SceneSpec, job: Job) {
   const requestedPredicateIds = [
     ...new Set<MotionPredicateId>(["element-kind-capability", ...fromPlan]),
   ];
-  return verifyMotionScene(scene, { requestedPredicateIds });
+  const report = verifyMotionScene(scene, { requestedPredicateIds });
+  const mismatched = report.findings.filter((finding) => !finding.pass);
+  if (mismatched.length > 0)
+    emitMotionEvent("capability.mismatch", `cor_verify_${job.id}`, {
+      predicates: mismatched.map((finding) => finding.predicateId),
+    });
+  return report;
 }
 
 export async function verifyAndRepair(

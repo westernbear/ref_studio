@@ -1,0 +1,46 @@
+{
+  "schema": "motion-observability-dashboard-v1",
+  "source": "GET /admin/motion-observability",
+  "panels": [
+    {
+      "metric": "tthw_ms",
+      "kind": "histogram",
+      "title": "Time to first authored scene"
+    },
+    {
+      "metric": "lookup_recall",
+      "kind": "counter",
+      "title": "Knowledge lookup hits"
+    },
+    {
+      "metric": "four_attempt_failures",
+      "kind": "counter",
+      "title": "Four-attempt failures"
+    },
+    {
+      "metric": "stale_conflicts",
+      "kind": "counter",
+      "title": "Stale ETag conflicts"
+    },
+    {
+      "metric": "render_determinism",
+      "kind": "counter",
+      "title": "Deterministic render matches"
+    },
+    {
+      "metric": "package_downloads",
+      "kind": "counter",
+      "title": "Scene package downloads"
+    },
+    {
+      "metric": "adobe_queue_age_ms",
+      "kind": "histogram",
+      "title": "Adobe command queue age"
+    },
+    {
+      "metric": "rollback_frequency",
+      "kind": "counter",
+      "title": "Scene rollbacks"
+    }
+  ]
+}

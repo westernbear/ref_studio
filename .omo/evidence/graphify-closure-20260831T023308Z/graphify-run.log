@@ -1,0 +1,20 @@
+[graphify extract] scanning /home/singlerr/ref_studio-motion-complete/.omo/evidence/graphify-closure-20260831T023308Z/corpus
+[graphify extract] --code-only: skipping 1 non-code file(s) (1 docs, 0 papers, 0 images) — no LLM extraction
+[graphify extract] found 360 code, 0 docs, 0 papers, 0 images
+[graphify extract] 4 file(s) not classified (no supported extension or shebang), skipped: motion-editor.css, motion-responsive.css, motion-workspace.css, primitives.css
+[graphify extract] 1 file(s) skipped as potentially sensitive (rename or move if wrongly flagged): tokens.css
+[graphify extract] AST extraction on 360 code files...
+  AST extraction: 100/360 uncached files (27%) [4 workers]
+  AST extraction: 200/360 uncached files (55%) [4 workers]
+  AST extraction: 300/360 uncached files (83%) [4 workers]
+  AST extraction: 360/360 uncached files (100%) [4 workers]
+  warning: 24 .sql file(s) contributed nothing to the graph because a dependency is missing: tree_sitter_sql not installed. Install it with: pip install "graphifyy[sql]" (#1745)
+[graphify extract] wrote /home/singlerr/ref_studio-motion-complete/.omo/evidence/graphify-closure-20260831T023308Z/corpus/graphify-out/graph.json: 2854 nodes, 6195 edges, 135 communities
+[graphify extract] wrote /home/singlerr/ref_studio-motion-complete/.omo/evidence/graphify-closure-20260831T023308Z/corpus/graphify-out/.graphify_analysis.json
+[graphify extract] next: run `graphify cluster-only /home/singlerr/ref_studio-motion-complete/.omo/evidence/graphify-closure-20260831T023308Z/corpus` to generate GRAPH_REPORT.md and name communities
+[graphify label] no LLM backend configured; keeping Community N placeholders. Set an API key (e.g. GOOGLE_API_KEY) or pass --backend.
+Loading existing graph...
+Graph: 2854 nodes, 6195 edges
+Re-clustering...
+Labeling communities...
+Done - 137 communities. GRAPH_REPORT.md, graph.json and graph.html updated.

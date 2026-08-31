@@ -613,7 +613,10 @@
       "MotionSceneRenderV1": {
         "type": "object",
         "properties": {
-          "schema": { "type": "string", "const": "motion-scene-render-v1" }
+          "schema": { "type": "string", "const": "motion-scene-render-v1" },
+          "backend": { "type": "string", "enum": ["native", "adobe"] },
+          "deviceId": { "type": "string" },
+          "projectId": { "type": "string" }
         },
         "required": ["schema"],
         "additionalProperties": false
@@ -643,6 +646,47 @@
             "type": "array",
             "items": { "type": "string" },
             "maxItems": 15
+          },
+          "knowledgeCards": {
+            "type": "array",
+            "maxItems": 15,
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string" },
+                "domain": { "type": "string" },
+                "titleEn": { "type": "string" },
+                "titleKo": { "type": "string" }
+              },
+              "required": ["id", "domain", "titleEn", "titleKo"],
+              "additionalProperties": false
+            }
+          },
+          "adobeDevices": {
+            "type": "array",
+            "maxItems": 32,
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string" },
+                "label": { "type": "string" }
+              },
+              "required": ["id", "label"],
+              "additionalProperties": false
+            }
+          },
+          "adobeProjects": {
+            "type": "array",
+            "maxItems": 32,
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string" },
+                "label": { "type": "string" }
+              },
+              "required": ["id", "label"],
+              "additionalProperties": false
+            }
           }
         },
         "required": [
@@ -658,7 +702,10 @@
           "predecessorVersion",
           "artifactDigest",
           "predicateIds",
-          "knowledgeCardIds"
+          "knowledgeCardIds",
+          "knowledgeCards",
+          "adobeDevices",
+          "adobeProjects"
         ],
         "additionalProperties": false
       },
@@ -684,6 +731,43 @@
           }
         },
         "required": ["backend", "items"],
+        "additionalProperties": false
+      },
+      "MotionObservabilitySnapshot": {
+        "type": "object",
+        "properties": {
+          "dashboard": {
+            "type": "object",
+            "properties": {
+              "schema": {
+                "type": "string",
+                "const": "motion-observability-dashboard-v1"
+              },
+              "panels": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "metric": { "type": "string" },
+                    "kind": {
+                      "type": "string",
+                      "enum": ["histogram", "counter"]
+                    },
+                    "title": { "type": "string" }
+                  },
+                  "required": ["metric", "kind", "title"],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": ["schema", "panels"],
+            "additionalProperties": false
+          },
+          "events": { "type": "array", "items": { "type": "object" } },
+          "metrics": { "type": "array", "items": { "type": "object" } },
+          "histograms": { "type": "array", "items": { "type": "object" } }
+        },
+        "required": ["dashboard", "events", "metrics", "histograms"],
         "additionalProperties": false
       },
       "FeatureFlagSnapshot": {
@@ -927,6 +1011,31 @@
           },
           "404": {
             "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SafeErrorEnvelope" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/motion-observability": {
+      "get": {
+        "operationId": "getMotionObservability",
+        "responses": {
+          "200": {
+            "description": "In-process motion dashboard, events, and histograms",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MotionObservabilitySnapshot"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/SafeErrorEnvelope" }

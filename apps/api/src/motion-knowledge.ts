@@ -94,6 +94,26 @@ export const MotionKnowledgeCardSchema = z
 
 export type MotionKnowledgeCard = z.infer<typeof MotionKnowledgeCardSchema>;
 
+/** Raw row shape that `MotionKnowledgeCardSchema` accepts before transform. */
+export function motionKnowledgeCardToCanaryRow(
+  card: MotionKnowledgeCard,
+): Record<string, unknown> {
+  return {
+    id: card.id,
+    domain: card.domain,
+    title_en: card.title.en,
+    title_ko: card.title.ko,
+    definition_en: card.definition.en,
+    definition_ko: card.definition.ko,
+    distinctions_json: JSON.stringify(card.distinctions),
+    parameters_json: JSON.stringify(card.parameters),
+    capabilities_json: JSON.stringify(card.capabilities),
+    operation_refs_json: JSON.stringify(card.operationRefs),
+    verifier_refs_json: JSON.stringify(card.verifierRefs),
+    sources_json: JSON.stringify(card.sources),
+  };
+}
+
 const normalizeQuery = (query: string): string =>
   query.normalize("NFKC").trim().toLocaleLowerCase();
 
