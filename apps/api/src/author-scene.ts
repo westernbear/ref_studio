@@ -26,7 +26,10 @@ import {
   evidenceOwnerIds,
   projectEvidenceForAuthoring,
 } from "./author-scene-evidence.js";
-import { AUTHORING_SYSTEM_PROMPT } from "./author-scene.prompt.js";
+import {
+  AUTHORING_SYSTEM_PROMPT,
+  MOTION_PLAN_SYSTEM_PROMPT,
+} from "./author-scene.prompt.js";
 import { aiModelFromSettings } from "./ai-model-from-settings.js";
 import { getAiProviderSettings } from "./ai-provider-settings.js";
 import {
@@ -266,7 +269,7 @@ export async function authorScene(params: {
         (attachment) => attachment.attachmentId,
       ),
       capabilitySnapshot,
-      promptVersion: "motion-authoring-v1",
+      promptVersion: "motion-authoring-v2",
       modelVersion: settings.model,
     },
     params.generatePlan ??
@@ -275,7 +278,7 @@ export async function authorScene(params: {
           await generateObject({
             model,
             schema,
-            system: AUTHORING_SYSTEM_PROMPT,
+            system: MOTION_PLAN_SYSTEM_PROMPT,
             prompt: JSON.stringify(request),
           })
         ).object),
