@@ -262,12 +262,14 @@ describe("liveProviderMotionLookupCanaryAdapter", () => {
       await import("./motion-canary.js");
     const db = openApiDatabase(":memory:");
     let toolChoice: unknown;
+    let toolKeys: readonly string[] = [];
     const adapter = liveProviderMotionLookupCanaryAdapter({
       db,
       model: {} as never,
       generate: async (options) => {
         toolChoice = options.toolChoice;
-        const lookup = options.tools["motion.lookup"];
+        toolKeys = Object.keys(options.tools);
+        const lookup = options.tools["motion_lookup"];
         if (
           lookup &&
           "execute" in lookup &&
@@ -292,7 +294,12 @@ describe("liveProviderMotionLookupCanaryAdapter", () => {
       now: 0,
       timeoutMs: 200,
     });
-    expect(toolChoice).toEqual({ type: "tool", toolName: "motion.lookup" });
+    // The wire name carries no dot: the Responses API rejects a function
+    // name outside ^[a-zA-Z0-9_-]+$ with a 400, which the canary could only
+    // report as PROVIDER_FAILURE.
+    expect(toolKeys).toEqual(["motion_lookup"]);
+    for (const key of toolKeys) expect(key).toMatch(/^[a-zA-Z0-9_-]+$/u);
+    expect(toolChoice).toEqual({ type: "tool", toolName: "motion_lookup" });
     expect(canary.status).toBe("PASS");
     db.close();
   });

@@ -12,6 +12,13 @@ export const MOTION_LOOKUP_TOOL_SCHEMA = {
   },
 } as const;
 
+// What the tool is called on the wire. The contract name is "motion.lookup"
+// and stays that way -- it is in the canary row, the digest and the events --
+// but the OpenAI/Codex Responses API refuses a function name with a dot in
+// it ("does not match pattern '^[a-zA-Z0-9_-]+$'", HTTP 400), so the model
+// never sees that spelling.
+export const MOTION_LOOKUP_WIRE_TOOL_NAME = "motion_lookup";
+
 export const MOTION_LOOKUP_TOOL_SCHEMA_DIGEST = createHash("sha256")
   .update(JSON.stringify(MOTION_LOOKUP_TOOL_SCHEMA))
   .digest("hex");

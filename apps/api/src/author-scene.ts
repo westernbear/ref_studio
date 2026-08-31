@@ -40,6 +40,7 @@ import {
   lookupMotionKnowledge,
   lookupMotionKnowledgeForBrief,
   modelMotionTools,
+  MOTION_LOOKUP_WIRE_TOOL_NAME,
 } from "./motion-knowledge.js";
 import {
   emitMotionEvent,
@@ -225,7 +226,7 @@ export async function authorScene(params: {
   const admitted = modelMotionTools(canary, identity, now, ttlMs);
   const tools: ToolSet = admitted.includes("motion.lookup")
     ? {
-        "motion.lookup": tool({
+        [MOTION_LOOKUP_WIRE_TOOL_NAME]: tool({
           description: "Look up canonical motion knowledge.",
           inputSchema: z.object({ query: z.string().min(1) }).strict(),
           execute: async ({ query }) => lookupMotionKnowledge(params.db, query),

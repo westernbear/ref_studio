@@ -4,6 +4,7 @@ import { z } from "zod";
 import {
   MOTION_LOOKUP_TOOL_SCHEMA,
   MOTION_LOOKUP_TOOL_SCHEMA_DIGEST,
+  MOTION_LOOKUP_WIRE_TOOL_NAME,
   MotionKnowledgeCardSchema,
   lookupMotionKnowledge,
   modelMotionTools,
@@ -173,7 +174,7 @@ export type GenerateLiveCanary = (options: {
   readonly tools: ToolSet;
   readonly toolChoice: {
     readonly type: "tool";
-    readonly toolName: "motion.lookup";
+    readonly toolName: typeof MOTION_LOOKUP_WIRE_TOOL_NAME;
   };
   readonly abortSignal?: AbortSignal;
 }) => Promise<unknown>;
@@ -197,11 +198,10 @@ export function liveProviderMotionLookupCanaryAdapter(params: {
     // the compiler holds this.
     await params.generate({
       model: params.model,
-      system:
-        "Call the motion.lookup tool with query opacity and return that card.",
+      system: `Call the ${MOTION_LOOKUP_WIRE_TOOL_NAME} tool with query opacity and return that card.`,
       prompt: "opacity",
       tools: {
-        "motion.lookup": tool({
+        [MOTION_LOOKUP_WIRE_TOOL_NAME]: tool({
           description: "Look up canonical motion knowledge.",
           inputSchema: z.object({ query: z.string().min(1) }).strict(),
           execute: async ({ query }) => {
@@ -210,7 +210,7 @@ export function liveProviderMotionLookupCanaryAdapter(params: {
           },
         }),
       },
-      toolChoice: { type: "tool", toolName: "motion.lookup" },
+      toolChoice: { type: "tool", toolName: MOTION_LOOKUP_WIRE_TOOL_NAME },
       abortSignal: signal,
     });
     if (toolResult === undefined) throw new Error("PROVIDER_DID_NOT_CALL_TOOL");

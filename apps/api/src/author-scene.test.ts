@@ -158,7 +158,7 @@ describe("authorScene", () => {
         sources_json: '["https://example.com/opacity"]',
       }),
     });
-    expect(exposed).toEqual(["motion.lookup"]);
+    expect(exposed).toEqual(["motion_lookup"]);
   });
 
   it("hides motion.lookup when the provider canary fails", async () => {
@@ -191,7 +191,7 @@ describe("authorScene", () => {
       generate,
       generateLiveCanary: async (options) => {
         toolChoice = options.toolChoice;
-        const lookup = options.tools["motion.lookup"];
+        const lookup = options.tools["motion_lookup"];
         if (
           lookup &&
           "execute" in lookup &&
@@ -226,7 +226,7 @@ describe("authorScene", () => {
         };
       },
     });
-    expect(toolChoice).toEqual({ type: "tool", toolName: "motion.lookup" });
+    expect(toolChoice).toEqual({ type: "tool", toolName: "motion_lookup" });
     expect(calledTool).toBe(true);
   });
 
@@ -259,7 +259,7 @@ describe("authorScene", () => {
     });
 
     // Then
-    expect(exposed).toEqual(["motion.lookup"]);
+    expect(exposed).toEqual(["motion_lookup"]);
   });
 
   it("injects canonical structured motion knowledge for an exact alias in a longer brief", async () => {
