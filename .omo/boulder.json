@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "active_work_id": "reference-video-studio-saas-3f980fe8",
+  "active_work_id": "motion-graphics-ai-completion-v2-20260830",
   "works": {
     "reference-video-studio-saas-3f980fe8": {
       "work_id": "reference-video-studio-saas-3f980fe8",
@@ -1075,6 +1075,18 @@
       "started_at": "2026-08-22T18:11:24.397Z",
       "status": "running",
       "updated_at": "2026-08-22T18:24:09.821Z"
+    },
+    "motion-graphics-ai-completion-v2-20260830": {
+      "work_id": "motion-graphics-ai-completion-v2-20260830",
+      "active_plan": "/home/singlerr/ref_studio/.omo/plans/motion-graphics-ai-completion-v2.md",
+      "plan_name": "motion-graphics-ai-completion-v2",
+      "status": "active",
+      "started_at": "2026-08-30T00:00:00.000Z",
+      "updated_at": "2026-08-30T00:00:00.000Z",
+      "session_ids": [
+        "codex:01a04cf7-378a-7531-83cc-42e80ae8cee8"
+      ],
+      "worktree_path": "/home/singlerr/ref_studio-motion-complete"
     }
   },
   "agent": "atlas",
