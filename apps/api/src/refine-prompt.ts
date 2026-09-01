@@ -592,6 +592,22 @@ export function registerRefinePrompt(
         reply.code(replay.response[0]).send(replay.response[1]);
       } catch (error) {
         const code = error instanceof Error ? error.message : "INTERNAL_ERROR";
+        // safeEnvelope rebuilds the error from `code` alone, so a throw whose
+        // message is not one of the catalogued tokens reaches the creator as a
+        // bare INTERNAL_ERROR with nothing behind it -- the same dead end
+        // api.authoring.failed was added to close. Log what was actually
+        // thrown, before it is flattened.
+        console.error(
+          JSON.stringify({
+            event: "api.refine-prompt.failed",
+            jobId: (request as FastifyRequest<{ Params: { jobId?: string } }>)
+              .params.jobId,
+            errorName: error instanceof Error ? error.name : typeof error,
+            errorMessage:
+              error instanceof Error ? error.message : String(error),
+            errorStack: error instanceof Error ? error.stack : undefined,
+          }),
+        );
         const failedJob = store.jobs.get(
           (request as FastifyRequest<{ Params: { jobId?: string } }>).params
             .jobId ?? "",

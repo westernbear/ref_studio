@@ -8,6 +8,13 @@
 }
 .motion-workspace-main {
   display: grid;
+  /* minmax(0, 1fr), not the implicit auto row: an auto track grows to its
+     content instead of clamping to the container, which hands the chat pane
+     its full natural height. Its history then has nothing to scroll and the
+     input row is pushed past the fold, where overflow:hidden clips it -- it
+     reads as the input covering the bottom of the chat. The 720px block
+     below always spelled the rows out; the desktop grid never did. */
+  grid-template-rows: minmax(0, 1fr);
   flex: 1;
   min-block-size: 0;
   min-inline-size: 0;
@@ -17,6 +24,7 @@
 }
 .motion-workspace {
   display: grid;
+  grid-template-rows: minmax(0, 1fr);
   min-block-size: 0;
   min-inline-size: 0;
   overflow: hidden;
