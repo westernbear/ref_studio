@@ -92,12 +92,24 @@
   overflow-wrap: anywhere;
 }
 .compiler-chat-history {
-  display: grid;
-  align-content: start;
+  /* A column, not a grid: grid sized the action card's row from its
+     max-content block size -- the height it would have if nothing wrapped
+     (438px measured) -- while the card really renders 862px. */
+  display: flex;
+  flex-direction: column;
   gap: var(--space-lg);
   min-block-size: 0;
   overflow-y: auto;
   padding: var(--space-lg);
+}
+/* No log entry ever shrinks. .motion-action-card carries overflow:hidden for
+   its border radius, which zeroes its automatic minimum size, so the column
+   was free to squeeze it under its content height -- and that same
+   overflow:hidden then clipped the surplus with no scrollbar and no way to
+   scroll to it. The version controls and render buttons at the card's bottom
+   simply vanished. */
+.compiler-chat-history > * {
+  flex: none;
 }
 .compiler-chat-message {
   display: grid;
@@ -167,7 +179,6 @@
 }
 .motion-action-card {
   display: grid;
-  min-block-size: max-content;
   border: 1px solid var(--color-hairline);
   border-radius: var(--radius-lg);
   overflow: hidden;
