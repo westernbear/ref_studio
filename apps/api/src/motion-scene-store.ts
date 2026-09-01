@@ -296,6 +296,37 @@ export const currentMotionSceneRow = (
   if (!row) throw new MotionSceneError("RESOURCE_NOT_FOUND", 404);
   return row;
 };
+// The durable head and job.authoredScene.spec are two views of one
+// document, and the pipeline moves the second one: after material
+// generation the assets phase replaces each generated asset's declared
+// provenance with what was really produced (workers.ts) and re-digests. A
+// head seeded by an earlier review round then describes a spec that no
+// longer exists -- the workspace reads the head's etag while refine-prompt
+// checks job.sceneSpecDigest, so every later edit fails its precondition
+// forever and reloading cannot help, because the two digests can never
+// converge on their own. Advance the head instead of stranding it; the old
+// version stays in the chain as predecessor, so undo still works.
+export const syncMotionSceneHead = (
+  db: Database.Database,
+  job: Job,
+  scene: SceneSpec,
+): void => {
+  const current = findMotionSceneRow(db, job);
+  if (!current || current.sceneDigest === sha256Hex(scene)) return;
+  const verification = verifyMotionSceneForJob(scene, job);
+  // ponytail: a scene that cannot verify keeps the old head rather than
+  // committing an unverifiable version. The next edit still conflicts, but
+  // the failure names a real problem instead of inventing history.
+  if (verification.status !== "PASS") return;
+  commitMotionSceneVersion({
+    db,
+    job,
+    scene,
+    verification,
+    expectedSceneDigest: current.sceneDigest,
+  });
+};
+
 export function recordMotionSceneRefinement<T>(
   db: Database.Database,
   job: Job,

@@ -12,12 +12,16 @@
   min-block-size: 0;
   min-inline-size: 0;
   overflow: hidden;
+  padding: var(--space-lg);
+  padding-block-start: 0;
 }
 .motion-workspace {
   display: grid;
   min-block-size: 0;
   min-inline-size: 0;
   overflow: hidden;
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-xl);
   background: var(--color-canvas);
 }
 .motion-workspace-pane {

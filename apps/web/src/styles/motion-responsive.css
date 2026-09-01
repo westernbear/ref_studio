@@ -5,6 +5,12 @@
   }
   .motion-workspace-main {
     min-block-size: 0;
+    /* The inset frame costs usable width the small screen does not have. */
+    padding: 0;
+  }
+  .motion-workspace {
+    border: 0;
+    border-radius: 0;
   }
   .motion-workspace {
     grid-template-columns: minmax(0, 1fr) !important;

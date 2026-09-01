@@ -23,7 +23,10 @@ import {
 } from "./openai-image-material.js";
 import { getMaterialProviderSettings } from "./material-provider-settings.js";
 import { verifyMotionScene } from "./motion-operations.js";
-import { insertMotionSceneVersion } from "./motion-scene-store.js";
+import {
+  insertMotionSceneVersion,
+  syncMotionSceneHead,
+} from "./motion-scene-store.js";
 import { runSafetyCheck, type GenerateSafetyVerdict } from "./safety-check.js";
 import {
   enrichEvidenceTranslations,
@@ -949,6 +952,7 @@ const finishWorkflowJob = (
   result: unknown,
   now: () => number,
   reviews: ReviewStore | undefined,
+  db: Database.Database | undefined,
 ): FinishOutcome | null => {
   const job = workflow?.jobs.get(lease.jobId);
   if (!job) return null;
@@ -1138,6 +1142,10 @@ const finishWorkflowJob = (
       };
       job.authoredScene = { spec, beatSheet: scene.beatSheet };
       job.sceneSpecDigest = sha256Hex(spec);
+      // A durable edit head from an earlier review round still points at the
+      // pre-stamp spec. Left alone it strands every later scene edit on a
+      // precondition that can never be met -- see syncMotionSceneHead.
+      if (db) syncMotionSceneHead(db, job, spec);
     }
     // Every asset the scene draws is now backed by stored bytes, so the
     // generated render is cleared to run. This is the same READY the
@@ -2150,7 +2158,7 @@ export function registerWorkers(
         : undefined;
     let outcome = failed
       ? failWorkflowJob(workflow, lease, message, now)
-      : finishWorkflowJob(workflow, lease, result, now, reviews);
+      : finishWorkflowJob(workflow, lease, result, now, reviews, db);
     if (!outcome) {
       error(reply, "INVALID_REQUEST");
       return;
