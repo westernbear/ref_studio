@@ -3,6 +3,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 import {
   CODEX_BASE_URL,
   CodexOAuthError,
+  codexRequestFailed,
   codexHeaders,
   defaultCodexFetch,
   readResponsesBody,
@@ -94,7 +95,7 @@ export function createCodexFetch(params: {
       response = await attempt();
     }
     if (response.status !== 200)
-      throw new CodexOAuthError(`CODEX_REQUEST_FAILED_${response.status}`);
+      throw await codexRequestFailed(response);
     const parsed = readResponsesBody(
       response.contentType,
       await response.text(),

@@ -131,6 +131,16 @@ describe("codex chat transport", () => {
     );
   });
 
+  // A bare status told us nothing across three separate 400s; the body is
+  // the only part of the rejection that names what the backend disliked.
+  it("carries the rejection body into the error", async () => {
+    await expect(
+      post(async () =>
+        reply(400, JSON.stringify({ error: { message: "unsupported tool" } })),
+      ),
+    ).rejects.toThrow(/CODEX_REQUEST_FAILED_400: .*unsupported tool/u);
+  });
+
   it("gives up on a second 401", async () => {
     await expect(
       post(async (url) =>

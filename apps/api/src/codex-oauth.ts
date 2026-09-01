@@ -94,6 +94,25 @@ export class CodexOAuthError extends Error {
   }
 }
 
+// A bare status names nothing: three separate 400s on this branch (the
+// canary, the tool name, the scene schema) all arrived as an identical
+// CODEX_REQUEST_FAILED_400 with the one sentence that says which part of
+// the request was rejected sitting unread in the response body. Carry it.
+export const codexRequestFailed = async (response: {
+  readonly status: number;
+  readonly text: () => Promise<string>;
+}): Promise<CodexOAuthError> => {
+  const detail = await response
+    .text()
+    .then((body) => body.trim().slice(0, 500))
+    .catch(() => "");
+  return new CodexOAuthError(
+    detail
+      ? `CODEX_REQUEST_FAILED_${response.status}: ${detail}`
+      : `CODEX_REQUEST_FAILED_${response.status}`,
+  );
+};
+
 export const parseCodexAuth = (raw: string): CodexAuth => {
   let value: unknown;
   try {
@@ -301,7 +320,7 @@ export async function listCodexModels(params: {
     response = await attempt(refreshedAuth);
   }
   if (response.status !== 200)
-    throw new CodexOAuthError(`CODEX_REQUEST_FAILED_${response.status}`);
+    throw await codexRequestFailed(response);
   let body: unknown;
   try {
     body = JSON.parse(await response.text());
@@ -383,7 +402,7 @@ export async function generateCodexImage(params: {
     response = await attempt(refreshedAuth);
   }
   if (response.status !== 200)
-    throw new CodexOAuthError(`CODEX_REQUEST_FAILED_${response.status}`);
+    throw await codexRequestFailed(response);
   const parsed = readResponsesBody(response.contentType, await response.text());
   return {
     b64: readGeneratedImage(parsed),
