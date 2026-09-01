@@ -23,6 +23,22 @@ describe("motion plan system prompt", () => {
     );
   });
 
+  // compileMotionPlan rejects an empty plan (MOTION_PLAN_EMPTY_OPERATIONS)
+  // and duplicate targets (MOTION_PLAN_DUPLICATE_TARGET); neither rule was
+  // stated anywhere the model could read.
+  it("states the compiler's plan-shape rules", () => {
+    expect(MOTION_PLAN_SYSTEM_PROMPT).toMatch(/[Aa]t least one/u);
+    expect(MOTION_PLAN_SYSTEM_PROMPT).toMatch(/at most once/u);
+  });
+
+  // MOTION_PLAN_UNKNOWN_ELEMENT / _KEYFRAME_OUT_OF_BOUNDS: the scene author
+  // is the only one who can satisfy these, so it has to be told.
+  it("tells the scene author the plan's ids and beats bind", () => {
+    expect(AUTHORING_SYSTEM_PROMPT).toContain("## Motion plan");
+    expect(AUTHORING_SYSTEM_PROMPT).toMatch(/elementId/u);
+    expect(AUTHORING_SYSTEM_PROMPT).toMatch(/targetBeat/u);
+  });
+
   it("names every predicate the plan schema accepts", () => {
     expect(MOTION_PLAN_SYSTEM_PROMPT).toContain("frame-hash-deterministic");
   });
