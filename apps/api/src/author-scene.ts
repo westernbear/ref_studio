@@ -6,6 +6,7 @@ import {
 } from "../../../packages/contracts/src/generation.js";
 import {
   SceneSpecSchema,
+  SceneSpecV1Schema,
   type SceneSpec,
 } from "../../../packages/contracts/src/scene-spec.js";
 import type {
@@ -65,7 +66,7 @@ import {
 // without satisfying the SDK's full generic overload signature.
 export type GenerateScene = (options: {
   readonly model: LanguageModel;
-  readonly schema: typeof SceneSpecSchema;
+  readonly schema: typeof SceneSpecV1Schema;
   readonly system: string;
   readonly prompt: string;
   readonly tools: ToolSet;
@@ -353,7 +354,10 @@ Author a SceneSpec for a film of about ${params.config.durationSec} seconds.`;
       (
         await generate({
           model,
-          schema: SceneSpecSchema,
+          // One variant, not the SceneSpecSchema union: response_format
+          // needs a root `type: "object"` and a discriminated union has
+          // none. This path authors v1; verify still parses the union.
+          schema: SceneSpecV1Schema,
           system: AUTHORING_SYSTEM_PROMPT,
           prompt:
             attempt === 1
