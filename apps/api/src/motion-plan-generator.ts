@@ -1,7 +1,7 @@
 import { z } from "zod";
 import {
   BackendCapabilitySnapshotV1Schema,
-  MOTION_PREDICATE_IDS,
+  MOTION_PREDICATES,
   MotionPlanCanvasV1Schema,
   MotionPlanSemanticObjectV1Schema,
   type MotionPlanSemanticV1,
@@ -170,7 +170,17 @@ export async function generateMotionPlan(
   const generated = MotionPlanGenerateSchema.parse(
     await generate(providerRequest, MotionPlanGenerateSchema),
   );
-  const knownPredicates = new Set<string>(MOTION_PREDICATE_IDS);
+  // Only the predicates that can be decided from the scene alone. The other
+  // four (frame-hash-deterministic, audio-duration, reduced-motion,
+  // adobe-readback) are scored against runtime evidence that nothing in this
+  // pipeline produces yet -- no caller supplies motion-predicates.ts's
+  // frameHashes/audioDuration/readback -- so a plan asking for one fails the
+  // job at authoring with "evidence absent" and can never pass later either.
+  const knownPredicates = new Set<string>(
+    MOTION_PREDICATES.filter(
+      (predicate) => !predicate.requiresRuntimeEvidence,
+    ).map((predicate) => predicate.id),
+  );
   const candidate: MotionPlanSemanticV1 =
     MotionPlanSemanticObjectV1Schema.parse({
       schema: "motion-plan-v1",

@@ -39,7 +39,12 @@ describe("motion plan system prompt", () => {
     expect(AUTHORING_SYSTEM_PROMPT).toMatch(/targetBeat/u);
   });
 
-  it("names every predicate the plan schema accepts", () => {
-    expect(MOTION_PLAN_SYSTEM_PROMPT).toContain("frame-hash-deterministic");
+  // frame-hash-deterministic and the three other runtime-evidence
+  // predicates are scored against evidence nothing in this pipeline
+  // produces, so offering them to the planner is offering a job failure.
+  it("offers only predicates decidable from the scene", () => {
+    expect(MOTION_PLAN_SYSTEM_PROMPT).toContain("beat-tiling");
+    expect(MOTION_PLAN_SYSTEM_PROMPT).not.toContain("frame-hash-deterministic");
+    expect(MOTION_PLAN_SYSTEM_PROMPT).not.toContain("audio-duration");
   });
 });

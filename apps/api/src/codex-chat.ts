@@ -36,6 +36,28 @@ import type { LanguageModel } from "ai";
 
 export type PersistCodexAuth = (auth: CodexAuth) => void;
 
+// A rejection naming text.format.schema is unreadable without knowing what
+// went into that field. Describe it -- shape only, no schema dump and no
+// prompt content.
+const sentFormat = (body: string): string => {
+  let format: unknown;
+  try {
+    format = Reflect.get(
+      Reflect.get(JSON.parse(body) as object, "text") ?? {},
+      "format",
+    );
+  } catch {
+    return "sent format: unreadable";
+  }
+  if (typeof format !== "object" || format === null) return "sent no format";
+  const schema = Reflect.get(format, "schema");
+  const schemaType =
+    typeof schema === "object" && schema !== null
+      ? JSON.stringify(Reflect.get(schema, "type"))
+      : JSON.stringify(schema);
+  return `sent format.type=${JSON.stringify(Reflect.get(format, "type"))} format.name=${JSON.stringify(Reflect.get(format, "name"))} schema.type=${schemaType}`;
+};
+
 // Exported for the test: the body rewrite is the part most likely to drift
 // when the AI SDK changes what it sends.
 export const codexChatBody = (raw: string): string => {
@@ -95,7 +117,7 @@ export function createCodexFetch(params: {
       response = await attempt();
     }
     if (response.status !== 200)
-      throw await codexRequestFailed(response);
+      throw await codexRequestFailed(response, sentFormat(body));
     const parsed = readResponsesBody(
       response.contentType,
       await response.text(),

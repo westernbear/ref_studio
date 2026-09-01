@@ -98,18 +98,21 @@ export class CodexOAuthError extends Error {
 // canary, the tool name, the scene schema) all arrived as an identical
 // CODEX_REQUEST_FAILED_400 with the one sentence that says which part of
 // the request was rejected sitting unread in the response body. Carry it.
-export const codexRequestFailed = async (response: {
-  readonly status: number;
-  readonly text: () => Promise<string>;
-}): Promise<CodexOAuthError> => {
+export const codexRequestFailed = async (
+  response: {
+    readonly status: number;
+    readonly text: () => Promise<string>;
+  },
+  sent?: string,
+): Promise<CodexOAuthError> => {
   const detail = await response
     .text()
     .then((body) => body.trim().slice(0, 500))
     .catch(() => "");
   return new CodexOAuthError(
-    detail
-      ? `CODEX_REQUEST_FAILED_${response.status}: ${detail}`
-      : `CODEX_REQUEST_FAILED_${response.status}`,
+    [`CODEX_REQUEST_FAILED_${response.status}`, detail, sent]
+      .filter((part) => part)
+      .join(detail ? ": " : " "),
   );
 };
 
@@ -319,8 +322,7 @@ export async function listCodexModels(params: {
     refreshedAuth = await refreshCodexAuth(params.auth, request);
     response = await attempt(refreshedAuth);
   }
-  if (response.status !== 200)
-    throw await codexRequestFailed(response);
+  if (response.status !== 200) throw await codexRequestFailed(response);
   let body: unknown;
   try {
     body = JSON.parse(await response.text());
@@ -401,8 +403,7 @@ export async function generateCodexImage(params: {
     refreshedAuth = await refreshCodexAuth(params.auth, request);
     response = await attempt(refreshedAuth);
   }
-  if (response.status !== 200)
-    throw await codexRequestFailed(response);
+  if (response.status !== 200) throw await codexRequestFailed(response);
   const parsed = readResponsesBody(response.contentType, await response.text());
   return {
     b64: readGeneratedImage(parsed),

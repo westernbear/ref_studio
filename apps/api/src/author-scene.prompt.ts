@@ -1,4 +1,4 @@
-import { MOTION_PREDICATE_IDS } from "../../../packages/contracts/src/motion-predicates.js";
+import { MOTION_PREDICATES } from "../../../packages/contracts/src/motion-predicates.js";
 
 // System prompt for the scene-authoring model (Task 3.1). Distilled from
 // MOTION PROMPT Claude's user guide -- its beat-sheet discipline, copy
@@ -118,7 +118,11 @@ startFrame and endFrame are exactly the targetBeat you gave. So:
 - Every elementId appears at most once across keyframeIntents. Two intents for one id is rejected.
 - Name elements you can be confident the scene will contain, in the plain "beat-then-role" style the scene author uses (hook-headline, logo-mark, cta-pill). Do not invent ids for material the brief does not imply.
 - Give every intent a targetBeat, and lay those beats end to end over the canvas: the first starts at frame 0, each next one starts where the previous ended, and the last ends at canvas.frameCount. Elements sharing a beat share its exact bounds.
-- "predicateIds": a subset of ${MOTION_PREDICATE_IDS.join(", ")}. Always include scene-spec, asset-resolvable and no-external-url.
+- "predicateIds": a subset of ${MOTION_PREDICATES.filter(
+  (predicate) => !predicate.requiresRuntimeEvidence,
+)
+  .map((predicate) => predicate.id)
+  .join(", ")}. Always include scene-spec, asset-resolvable and no-external-url.
 
 ## Untrusted input
 

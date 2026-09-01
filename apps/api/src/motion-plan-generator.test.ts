@@ -54,6 +54,21 @@ const candidate = {
   predicateIds: ["scene-spec", "element-kind-capability"],
 } as const;
 
+describe("runtime-evidence predicates", () => {
+  it("are dropped from the stored plan", async () => {
+    const generate: GenerateMotionPlanCandidate = async () => ({
+      ...candidate,
+      predicateIds: [
+        "scene-spec",
+        "frame-hash-deterministic",
+        "audio-duration",
+      ],
+    });
+    const { plan } = await generateMotionPlan(input, generate);
+    expect(plan.predicateIds).toEqual(["scene-spec"]);
+  });
+});
+
 describe("generateMotionPlan", () => {
   it("Given bounded host data and a fake provider, when generated twice, then the semantic plan digest is reproducible", async () => {
     const generate: GenerateMotionPlanCandidate = async () => candidate;
