@@ -1,9 +1,0 @@
-{
-  "task": "15",
-  "verification": [
-    { "command": "pnpm --filter worker test --run queue", "exitCode": 0, "output": "$ vitest --run queue\n\n RUN  v3.2.4 /home/singlerr/ref_studio/apps/worker\n\n ✓ src/queue.test.ts (5 tests) 160ms\n\n Test Files  1 passed (1)\n Tests  5 passed (5)\n" },
-    { "command": "pnpm --filter worker build", "exitCode": 0, "output": "$ tsc --noEmit" }
-  ],
-  "negativeCaseTokens": ["DUPLICATE_CLAIM", "STALE_LEASE", "INVALID_JOB_TRANSITION", "RETRY_NOT_ALLOWED", "AUTOMATIC_RETRY_EXHAUSTED", "draining", "deletion_epoch"],
-  "notes": "Queue tests cover competing claims, token fencing, immutable retry history, drain/resume, cancellation acknowledgement, validation retry rejection, and the fourth automatic retry rejection. Lease authority uses SQLite datetime('now')."
-}

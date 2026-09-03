@@ -1,6 +1,0 @@
-# Raw source-copy corpus is reproducible from corpus-manifest.txt; keep only graphify-out artifacts.
-corpus/*
-!corpus/graphify-out/
-corpus/graphify-out/cache/
-corpus/graphify-out/.graphify_root
-corpus/graphify-out/.graphify_labels.json.sig

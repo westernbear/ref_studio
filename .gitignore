@@ -20,12 +20,19 @@ verification/contract/fonts/
 runtime/debian-packages.tar
 runtime/hydrated/
 .gstack/
-.omo/evidence/index.jsonl
-.omo/evidence/current.json
-.omo/evidence/current-receipt.json
-# On-disk P7.4 archive of generated handoff duplicates (README stays tracked).
-.omo/archive/**/*
-!.omo/archive/**/README.md
+.omo/
+stitch-extracted/
+stitch-extracted-new/
+stitch-extracted-new-v2/
+graphify-out/
+graphify-corpus/
+.playwright-mcp/
+MOTION PROMPT*.pdf
+/*.zip
+dist/
+dist/handoff/
+dist/*.zip
+dist/*.sha256
 
 # tsc writes this on every typecheck; it is a cache, not a source file.
 *.tsbuildinfo

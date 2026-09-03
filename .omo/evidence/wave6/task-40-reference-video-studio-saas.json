@@ -1,9 +1,0 @@
-{
-  "task": 40,
-  "surface": "/admin/audit",
-  "status": "implemented",
-  "controls": "admin_audit:1..15 unique source controls, collected across table, drawer, and export dialog",
-  "behavior": ["newest-first immutable rows", "bounded event/outcome/actor/tenant/date filters", "detail drawer with safe identifiers", "clipboard announcement", "bounded related-object links", "filtered scoped export with 90-day artifact notice", "viewer denial", "invalid outcome empty state", "failed query retry", "sensitive-field redaction assertions"],
-  "verification": {"build": "pnpm --filter web build passed", "e2e": "pnpm --filter web test:e2e --grep @admin-audit passed 1/1 with supervised system Chrome", "diagnostics": "AuditLog.tsx and admin.e2e.spec.ts clean"},
-  "notes": ["No edit/delete affordances or restricted fields are rendered.", "Audit rows remain visible independently of export artifact expiry."]
-}

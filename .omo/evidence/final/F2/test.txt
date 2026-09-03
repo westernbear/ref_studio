@@ -1,2 +1,0 @@
-$ node scripts/stub.mjs test
-{"status":"stub","command":"test","todo":"later-wave"}

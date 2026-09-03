@@ -1,6 +1,0 @@
-Excluded from fresh Graphify corpus (generated/media caches only):
-- verification/**/fixtures/** media (mkv/mp4/png)
-- node_modules, dist, *.map
-- graphify-out caches
-- .omo runtime ledgers except this evidence package
-Included: contracts/src, api/src, api sql, web/src, worker/src, skills, scripts, verification (non-fixture), adobe-bridge src/scripts/test

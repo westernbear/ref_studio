@@ -1,0 +1,42 @@
+Reference Video Studio
+Copyright 2026 Reference Video Studio contributors
+
+This product is licensed under the Apache License, Version 2.0.
+See LICENSE.
+
+Third-party notices
+===================
+
+Fonts
+-----
+Inter — Copyright (c) 2016-2024 The Inter Project Authors.
+Licensed under the SIL Open Font License 1.1.
+https://github.com/rsms/inter
+
+Wanted Sans — Copyright (c) Wanted Sans Authors.
+Licensed under the SIL Open Font License 1.1.
+https://github.com/wanteddev/wanted-sans
+
+Manrope, Geist, Material Symbols — see `runtime/asset-manifest.json`
+(OFL-1.1 / Apache-2.0 as listed there).
+
+Adobe bridge
+------------
+`integrations/adobe-bridge` was independently adapted from the public
+behavior of Dakkshin/after-effects-mcp (MIT) at commit
+88d5fbf08b7ae9f015ee98e5f8c4904095cf8202. That repository is not a
+runtime dependency. See `integrations/adobe-bridge/UPSTREAM.md`.
+
+Worker runtime (binary / container redistribution)
+--------------------------------------------------
+The worker image ships a GPL-enabled FFmpeg 8.0.1 build linked with
+x264 (GPL-2.0-or-later). Redistributing that image or those binaries
+requires preserving GPL notices and offering corresponding source.
+See `verification/contract/supply-chain.json` (`licensePolicy`) and
+`runtime/ffmpeg-build-manifest.json`.
+
+Compiler models include Robust Video Matting (GPL-3.0). Redistributing
+those weights or the compiler image must follow GPL-3.0.
+
+Replacing x264 or RVM for a proprietary distribution is a separate
+licensing change and is not covered by this NOTICE.

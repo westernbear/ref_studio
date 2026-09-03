@@ -1,7 +1,0 @@
-$ pnpm --filter @rvs/api test --run && pnpm --filter @rvs/worker test --run src/compiler-orchestrator.test.ts src/capture/smoke.test.ts src/render-app/dom-renderer.test.ts src/render-app/webgl.test.ts src/delivery.test.ts
-$ vitest --run
-sh: 1: vitest: not found
-/home/singlerr/ref_studio/apps/api:
-[ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL] @rvs/api@0.0.0 test: `vitest --run`
-spawn ENOENT
-[ELIFECYCLE] Command failed with exit code 1.

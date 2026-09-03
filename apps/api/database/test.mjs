@@ -164,7 +164,7 @@ assert.equal(
     )
     .pluck()
     .get(),
-  24,
+  25,
 );
 adobeLegacyDb.close();
 

@@ -70,7 +70,7 @@ describe("motion.lookup", () => {
     // When
     const results = lookupMotionKnowledgeForBrief(
       db,
-      "Use effects while velocity evolves between keyframes.",
+      "Use effects while interpolation curve between keyframes.",
     );
 
     // Then
@@ -88,7 +88,7 @@ describe("motion.lookup", () => {
     // When
     const results = hostMotionLookup(
       db,
-      "Use effects while velocity evolves between keyframes.",
+      "Use effects while interpolation curve between keyframes.",
     );
 
     // Then
@@ -182,7 +182,7 @@ describe("motion.lookup", () => {
     // When
     const results = lookupMotionKnowledge(
       db,
-      "velocity evolves between keyframes",
+      "interpolation curve between keyframes",
     );
 
     // Then

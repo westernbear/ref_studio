@@ -1,1 +1,0 @@
-{"status":"PASS","recoveryStatus":"PASS","restoredRoot":"new isolated root","restoreEpoch":4,"credentialsRevoked":true,"leasesRevoked":true,"downloadsRevoked":true,"deletionEpochsPreserved":true,"dbSequenceVerified":true,"casVerified":true,"fixedFramesVerified":3,"releaseBaseline":"immutable","t6":"eligible"}

@@ -1,9 +1,0 @@
-{
-  "schemaVersion":"rvs-dependency-pins-v2",
-  "policy":"exact pins only; unavailable pin stops SUPPLY_PIN_UNAVAILABLE; no newest/range/substitution",
-  "npmRegistry":"https://registry.npmjs.org/",
-  "npmDirect":{"next":"15.5.2","react":"19.1.1","react-dom":"19.1.1","fastify":"5.5.0","zod":"4.1.5","better-sqlite3":"12.2.0","typescript":"5.9.2","vitest":"3.2.4","@playwright/test":"1.55.0","axe-core":"4.10.3","@axe-core/playwright":"4.10.2","tailwindcss":"4.1.12","@tailwindcss/postcss":"4.1.12"},
-  "pythonDirect":{"torch":"2.9.1+cpu","torchvision":"0.24.1+cpu","easyocr":"1.7.2","opencv-python-headless":"4.11.0.86","numpy":"2.2.6","scipy":"1.15.3","librosa":"0.11.0","soundfile":"0.13.1"},
-  "bootstrap":"Before product source, generate pnpm-lock.yaml and uv.lock from these exact direct pins using pnpm 11.20.0 and uv 0.11.8; enumerate every transitive tarball/wheel URL, integrity/SHA, license and platform marker into supply-chain v2; hydrate all artifacts; prove frozen offline install; append lock digests as a child authority root. Any resolution drift or unavailable artifact stops before Wave 2.",
-  "requiredLockArtifacts":["pnpm-lock.yaml","uv.lock","npm-artifact-manifest.json","python-wheel-manifest.json","debian-snapshot-manifest.json","container-child-digest-manifest.json","ffmpeg-build-manifest.json"]
-}

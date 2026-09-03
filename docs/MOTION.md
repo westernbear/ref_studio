@@ -17,7 +17,6 @@ Pinned toolchain for the motion-complete worktree. Run gates offline except the 
 ## Native authoring quick start
 
 ```bash
-cd /home/singlerr/ref_studio-motion-complete
 pnpm install
 pnpm --filter @rvs/contracts test
 pnpm --filter @rvs/api test --run
@@ -59,6 +58,7 @@ Motion SQL lives under `apps/api/database/migrations`:
 | ---------------------------------- | ----------------------------------------------------------------------------- |
 | `021_motion_provider_canaries.sql` | tenant/provider/model canary rows                                             |
 | `022_motion_plan_metadata.sql`     | `plan_digest`, `predecessor_version`, `artifact_digest`, `predicate_ids_json` |
+| `025_motion_knowledge_rewrite.sql` | first-party card prose and sources; same 15 domain ids                        |
 
 Fresh DB: open the API database helper (tests use `openApiDatabase(":memory:")`). Upgraded DB: apply pending files in order. Do not rewrite applied history.
 

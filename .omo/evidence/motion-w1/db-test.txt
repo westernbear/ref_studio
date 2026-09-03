@@ -1,2 +1,0 @@
-$ node database/test.mjs
-{"integrity":"ok","negativeCases":6,"duplicateCasAllowed":true,"singleClaim":true,"orderedReceipts":true}

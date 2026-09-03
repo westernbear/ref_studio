@@ -1,4 +1,0 @@
-root=3e6de1e1d25b726f168f6e8f7d672bd868c850bf
-worker=6efc320f79d2756accce1559fae4cbcad57cda35
-adobe=8c4d955d5cbed750f1458558aca684fa5c2bb4fc
-finished=2026-08-31T08:44:41.208Z

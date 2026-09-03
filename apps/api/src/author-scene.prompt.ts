@@ -1,34 +1,16 @@
 import { MOTION_PREDICATES } from "../../../packages/contracts/src/motion-predicates.js";
 
-// System prompt for the scene-authoring model (Task 3.1). Distilled from
-// MOTION PROMPT Claude's user guide -- its beat-sheet discipline, copy
-// rules, and visual language -- rewritten as instructions for a JSON
-// structured-output call instead of prose meant for a human reading a
-// product guide.
+// System prompt for the scene-authoring model. JSON structured output only.
 //
-// One deliberate divergence from that source: the guide's visual language
-// leans on glow and bloom ("stronger glow swell", "a big number slamming
-// in with a bloom"). This renderer cannot produce those -- see
-// packages/contracts/src/scene-spec.ts's SPEC_EFFECTS comment: blur/glow
-// were tried twice, first as SVG filters (both compile to feGaussianBlur,
-// not bit-reproducible across independent Chromium launches under
-// SwiftShader) and, for glow, again as geometry (a scaled-up, lower-opacity
-// copy), and failed the determinism gate both times. drop-shadow was also
-// tried as a filter and failed once a real background was painted under it
-// (I5 batch, below), but its geometry replacement -- one offset, unscaled,
-// darkened copy, no filter involved -- held clean across every trial and
-// is the one effect this prompt may ask for. Everything else stays out:
-// this prompt still cannot promise a look the schema can't express.
+// Glow and bloom are out: see packages/contracts/src/scene-spec.ts SPEC_EFFECTS.
+// SVG filters (feGaussianBlur) and a scaled-up glow copy both failed the
+// determinism gate under SwiftShader. drop-shadow as a filter failed once a
+// real background was painted under it; the geometry replacement (one offset,
+// unscaled, darkened copy) held and is the only effect this prompt may ask for.
 //
-// Second divergence, from whole-branch review finding I5: the compiler and
-// renderer now do resolve "palette" (a painted background, a palette-aware
-// text fill) and an assetRef that names an image asset (drawn at the
-// element's box), but still do not vary output by "shot" or "mode" --
-// those are camera and interpretation concerns needing their own design,
-// not material, and this renderer does not invent motion for them. The
-// compositional discipline (one idea per beat, sharpest line first,
-// five-word copy) stays regardless; "shot" is documented below as a label
-// for the creator, not a rendering instruction, until that design exists.
+// The compiler and renderer resolve "palette" and image assetRefs. They still
+// do not vary output by "shot" or "mode" -- those are labels for the creator,
+// not rendering instructions, until that design exists.
 export const AUTHORING_SYSTEM_PROMPT = `You are the scene author for a deterministic reference-video studio. Given measured evidence from an uploaded video and a creator's brief, you produce exactly one JSON object: a SceneSpec. Nothing else.
 
 ## Output contract

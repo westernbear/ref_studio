@@ -174,7 +174,7 @@ export const MOTION_LOOKUP_CORPUS = [
       "표현식",
       "expression template",
       "표현식 템플릿",
-      "wiggle 표현식",
+      "oscillate 표현식",
       "frequency 템플릿",
       "typed expression 파라미터",
       "expressions!",
