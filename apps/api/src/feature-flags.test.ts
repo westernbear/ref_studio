@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   FeatureFlagConfigError,
-  freezeFeatureFlagSnapshot,
   loadFeatureFlagSnapshot,
   type FeatureFlagSnapshot,
 } from "./feature-flags.js";
@@ -57,22 +56,5 @@ describe("feature flag startup snapshot", () => {
     const snapshot = loadFeatureFlagSnapshot(env);
     env.RVS_NATIVE_SCENE_V2 = "false";
     expect(snapshot.nativeSceneV2).toBe(true);
-  });
-
-  it("copies and freezes a complete test override", () => {
-    const override = {
-      verifiedMotionAuthoring: true,
-      nativeSceneV2: false,
-      adobeMcp: true,
-    };
-    const snapshot = freezeFeatureFlagSnapshot(override);
-    override.nativeSceneV2 = true;
-
-    expect(snapshot).toEqual({
-      verifiedMotionAuthoring: true,
-      nativeSceneV2: false,
-      adobeMcp: true,
-    });
-    expect(Object.isFrozen(snapshot)).toBe(true);
   });
 });

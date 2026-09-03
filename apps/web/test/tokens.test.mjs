@@ -3,38 +3,27 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const root = resolve(import.meta.dirname, "../../..");
-const design = readFileSync(
-  resolve(
-    root,
-    "stitch-extracted/stitch_design_system_ui_implementation/cosmic_engineering/DESIGN.md",
-  ),
-  "utf8",
-);
 const tokens = readFileSync(
   resolve(root, "apps/web/src/styles/tokens.css"),
   "utf8",
 );
-const names = [...design.matchAll(/^\s{2}([a-z][a-z0-9-]*):/gm)]
-  .map((match) => match[1])
-  .filter(
-    (name) =>
-      !["colors", "typography", "rounded", "spacing", "components"].includes(
-        name,
-      ),
-  );
-describe("Cosmic Engineering token coverage", () => {
-  it("maps every authoritative token to a CSS variable", () => {
-    const missing = [...new Set(names)].filter(
-      (name) =>
-        !tokens.includes(`--color-${name}`) &&
-        !tokens.includes(`--space-${name}`) &&
-        !tokens.includes(`--radius-${name}`) &&
-        !tokens.includes(`--font-${name}`) &&
-        !tokens.includes(`--type-${name}`) &&
-        !tokens.includes(`--component-${name}`),
-    );
-    expect(missing).toEqual([]);
+describe("token surface", () => {
+  it("keeps referenced canvas, ink, and type faces", () => {
+    expect(tokens).toContain("/fonts/Manrope-Variable.ttf");
+    expect(tokens).toContain("/fonts/InterVariable.woff2");
+    expect(tokens).toContain("/fonts/GeistMono-Variable.woff2");
+    expect(tokens).toContain("--color-canvas");
+    expect(tokens).toContain("--color-ink");
+    expect(tokens).toContain("--type-body-sm");
   });
-  it("includes local Korean-capable Wanted Sans", () =>
-    expect(tokens).toContain("/fonts/WantedSansVariable.ttf"));
+  it("drops unused faces, Material You dump, component aliases, and dusk/accent tokens", () => {
+    expect(tokens).not.toContain("/fonts/WantedSansVariable.ttf");
+    expect(tokens).not.toContain("/fonts/Geist-Variable.woff2");
+    expect(tokens).not.toContain("--font-korean");
+    expect(tokens).not.toContain("--component-");
+    expect(tokens).not.toContain("--color-dusk");
+    expect(tokens).not.toContain("--color-accent-dusk");
+    expect(tokens).not.toContain("--color-accent-twilight");
+    expect(tokens).not.toContain("@theme inline");
+  });
 });

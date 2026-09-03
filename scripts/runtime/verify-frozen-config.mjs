@@ -1,5 +1,10 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import {
+  auditEgressIsolated,
+  qaNetworkNone,
+  serviceBlock,
+} from "./compose-isolation.mjs";
 
 const workspace = resolve(import.meta.dirname, "../..");
 const dockerfile = await readFile(resolve(workspace, "Dockerfile"), "utf8");
@@ -26,11 +31,6 @@ if (
   );
 }
 
-const serviceBlock = (service) =>
-  compose.match(
-    new RegExp(`^  ${service}:\\n([\\s\\S]*?)(?=^  [a-z]|^networks:)`, "m"),
-  )?.[1] ?? "";
-
 for (const service of [
   "runtime",
   "runtime-preflight",
@@ -40,12 +40,12 @@ for (const service of [
   "qa",
   "qa-audit-egress",
 ]) {
-  if (serviceBlock(service) === "")
+  if (serviceBlock(compose, service) === "")
     throw new Error(`RUNTIME_CONFIG_UNFROZEN missing service ${service}`);
 }
 
 for (const service of ["runtime", "runtime-preflight", "compiler"]) {
-  if (!serviceBlock(service).includes("network_mode: none")) {
+  if (!serviceBlock(compose, service).includes("network_mode: none")) {
     throw new Error(
       `RUNTIME_CONFIG_UNFROZEN ${service} is not network-isolated`,
     );
@@ -55,7 +55,7 @@ if (!compose.match(/appnet:\n    internal: true/))
   throw new Error("RUNTIME_CONFIG_UNFROZEN appnet is not internal");
 
 for (const service of ["web", "api"]) {
-  const config = serviceBlock(service);
+  const config = serviceBlock(compose, service);
   if (!config.includes("networks: [appnet, default]")) {
     throw new Error(
       `RUNTIME_CONFIG_UNFROZEN ${service} network topology changed`,
@@ -67,21 +67,14 @@ for (const service of ["web", "api"]) {
     );
 }
 if (
-  !serviceBlock("api").includes(
+  !serviceBlock(compose, "api").includes(
     "RVS_WORKER_TOKEN: ${RVS_WORKER_TOKEN:?RVS_WORKER_TOKEN must be set}",
   )
 )
   throw new Error("RUNTIME_CONFIG_UNFROZEN API worker token is not required");
-if (!serviceBlock("qa").includes("network_mode: none"))
+if (!qaNetworkNone(compose))
   throw new Error("RUNTIME_CONFIG_UNFROZEN qa is not network-isolated");
-
-const auditConfig = serviceBlock("qa-audit-egress");
-if (
-  auditConfig.includes("networks:") ||
-  auditConfig.includes("network_mode: none") ||
-  auditConfig.includes("- .:/workspace") ||
-  /(?:database|cas|appnet)/i.test(auditConfig)
-) {
+if (!auditEgressIsolated(compose)) {
   throw new Error(
     "RUNTIME_CONFIG_UNFROZEN qa-audit-egress crosses an isolation boundary",
   );

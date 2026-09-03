@@ -9,14 +9,12 @@ import {
   type SceneOperationBatchV1,
 } from "../../../packages/contracts/src/motion.js";
 import type { MotionPredicateId } from "../../../packages/contracts/src/motion-predicates.js";
-import { sha256Hex } from "../../../packages/contracts/src/canonical-json.js";
 import {
   assertResourceBudget,
   ResourceBudgetError,
 } from "../../../packages/contracts/src/resource-budgets.js";
 import { emitMotionEvent } from "../../../packages/contracts/src/motion-observability.js";
 import { verifyMotionScene as evaluateMotionScene } from "./motion-predicates.js";
-import { verifyAndRepair as runVerificationAttempts } from "./verified-scene-authoring.js";
 import type { Job } from "./creator-workflow.js";
 
 export function verifyMotionScene(
@@ -62,42 +60,6 @@ export function verifyMotionSceneForJob(scene: SceneSpec, job: Job) {
       predicates: mismatched.map((finding) => finding.predicateId),
     });
   return report;
-}
-
-export async function verifyAndRepair(
-  initial: SceneSpec,
-  verify: (scene: SceneSpec) => Promise<readonly string[]>,
-  repair: (scene: SceneSpec, failures: readonly string[]) => Promise<SceneSpec>,
-) {
-  return runVerificationAttempts({
-    initialScene: initial,
-    initialArtifact: undefined,
-    verify: async (scene, attempt) => {
-      const failures = await verify(scene);
-      const findings = failures.map((observed) => ({
-        predicateId: "scene-spec" as const,
-        pass: false,
-        target: "scene",
-        observed,
-        expected: "verification pass",
-        remediation: "repair the reported predicate failure",
-      }));
-      return {
-        schema: "verification-report-v1" as const,
-        sceneDigest: sha256Hex(scene),
-        attempts: attempt,
-        status: findings.length === 0 ? ("PASS" as const) : ("FAIL" as const),
-        findings,
-      };
-    },
-    repair: async (scene, findings) => ({
-      scene: await repair(
-        scene,
-        findings.map((finding) => finding.observed),
-      ),
-      artifact: undefined,
-    }),
-  });
 }
 
 const pointerSegments = (path: string): readonly string[] =>

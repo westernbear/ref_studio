@@ -2,8 +2,6 @@ import { describe, expect, test } from "vitest";
 import golden from "../../../verification/contract/adobe-mcp-v1.json" with { type: "json" };
 import {
   ADOBE_TOOL_NAMES_V1,
-  AdobeCapabilitySnapshotV1Schema,
-  AdobeCommandStatusV1Schema,
   AdobeCommandEnvelopeV1Schema,
   AdobeCommandResultV1Schema,
   AdobeDeviceEnrollmentRequestV1Schema,
@@ -66,7 +64,7 @@ describe("Adobe MCP v1 boundary", () => {
     ).toBe(false);
   });
 
-  test("rejects unknown result and capability fields", () => {
+  test("rejects unknown result fields", () => {
     const result = {
       ...golden.resultBase,
       commandId: "cmd-result-01",
@@ -77,27 +75,6 @@ describe("Adobe MCP v1 boundary", () => {
     expect(
       AdobeCommandResultV1Schema.safeParse({ ...result, token: "secret" })
         .success,
-    ).toBe(false);
-    const capability = {
-      version: 1,
-      deviceId: "device-golden",
-      afterEffectsVersion: "25.0",
-      capturedAt: "2026-08-30T00:00:00.000Z",
-      tools: ADOBE_TOOL_NAMES_V1,
-      pollingIntervalMs: 2000,
-      maxConcurrentMutations: 1,
-      arbitraryScripts: false,
-      rawExpressions: false,
-      rawPresetPaths: false,
-    };
-    expect(AdobeCapabilitySnapshotV1Schema.safeParse(capability).success).toBe(
-      true,
-    );
-    expect(
-      AdobeCapabilitySnapshotV1Schema.safeParse({
-        ...capability,
-        localPath: "/tmp",
-      }).success,
     ).toBe(false);
   });
 
@@ -159,7 +136,7 @@ describe("Adobe MCP v1 boundary", () => {
 describe("Adobe cloud relay boundary", () => {
   const command = golden.commandBase;
 
-  test("rejects unknown relay enrollment signature and status fields", () => {
+  test("rejects unknown relay enrollment and signature fields", () => {
     const relayCommand = {
       ...command,
       commandId: "cmd-relay-1",
@@ -194,13 +171,13 @@ describe("Adobe cloud relay boundary", () => {
       }).success,
     ).toBe(true);
     expect(
-      AdobeCommandStatusV1Schema.safeParse({
-        version: 1,
-        commandId: relayCommand.commandId,
-        deviceId: relayCommand.deviceId,
-        jobId: relayCommand.jobId,
-        status: "QUEUED",
-        result: null,
+      AdobeRelaySignatureV1Schema.safeParse({
+        keyId: "key-1",
+        timestampMs: 1,
+        requestId: "request-1",
+        nonce: "nonce-1",
+        bodyHash: "a".repeat(64),
+        signature: "b".repeat(64),
         accessToken: "forbidden",
       }).success,
     ).toBe(false);

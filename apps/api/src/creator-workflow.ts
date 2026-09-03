@@ -11,6 +11,7 @@ import {
   GenerationConfigSchema,
   type GenerationConfig,
 } from "../../../packages/contracts/src/generation.js";
+import { requestHeader } from "./admin-auth.js";
 import { getAiProviderSettings } from "./ai-provider-settings.js";
 import { getMaterialProviderSettings } from "./material-provider-settings.js";
 import { currentDeliveryGate } from "./motion-artifact-gate.js";
@@ -611,10 +612,6 @@ export const hasUnresolvedChoices = (job: Job): boolean => {
     !parsed.success || (parsed.data.sceneInput.needsChoice?.length ?? 0) > 0
   );
 };
-const header = (request: FastifyRequest, name: string): string | undefined => {
-  const value = request.headers[name];
-  return typeof value === "string" ? value : undefined;
-};
 const projection = (
   store: CreatorWorkflowStore,
   job: Job,
@@ -1131,7 +1128,7 @@ const command = (
   scope: string,
   action: () => readonly [number, Record<string, unknown>],
 ): readonly [number, SafeRecord] => {
-  const key = header(request, "idempotency-key");
+  const key = requestHeader(request, "idempotency-key");
   if (!key) throw new Error("INVALID_REQUEST");
   const replay = store.idempotency.execute(
     scope,
@@ -1153,7 +1150,7 @@ const owned = (
   return job;
 };
 const edit = (job: Job, request: FastifyRequest): void => {
-  const match = header(request, "if-match");
+  const match = requestHeader(request, "if-match");
   if (!match || match !== job.etag) throw new Error("VERSION_CONFLICT");
 };
 export const transitionJob = (
@@ -1308,7 +1305,7 @@ export function registerCreatorWorkflow(
   },
 ): void {
   const tenant = (request: FastifyRequest): string =>
-    header(request, "x-tenant-id") ?? "";
+    requestHeader(request, "x-tenant-id") ?? "";
   app.post(
     "/v1/jobs",
     async (

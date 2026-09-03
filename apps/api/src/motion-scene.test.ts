@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { fixtureSpec } from "@rvs/contracts";
+import { sha256Hex } from "../../../packages/contracts/src/canonical-json.js";
 import {
   applySceneOperations,
   keyframesFromMotionIntent,
-  verifyAndRepair,
   verifyMotionScene,
-} from "./motion-scene.js";
+} from "./motion-operations.js";
+import { verifyAndRepair } from "./verified-scene-authoring.js";
 
 describe("motion scene authoring", () => {
   it("applies a validated set operation without mutating the previous scene", () => {
@@ -86,17 +87,36 @@ describe("motion scene authoring", () => {
 
   it("stops after four failed verification attempts and preserves the safe scene", async () => {
     let verificationCalls = 0;
-    const result = await verifyAndRepair(
-      fixtureSpec,
-      async () => {
+    const result = await verifyAndRepair({
+      initialScene: fixtureSpec,
+      initialArtifact: undefined,
+      verify: async (scene, attempt) => {
         verificationCalls += 1;
-        return ["never passes"];
+        return {
+          schema: "verification-report-v1",
+          sceneDigest: sha256Hex(scene),
+          attempts: attempt,
+          status: "FAIL",
+          findings: [
+            {
+              predicateId: "scene-spec",
+              pass: false,
+              target: "scene",
+              observed: "never passes",
+              expected: "verification pass",
+              remediation: "repair the reported predicate failure",
+            },
+          ],
+        };
       },
-      async (scene) => ({
-        ...scene,
-        mode: scene.mode === "SWAP" ? "REINTERPRET" : "SWAP",
+      repair: async (scene) => ({
+        scene: {
+          ...scene,
+          mode: scene.mode === "SWAP" ? "REINTERPRET" : "SWAP",
+        },
+        artifact: undefined,
       }),
-    );
+    });
     expect(verificationCalls).toBe(4);
     expect(result.scene).toBe(fixtureSpec);
     expect(result.report.status).toBe("FAIL");

@@ -1,11 +1,6 @@
-import {
-  createCipheriv,
-  createDecipheriv,
-  randomBytes,
-  scryptSync,
-} from "node:crypto";
 import type Database from "better-sqlite3";
 import { parseCodexAuth } from "./codex-oauth.js";
+import { decryptSecret, encryptSecret } from "./secret-cipher.js";
 
 export const AI_PROVIDER_KINDS = [
   "openai",
@@ -63,39 +58,7 @@ const DEFAULT_SETTINGS: AiProviderSettingsPublic = {
   updatedBy: "system",
 };
 
-// AES-256-GCM keyed from the server's existing introspection secret (no new
-// required env var) with a distinct salt for domain separation from its
-// other use (session introspection).
-const deriveKey = (secretKey: string) =>
-  scryptSync(secretKey, "rvs-ai-provider-settings", 32);
-
-const encryptSecret = (plaintext: string, secretKey: string): string => {
-  const key = deriveKey(secretKey);
-  const iv = randomBytes(12);
-  const cipher = createCipheriv("aes-256-gcm", key, iv);
-  const ciphertext = Buffer.concat([
-    cipher.update(plaintext, "utf8"),
-    cipher.final(),
-  ]);
-  const tag = cipher.getAuthTag();
-  return `${iv.toString("base64")}:${tag.toString("base64")}:${ciphertext.toString("base64")}`;
-};
-
-const decryptSecret = (ciphertext: string, secretKey: string): string => {
-  const [ivPart, tagPart, ctPart] = ciphertext.split(":");
-  if (!ivPart || !tagPart || !ctPart) throw new Error("INVALID_REQUEST");
-  const key = deriveKey(secretKey);
-  const decipher = createDecipheriv(
-    "aes-256-gcm",
-    key,
-    Buffer.from(ivPart, "base64"),
-  );
-  decipher.setAuthTag(Buffer.from(tagPart, "base64"));
-  return Buffer.concat([
-    decipher.update(Buffer.from(ctPart, "base64")),
-    decipher.final(),
-  ]).toString("utf8");
-};
+const SETTINGS_SALT = "rvs-ai-provider-settings";
 
 const toPublic = (row: Row): AiProviderSettingsPublic => ({
   providerKind: row.provider_kind,
@@ -131,7 +94,7 @@ export function getAiProviderSettingsWithSecret(
   return {
     ...toPublic(row),
     apiKey: row.api_key_ciphertext
-      ? decryptSecret(row.api_key_ciphertext, secretKey)
+      ? decryptSecret(row.api_key_ciphertext, secretKey, SETTINGS_SALT)
       : null,
   };
 }
@@ -186,7 +149,7 @@ export function updateAiProviderSettings(
   }
   const apiKeyCiphertext =
     patch.apiKey && patch.apiKey.length > 0
-      ? encryptSecret(patch.apiKey, secretKey)
+      ? encryptSecret(patch.apiKey, secretKey, SETTINGS_SALT)
       : (existing?.api_key_ciphertext ?? null);
   const updatedAt = new Date(now).toISOString();
   db.prepare(

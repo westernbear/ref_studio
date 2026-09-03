@@ -321,34 +321,6 @@ export const AdobeCommandResultV1Schema = z
   .strict();
 export type AdobeCommandResultV1 = z.infer<typeof AdobeCommandResultV1Schema>;
 
-export const AdobeCapabilitySnapshotV1Schema = z
-  .object({
-    version: z.literal(1),
-    deviceId: IdentifierSchema,
-    afterEffectsVersion: z.string().min(1).max(64),
-    capturedAt: z.string().datetime(),
-    tools: z
-      .array(z.enum(ADOBE_TOOL_NAMES_V1))
-      .length(ADOBE_TOOL_NAMES_V1.length),
-    pollingIntervalMs: z.literal(2_000),
-    maxConcurrentMutations: z.literal(1),
-    arbitraryScripts: z.literal(false),
-    rawExpressions: z.literal(false),
-    rawPresetPaths: z.literal(false),
-  })
-  .strict()
-  .superRefine((value, context) => {
-    if (value.tools.join("\0") !== ADOBE_TOOL_NAMES_V1.join("\0"))
-      context.addIssue({
-        code: "custom",
-        path: ["tools"],
-        message: "tools must match the ordered Adobe MCP v1 tool set",
-      });
-  });
-export type AdobeCapabilitySnapshotV1 = z.infer<
-  typeof AdobeCapabilitySnapshotV1Schema
->;
-
 export const AdobeRelaySignatureV1Schema = z
   .object({
     keyId: IdentifierSchema,
@@ -379,28 +351,3 @@ export const AdobeDeviceEnrollmentRequestV1Schema = z
 export type AdobeDeviceEnrollmentRequestV1 = z.infer<
   typeof AdobeDeviceEnrollmentRequestV1Schema
 >;
-
-export const AdobeDeviceEnrollmentV1Schema = z
-  .object({
-    version: z.literal(1),
-    deviceId: IdentifierSchema,
-    keyId: IdentifierSchema,
-    secret: z.string().regex(/^[a-f0-9]{64}$/u),
-    expiresAtMs: FiniteSchema.int().positive(),
-  })
-  .strict();
-export type AdobeDeviceEnrollmentV1 = z.infer<
-  typeof AdobeDeviceEnrollmentV1Schema
->;
-
-export const AdobeCommandStatusV1Schema = z
-  .object({
-    version: z.literal(1),
-    commandId: IdentifierSchema,
-    deviceId: IdentifierSchema,
-    jobId: IdentifierSchema,
-    status: z.enum(["QUEUED", "RUNNING", "SUCCEEDED", "FAILED", "CANCELLED"]),
-    result: AdobeCommandResultV1Schema.nullable(),
-  })
-  .strict();
-export type AdobeCommandStatusV1 = z.infer<typeof AdobeCommandStatusV1Schema>;

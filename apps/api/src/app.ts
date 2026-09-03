@@ -29,7 +29,7 @@ import {
   requestHash,
   safeEnvelope,
 } from "./boundary.js";
-import { decodeCookieValue } from "./admin-auth.js";
+import { decodeCookieValue, requestHeader } from "./admin-auth.js";
 import {
   abortUpload,
   cleanupExpiredUploads,
@@ -59,7 +59,6 @@ import { registerJobAttachments } from "./job-attachments.js";
 import { registerMotionScene } from "./motion-scene.js";
 import { registerRefinePrompt } from "./refine-prompt.js";
 import {
-  freezeFeatureFlagSnapshot,
   loadFeatureFlagSnapshot,
   type FeatureFlagSnapshot,
 } from "./feature-flags.js";
@@ -117,12 +116,8 @@ export type AppOptions = {
   readonly materialGenerate?: GenerateImage;
   readonly featureFlags?: FeatureFlagSnapshot;
 } & WorkerAppOptions;
-const header = (request: FastifyRequest, name: string): string | undefined => {
-  const value = request.headers[name];
-  return typeof value === "string" ? value : undefined;
-};
 const cookie = (request: FastifyRequest, name: string): string | undefined =>
-  header(request, "cookie")
+  requestHeader(request, "cookie")
     ?.split(";")
     .map((part) => part.trim())
     .find((part) => part.startsWith(`${name}=`))
@@ -201,15 +196,15 @@ const principalResult = (
   authenticateSession(
     store,
     decodeCookieValue(cookie(request, "rvs_session")),
-    header(request, "x-csrf-token"),
-    header(request, "origin"),
+    requestHeader(request, "x-csrf-token"),
+    requestHeader(request, "origin"),
     origin,
     now,
   );
 
 export function buildAuthApp(options: AppOptions): FastifyInstance {
   const featureFlags = options.featureFlags
-    ? freezeFeatureFlagSnapshot(options.featureFlags)
+    ? Object.freeze({ ...options.featureFlags })
     : loadFeatureFlagSnapshot();
   const app = Fastify({ logger: false, bodyLimit: MAX_CHUNK_BYTES });
   app.addContentTypeParser(
@@ -290,8 +285,8 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
       request.url !== "/v1/adobe/relay" &&
       request.url !== "/v1/adobe/results"
     ) {
-      const tenant = header(request, "x-tenant-id");
-      const authorization = header(request, "authorization");
+      const tenant = requestHeader(request, "x-tenant-id");
+      const authorization = requestHeader(request, "authorization");
       const bearer = authorization?.startsWith("Bearer ")
         ? authorization.slice(7)
         : "";
@@ -350,7 +345,7 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
     request: FastifyRequest<{ Body: { email: string; password: string } }>,
     reply: FastifyReply,
   ): Promise<void> => {
-    if (header(request, "origin") !== options.expectedOrigin) {
+    if (requestHeader(request, "origin") !== options.expectedOrigin) {
       failure(reply, { code: "CSRF_ORIGIN_INVALID" });
       return;
     }
@@ -425,7 +420,7 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
   );
   app.get("/bff/session-introspect", async (request, reply) => {
     if (
-      header(request, "x-session-introspect-secret") !==
+      requestHeader(request, "x-session-introspect-secret") !==
       options.introspectSecret
     ) {
       failure(reply, { code: "AUTHENTICATION_REQUIRED" });
@@ -443,18 +438,18 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
     }
     reply.send({
       opaqueSessionId: principal.sessionId,
-      csrf: header(request, "x-csrf-token"),
+      csrf: requestHeader(request, "x-csrf-token"),
     });
   });
   app.get("/v1/identity", async (request, reply) => {
-    const authorization = header(request, "authorization");
+    const authorization = requestHeader(request, "authorization");
     const bearer = authorization?.startsWith("Bearer ")
       ? authorization.slice(7)
       : "";
     const principal = authenticateBearer(
       options.store,
       bearer,
-      header(request, "x-tenant-id"),
+      requestHeader(request, "x-tenant-id"),
       now(),
     );
     if ("code" in principal) {
@@ -472,14 +467,14 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
     }>,
     reply: FastifyReply,
   ): Promise<void> => {
-    const authorization = header(request, "authorization");
+    const authorization = requestHeader(request, "authorization");
     const bearer = authorization?.startsWith("Bearer ")
       ? authorization.slice(7)
       : "";
     const principal = authenticateBearer(
       options.store,
       bearer,
-      header(request, "x-tenant-id"),
+      requestHeader(request, "x-tenant-id"),
       now(),
     );
     if ("code" in principal) {
@@ -495,7 +490,7 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
           };
     const access = fenceResource(
       principal,
-      header(request, "x-tenant-id"),
+      requestHeader(request, "x-tenant-id"),
       resource,
       request.body.deletionEpoch,
     );
@@ -509,7 +504,7 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
       failure(reply, access);
       return;
     }
-    const key = header(request, "idempotency-key");
+    const key = requestHeader(request, "idempotency-key");
     if (!key) {
       reply.send(options.onTenantAction?.() ?? { ok: true });
       return;
@@ -541,8 +536,8 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
     const uploads = options.uploads;
     app.post("/v1/uploads", async (request, reply) => {
       try {
-        const tenantId = header(request, "x-tenant-id") ?? "";
-        const key = header(request, "idempotency-key");
+        const tenantId = requestHeader(request, "x-tenant-id") ?? "";
+        const key = requestHeader(request, "idempotency-key");
         if (!key) throw new UploadFailure("INVALID_REQUEST");
         const replay = idempotency.execute(
           "upload-create",
@@ -586,8 +581,8 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
       { bodyLimit: MAX_ATTACHMENT_BYTES + 1024 },
       async (request, reply) => {
         try {
-          const tenantId = header(request, "x-tenant-id") ?? "";
-          const key = header(request, "idempotency-key");
+          const tenantId = requestHeader(request, "x-tenant-id") ?? "";
+          const key = requestHeader(request, "idempotency-key");
           if (!key) throw new UploadFailure("INVALID_REQUEST");
           const body = request.body;
           // I1: a video/mp4|quicktime|webm attachment arrives as a
@@ -608,7 +603,7 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
           // what lets the scene author match a file to the brief that
           // describes it ("use 05_ranking.jpg here"); without it the model
           // gets a list of interchangeable ids.
-          const rawFileName = header(request, "x-filename");
+          const rawFileName = requestHeader(request, "x-filename");
           const fileName = (() => {
             if (!rawFileName) return "attachment";
             try {
@@ -666,12 +661,12 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
                   })();
           const upload = putChunk(
             uploads,
-            header(request, "x-tenant-id") ?? "",
+            requestHeader(request, "x-tenant-id") ?? "",
             request.params.id,
             Number(request.params.index),
             chunk,
-            header(request, "content-range") ?? "",
-            header(request, "x-chunk-sha256") ?? "",
+            requestHeader(request, "content-range") ?? "",
+            requestHeader(request, "x-chunk-sha256") ?? "",
           );
           reply.header("x-received-bytes", upload.actualBytes).code(204).send();
         } catch (error) {
@@ -697,8 +692,8 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
           const validateUpload = options.validateUpload;
           if (!expectation.success || !validateUpload)
             throw new UploadFailure("INVALID_REQUEST");
-          const tenantId = header(request, "x-tenant-id") ?? "";
-          const key = header(request, "idempotency-key");
+          const tenantId = requestHeader(request, "x-tenant-id") ?? "";
+          const key = requestHeader(request, "idempotency-key");
           if (!key) throw new UploadFailure("INVALID_REQUEST");
           const replay = await idempotency.executeAsync(
             `upload-finalize:${request.params.id}`,
@@ -739,7 +734,7 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
         try {
           const upload = getUpload(
             uploads,
-            header(request, "x-tenant-id") ?? "",
+            requestHeader(request, "x-tenant-id") ?? "",
             request.params.id,
           );
           reply.send({
@@ -762,7 +757,7 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
         try {
           abortUpload(
             uploads,
-            header(request, "x-tenant-id") ?? "",
+            requestHeader(request, "x-tenant-id") ?? "",
             request.params.id,
           );
           reply.code(202).send({ state: "aborted" });
@@ -781,7 +776,7 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
         try {
           abortUpload(
             uploads,
-            header(request, "x-tenant-id") ?? "",
+            requestHeader(request, "x-tenant-id") ?? "",
             request.params.id,
           );
           reply.send({ ok: true });
@@ -806,14 +801,14 @@ export function buildAuthApp(options: AppOptions): FastifyInstance {
         request: FastifyRequest<{ Params: { tenantId: string } }>,
         reply,
       ) => {
-        const authorization = header(request, "authorization");
+        const authorization = requestHeader(request, "authorization");
         const bearer = authorization?.startsWith("Bearer ")
           ? authorization.slice(7)
           : "";
         const principal = authenticateBearer(
           options.store,
           bearer,
-          header(request, "x-tenant-id"),
+          requestHeader(request, "x-tenant-id"),
           now(),
         );
         if ("code" in principal) {

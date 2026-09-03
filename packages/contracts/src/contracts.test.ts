@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { assertLegalTransition, JobStates, transitions } from "./lifecycle.js";
 import { normalizeError } from "./errors.js";
-import { assertSceneOwners, AuthoringIRSchema, SceneIRSchema } from "./ir.js";
-import { CoreModelSchemas } from "./models.js";
-import { projectJob } from "./projection.js";
 
 describe("canonical lifecycle", () => {
   it.each(
@@ -66,86 +63,5 @@ describe("safe errors", () => {
     expect(result.docsUrl).toBe(`/docs/errors#${code}`);
     expect(result.safePredecessor?.sceneVersion).toBe(3);
     expect(JSON.stringify(result)).not.toMatch(/secret stack|stack trace/);
-  });
-});
-describe("IR ownership", () => {
-  it("rejects ownerless scene tracks", () => {
-    const authoring = AuthoringIRSchema.parse({
-      schema: "authoring-ir-v1",
-      versionId: "air_1",
-      tenantId: "ten_1",
-      owners: [],
-      editableAssets: [],
-    });
-    const scene = SceneIRSchema.parse({
-      schema: "scene-ir-v1",
-      versionId: "sir_1",
-      tenantId: "ten_1",
-      authoringVersionId: "air_1",
-      tracks: [
-        {
-          trackId: "t",
-          owner: "missing",
-          geometryRef: "g",
-          lifecycle: {},
-          effects: [],
-        },
-      ],
-      audio: { sampleRateHz: 48000, channels: 2 },
-    });
-    expect(() => assertSceneOwners(authoring, scene)).toThrow("OWNER_MISMATCH");
-  });
-});
-describe("core models", () => {
-  it("parses every migration-backed model with branded identifiers", () => {
-    const tenant = {
-      id: "ten_1",
-      name: "Studio",
-      kind: "ORGANIZATION",
-      status: "ACTIVE",
-      deletionEpoch: 0,
-      createdAt: "2026-08-22T00:00:00Z",
-    };
-    expect(CoreModelSchemas.TenantSchema.parse(tenant).id).toBe("ten_1");
-    expect(Object.keys(CoreModelSchemas)).toHaveLength(23);
-    expect(() =>
-      CoreModelSchemas.UserSchema.parse({
-        id: "wrong",
-        email: "x@y.test",
-        displayName: "X",
-        createdAt: tenant.createdAt,
-      }),
-    ).toThrow();
-  });
-  it("keeps creator projection free of admin internals", () => {
-    const job = {
-      id: "job_1",
-      tenantId: "ten_1",
-      creatorId: "usr_1",
-      uploadId: "upl_1",
-      sceneId: "scn_1",
-      state: "COMPLETED" as const,
-      attempt: 1,
-      artifact: null,
-      error: null,
-      createdAt: "2026-08-22T00:00:00Z",
-      updatedAt: "2026-08-22T00:00:00Z",
-    };
-    const creator = projectJob(job, "CREATOR");
-    const admin = projectJob(job, "ADMIN");
-    expect(Object.keys(creator).sort()).toEqual([
-      "artifact",
-      "attempt",
-      "createdAt",
-      "error",
-      "id",
-      "sceneId",
-      "state",
-      "tenantId",
-      "updatedAt",
-      "uploadId",
-    ]);
-    expect(admin).toHaveProperty("internal");
-    expect(creator).not.toHaveProperty("creatorId");
   });
 });

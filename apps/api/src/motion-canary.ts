@@ -158,15 +158,6 @@ export function executeMotionLookupTool(
   return motionKnowledgeCardToCanaryRow(card);
 }
 
-/** Host-side adapter kept for fixtures that intentionally skip the provider seam. */
-export function hostMotionLookupCanaryAdapter(
-  db: Database.Database,
-): MotionCanaryAdapter {
-  return providerMotionLookupCanaryAdapter(async ({ input }) =>
-    executeMotionLookupTool(db, input.query),
-  );
-}
-
 export type GenerateLiveCanary = (options: {
   readonly model: LanguageModel;
   readonly system: string;

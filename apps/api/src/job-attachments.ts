@@ -3,6 +3,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type Database from "better-sqlite3";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { requestHeader } from "./admin-auth.js";
 import { safeEnvelope } from "./boundary.js";
 import type { CreatorWorkflowStore } from "./creator-workflow.js";
 import { sanitizeFilename } from "./uploads.js";
@@ -12,10 +13,6 @@ const MAX_ATTACHMENTS_PER_JOB = 10;
 
 const id = (prefix: string): string =>
   `${prefix}_${randomBytes(12).toString("base64url")}`;
-const header = (request: FastifyRequest, name: string): string | undefined => {
-  const value = request.headers[name];
-  return typeof value === "string" ? value : undefined;
-};
 const fail = (reply: FastifyReply, code: string, status = 400): void => {
   reply
     .code(status)
@@ -34,7 +31,7 @@ export function registerJobAttachments(
   attachmentsRoot: string,
 ): void {
   const tenant = (request: FastifyRequest): string =>
-    header(request, "x-tenant-id") ?? "";
+    requestHeader(request, "x-tenant-id") ?? "";
 
   app.post(
     "/v1/jobs/:jobId/attachments",
@@ -63,7 +60,7 @@ export function registerJobAttachments(
                 })();
         if (bytes.byteLength === 0 || bytes.byteLength > MAX_ATTACHMENT_BYTES)
           throw new Error("VIDEO_SIZE_LIMIT_EXCEEDED");
-        const rawFilename = header(request, "x-filename");
+        const rawFilename = requestHeader(request, "x-filename");
         const decodedFilename = (() => {
           if (!rawFilename) return "attachment";
           try {
@@ -74,7 +71,7 @@ export function registerJobAttachments(
         })();
         const filename = sanitizeFilename(decodedFilename);
         const contentType =
-          header(request, "content-type") ?? "application/octet-stream";
+          requestHeader(request, "content-type") ?? "application/octet-stream";
         const attachmentId = id("attach");
         const directory = join(attachmentsRoot, job.tenantId);
         mkdirSync(directory, { recursive: true, mode: 0o700 });

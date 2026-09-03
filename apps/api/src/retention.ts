@@ -14,18 +14,6 @@ const RETENTION_DEFAULTS = {
 
 export type RetentionKind = keyof typeof RETENTION_DEFAULTS;
 
-// ADMIN_AUDIT_RETENTION / ADMIN_SESSION_TIMEOUT are now configurable (previously
-// hardcoded literals); `export`/`adminSession` still have no runtime consumer today
-// (uploads.ts computes its own retentionUntil via UPLOAD_TTL_MS) — this only makes
-// the values configurable, it does not add new enforcement.
-export const RETENTION_MS = (config?: {
-  readonly adminAuditRetentionDays?: number;
-  readonly adminSessionTimeoutMinutes?: number;
-}): Record<RetentionKind, number> => ({
-  ...RETENTION_DEFAULTS,
-  export: (config?.adminAuditRetentionDays ?? 90) * 24 * 60 * 60 * 1000,
-  adminSession: (config?.adminSessionTimeoutMinutes ?? 30) * 60 * 1000,
-});
 export type RetentionState =
   | "PENDING"
   | "READY"

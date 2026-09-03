@@ -12,7 +12,8 @@ import { assertLegalTransition } from "../../../packages/contracts/src/lifecycle
 import { sha256Hex } from "../../../packages/contracts/src/canonical-json.js";
 import type { SceneOperationBatchV1 } from "../../../packages/contracts/src/motion.js";
 import type { SceneSpec } from "../../../packages/contracts/src/scene-spec.js";
-import { applySceneOperations } from "./motion-scene.js";
+import { requestHeader } from "./admin-auth.js";
+import { applySceneOperations } from "./motion-operations.js";
 import type { FeatureFlagSnapshot } from "./feature-flags.js";
 import {
   recordMotionSceneRefinement,
@@ -21,10 +22,6 @@ import {
 
 const id = (prefix: string): string =>
   `${prefix}_${randomBytes(12).toString("base64url")}`;
-const header = (request: FastifyRequest, name: string): string | undefined => {
-  const value = request.headers[name];
-  return typeof value === "string" ? value : undefined;
-};
 const fail = (
   reply: FastifyReply,
   code: string,
@@ -504,7 +501,7 @@ export function registerRefinePrompt(
   },
 ): void {
   const tenant = (request: FastifyRequest): string =>
-    header(request, "x-tenant-id") ?? "";
+    requestHeader(request, "x-tenant-id") ?? "";
   const idempotency = new IdempotencyStore();
   app.post(
     "/v1/jobs/:jobId/refine-prompt",
@@ -516,8 +513,8 @@ export function registerRefinePrompt(
       reply,
     ) => {
       try {
-        const key = header(request, "idempotency-key");
-        const match = header(request, "if-match");
+        const key = requestHeader(request, "idempotency-key");
+        const match = requestHeader(request, "if-match");
         if (!key || !match) throw new Error("PRECONDITION_REQUIRED");
         const refineRequestDigest = requestHash({
           route: `/v1/jobs/${request.params.jobId}/refine-prompt`,
@@ -633,7 +630,7 @@ export function registerRefinePrompt(
       reply,
     ) => {
       try {
-        const key = header(request, "idempotency-key");
+        const key = requestHeader(request, "idempotency-key");
         if (!key) throw new Error("INVALID_REQUEST");
         const principal = (
           request as FastifyRequest & {
@@ -694,7 +691,7 @@ export function registerRefinePrompt(
       reply,
     ) => {
       try {
-        const key = header(request, "idempotency-key");
+        const key = requestHeader(request, "idempotency-key");
         if (!key) throw new Error("INVALID_REQUEST");
         const principal = (
           request as FastifyRequest & {

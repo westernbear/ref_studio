@@ -71,11 +71,6 @@ const ServerEnv = z.object({
     .int()
     .positive()
     .default(30),
-  RVS_ADMIN_AUDIT_RETENTION_DAYS: z.coerce
-    .number()
-    .int()
-    .positive()
-    .default(90),
 });
 const UserRows = z.array(z.object({ id: z.string(), email: z.string() }));
 const CredentialRows = z.array(
@@ -196,7 +191,6 @@ export type ApiServerConfig = Readonly<{
   introspectSecret: string;
   workerToken: string;
   adminSessionTimeoutMinutes: number;
-  adminAuditRetentionDays: number;
   featureFlags: FeatureFlagSnapshot;
 }>;
 
@@ -239,7 +233,6 @@ export function loadServerConfig(
     introspectSecret: parsed.data.RVS_SESSION_INTROSPECT_SECRET,
     workerToken: parsed.data.RVS_WORKER_TOKEN,
     adminSessionTimeoutMinutes: parsed.data.RVS_ADMIN_SESSION_TIMEOUT_MINUTES,
-    adminAuditRetentionDays: parsed.data.RVS_ADMIN_AUDIT_RETENTION_DAYS,
     featureFlags: loadFeatureFlagSnapshot(env),
   };
 }

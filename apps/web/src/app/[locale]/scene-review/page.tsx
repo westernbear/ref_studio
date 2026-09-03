@@ -3,7 +3,6 @@ import {
   MotionSceneSnapshotV1Schema,
 } from "@rvs/contracts/motion";
 import { getTranslations } from "next-intl/server";
-import { Panel } from "../../../components/Primitives";
 import { parseJobProgress } from "../../../lib/job-progress";
 import {
   field,
@@ -44,13 +43,13 @@ export default async function SceneReviewPage({
       <div className="upload-shell">
         <SceneReviewHeader />
         <main className="upload-main">
-          <Panel>
+          <section className="panel">
             <h1>{t("title")}</h1>
             <p>{t("chooseJob")}</p>
             <Link className="button button-primary" href="/workflow">
               {t("header.workflow")}
             </Link>
-          </Panel>
+          </section>
         </main>
       </div>
     );
@@ -66,7 +65,7 @@ export default async function SceneReviewPage({
       <div className="upload-shell">
         <SceneReviewHeader />
         <main className="upload-main">
-          <Panel>
+          <section className="panel">
             <h1>{t("title")}</h1>
             <p>
               {isAuthProblem(result.code)
@@ -87,7 +86,7 @@ export default async function SceneReviewPage({
                 {t("header.workflow")}
               </Link>
             )}
-          </Panel>
+          </section>
         </main>
       </div>
     );

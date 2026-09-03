@@ -13,74 +13,23 @@
   font-display: swap;
 }
 @font-face {
-  font-family: "Geist";
-  src: url("/fonts/Geist-Variable.woff2") format("woff2");
-  font-style: normal;
-  font-weight: 100 900;
-  font-display: swap;
-}
-@font-face {
   font-family: "Geist Mono";
   src: url("/fonts/GeistMono-Variable.woff2") format("woff2");
   font-style: normal;
   font-weight: 100 900;
   font-display: swap;
 }
-@font-face {
-  font-family: "Wanted Sans";
-  src: url("/fonts/WantedSansVariable.ttf") format("truetype");
-  font-style: normal;
-  font-weight: 100 900;
-  font-display: swap;
-}
 
 :root {
-  --color-surface: #141313;
-  --color-surface-dim: #141313;
-  --color-surface-bright: #3a3939;
-  --color-surface-container-lowest: #0e0e0e;
   --color-surface-container-low: #1c1b1b;
   --color-surface-container: #201f1f;
-  --color-surface-container-high: #2a2a2a;
-  --color-surface-container-highest: #353434;
   --color-on-surface: #e5e2e1;
   --color-on-surface-variant: #c4c7c8;
-  --color-inverse-surface: #e5e2e1;
-  --color-inverse-on-surface: #313030;
   --color-outline: #8e9192;
   --color-outline-variant: #444748;
-  --color-surface-tint: #c6c6c7;
   --color-primary: #ffffff;
   --color-on-primary: #2f3131;
-  --color-primary-container: #e2e2e2;
-  --color-on-primary-container: #636565;
-  --color-inverse-primary: #5d5f5f;
-  --color-secondary: #c3c7cd;
-  --color-on-secondary: #2c3136;
-  --color-secondary-container: #43474d;
-  --color-on-secondary-container: #b2b5bc;
-  --color-tertiary: #ffffff;
-  --color-on-tertiary: #2f3131;
-  --color-tertiary-container: #e2e2e2;
-  --color-on-tertiary-container: #636565;
   --color-error: #ffb4ab;
-  --color-on-error: #690005;
-  --color-error-container: #93000a;
-  --color-on-error-container: #ffdad6;
-  --color-primary-fixed: #e2e2e2;
-  --color-primary-fixed-dim: #c6c6c7;
-  --color-on-primary-fixed: #1a1c1c;
-  --color-on-primary-fixed-variant: #454747;
-  --color-secondary-fixed: #dfe3e9;
-  --color-secondary-fixed-dim: #c3c7cd;
-  --color-on-secondary-fixed: #181c21;
-  --color-on-secondary-fixed-variant: #43474d;
-  --color-tertiary-fixed: #e2e2e2;
-  --color-tertiary-fixed-dim: #c6c6c7;
-  --color-on-tertiary-fixed: #1a1c1c;
-  --color-on-tertiary-fixed-variant: #454747;
-  --color-background: #141313;
-  --color-on-background: #e5e2e1;
   --color-surface-variant: #353434;
   --color-canvas: #0a0a0a;
   --color-canvas-soft: #1a1c20;
@@ -89,11 +38,8 @@
   --color-ink: #ffffff;
   --color-body: #dadbdf;
   --color-sunset: #ff7a17;
-  --color-dusk: #7c3aed;
   --color-breeze: #a0c3ec;
-  --color-ink-hover: #fafaf7;
   --color-body-mid: #aeb2b8;
-  --color-mute: #aeb2b8;
   --color-canvas-mid: #363a3f;
   /* Depth on a near-black canvas cannot come from a drop shadow alone -- an
      unlit black rectangle on black reads as nothing. The rim is the lit top
@@ -106,11 +52,6 @@
     0 24px 48px -18px rgb(0 0 0 / 0.95), 0 5px 14px -5px rgb(0 0 0 / 0.7);
   --color-accent-sunset: #ff7a17;
   --color-accent-sunset-soft: #ffc285;
-  --color-accent-dusk: #7c3aed;
-  --color-accent-twilight: #c4b5fd;
-  --color-accent-breeze: #a0c3ec;
-  --color-accent-midnight: #0d1726;
-  --radius-none: 0px;
   --radius-sm: 8px;
   --radius-default: 0.25rem;
   --radius-md: 0.375rem;
@@ -130,9 +71,7 @@
   --font-display: "Manrope", sans-serif;
   --font-body: "Inter", sans-serif;
   --font-mono: "Geist Mono", monospace;
-  --font-korean: "Wanted Sans", sans-serif;
   --type-display-xl: 96px/96px var(--font-display);
-  --type-display-lg: 72px/72px var(--font-display);
   --type-display-md: 48px/48px var(--font-display);
   --type-display-sm: 32px/36px var(--font-display);
   --type-headline-lg-mobile: 40px/44px var(--font-display);
@@ -143,55 +82,4 @@
   --type-caption-mono: 14px/20px var(--font-mono);
   --type-caption-mono-sm: 12px/16px var(--font-mono);
   --type-button: 14px/20px var(--font-body);
-  --type-button-md: 14px/20px var(--font-body);
-  --component-nav-bar: var(--color-canvas);
-  --component-nav-link: var(--color-ink);
-  --component-button-primary: var(--color-primary);
-  --component-button-outline-on-dark: var(--color-canvas);
-  --component-button-outline-sm: var(--color-canvas);
-  --component-text-input: var(--color-canvas-soft);
-  --component-card-content: var(--color-canvas-card);
-  --component-card-feature-product: var(--color-canvas-card);
-  --component-hero-band: var(--color-canvas);
-  --component-content-band: var(--color-canvas);
-  --component-eyebrow-mono: var(--color-ink);
-  --component-divider-hairline: var(--color-hairline);
-  --component-footer: var(--color-canvas);
-}
-
-@theme inline {
-  --color-*: initial;
-  --color-primary: var(--color-primary);
-  --color-on-primary: var(--color-on-primary);
-  --color-canvas: var(--color-canvas);
-  --color-canvas-soft: var(--color-canvas-soft);
-  --color-canvas-card: var(--color-canvas-card);
-  --color-ink: var(--color-ink);
-  --color-body: var(--color-body);
-  --color-hairline: var(--color-hairline);
-  --color-sunset: var(--color-sunset);
-  --color-dusk: var(--color-dusk);
-  --color-breeze: var(--color-breeze);
-  --color-surface: var(--color-surface);
-  --color-on-surface: var(--color-on-surface);
-  --color-on-surface-variant: var(--color-on-surface-variant);
-  --color-error: var(--color-error);
-  --font-display: var(--font-display);
-  --font-body: var(--font-body);
-  --font-mono: var(--font-mono);
-  --font-korean: var(--font-korean);
-  --radius-sm: var(--radius-sm);
-  --radius-md: var(--radius-md);
-  --radius-lg: var(--radius-lg);
-  --radius-xl: var(--radius-xl);
-  --radius-full: var(--radius-full);
-  --spacing-xxs: var(--space-xxs);
-  --spacing-xs: var(--space-xs);
-  --spacing-sm: var(--space-sm);
-  --spacing-md: var(--space-md);
-  --spacing-lg: var(--space-lg);
-  --spacing-xl: var(--space-xl);
-  --spacing-2xl: var(--space-2xl);
-  --spacing-3xl: var(--space-3xl);
-  --spacing-4xl: var(--space-4xl);
 }

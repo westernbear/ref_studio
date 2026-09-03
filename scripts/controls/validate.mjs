@@ -4,12 +4,9 @@ import { resolve } from "node:path";
 const root = resolve(import.meta.dirname, "../..");
 const oraclePath = resolve(
   root,
-  ".omo/drafts/reference-video-studio-saas-control-contract.jsonl",
+  "verification/contract/control-contract.jsonl",
 );
-const apiPath = resolve(
-  root,
-  ".omo/drafts/reference-video-studio-saas-api-action-contract.json",
-);
+const apiPath = resolve(root, "verification/contract/api-action-contract.json");
 const manifestPath = resolve(root, "tests/control-manifest.json");
 const rows = (await readFile(oraclePath, "utf8"))
   .trim()
@@ -79,37 +76,34 @@ try {
 } catch (error) {
   if (error?.code !== "ENOENT") throw error;
 }
-if (!manifest || process.argv.includes("--write"))
-  await writeFile(
-    manifestPath,
-    `${JSON.stringify({ schemaVersion: "rvs-control-manifest-v1", controls: projected }, null, 2)}\n`,
-  );
-else {
-  if (
-    manifest.schemaVersion !== "rvs-control-manifest-v1" ||
-    manifest.controls.length !== projected.length
-  )
-    throw new Error("CONTROL_MANIFEST_INVALID");
-  for (const [index, row] of projected.entries()) {
-    const actual = manifest.controls[index];
-    for (const field of [
-      "id",
-      "screen",
-      "control",
-      "name",
-      "action",
-      "path",
-      "auth",
-      "state",
-      "idem",
-      "version",
-      "audit",
-      "result",
-      "failure",
-    ])
-      if (actual[field] !== row[field])
-        throw new Error(`CONTROL_ORACLE_DRIFT ${row.id} ${field}`);
-  }
+if (!manifest || process.argv.includes("--write")) {
+  manifest = { schemaVersion: "rvs-control-manifest-v1", controls: projected };
+  await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+}
+if (
+  manifest.schemaVersion !== "rvs-control-manifest-v1" ||
+  manifest.controls.length !== projected.length
+)
+  throw new Error("CONTROL_MANIFEST_INVALID");
+for (const [index, row] of projected.entries()) {
+  const actual = manifest.controls[index];
+  for (const field of [
+    "id",
+    "screen",
+    "control",
+    "name",
+    "action",
+    "path",
+    "auth",
+    "state",
+    "idem",
+    "version",
+    "audit",
+    "result",
+    "failure",
+  ])
+    if (actual[field] !== row[field])
+      throw new Error(`CONTROL_ORACLE_DRIFT ${row.id} ${field}`);
 }
 process.stdout.write(
   `${JSON.stringify({ status: "controls-valid", controls: projected.length, uniqueSourceIds: new Set(projected.map((row) => row.id)).size })}\n`,

@@ -1,11 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   decisionKey,
-  formatJobStamp,
   gateLabelKey,
   isJobWorking,
   isTerminalJobState,
-  jobActivityPercent,
   jobProgressPercent,
   jobStateKey,
   jobStatusMessage,
@@ -96,14 +94,10 @@ describe("compiler progress projection", () => {
     expect(job).not.toBeNull();
     if (!job) throw new Error("job fixture did not parse");
     expect(jobProgressPercent(job)).toBe(40);
-    expect(jobActivityPercent(job)).toBe(48);
+    expect(job.progressFraction).toBe(0.48);
     expect(jobStatusMessage(job)).toEqual({ key: "compilationRunning" });
     expect(isTerminalJobState("COMPLETED")).toBe(true);
     expect(isTerminalJobState("PREPARING")).toBe(false);
-    expect(formatJobStamp("2026-08-23T07:00:00.000Z")).toBe(
-      "2026-08-23 07:00:00",
-    );
-    expect(formatJobStamp("")).toBeNull();
     expect(progressStages.map((stage) => stage.state)).toContain("READY");
   });
 

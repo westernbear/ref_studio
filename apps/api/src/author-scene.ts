@@ -38,7 +38,6 @@ import {
   liveProviderMotionLookupCanaryAdapter,
   providerMotionLookupCanaryAdapter,
   type GenerateLiveCanary,
-  type MotionCanaryAdapter,
 } from "./motion-canary.js";
 import {
   lookupMotionKnowledge,
@@ -164,7 +163,6 @@ export async function authorScene(params: {
   readonly motionCanaryTtlMs?: number;
   readonly generate?: GenerateScene;
   readonly generatePlan?: GenerateMotionPlanCandidate;
-  readonly motionCanaryAdapter?: MotionCanaryAdapter;
   readonly generateCanary?: (request: {
     readonly query: "opacity";
     readonly signal: AbortSignal;
@@ -209,17 +207,15 @@ export async function authorScene(params: {
     ...identity,
     now,
     ttlMs,
-    adapter:
-      params.motionCanaryAdapter ??
-      (params.generateCanary
-        ? providerMotionLookupCanaryAdapter(async ({ signal }) =>
-            params.generateCanary!({ query: "opacity", signal }),
-          )
-        : liveProviderMotionLookupCanaryAdapter({
-            db: params.db,
-            model,
-            generate: params.generateLiveCanary ?? generateText,
-          })),
+    adapter: params.generateCanary
+      ? providerMotionLookupCanaryAdapter(async ({ signal }) =>
+          params.generateCanary!({ query: "opacity", signal }),
+        )
+      : liveProviderMotionLookupCanaryAdapter({
+          db: params.db,
+          model,
+          generate: params.generateLiveCanary ?? generateText,
+        }),
   });
   emitMotionEvent("canary.status", correlationId, {
     status: canary.status,

@@ -3,9 +3,7 @@ import { openApiDatabase } from "./durable-state.js";
 import {
   lookupMotionKnowledge,
   lookupMotionKnowledgeForBrief,
-  hostMotionLookup,
   modelMotionTools,
-  MOTION_INTERNAL_FEATURES,
   MotionKnowledgeCardSchema,
   MOTION_LOOKUP_TOOL_SCHEMA_DIGEST,
   ProviderToolCanaryV1Schema,
@@ -31,14 +29,6 @@ describe("motion knowledge migration", () => {
 });
 
 describe("motion.lookup", () => {
-  it("keeps the host motion surface to the four approved internal features", () => {
-    expect(MOTION_INTERNAL_FEATURES).toEqual([
-      "motion_lookup",
-      "context_inspect",
-      "scene_apply_operations",
-      "scene_verify",
-    ]);
-  });
   it("Given a brief with an exact alias and unrelated text, when authoring lookup runs, then it returns the exact structured card", () => {
     // Given
     const db = openApiDatabase(":memory:");
@@ -69,24 +59,6 @@ describe("motion.lookup", () => {
 
     // When
     const results = lookupMotionKnowledgeForBrief(
-      db,
-      "Use effects while interpolation curve between keyframes.",
-    );
-
-    // Then
-    expect(results.map((card) => card.id)).toEqual([
-      "effects",
-      "timing-easing",
-    ]);
-    db.close();
-  });
-
-  it("Given the previous host lookup export, when compatibility is checked, then it delegates to the canonical adapter", () => {
-    // Given
-    const db = openApiDatabase(":memory:");
-
-    // When
-    const results = hostMotionLookup(
       db,
       "Use effects while interpolation curve between keyframes.",
     );

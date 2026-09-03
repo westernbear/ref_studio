@@ -33,30 +33,6 @@ const validPlan = {
 } as const;
 
 describe("MotionPlanV1", () => {
-  it("Given a legacy predicates wire shape, when parsed, then strict compatibility defaults produce a ledger plan", () => {
-    const parsed = MotionPlanV1Schema.parse({
-      schema: "motion-plan-v1",
-      intent: "Legacy title motion.",
-      keyframeIntents: [],
-      predicates: ["scene-spec"],
-    });
-
-    expect(parsed.predicateIds).toEqual(["scene-spec"]);
-    expect(parsed.reproducibility.promptVersion).toBe("legacy-v1");
-  });
-
-  it("Given an unknown legacy wire field, when parsed, then compatibility remains strict", () => {
-    expect(
-      MotionPlanV1Schema.safeParse({
-        schema: "motion-plan-v1",
-        intent: "Legacy title motion.",
-        keyframeIntents: [],
-        predicates: ["scene-spec"],
-        token: "forbidden",
-      }).success,
-    ).toBe(false);
-  });
-
   it("Given a complete semantic plan, when parsed, then it is accepted", () => {
     expect(MotionPlanV1Schema.safeParse(validPlan).success).toBe(true);
   });
@@ -114,25 +90,6 @@ describe("MotionPlanV1", () => {
             staggerFrames: 10_000,
           },
         ],
-      }).success,
-    ).toBe(false);
-  });
-
-  it("Given a legacy plan whose resulting keyframes overflow its default canvas, when parsed, then compatibility fails closed", () => {
-    expect(
-      MotionPlanV1Schema.safeParse({
-        schema: "motion-plan-v1",
-        intent: "Legacy overflow.",
-        keyframeIntents: [
-          {
-            elementId: "title",
-            anticipationFrames: 10_000,
-            overshootPercent: 8,
-            settleFrame: 449,
-            staggerFrames: 10_000,
-          },
-        ],
-        predicates: ["scene-spec"],
       }).success,
     ).toBe(false);
   });

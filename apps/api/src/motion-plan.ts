@@ -26,7 +26,7 @@ export type MotionPlanNormalizationContext = {
   readonly modelVersion: string;
 };
 
-const sameCanvas = (
+export const sameCanvas = (
   left: MotionPlanCanvasV1,
   right: MotionPlanCanvasV1,
 ): boolean =>
@@ -78,21 +78,6 @@ export function normalizeMotionPlan(
       planDigest: motionPlanDigest(draft),
     },
   });
-}
-
-export function validateMotionPlanForJob(
-  value: unknown,
-  jobCanvas: MotionPlanCanvasV1,
-): MotionPlanV1 {
-  const plan = MotionPlanV1Schema.parse(value);
-  if (!sameCanvas(plan.canvas, jobCanvas))
-    throw new MotionPlanError("MOTION_PLAN_CANVAS_MISMATCH");
-  if (
-    plan.reproducibility.promptVersion !== "legacy-v1" &&
-    plan.reproducibility.planDigest !== motionPlanDigest(plan)
-  )
-    throw new MotionPlanError("MOTION_PLAN_DIGEST_MISMATCH");
-  return plan;
 }
 
 export const motionPlanDigest = (plan: MotionPlanV1): string => {

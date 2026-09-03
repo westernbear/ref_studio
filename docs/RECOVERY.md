@@ -1,6 +1,6 @@
 # Recovery Runbook
 
-Recovery is tested with `pnpm recovery:test`. It restores only into a new isolated root and rejects in-place restoration and path escapes. The sequence is fixed:
+Recovery restores only into a new isolated root and rejects in-place restoration and path escapes. The sequence is fixed:
 
 1. Drain claims at a safe boundary and snapshot the database and CAS manifest.
 2. Verify source digests before writing the new root.

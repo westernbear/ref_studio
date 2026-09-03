@@ -1,17 +1,14 @@
 import type { ReactNode } from "react";
 import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { AdminExportButton } from "../../../components/AdminExportButton";
 import { AiProviderSettingsForm } from "../../../components/AiProviderSettingsForm";
 import { MaterialProviderSettingsForm } from "../../../components/MaterialProviderSettingsForm";
-import { AdminJobCancelButton } from "../../../components/AdminJobCancelButton";
-import { AdminJobForceTerminateButton } from "../../../components/AdminJobForceTerminateButton";
-import { AdminJobRetryButton } from "../../../components/AdminJobRetryButton";
+import {
+  FilterBar,
+  ProblemPanel,
+} from "../../../components/AdminListControls";
 import { AdminMotionActionButton } from "../../../components/AdminMotionActionButton";
-import { AdminQuarantineReleaseButton } from "../../../components/AdminQuarantineReleaseButton";
-import { AdminQuarantineRejectButton } from "../../../components/AdminQuarantineRejectButton";
 import { AdminShell, CreatorShell } from "../../../components/Shells";
-import { Panel } from "../../../components/Primitives";
 import { Link } from "../../../i18n/navigation";
 import {
   field,
@@ -241,36 +238,7 @@ function DetailPanel({
   );
 }
 
-function FilterBar({
-  action,
-  children,
-  t,
-  className,
-}: {
-  readonly action: string;
-  readonly children: ReactNode;
-  readonly t: T;
-  readonly className?: string;
-}) {
-  return (
-    <form
-      className={className ? `filter-bar ${className}` : "filter-bar"}
-      action={action}
-      method="get"
-      data-landmark="filters"
-    >
-      <div className="filter-fields">{children}</div>
-      <div className="filter-actions">
-        <button className="button button-primary" type="submit">
-          {t("applyFilters")}
-        </button>
-        <a className="button" href={action}>
-          {t("clear")}
-        </a>
-      </div>
-    </form>
-  );
-}
+
 
 function FilterInput({
   label,
@@ -422,7 +390,7 @@ function RecordSurface({
   return (
     <>
       <div className="record-layout">
-        <Panel data-landmark={tableLandmark}>
+        <section className="panel" data-landmark={tableLandmark}>
           <div className="section-heading">
             <div>
               <h2>{tableTitle}</h2>
@@ -443,7 +411,7 @@ function RecordSurface({
             inspectLabel={t("inspect")}
             {...(tableClassName ? { tableClassName } : {})}
           />
-        </Panel>
+        </section>
         <DetailPanel
           title={detailTitle}
           row={row}
@@ -458,38 +426,7 @@ function RecordSurface({
   );
 }
 
-function ProblemPanel({
-  admin,
-  code,
-  title,
-  t,
-}: {
-  readonly admin: boolean;
-  readonly code: string;
-  readonly title: string;
-  readonly t: T;
-}) {
-  const href = `${admin ? "/admin/sign-in" : "/sign-in"}?returnTo=${encodeURIComponent(
-    admin ? "/admin" : "/workflow",
-  )}`;
-  return (
-    <Panel>
-      <h1>{title}</h1>
-      <p>
-        {isAuthProblem(code)
-          ? admin
-            ? t("adminSignInRequired")
-            : t("signInToViewWorkflow")
-          : t("recordsUnavailable", { code })}
-      </p>
-      {isAuthProblem(code) ? (
-        <a className="button button-primary" href={href}>
-          {t("signIn")}
-        </a>
-      ) : null}
-    </Panel>
-  );
-}
+
 
 function AdminView({
   children,
@@ -522,7 +459,20 @@ function AdminProblem({
   return (
     <AdminShell>
       <div className="admin-page">
-        <ProblemPanel admin code={code} title={title} t={t} />
+        <ProblemPanel
+          title={title}
+          message={
+            isAuthProblem(code)
+              ? t("adminSignInRequired")
+              : t("recordsUnavailable", { code })
+          }
+          {...(isAuthProblem(code)
+            ? {
+                signInHref: `/admin/sign-in?returnTo=${encodeURIComponent("/admin")}`,
+                signInLabel: t("signIn"),
+              }
+            : {})}
+        />
       </div>
     </AdminShell>
   );
@@ -597,13 +547,31 @@ function adminJobDetailActions(t: T): (row: unknown) => ReactNode {
       <>
         {jobDetailActions(t)(row)}
         {etag && CANCELLABLE_STATES.includes(state) ? (
-          <AdminJobCancelButton jobId={jobId} etag={etag} />
+          <AdminMotionActionButton
+            path={`/jobs/${encodeURIComponent(jobId)}/cancel`}
+            headers={{ "if-match": etag }}
+            i18n="jobCancel"
+            landmark="job-action"
+            reason="Job cancelled from the admin console"
+          />
         ) : null}
         {etag && RETRYABLE_STATES.includes(state) ? (
-          <AdminJobRetryButton jobId={jobId} etag={etag} />
+          <AdminMotionActionButton
+            path={`/jobs/${encodeURIComponent(jobId)}/retry`}
+            headers={{ "if-match": etag }}
+            i18n="jobRetry"
+            landmark="job-action"
+            reason="Job retried from the admin console"
+          />
         ) : null}
         {etag && !TERMINAL_STATES.includes(state) ? (
-          <AdminJobForceTerminateButton jobId={jobId} etag={etag} />
+          <AdminMotionActionButton
+            path={`/jobs/${encodeURIComponent(jobId)}/force-terminate`}
+            headers={{ "if-match": etag }}
+            i18n="jobForceTerminate"
+            landmark="job-action"
+            reason="Job force-terminated from the admin console"
+          />
         ) : null}
         {commandId && commandStatus === "FAILED" ? (
           <AdminMotionActionButton
@@ -661,15 +629,21 @@ function quarantineDetailActions(row: unknown): ReactNode {
   if (!version || state !== "QUARANTINED") return null;
   return (
     <>
-      <AdminQuarantineReleaseButton
-        itemId={itemId}
-        tenantId={tenantId}
-        version={version}
+      <AdminMotionActionButton
+        path={`/quarantine/${encodeURIComponent(itemId)}/release`}
+        headers={{ "if-match": version }}
+        i18n="quarantineRelease"
+        landmark="quarantine-action"
+        reason="Quarantine released from the admin console"
+        body={{ confirmTenantId: tenantId, confirmItemId: itemId }}
       />
-      <AdminQuarantineRejectButton
-        itemId={itemId}
-        tenantId={tenantId}
-        version={version}
+      <AdminMotionActionButton
+        path={`/quarantine/${encodeURIComponent(itemId)}/reject`}
+        headers={{ "if-match": version }}
+        i18n="quarantineReject"
+        landmark="quarantine-action"
+        reason="Quarantine retained from the admin console"
+        body={{ confirmTenantId: tenantId, confirmItemId: itemId }}
       />
     </>
   );
@@ -1013,7 +987,7 @@ async function renderDashboard(title: string, t: T) {
           <dd>{activeJobs}</dd>
         </div>
       </dl>
-      <Panel>
+      <section className="panel">
         <Table
           columns={tenantColumns(t)}
           empty={t("noLiveTenants")}
@@ -1021,7 +995,7 @@ async function renderDashboard(title: string, t: T) {
           detailsLabel={t("details")}
           inspectLabel={t("inspect")}
         />
-      </Panel>
+      </section>
     </AdminView>
   );
 }
@@ -1210,7 +1184,7 @@ async function renderReceipts(title: string, search: SearchState, t: T) {
         />
       </FilterBar>
       <div className="record-layout receipt-layout">
-        <Panel data-landmark="timeline">
+        <section className="panel" data-landmark="timeline">
           <div className="section-heading">
             <div>
               <h2>{t("receiptTimeline")}</h2>
@@ -1239,7 +1213,7 @@ async function renderReceipts(title: string, search: SearchState, t: T) {
           ) : (
             <p className="empty-copy">{t("noReceiptsMatch")}</p>
           )}
-        </Panel>
+        </section>
         <DetailPanel
           title={t("receiptDetail")}
           row={row}
@@ -1253,9 +1227,17 @@ async function renderReceipts(title: string, search: SearchState, t: T) {
           <h2>{t("receiptExport")}</h2>
           <p>{t("exportRequestHint")}</p>
         </div>
-        <AdminExportButton
-          kind="receipt"
-          tenantId={single(search.tenantId) || undefined}
+        <AdminMotionActionButton
+          path="/receipt-exports"
+          i18n="export"
+          landmark="export-action"
+          buttonClassName="button button-primary"
+          refresh={false}
+          reason="receipt export requested from the admin console"
+          body={{ format: "jsonl" }}
+          {...(single(search.tenantId)
+            ? { tenantId: single(search.tenantId) }
+            : {})}
         />
       </section>
       <Pagination
@@ -1393,9 +1375,17 @@ async function renderAudit(title: string, search: SearchState, t: T) {
           <h2>{t("auditExport")}</h2>
           <p>{t("exportRequestHint")}</p>
         </div>
-        <AdminExportButton
-          kind="audit"
-          tenantId={single(search.tenantId) || undefined}
+        <AdminMotionActionButton
+          path="/audit-exports"
+          i18n="export"
+          landmark="export-action"
+          buttonClassName="button button-primary"
+          refresh={false}
+          reason="audit export requested from the admin console"
+          body={{ format: "jsonl" }}
+          {...(single(search.tenantId)
+            ? { tenantId: single(search.tenantId) }
+            : {})}
         />
       </section>
     </AdminView>
@@ -1531,10 +1521,18 @@ async function renderWorkflow(
     return (
       <CreatorShell>
         <ProblemPanel
-          admin={false}
-          code={result.code}
           title={t("workflow")}
-          t={t}
+          message={
+            isAuthProblem(result.code)
+              ? t("signInToViewWorkflow")
+              : t("recordsUnavailable", { code: result.code })
+          }
+          {...(isAuthProblem(result.code)
+            ? {
+                signInHref: `/sign-in?returnTo=${encodeURIComponent("/workflow")}`,
+                signInLabel: t("signIn"),
+              }
+            : {})}
         />
       </CreatorShell>
     );

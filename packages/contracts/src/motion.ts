@@ -10,11 +10,6 @@ export {
 const DigestSchema = z.string().regex(/^[a-f0-9]{64}$/u);
 const FiniteNumberSchema = z.number().finite();
 
-const LEGACY_MOTION_PREDICATE_IDS = [
-  ...MOTION_PREDICATE_IDS,
-  "native-element-kinds",
-] as const;
-
 export const MotionPlanCanvasV1Schema = z
   .object({
     width: FiniteNumberSchema.int().min(1).max(8_192),
@@ -101,9 +96,11 @@ const ReproducibilityMetadataV1Schema = z
   })
   .strict();
 
-const MotionPlanLedgerV1Schema = MotionPlanSemanticObjectV1Schema.extend({
-  reproducibility: ReproducibilityMetadataV1Schema,
-}).superRefine((value, context) => {
+export const MotionPlanLedgerV1Schema = MotionPlanSemanticObjectV1Schema.extend(
+  {
+    reproducibility: ReproducibilityMetadataV1Schema,
+  },
+).superRefine((value, context) => {
   refineMotionPlanFrames(value, context);
   if (
     value.knowledgeCardIds.join("\0") !==
@@ -118,46 +115,7 @@ const MotionPlanLedgerV1Schema = MotionPlanSemanticObjectV1Schema.extend({
     });
 });
 
-const LEGACY_DIGEST = "0".repeat(64);
-const LegacyMotionPlanV1Schema = z
-  .object({
-    schema: z.literal("motion-plan-v1"),
-    intent: z.string().min(1).max(2_000),
-    keyframeIntents: z.array(KeyframeIntentV1Schema).max(64),
-    predicates: z.array(z.enum(LEGACY_MOTION_PREDICATE_IDS)).max(64),
-  })
-  .strict()
-  .transform((legacy) => ({
-    schema: legacy.schema,
-    intent: legacy.intent,
-    knowledgeCardIds: [],
-    requiredCapabilities: [],
-    canvas: { width: 1_920, height: 1_080, fps: 30, frameCount: 450 },
-    keyframeIntents: legacy.keyframeIntents,
-    predicateIds: legacy.predicates.map((predicate) =>
-      predicate === "native-element-kinds"
-        ? "element-kind-capability"
-        : predicate,
-    ),
-    reproducibility: {
-      knowledgeCardDigest: LEGACY_DIGEST,
-      promptDigest: LEGACY_DIGEST,
-      modelDigest: LEGACY_DIGEST,
-      evidenceDigest: LEGACY_DIGEST,
-      capabilitySnapshotDigest: LEGACY_DIGEST,
-      planDigest: LEGACY_DIGEST,
-      knowledgeCardIds: [],
-      requiredCapabilities: [],
-      promptVersion: "legacy-v1",
-      modelVersion: "legacy-v1",
-    },
-  }))
-  .superRefine(refineMotionPlanFrames);
-
-export const MotionPlanV1Schema = z.union([
-  MotionPlanLedgerV1Schema,
-  LegacyMotionPlanV1Schema,
-]);
+export const MotionPlanV1Schema = MotionPlanLedgerV1Schema;
 export type MotionPlanV1 = z.infer<typeof MotionPlanV1Schema>;
 
 const SceneOperationSchema = z.discriminatedUnion("kind", [
@@ -251,7 +209,7 @@ export const VerificationFindingV1Schema = z
     remediation: z.string().min(1).max(2_000),
   })
   .strict();
-const CurrentVerificationReportV1Schema = z
+export const VerificationReportV1Schema = z
   .object({
     schema: z.literal("verification-report-v1"),
     sceneDigest: DigestSchema,
@@ -271,50 +229,7 @@ const CurrentVerificationReportV1Schema = z
         message: "status must match findings",
       });
   });
-const LegacyVerificationReportV1Schema = z
-  .object({
-    schema: z.literal("verification-report-v1"),
-    sceneDigest: DigestSchema,
-    attempts: z.number().int().min(1).max(4),
-    status: z.enum(["PASS", "FAIL"]),
-    findings: z.array(
-      z
-        .object({
-          predicate: z.string().min(1),
-          passed: z.boolean(),
-          detail: z.string().min(1),
-        })
-        .strict(),
-    ),
-  })
-  .strict()
-  .transform((value) => ({
-    ...value,
-    status: value.findings.every((finding) => finding.passed)
-      ? ("PASS" as const)
-      : ("FAIL" as const),
-    findings: value.findings.map((finding) => ({
-      predicateId:
-        finding.predicate === "native-element-kinds"
-          ? ("element-kind-capability" as const)
-          : ("scene-spec" as const),
-      pass: finding.passed,
-      target: "legacy-record",
-      observed: finding.detail,
-      expected: finding.passed ? finding.detail : "legacy predicate pass",
-      remediation: finding.passed
-        ? "none"
-        : "re-run verification with current predicates",
-    })),
-  }));
-export type VerificationReportV1 = z.infer<
-  typeof CurrentVerificationReportV1Schema
->;
-export const VerificationReportV1Schema: z.ZodType<VerificationReportV1> =
-  z.union([
-    CurrentVerificationReportV1Schema,
-    LegacyVerificationReportV1Schema,
-  ]);
+export type VerificationReportV1 = z.infer<typeof VerificationReportV1Schema>;
 
 export const MotionSceneSnapshotV1Schema = z
   .object({

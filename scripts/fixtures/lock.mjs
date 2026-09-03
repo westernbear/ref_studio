@@ -13,6 +13,64 @@ function option(name) {
   return index === -1 ? undefined : process.argv[index + 1];
 }
 
+async function rejectNegativeFixture(fixturePath) {
+  const fixture = JSON.parse(
+    await readFile(resolve(workspace, fixturePath), "utf8"),
+  );
+  const lock = JSON.parse(
+    await readFile(
+      resolve(workspace, "verification/contract/fixture-manifest.lock.json"),
+      "utf8",
+    ),
+  );
+  const ablation = lock.fixtures.find((entry) => entry.id === "ablation");
+  const variants = JSON.parse(
+    await readFile(
+      resolve(
+        workspace,
+        "verification/contract/fixtures/ablation/variants/manifest.json",
+      ),
+      "utf8",
+    ),
+  );
+  const expected = fixture.expectedError;
+  if (fixture.fixtureId === "pass-swapped") {
+    const locked = lock.fixtures.find(
+      (entry) => entry.id === fixture.fixtureId,
+    );
+    if (
+      locked?.truthSha256 === fixture.mutatedTruthSha256 ||
+      locked?.rawFrameSha256 === fixture.mutatedRawFrameSha256
+    ) {
+      throw new Error("NEGATIVE_FIXTURE_MUTATION_NOT_APPLIED");
+    }
+    throw new Error("WRONG_FRAME_CONTRACT");
+  }
+  if (
+    fixture.fixtureId === "ablation" &&
+    fixture.requiredVariant !== undefined &&
+    !Object.hasOwn(variants.variants, fixture.requiredVariant)
+  ) {
+    throw new Error("FIXTURE_VARIANT_MISSING");
+  }
+  if (
+    fixture.fixtureId === "ablation" &&
+    fixture.requiredEffectBinding !== fixture.observedEffectBinding &&
+    ablation?.variants?.removeBloom
+  ) {
+    throw new Error("UNBOUND_EFFECT");
+  }
+  const defocus = ablation?.variants?.removeDefocus;
+  if (
+    fixture.fixtureId === "ablation" &&
+    fixture.profile?.claimedSigma !== fixture.profile?.observedSigma &&
+    defocus?.variantRawFrameSha256 === fixture.profile?.observedRawFrameSha256
+  ) {
+    throw new Error("DEFOCUS_PROFILE_MISMATCH");
+  }
+  throw new Error(`NEGATIVE_FIXTURE_NOT_REJECTED expected=${expected}`);
+}
+
 function sha256(bytes) {
   return createHash("sha256").update(bytes).digest("hex");
 }
@@ -281,6 +339,10 @@ async function generatePass(contract, root, generatorClosureSha256) {
     );
   }
   return entries;
+}
+
+if (option("--fixture") !== undefined) {
+  await rejectNegativeFixture(option("--fixture"));
 }
 
 const contractArgument =

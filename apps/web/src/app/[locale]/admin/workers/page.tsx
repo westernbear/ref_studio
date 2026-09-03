@@ -1,9 +1,11 @@
 import type { ReactNode } from "react";
 import { getTranslations } from "next-intl/server";
-import { AdminWorkerOfflineButton } from "../../../../components/AdminWorkerOfflineButton";
-import { Panel } from "../../../../components/Primitives";
+import {
+  FilterBar,
+  ProblemPanel,
+} from "../../../../components/AdminListControls";
+import { AdminMotionActionButton } from "../../../../components/AdminMotionActionButton";
 import { AdminShell } from "../../../../components/Shells";
-import { Link } from "../../../../i18n/navigation";
 import {
   field,
   isAuthProblem,
@@ -54,70 +56,6 @@ function Metric({
   );
 }
 
-function ProblemPanel({ code, t }: { readonly code: string; readonly t: T }) {
-  return (
-    <Panel>
-      <h1>{t("title")}</h1>
-      <p>
-        {isAuthProblem(code) ? t("signInRequired") : t("unavailable", { code })}
-      </p>
-      {isAuthProblem(code) ? (
-        <a
-          className="button button-primary"
-          href="/admin/sign-in?returnTo=%2Fadmin%2Fworkers"
-        >
-          {t("signIn")}
-        </a>
-      ) : null}
-    </Panel>
-  );
-}
-
-function FilterBar({
-  search,
-  t,
-}: {
-  readonly search: SearchState;
-  readonly t: T;
-}) {
-  return (
-    <form
-      className="filter-bar"
-      action="/admin/workers"
-      method="get"
-      data-landmark="worker-filters"
-    >
-      <div className="filter-fields">
-        <label>
-          <span>{t("search")}</span>
-          <input
-            type="search"
-            name="q"
-            defaultValue={single(search.q)}
-            placeholder={t("searchPlaceholder")}
-          />
-        </label>
-        <label>
-          <span>{t("status")}</span>
-          <select name="status" defaultValue={single(search.status)}>
-            <option value="">{t("all")}</option>
-            <option value="ONLINE">{t("online")}</option>
-            <option value="OFFLINE">{t("offline")}</option>
-          </select>
-        </label>
-      </div>
-      <div className="filter-actions">
-        <button className="button button-primary" type="submit">
-          {t("applyFilters")}
-        </button>
-        <Link className="button" href="/admin/workers">
-          {t("clear")}
-        </Link>
-      </div>
-    </form>
-  );
-}
-
 function WorkerCard({
   worker,
   t,
@@ -130,7 +68,7 @@ function WorkerCard({
   const capabilities = strings(field(worker, "capabilities"));
   const leases = rows(field(worker, "leases"));
   return (
-    <Panel data-landmark="worker-card">
+    <section className="panel" data-landmark="worker-card">
       <div className="section-heading">
         <div>
           <h2>{id}</h2>
@@ -167,12 +105,16 @@ function WorkerCard({
         <p className="empty-copy">{t("noActiveJob")}</p>
       )}
       <div className="record-actions">
-        <AdminWorkerOfflineButton
-          workerId={id}
+        <AdminMotionActionButton
+          path={`/workers/${encodeURIComponent(id)}/offline`}
+          i18n="workerOffline"
+          landmark="worker-action"
           disabled={status !== "ONLINE" && leases.length === 0}
+          reason="Worker marked offline from the admin console"
+          body={{ confirmItemId: id }}
         />
       </div>
-    </Panel>
+    </section>
   );
 }
 
@@ -188,7 +130,20 @@ export default async function AdminWorkersPage({
     return (
       <AdminShell>
         <div className="admin-page">
-          <ProblemPanel code={result.code} t={t} />
+          <ProblemPanel
+            title={t("title")}
+            message={
+              isAuthProblem(result.code)
+                ? t("signInRequired")
+                : t("unavailable", { code: result.code })
+            }
+            {...(isAuthProblem(result.code)
+              ? {
+                  signInHref: "/admin/sign-in?returnTo=%2Fadmin%2Fworkers",
+                  signInLabel: t("signIn"),
+                }
+              : {})}
+          />
         </div>
       </AdminShell>
     );
@@ -217,15 +172,33 @@ export default async function AdminWorkersPage({
             value={text(field(summary, "activeLeases"), "0")}
           />
         </dl>
-        <FilterBar search={search} t={t} />
+        <FilterBar action="/admin/workers" t={t} landmark="worker-filters">
+          <label>
+            <span>{t("search")}</span>
+            <input
+              type="search"
+              name="q"
+              defaultValue={single(search.q)}
+              placeholder={t("searchPlaceholder")}
+            />
+          </label>
+          <label>
+            <span>{t("status")}</span>
+            <select name="status" defaultValue={single(search.status)}>
+              <option value="">{t("all")}</option>
+              <option value="ONLINE">{t("online")}</option>
+              <option value="OFFLINE">{t("offline")}</option>
+            </select>
+          </label>
+        </FilterBar>
         {workers.length > 0 ? (
           workers.map((worker) => (
             <WorkerCard key={text(field(worker, "id"))} worker={worker} t={t} />
           ))
         ) : (
-          <Panel>
+          <section className="panel">
             <p className="empty-copy">{t("noWorkersRegistered")}</p>
-          </Panel>
+          </section>
         )}
       </div>
     </AdminShell>

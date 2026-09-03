@@ -14,7 +14,6 @@ import type { CreatorWorkflowStore, Job } from "./creator-workflow.js";
 import {
   applySceneOperations,
   MotionSceneError,
-  verifyMotionScene,
   verifyMotionSceneForJob,
 } from "./motion-operations.js";
 import {
@@ -31,13 +30,6 @@ import {
   motionSceneSnapshot,
   replayMotionSceneMutation,
 } from "./motion-scene-store.js";
-
-export {
-  applySceneOperations,
-  keyframesFromMotionIntent,
-  verifyAndRepair,
-  verifyMotionScene,
-} from "./motion-operations.js";
 
 const etag = (digest: string): string => `"${digest}"`;
 

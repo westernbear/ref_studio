@@ -1,6 +1,5 @@
 import { getTranslations } from "next-intl/server";
 import { CreatorShell } from "../../../components/Shells";
-import { Panel } from "../../../components/Primitives";
 import { parseJobProgress } from "../../../lib/job-progress";
 import { isAuthProblem, liveApiGet } from "../../../lib/server-api";
 import { Link } from "../../../i18n/navigation";
@@ -20,13 +19,13 @@ export default async function ProgressPage({
   if (!jobId)
     return (
       <CreatorShell>
-        <Panel>
+        <section className="panel">
           <h1>{t("title")}</h1>
           <p>{t("chooseJob")}</p>
           <Link className="button button-primary" href="/workflow">
             {t("workflow")}
           </Link>
-        </Panel>
+        </section>
       </CreatorShell>
     );
 
@@ -34,7 +33,7 @@ export default async function ProgressPage({
   if (!result.ok)
     return (
       <CreatorShell>
-        <Panel>
+        <section className="panel">
           <h1>{t("title")}</h1>
           <p>
             {isAuthProblem(result.code)
@@ -55,7 +54,7 @@ export default async function ProgressPage({
               {t("workflow")}
             </Link>
           )}
-        </Panel>
+        </section>
       </CreatorShell>
     );
 
@@ -63,13 +62,13 @@ export default async function ProgressPage({
   if (!job)
     return (
       <CreatorShell>
-        <Panel>
+        <section className="panel">
           <h1>{t("title")}</h1>
           <p>{t("unreadable")}</p>
           <Link className="button button-primary" href="/workflow">
             {t("workflow")}
           </Link>
-        </Panel>
+        </section>
       </CreatorShell>
     );
 

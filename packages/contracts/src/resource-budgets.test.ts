@@ -26,7 +26,7 @@ describe("resource budgets", () => {
   it("keeps worker ffmpeg and Adobe spool literals in lockstep with the contract", () => {
     const repo = resolve(import.meta.dirname, "../../..");
     const worker = readFileSync(
-      resolve(repo, "apps/worker/src/generated-video-delivery.ts"),
+      resolve(repo, "apps/worker/src/resource-budgets.ts"),
       "utf8",
     );
     const adobe = readFileSync(
@@ -34,7 +34,7 @@ describe("resource budgets", () => {
       "utf8",
     );
     expect(worker).toContain(
-      "const MAX_FFMPEG_OUTPUT_BYTES = 2 * 1024 * 1024 * 1024",
+      "maxFfmpegOutputBytes: 2 * 1024 * 1024 * 1024",
     );
     expect(adobe).toContain("const MAX_FILE_BYTES = 1_048_576");
     expect(RESOURCE_BUDGETS.maxFfmpegOutputBytes).toBe(2 * 1024 * 1024 * 1024);

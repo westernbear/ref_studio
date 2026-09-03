@@ -30,7 +30,3 @@ export const loadFeatureFlagSnapshot = (
     nativeSceneV2: parse(env, "RVS_NATIVE_SCENE_V2"),
     adobeMcp: parse(env, "RVS_ADOBE_MCP"),
   });
-
-export const freezeFeatureFlagSnapshot = (
-  snapshot: FeatureFlagSnapshot,
-): FeatureFlagSnapshot => Object.freeze({ ...snapshot });

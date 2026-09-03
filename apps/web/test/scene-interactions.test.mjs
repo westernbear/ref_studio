@@ -5,7 +5,7 @@ import {
   createNativeInteractionModel,
   parseNativeInteractionEvent,
 } from "../../worker/src/scene-interactions.ts";
-import { resolveSceneInteraction } from "../src/app/[locale]/scene-review/scene-interactions.ts";
+import { resolveSceneInteraction } from "../src/app/[locale]/scene-review/SceneCanvas.tsx";
 
 describe("creator and package interaction parity", () => {
   it.each([

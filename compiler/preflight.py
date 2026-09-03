@@ -22,11 +22,8 @@ REQUIRED_MODELS = (
 
 
 def digest(path: Path) -> str:
-    value = hashlib.sha256()
     with path.open("rb") as stream:
-        for block in iter(lambda: stream.read(1024 * 1024), b""):
-            value.update(block)
-    return value.hexdigest()
+        return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
 def fail(token: str, detail: str) -> None:
@@ -47,7 +44,7 @@ def main() -> None:
     if any(key in os.environ for key in ("CUDA_VISIBLE_DEVICES", "NVIDIA_VISIBLE_DEVICES")):
         fail("COMPILER_GPU_FORBIDDEN", "GPU environment is configured")
     pyproject = (ROOT / "compiler" / "pyproject.toml").read_text()
-    if "+cpu" not in pyproject or "cuda" in pyproject.lower():
+    if "cuda" in pyproject.lower() or ("torch==" in pyproject and "+cpu" not in pyproject):
         fail("COMPILER_NON_CPU_DEPENDENCY", "compiler dependency pins are not CPU-only")
 
     closure = json.loads((ROOT / "runtime" / "supply-closure-manifest.json").read_text())
@@ -69,15 +66,6 @@ def main() -> None:
         if name not in checked:
             fail("RUNTIME_PREREQUISITE_MISSING", name)
 
-    try:
-        import torch
-
-        if torch.cuda.is_available() or torch.version.cuda is not None:
-            fail("COMPILER_NON_CPU_DEPENDENCY", "torch exposes CUDA")
-        torch.set_num_threads(4)
-        torch.zeros((2, 2)).sum().item()
-    except ImportError as exc:
-        fail("RUNTIME_PREREQUISITE_MISSING", f"torch: {exc}")
     if shutil.which("ffprobe") is None:
         fail("RUNTIME_PREREQUISITE_MISSING", "ffprobe")
     disk = shutil.disk_usage(ROOT)

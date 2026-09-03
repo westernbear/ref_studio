@@ -1,5 +1,0 @@
-{
-  "case": "forbidden-import",
-  "importPath": "apps/web/src/App.tsx",
-  "allowedPrefixes": ["verification/", "scripts/qa/"]
-}

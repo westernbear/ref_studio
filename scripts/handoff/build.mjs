@@ -31,7 +31,6 @@ const allowlist = [
   ".omo/evidence/wave7/task-41-reference-video-studio-saas.json",
   ".omo/evidence/wave7/task-42-reference-video-studio-saas.json",
   "scripts/deploy/verify.mjs",
-  "scripts/recovery/test.mjs",
   "scripts/handoff/build.mjs",
   "scripts/handoff/verify.mjs",
 ];

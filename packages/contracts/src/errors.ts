@@ -124,9 +124,6 @@ export const SafeErrorSchema = z
   })
   .strict();
 export type SafeError = z.infer<typeof SafeErrorSchema>;
-export const ErrorEnvelopeSchema = z
-  .object({ error: SafeErrorSchema })
-  .strict();
 
 type ErrorCatalogEntry = Readonly<{
   message: string;

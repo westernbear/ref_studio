@@ -1,12 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
-import { errorCode } from "../lib/api-error";
-import { requestId } from "../lib/upload-client";
-import { ModelField } from "./ModelField";
-import { Panel } from "./Primitives";
+import { ProviderSettingsForm } from "./ProviderSettingsForm";
 
 const PROVIDERS = [
   { value: "openai", label: "OpenAI" },
@@ -30,16 +25,7 @@ const PROVIDERS = [
   { value: "codex-oauth", label: "Codex (ChatGPT OAuth)" },
 ] as const;
 
-// codex-oauth's secret is not a key but the whole of ~/.codex/auth.json, so
-// the field is a textarea and says so. Same treatment as the material form.
-const isCodex = (kind: string) => kind === "codex-oauth";
-
 type Props = {
-  // What the provider says it has. Empty when there is no key yet, or when
-  // the provider will not list -- `modelsReason` says which, and the field
-  // stays free text either way: a model released this morning is in no
-  // list, and a listing endpoint being down must not block configuring
-  // anything.
   readonly models: readonly string[];
   readonly modelsReason: string | null;
   readonly providerKind: string;
@@ -52,263 +38,52 @@ type Props = {
 };
 
 export function AiProviderSettingsForm({
-  models: initialModels,
-  modelsReason: initialModelsReason,
-  providerKind: initialProviderKind,
-  model: initialModel,
-  baseUrl: initialBaseUrl,
-  enabled: initialEnabled,
+  models,
+  modelsReason,
+  providerKind,
+  model,
+  baseUrl,
+  enabled,
   hasApiKey,
   updatedAt,
   updatedBy,
 }: Props) {
   const t = useTranslations("AiProviderSettingsForm");
-  const router = useRouter();
-  const [providerKind, setProviderKind] = useState(initialProviderKind);
-  const [model, setModel] = useState(initialModel);
-  const [baseUrl, setBaseUrl] = useState(initialBaseUrl ?? "");
-  const [apiKey, setApiKey] = useState("");
-  const [enabled, setEnabled] = useState(initialEnabled);
-  const [saving, setSaving] = useState(false);
-  // The list that arrived with the page is the *saved* provider's. Change
-  // the provider in the form and it is the wrong list -- so refetch, with
-  // the provider (and the key, if one has been typed) the form now holds.
-  // The saved key belongs to the previous provider, so without sending the
-  // new one this would just fail with the old credentials.
-  const [liveModels, setLiveModels] = useState(initialModels);
-  const [liveModelsReason, setLiveModelsReason] = useState(initialModelsReason);
-  const firstRender = useRef(true);
-  useEffect(() => {
-    if (firstRender.current) {
-      // The server already fetched this list for the saved settings; doing
-      // it again on mount would be a second call for the same answer.
-      firstRender.current = false;
-      return;
-    }
-    const controller = new AbortController();
-    void (async () => {
-      try {
-        const response = await fetch("/api/admin/provider-models", {
-          method: "POST",
-          credentials: "include",
-          signal: controller.signal,
-          headers: {
-            "content-type": "application/json",
-            "idempotency-key": requestId(),
-            "x-correlation-id": `cor_${requestId()}`,
-          },
-          body: JSON.stringify({
-            target: "ai",
-            providerKind,
-            baseUrl: baseUrl.trim(),
-            ...(apiKey ? { apiKey } : {}),
-          }),
-        });
-        const body: unknown = await response.json().catch(() => null);
-        if (!response.ok) {
-          setLiveModels([]);
-          setLiveModelsReason("UNAVAILABLE");
-          return;
-        }
-        const listed = (body as { models?: unknown })?.models;
-        setLiveModels(
-          Array.isArray(listed) ? listed.map((item) => String(item)) : [],
-        );
-        setLiveModelsReason(
-          typeof (body as { reason?: unknown })?.reason === "string"
-            ? (body as { reason: string }).reason
-            : null,
-        );
-      } catch {
-        // An aborted request is the next keystroke, not a failure.
-        if (!controller.signal.aborted) {
-          setLiveModels([]);
-          setLiveModelsReason("UNAVAILABLE");
-        }
-      }
-    })();
-    return () => controller.abort();
-    // apiKey is deliberately not a dependency: refetching on every
-    // keystroke of a pasted key would be a request per character. It is
-    // read when the provider changes, and the list refreshes again after a
-    // save, which is when a new key becomes the saved one.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [providerKind]);
-
-  const [status, setStatus] = useState("");
-
-  const save = async () => {
-    setSaving(true);
-    setStatus("");
-    try {
-      const response = await fetch("/api/admin/ai-provider-settings", {
-        method: "PATCH",
-        credentials: "include",
-        headers: {
-          "content-type": "application/json",
-          "idempotency-key": requestId(),
-          "x-correlation-id": `cor_${requestId()}`,
-        },
-        body: JSON.stringify({
-          providerKind,
-          model,
-          ...(providerKind === "openai-compatible" ? { baseUrl } : {}),
-          ...(apiKey ? { apiKey } : {}),
-          enabled,
-        }),
-      });
-      const body: unknown = await response.json().catch(() => null);
-      if (!response.ok) {
-        setStatus(
-          t("saveFailed", {
-            code: errorCode(body) || `HTTP_${response.status}`,
-          }),
-        );
-        return;
-      }
-      setApiKey("");
-      setStatus(t("settingsSaved"));
-      router.refresh();
-    } catch {
-      setStatus(t("connectionInterrupted"));
-    } finally {
-      setSaving(false);
-    }
-  };
-
   return (
-    <Panel>
-      <div className="ai-settings-status" data-landmark="ai-settings-status">
-        <span
-          className={enabled ? "status-chip is-live" : "status-chip"}
-          aria-label={
-            enabled
-              ? t("providerEnabledAriaLabel")
-              : t("providerDisabledAriaLabel")
-          }
-        >
-          {enabled ? t("enabled") : t("disabled")}
-        </span>
-        <dl className="detail-grid ai-settings-summary">
-          <div>
-            <dt>{t("provider")}</dt>
-            <dd>
-              {PROVIDERS.find((option) => option.value === initialProviderKind)
-                ?.label ?? initialProviderKind}
-            </dd>
-          </div>
-          <div>
-            <dt>{t("model")}</dt>
-            <dd>{initialModel || t("notSet")}</dd>
-          </div>
-          <div>
-            <dt>
-              {isCodex(initialProviderKind) ? t("codexAuthJson") : t("apiKey")}
-            </dt>
-            <dd>{hasApiKey ? t("configured") : t("notSet")}</dd>
-          </div>
-          <div>
-            <dt>{t("lastUpdated")}</dt>
-            <dd>
-              {updatedAt.includes("T")
-                ? updatedAt.replace("T", " ").slice(0, 19)
-                : updatedAt}{" "}
-              {t("by", { name: updatedBy })}
-            </dd>
-          </div>
-        </dl>
-      </div>
-      <form
-        className="choice-form"
-        data-landmark="ai-settings-form"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void save();
-        }}
-      >
-        <label>
-          {t("provider")}
-          <select
-            value={providerKind}
-            onChange={(event) => setProviderKind(event.target.value)}
-          >
-            {PROVIDERS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <ModelField
-          models={liveModels}
-          modelsReason={liveModelsReason}
-          model={model}
-          onModelChange={setModel}
-          placeholder="e.g. gpt-4o, claude-sonnet-5, grok-4.6"
-          label={t("model")}
-          namespace="AiProviderSettingsForm"
-        />
-        {providerKind === "openai-compatible" ? (
-          <label>
-            {t("baseUrl")}
-            <input
-              type="text"
-              value={baseUrl}
-              onChange={(event) => setBaseUrl(event.target.value)}
-              placeholder="https://api.example.com/v1"
-              required
-            />
-          </label>
-        ) : null}
-        <label>
-          {isCodex(providerKind) ? t("codexAuthJson") : t("apiKey")}
-          {isCodex(providerKind) ? (
-            <textarea
-              rows={4}
-              value={apiKey}
-              onChange={(event) => setApiKey(event.target.value)}
-              placeholder={
-                hasApiKey
-                  ? t("codexAuthJsonReplacePlaceholder")
-                  : t("codexAuthJsonEnterPlaceholder")
-              }
-              autoComplete="off"
-              spellCheck={false}
-            />
-          ) : (
-            <input
-              type="password"
-              value={apiKey}
-              onChange={(event) => setApiKey(event.target.value)}
-              placeholder={
-                hasApiKey
-                  ? t("apiKeyReplacePlaceholder")
-                  : t("apiKeyEnterPlaceholder")
-              }
-              autoComplete="off"
-            />
-          )}
-        </label>
-        {isCodex(providerKind) ? (
-          <p className="field-hint">{t("codexAuthJsonHint")}</p>
-        ) : null}
-        <label className="ai-settings-toggle">
-          <input
-            type="checkbox"
-            checked={enabled}
-            onChange={(event) => setEnabled(event.target.checked)}
-          />
-          {t("enabled")}
-        </label>
-        <button
-          className="button button-primary"
-          type="submit"
-          disabled={saving}
-        >
-          {saving ? t("saving") : t("saveSettings")}
-        </button>
-        <p aria-live="polite">{status}</p>
-      </form>
-    </Panel>
+    <ProviderSettingsForm
+      namespace="AiProviderSettingsForm"
+      statusLandmark="ai-settings-status"
+      formLandmark="ai-settings-form"
+      providers={PROVIDERS}
+      models={models}
+      modelsReason={modelsReason}
+      providerKind={providerKind}
+      model={model}
+      enabled={enabled}
+      hasApiKey={hasApiKey}
+      updatedAt={updatedAt}
+      updatedBy={updatedBy}
+      providerLabelKey="provider"
+      modelPlaceholder={() => "e.g. gpt-4o, claude-sonnet-5, grok-4.6"}
+      target="ai"
+      savePath="/api/admin/ai-provider-settings"
+      extraFields={[
+        {
+          name: "baseUrl",
+          label: t("baseUrl"),
+          initialValue: baseUrl ?? "",
+          placeholder: "https://api.example.com/v1",
+          required: true,
+          placement: "afterModel",
+          showWhen: (kind) => kind === "openai-compatible",
+        },
+      ]}
+      buildModelsBody={({ extras }) => ({
+        baseUrl: (extras.baseUrl ?? "").trim(),
+      })}
+      buildSaveBody={({ providerKind: kind, extras }) =>
+        kind === "openai-compatible" ? { baseUrl: extras.baseUrl ?? "" } : {}
+      }
+    />
   );
 }

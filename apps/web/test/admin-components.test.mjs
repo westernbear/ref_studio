@@ -14,32 +14,12 @@ const routes = readFileSync(
 const messages = JSON.parse(
   readFileSync(resolve(root, "apps/web/messages/en-US.json"), "utf8"),
 );
-const exportButton = readFileSync(
-  resolve(root, "apps/web/src/components/AdminExportButton.tsx"),
-  "utf8",
-);
-const jobCancelButton = readFileSync(
-  resolve(root, "apps/web/src/components/AdminJobCancelButton.tsx"),
-  "utf8",
-);
-const jobRetryButton = readFileSync(
-  resolve(root, "apps/web/src/components/AdminJobRetryButton.tsx"),
-  "utf8",
-);
-const quarantineReleaseButton = readFileSync(
-  resolve(root, "apps/web/src/components/AdminQuarantineReleaseButton.tsx"),
-  "utf8",
-);
-const quarantineRejectButton = readFileSync(
-  resolve(root, "apps/web/src/components/AdminQuarantineRejectButton.tsx"),
-  "utf8",
-);
-const jobForceTerminateButton = readFileSync(
-  resolve(root, "apps/web/src/components/AdminJobForceTerminateButton.tsx"),
-  "utf8",
-);
 const motionActionButton = readFileSync(
   resolve(root, "apps/web/src/components/AdminMotionActionButton.tsx"),
+  "utf8",
+);
+const providerSettingsForm = readFileSync(
+  resolve(root, "apps/web/src/components/ProviderSettingsForm.tsx"),
   "utf8",
 );
 const aiProviderSettingsForm = readFileSync(
@@ -54,6 +34,10 @@ const primitivesCss = readFileSync(
   resolve(root, "apps/web/src/styles/primitives.css"),
   "utf8",
 );
+const listControls = readFileSync(
+  resolve(root, "apps/web/src/components/AdminListControls.tsx"),
+  "utf8",
+);
 
 describe("admin surface contracts", () => {
   it("uses live API-backed surfaces instead of static admin screens", () => {
@@ -62,12 +46,13 @@ describe("admin surface contracts", () => {
       "No compiler jobs match these filters.",
     );
     for (const landmark of [
-      'data-landmark="filters"',
       'data-landmark="pagination"',
       'data-landmark="timeline-list"',
       'detailLandmark="detail-drawer"',
     ])
       expect(routes).toContain(landmark);
+    expect(listControls).toContain('data-landmark={landmark}');
+    expect(listControls).toContain('landmark = "filters"');
     expect(routes).not.toContain(
       "No live records are connected for this page.",
     );
@@ -146,21 +131,23 @@ describe("admin surface contracts", () => {
     expect(primitivesCss).toContain(".admin-job-backend");
   });
   it("uses the HTTP-compatible request ID helper for exports", () => {
-    expect(exportButton).toContain("requestId()");
-    expect(exportButton).not.toContain("crypto.randomUUID()");
+    expect(motionActionButton).toContain("requestId()");
+    expect(motionActionButton).not.toContain("crypto.randomUUID()");
+    expect(routes).toContain('i18n="export"');
   });
   it("wires job cancel/retry/force-terminate and quarantine release/reject with If-Match", () => {
-    for (const [file, path] of [
-      [jobCancelButton, "/cancel"],
-      [jobRetryButton, "/retry"],
-      [jobForceTerminateButton, "/force-terminate"],
-      [quarantineReleaseButton, "/release"],
-      [quarantineRejectButton, "/reject"],
-    ]) {
-      expect(file).toContain(path);
-      expect(file).toContain('"if-match": ');
-      expect(file).toContain("requestId()");
-    }
+    expect(motionActionButton).toContain("requestId()");
+    expect(motionActionButton).toContain("...headers");
+    for (const path of [
+      "/cancel",
+      "/retry",
+      "/force-terminate",
+      "/release",
+      "/reject",
+    ])
+      expect(routes).toContain(path);
+    expect(routes).toContain('"if-match": etag');
+    expect(routes).toContain('"if-match": version');
     expect(routes).toContain("detailActions={adminJobDetailActions(t)}");
     expect(routes).toContain("detailActions={quarantineDetailActions}");
     // Cancel/retry buttons must never render for the creator-facing
@@ -173,10 +160,10 @@ describe("admin surface contracts", () => {
     expect(routes).toContain("renderAiSettings");
     // Only a write-only password input and a boolean "Configured"/"Not set"
     // summary -- the previous key value must never be echoed back.
-    expect(aiProviderSettingsForm).toContain('type="password"');
+    expect(providerSettingsForm).toContain('type="password"');
     // The api key field starts empty -- never seeded from a server prop --
     // and the server-provided `hasApiKey` boolean is the only signal shown.
-    expect(aiProviderSettingsForm).toContain('useState("")');
+    expect(providerSettingsForm).toContain('useState("")');
     expect(aiProviderSettingsForm).toContain("hasApiKey");
     expect(aiProviderSettingsForm).not.toMatch(/apiKey:\s*string;/u);
     // The browser BFF proxy must explicitly allow this PATCH route through,

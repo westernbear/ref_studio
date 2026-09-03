@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { serviceBlock } from "../runtime/compose-isolation.mjs";
 
 const root = resolve(import.meta.dirname, "../..");
 const rootCompose = await readFile(resolve(root, "docker-compose.yml"), "utf8");
@@ -25,10 +26,6 @@ const required = [
   "jobAttemptStates",
   "publication",
 ];
-const serviceBlock = (compose, service) =>
-  compose.match(
-    new RegExp(`^  ${service}:\\n([\\s\\S]*?)(?=^  [a-z]|^networks:)`, "m"),
-  )?.[1] ?? "";
 const relay = serviceBlock(workerCompose, "api-relay");
 const worker = serviceBlock(workerCompose, "worker");
 

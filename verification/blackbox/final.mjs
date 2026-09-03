@@ -10,6 +10,10 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
+import {
+  auditEgressIsolated,
+  qaNetworkNone,
+} from "../../scripts/runtime/compose-isolation.mjs";
 
 const root = resolve(import.meta.dirname, "../..");
 const args = process.argv.slice(2);
@@ -73,19 +77,9 @@ async function verifyRules(path) {
   const rules = await json(path);
   await required(rules.requiredFiles);
   const compose = (await bytes("docker-compose.yml")).toString("utf8");
-  if (!/qa:\n[\s\S]*?network_mode: none/.test(compose))
-    fail("ARCH_COMPOSE_QA_NETWORK");
-  const audit =
-    compose.match(
-      /qa-audit-egress:\n([\s\S]*?)(?=\n  [a-z]|\nnetworks:)/,
-    )?.[1] ?? "";
-  if (
-    /networks:|network_mode:\s*none|database|cas|appnet|\.\/:\/workspace/.test(
-      audit,
-    )
-  )
-    fail("ARCH_AUDIT_BOUNDARY");
-  const controls = (await bytes("verification/contract/controls.jsonl"))
+  if (!qaNetworkNone(compose)) fail("ARCH_COMPOSE_QA_NETWORK");
+  if (!auditEgressIsolated(compose)) fail("ARCH_AUDIT_BOUNDARY");
+  const controls = (await bytes("verification/contract/control-contract.jsonl"))
     .toString("utf8")
     .trim()
     .split("\n")
@@ -176,7 +170,7 @@ async function verifyF3() {
   )
     fail("F3_PILOT_EVIDENCE_INVALID");
   await required([
-    "verification/contract/controls.jsonl",
+    "verification/contract/control-contract.jsonl",
     "verification/contract/wcag-aa.json",
     "verification/contract/visual/index.json",
     "dist/final-handoff-package.zip",
@@ -367,7 +361,7 @@ async function verifyF1() {
     if (current.byteLength !== entry.bytes || sha256(current) !== entry.sha256)
       fail("F1_CONTRACT_DRIFT", entry.path);
   }
-  const controls = (await bytes("verification/contract/controls.jsonl"))
+  const controls = (await bytes("verification/contract/control-contract.jsonl"))
     .toString("utf8")
     .trim()
     .split("\n")

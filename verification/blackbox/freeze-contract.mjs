@@ -107,7 +107,6 @@ await writeFile(
 const lockSha256 = sha256(lockBytes);
 const scripts = [
   "verification/blackbox/freeze-contract.mjs",
-  "verification/blackbox/verify-contract.mjs",
   "verification/blackbox/evidence-writer.mjs",
   "scripts/qa/assert-evidence.mjs",
 ];

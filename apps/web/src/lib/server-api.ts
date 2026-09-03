@@ -1,18 +1,12 @@
 import { headers } from "next/headers";
 import { internalApiUrl } from "../app/api/auth-proxy";
+import { field, text } from "./api-values";
 
 export type ApiResult =
   | { readonly ok: true; readonly body: unknown }
   | { readonly ok: false; readonly code: string };
 
-export const field = (value: unknown, key: string): unknown =>
-  value !== null && typeof value === "object" ? Reflect.get(value, key) : "";
-export const text = (value: unknown, fallback = "Not set"): string =>
-  typeof value === "number"
-    ? String(value)
-    : typeof value === "string" && value.length > 0
-      ? value
-      : fallback;
+export { field, numberValue, text } from "./api-values";
 export const when = (value: unknown): string => {
   const raw = text(value, "");
   return raw.includes("T") ? raw.replace("T", " ").slice(0, 16) : text(value);

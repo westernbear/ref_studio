@@ -15,6 +15,7 @@ import {
   applySceneOperations,
   keyframesFromMotionIntent,
 } from "./motion-operations.js";
+import { sameCanvas } from "./motion-plan.js";
 
 export class MotionPlanCompilerError extends Error {
   constructor(readonly code: string) {
@@ -39,12 +40,6 @@ type ElementLocation = {
   readonly beatIndex: number;
   readonly elementIndex: number;
 };
-
-const sameCanvas = (plan: MotionPlanV1, scene: SceneSpec): boolean =>
-  plan.canvas.width === scene.canvas.width &&
-  plan.canvas.height === scene.canvas.height &&
-  plan.canvas.fps === scene.canvas.fps &&
-  plan.canvas.frameCount === scene.canvas.frameCount;
 
 const elementLocations = (
   scene: SceneSpec,
@@ -72,7 +67,7 @@ export function compileMotionPlan(
   );
   if (input.baseSceneDigest !== sha256Hex(scene))
     throw new MotionPlanCompilerError("MOTION_PLAN_STALE_SCENE");
-  if (!sameCanvas(plan, scene))
+  if (!sameCanvas(plan.canvas, scene.canvas))
     throw new MotionPlanCompilerError("MOTION_PLAN_CANVAS_MISMATCH");
 
   const capabilities = new Set(capabilitySnapshot.capabilities);

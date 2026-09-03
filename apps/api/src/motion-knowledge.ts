@@ -23,13 +23,6 @@ export const MOTION_LOOKUP_TOOL_SCHEMA_DIGEST = createHash("sha256")
   .update(JSON.stringify(MOTION_LOOKUP_TOOL_SCHEMA))
   .digest("hex");
 
-export const MOTION_INTERNAL_FEATURES = [
-  "motion_lookup",
-  "context_inspect",
-  "scene_apply_operations",
-  "scene_verify",
-] as const;
-
 export const ProviderToolCanaryV1Schema = z
   .object({
     tenantId: z.string().min(1),
@@ -215,14 +208,6 @@ export function lookupMotionKnowledgeForBrief(
     }
   }
   return [...matches.values()];
-}
-
-// Compatibility wrapper: retains canonical exact-alias, then FTS5 brief lookup.
-export function hostMotionLookup(
-  db: Database.Database,
-  text: string,
-): readonly MotionKnowledgeCard[] {
-  return lookupMotionKnowledgeForBrief(db, text);
 }
 
 export function modelMotionTools(

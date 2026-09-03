@@ -18,7 +18,7 @@
     "pnpm-lock.yaml",
     "docker-compose.yml",
     "verification/contract/verification-contract.json",
-    "verification/contract/controls.jsonl",
+    "verification/contract/control-contract.jsonl",
     "verification/contract/wcag-aa.json",
     "verification/contract/visual/index.json",
     "compiler/model-manifest.json",
@@ -58,7 +58,7 @@
     {
       "id": "control-count",
       "type": "jsonl-count",
-      "path": "verification/contract/controls.jsonl",
+      "path": "verification/contract/control-contract.jsonl",
       "expected": 151,
       "uniqueField": "id"
     },

@@ -1,3 +1,7 @@
+import { field, numberValue, text as apiText } from "./api-values";
+
+const text = (value: unknown): string => apiText(value, "");
+
 export type BeatSheetEntry = Readonly<{
   beatId: string;
   shot: string;
@@ -67,16 +71,6 @@ export const decisionKey = (decision: string): string =>
 
 const terminalStates = ["COMPLETED", "CANCELLED", "FAILED"] as const;
 
-const field = (value: unknown, key: string): unknown =>
-  value !== null && typeof value === "object" ? Reflect.get(value, key) : "";
-
-const text = (value: unknown): string =>
-  typeof value === "string" ? value : "";
-
-const numberValue = (value: unknown): number => {
-  const parsed = typeof value === "number" ? value : Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
-};
 const optionalNumber = (value: unknown): number | null =>
   typeof value === "number" && Number.isFinite(value) ? value : null;
 const stringList = (value: unknown): readonly string[] =>
@@ -133,9 +127,6 @@ export const jobProgressPercent = (job: JobProgress): number =>
   (approvalGates.filter((gate) => job.approvedGates.includes(gate)).length /
     approvalGates.length) *
   100;
-
-export const jobActivityPercent = (job: JobProgress): number =>
-  job.progressFraction * 100;
 
 export const isTerminalJobState = (state: string): boolean =>
   terminalStates.some((candidate) => candidate === state);
@@ -347,13 +338,6 @@ export const liveJobStatusErrorCode = (
   value: unknown,
   status: number,
 ): string => text(field(field(value, "error"), "code")) || `HTTP_${status}`;
-
-export const formatJobStamp = (value: string): string | null =>
-  value
-    ? value.includes("T")
-      ? value.replace("T", " ").slice(0, 19)
-      : value
-    : null;
 
 export type ThinkingPhase = "authoring" | "patching" | "compiling";
 

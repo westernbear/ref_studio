@@ -5,18 +5,12 @@ const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
 const nextConfig: NextConfig = {
   transpilePackages: ["@rvs/contracts"],
-  webpack(config, { dev }) {
+  webpack(config) {
     config.resolve.extensionAlias = {
       ...config.resolve.extensionAlias,
       ".js": [".ts", ".js"],
       ".jsx": [".tsx", ".jsx"],
     };
-    if (!dev)
-      config.resolve.alias = {
-        ...config.resolve.alias,
-        "react-grab": false,
-        "react-scan": false,
-      };
     return config;
   },
 };

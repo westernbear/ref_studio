@@ -1,6 +1,3 @@
-import { sha256 } from "@noble/hashes/sha2.js";
-import { bytesToHex } from "@noble/hashes/utils.js";
-
 export type UploadProgress = {
   readonly uploadPercent: number;
   readonly validationPercent: number;
@@ -12,14 +9,13 @@ export type AcceptedMedia = {
   readonly durationSeconds: number;
 };
 
-export const requestId = (): string => {
-  if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
-  const bytes = crypto.getRandomValues(new Uint8Array(16));
-  bytes[6] = ((bytes[6] ?? 0) & 0x0f) | 0x40;
-  bytes[8] = ((bytes[8] ?? 0) & 0x3f) | 0x80;
-  const value = bytesToHex(bytes);
-  return `${value.slice(0, 8)}-${value.slice(8, 12)}-${value.slice(12, 16)}-${value.slice(16, 20)}-${value.slice(20)}`;
-};
+export const requestId = (): string => crypto.randomUUID();
+
+const bytesToHex = (bytes: Uint8Array): string =>
+  [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+
+const sha256Hex = async (data: BufferSource): Promise<string> =>
+  bytesToHex(new Uint8Array(await crypto.subtle.digest("SHA-256", data)));
 const commandHeaders = (key: string): Record<string, string> => ({
   "idempotency-key": key,
   "x-correlation-id": requestId(),
@@ -102,18 +98,18 @@ export async function uploadMp4(
   const chunkSize = Number(created.chunkSize);
   if (!Number.isInteger(chunkSize) || chunkSize < 1)
     throw new Error("NETWORK_INTERRUPTED");
-  const sourceHash = sha256.create();
+  const fileBuffer = await file.arrayBuffer();
+  const declaredSha256 = await sha256Hex(fileBuffer);
   let chunkCount = 0;
   for (
     let offset = 0, index = 0;
     offset < file.size;
     offset += chunkSize, index += 1
   ) {
-    const chunkBuffer = await file
-      .slice(offset, Math.min(offset + chunkSize, file.size))
-      .arrayBuffer();
-    const chunk = new Uint8Array(chunkBuffer);
-    sourceHash.update(chunk);
+    const chunkBuffer = fileBuffer.slice(
+      offset,
+      Math.min(offset + chunkSize, file.size),
+    );
     await request(
       `/api/v1/uploads/${encodeURIComponent(uploadId)}/chunks/${index}`,
       {
@@ -121,15 +117,16 @@ export async function uploadMp4(
         body: chunkBuffer,
         headers: {
           "content-type": "application/octet-stream",
-          "content-range": `bytes ${offset}-${offset + chunk.byteLength - 1}/${file.size}`,
-          "x-chunk-sha256": bytesToHex(sha256(chunk)),
+          "content-range": `bytes ${offset}-${offset + chunkBuffer.byteLength - 1}/${file.size}`,
+          "x-chunk-sha256": await sha256Hex(chunkBuffer),
         },
       },
       signal,
     );
     onProgress({
       uploadPercent: Math.round(
-        (Math.min(offset + chunk.byteLength, file.size) / file.size) * 100,
+        (Math.min(offset + chunkBuffer.byteLength, file.size) / file.size) *
+          100,
       ),
       validationPercent: 0,
     });
@@ -141,7 +138,7 @@ export async function uploadMp4(
       method: "POST",
       body: JSON.stringify({
         orderedChunkCount: chunkCount,
-        declaredSha256: bytesToHex(sourceHash.digest()),
+        declaredSha256,
       }),
       headers: commandHeaders(`finalize:${uploadId}`),
     },
